@@ -9,45 +9,71 @@ import { PlusCircle, Edit3, Trash2, Star, Search, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, deleteDoc, doc } from 'firebase/firestore';
 import { toast } from "@/hooks/use-toast";
-
-interface Client {
-  id: string;
-  name: string;
-  phone: string;
-  motorcycles: { name: string; licensePlate: string }[];
-  loyaltyPoints: number;
-  lastVisit: string;
-}
+import type { Client } from '@/types/client'; // Import Client type
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
+
+  const fetchClients = async () => {
+    setLoading(true);
+    try {
+      const clientsCollectionRef = collection(db, 'clients');
+      const q = query(clientsCollectionRef, orderBy("name")); 
+      const querySnapshot = await getDocs(q);
+      const clientsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
+      setClients(clientsData);
+    } catch (error) {
+      console.error("Error fetching clients: ", error);
+      toast({
+        title: "Error",
+        description: "Tidak dapat mengambil data klien dari Firestore.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchClients = async () => {
-      setLoading(true);
-      try {
-        const clientsCollectionRef = collection(db, 'clients');
-        const q = query(clientsCollectionRef, orderBy("name")); 
-        const querySnapshot = await getDocs(q);
-        const clientsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
-        setClients(clientsData);
-      } catch (error) {
-        console.error("Error fetching clients: ", error);
-        toast({
-          title: "Error",
-          description: "Tidak dapat mengambil data klien dari Firestore.",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchClients();
   }, []);
+
+  const handleDeleteClient = async () => {
+    if (!clientToDelete) return;
+    try {
+      await deleteDoc(doc(db, 'clients', clientToDelete.id));
+      toast({
+        title: "Sukses",
+        description: `Klien "${clientToDelete.name}" berhasil dihapus.`,
+      });
+      setClients(clients.filter(client => client.id !== clientToDelete.id));
+      setClientToDelete(null);
+    } catch (error) {
+      console.error("Error deleting client: ", error);
+      toast({
+        title: "Error",
+        description: "Gagal menghapus klien.",
+        variant: "destructive",
+      });
+      setClientToDelete(null);
+    }
+  };
 
   const filteredClients = clients.filter(client =>
     client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -128,16 +154,18 @@ export default function ClientsPage() {
                         {client.loyaltyPoints.toLocaleString('id-ID')}
                       </div>
                     </TableCell>
-                    <TableCell>{client.lastVisit}</TableCell>
+                    <TableCell>{client.lastVisit || 'N/A'}</TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="icon" asChild className="hover:text-primary">
-                        <Link href={`/clients/${client.id}/edit`}>
+                        <Link href={`/clients/${client.id}/edit`}> {/* Nantinya akan dibuatkan halaman edit */}
                           <Edit3 className="h-4 w-4" />
                         </Link>
                       </Button>
-                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setClientToDelete(client)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -145,8 +173,8 @@ export default function ClientsPage() {
             </Table>
             {filteredClients.length === 0 && (
               <div className="text-center py-10 text-muted-foreground">
-                {clients.length > 0 ? 'Tidak ada klien yang cocok dengan pencarian Anda.' : 'Tidak ada klien yang ditemukan.'}
-                <Link href="/clients/new" className="text-primary hover:underline ml-1">Tambah klien baru</Link>.
+                {clients.length > 0 ? 'Tidak ada klien yang cocok dengan pencarian Anda.' : 'Belum ada klien yang terdaftar.'}
+                {clients.length === 0 && <Link href="/clients/new" className="text-primary hover:underline ml-1">Tambah klien baru</Link>}
               </div>
             )}
           </CardContent>
@@ -154,6 +182,22 @@ export default function ClientsPage() {
             <p className="text-xs text-muted-foreground">Menampilkan {filteredClients.length} dari {clients.length} klien.</p>
           </CardFooter>
         </Card>
+        <AlertDialog open={!!clientToDelete} onOpenChange={(open) => !open && setClientToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Konfirmasi Penghapusan</AlertDialogTitle>
+              <AlertDialogDescription>
+                Apakah Anda yakin ingin menghapus klien "{clientToDelete?.name}"? Tindakan ini tidak dapat diurungkan.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setClientToDelete(null)}>Batal</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteClient} className={buttonVariants({variant: "destructive"})}>
+                Hapus
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </div>
   );

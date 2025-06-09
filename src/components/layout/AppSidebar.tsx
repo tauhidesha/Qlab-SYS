@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -101,11 +100,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
                   (sub.href && pathname.startsWith(sub.href));
                 return (
                   <SidebarMenuSubItem key={sub.title}>
-                    <SidebarMenuSubButton
-                      asChild
-                      isActive={subActive}
-                      href={sub.href}
-                    >
+                    <SidebarMenuSubButton asChild isActive={subActive}>
                       <Link href={sub.href}>{sub.title}</Link>
                     </SidebarMenuSubButton>
                   </SidebarMenuSubItem>
@@ -117,52 +112,47 @@ export function AppSidebar({ className }: AppSidebarProps) {
       );
     }
 
-    const singleButtonElement = (
-       <SidebarMenuButton
-        isActive={isActive}
-      >
+    const singleButton = (
+      <SidebarMenuButton isActive={isActive}>
         {content}
       </SidebarMenuButton>
     );
-    
-    let navElement = singleButtonElement;
+
+    let navElement: React.ReactNode = singleButton;
 
     if (item.href) {
-       if (!sidebarOpen && !isMobile) {
-         navElement = (
+      if (!sidebarOpen && !isMobile) {
+        navElement = (
           <TooltipProvider delayDuration={0}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Link href={item.href} passHref>
-                  {singleButtonElement}
-                </Link>
+                <Link href={item.href}>{singleButton}</Link>
               </TooltipTrigger>
               <TooltipContent side="right" align="center">{item.title}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
-         );
-       } else {
-         navElement = (
-            <Link href={item.href} asChild>
-                {singleButtonElement}
-            </Link>
-         );
-       }
+        );
+      } else {
+        navElement = (
+          <SidebarMenuButton asChild isActive={isActive}>
+            <Link href={item.href}>{content}</Link>
+          </SidebarMenuButton>
+        );
+      }
     } else {
-       if (!sidebarOpen && !isMobile) {
-          navElement = (
-            <TooltipProvider delayDuration={0}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  {singleButtonElement}
-                </TooltipTrigger>
-                <TooltipContent side="right" align="center">{item.title}</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          );
-       }
+      if (!sidebarOpen && !isMobile) {
+        navElement = (
+          <TooltipProvider delayDuration={0}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                {singleButton}
+              </TooltipTrigger>
+              <TooltipContent side="right" align="center">{item.title}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        );
+      }
     }
-
 
     return <SidebarMenuItem key={item.title}>{navElement}</SidebarMenuItem>;
   };
@@ -195,7 +185,6 @@ export function AppSidebar({ className }: AppSidebarProps) {
                 <AvatarImage
                   src="https://placehold.co/40x40.png"
                   alt="Avatar Pengguna"
-                  data-ai-hint="avatar pengguna"
                 />
                 <AvatarFallback>PD</AvatarFallback>
               </Avatar>
