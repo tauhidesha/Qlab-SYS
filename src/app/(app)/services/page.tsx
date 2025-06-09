@@ -108,79 +108,79 @@ export default function ServicesPage() {
     <div className="flex flex-col h-full">
       <AppHeader title="Layanan & Produk" />
       <main className="flex-1 overflow-y-auto p-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Katalog Layanan & Produk</CardTitle>
-              <CardDescription>Kelola penawaran Anda dan detailnya.</CardDescription>
-            </div>
-             <div className="flex gap-2 items-center">
-               <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Cari item..."
-                  className="pl-8 sm:w-[300px] md:w-[200px] lg:w-[300px]"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-              <Button asChild>
-                <Link href="/services/new">
-                  <PlusCircle className="mr-2 h-4 w-4" /> Tambah Item Baru
-                </Link>
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nama</TableHead>
-                  <TableHead>Jenis</TableHead>
-                  <TableHead>Kategori</TableHead>
-                  <TableHead className="text-right">Harga</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredItems.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.name}</TableCell>
-                    <TableCell>
-                      <Badge variant={item.type === 'Layanan' ? 'default' : 'secondary'} className="capitalize">
-                        {item.type === 'Layanan' ? <Wrench className="mr-1 h-3 w-3" /> : <ShoppingBag className="mr-1 h-3 w-3" />}
-                        {item.type}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{item.category}</TableCell>
-                    <TableCell className="text-right">Rp {item.price.toLocaleString('id-ID')}</TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" className="hover:text-primary" disabled> {/* Edit functionality to be added */}
-                        <Edit3 className="h-4 w-4" />
-                      </Button>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setItemToDelete(item)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-             {filteredItems.length === 0 && (
-              <div className="text-center py-10 text-muted-foreground">
-                 {items.length > 0 ? 'Tidak ada item yang cocok dengan pencarian Anda.' : 'Tidak ada layanan atau produk yang ditemukan.'}
-                 {items.length === 0 && <Link href="/services/new" className="text-primary hover:underline ml-1">Tambah item baru</Link>}
-              </div>
-            )}
-          </CardContent>
-           <CardFooter>
-            <p className="text-xs text-muted-foreground">Menampilkan {filteredItems.length} dari {items.length} item.</p>
-          </CardFooter>
-        </Card>
         <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Katalog Layanan & Produk</CardTitle>
+                <CardDescription>Kelola penawaran Anda dan detailnya.</CardDescription>
+              </div>
+               <div className="flex gap-2 items-center">
+                 <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    placeholder="Cari item..."
+                    className="pl-8 sm:w-[300px] md:w-[200px] lg:w-[300px]"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <Button asChild>
+                  <Link href="/services/new">
+                    <PlusCircle className="mr-2 h-4 w-4" /> Tambah Item Baru
+                  </Link>
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nama</TableHead>
+                    <TableHead>Jenis</TableHead>
+                    <TableHead>Kategori</TableHead>
+                    <TableHead className="text-right">Harga</TableHead>
+                    <TableHead className="text-right">Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredItems.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="font-medium">{item.name}</TableCell>
+                      <TableCell>
+                        <Badge variant={item.type === 'Layanan' ? 'default' : 'secondary'} className="capitalize">
+                          {item.type === 'Layanan' ? <Wrench className="mr-1 h-3 w-3" /> : <ShoppingBag className="mr-1 h-3 w-3" />}
+                          {item.type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{item.category}</TableCell>
+                      <TableCell className="text-right">Rp {item.price.toLocaleString('id-ID')}</TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" className="hover:text-primary" disabled> {/* Edit functionality to be added */}
+                          <Edit3 className="h-4 w-4" />
+                        </Button>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setItemToDelete(item)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+               {filteredItems.length === 0 && (
+                <div className="text-center py-10 text-muted-foreground">
+                   {items.length > 0 ? 'Tidak ada item yang cocok dengan pencarian Anda.' : 'Tidak ada layanan atau produk yang ditemukan.'}
+                   {items.length === 0 && <Link href="/services/new" className="text-primary hover:underline ml-1">Tambah item baru</Link>}
+                </div>
+              )}
+            </CardContent>
+             <CardFooter>
+              <p className="text-xs text-muted-foreground">Menampilkan {filteredItems.length} dari {items.length} item.</p>
+            </CardFooter>
+          </Card>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Konfirmasi Penghapusan</AlertDialogTitle>
