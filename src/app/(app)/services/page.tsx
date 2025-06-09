@@ -9,45 +9,82 @@ import { PlusCircle, Edit3, Trash2, Wrench, ShoppingBag, Search, Loader2 } from 
 import { Badge } from '@/components/ui/badge';
 import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, deleteDoc, doc } from 'firebase/firestore';
 import { toast } from "@/hooks/use-toast";
+import Link from 'next/link';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { buttonVariants } from '@/components/ui/button';
 
-export interface ServiceProduct { // Diekspor agar bisa digunakan di QueuePage
+
+export interface ServiceProduct {
   id: string;
   name: string;
   type: 'Layanan' | 'Produk';
   category: string;
   price: number;
-  description: string;
+  description?: string;
 }
 
 export default function ServicesPage() {
   const [items, setItems] = useState<ServiceProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [itemToDelete, setItemToDelete] = useState<ServiceProduct | null>(null);
+
+  const fetchItems = async () => {
+    setLoading(true);
+    try {
+      const itemsCollectionRef = collection(db, 'services');
+      const q = query(itemsCollectionRef, orderBy("name"));
+      const querySnapshot = await getDocs(q);
+      const itemsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceProduct));
+      setItems(itemsData);
+    } catch (error) {
+      console.error("Error fetching services/products: ", error);
+      toast({
+        title: "Error",
+        description: "Tidak dapat mengambil data layanan/produk dari Firestore.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchItems = async () => {
-      setLoading(true);
-      try {
-        const itemsCollectionRef = collection(db, 'services');
-        const q = query(itemsCollectionRef, orderBy("name"));
-        const querySnapshot = await getDocs(q);
-        const itemsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceProduct));
-        setItems(itemsData);
-      } catch (error) {
-        console.error("Error fetching services/products: ", error);
-        toast({
-          title: "Error",
-          description: "Tidak dapat mengambil data layanan/produk dari Firestore.",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchItems();
   }, []);
+
+  const handleDeleteItem = async () => {
+    if (!itemToDelete) return;
+    try {
+      await deleteDoc(doc(db, 'services', itemToDelete.id));
+      toast({
+        title: "Sukses",
+        description: `Item "${itemToDelete.name}" berhasil dihapus.`,
+      });
+      setItems(items.filter(item => item.id !== itemToDelete.id));
+      setItemToDelete(null);
+    } catch (error) {
+      console.error("Error deleting item: ", error);
+      toast({
+        title: "Error",
+        description: "Gagal menghapus item.",
+        variant: "destructive",
+      });
+      setItemToDelete(null);
+    }
+  };
 
   const filteredItems = items.filter(item =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -88,8 +125,10 @@ export default function ServicesPage() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <Button>
-                <PlusCircle className="mr-2 h-4 w-4" /> Tambah Item Baru
+              <Button asChild>
+                <Link href="/services/new">
+                  <PlusCircle className="mr-2 h-4 w-4" /> Tambah Item Baru
+                </Link>
               </Button>
             </div>
           </CardHeader>
@@ -117,12 +156,14 @@ export default function ServicesPage() {
                     <TableCell>{item.category}</TableCell>
                     <TableCell className="text-right">Rp {item.price.toLocaleString('id-ID')}</TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" className="hover:text-primary">
+                      <Button variant="ghost" size="icon" className="hover:text-primary" disabled> {/* Edit functionality to be added */}
                         <Edit3 className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setItemToDelete(item)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -130,7 +171,8 @@ export default function ServicesPage() {
             </Table>
              {filteredItems.length === 0 && (
               <div className="text-center py-10 text-muted-foreground">
-                 {items.length > 0 ? 'Tidak ada item yang cocok dengan pencarian Anda.' : 'Tidak ada layanan atau produk yang ditemukan.'} Tambah item baru untuk memulai.
+                 {items.length > 0 ? 'Tidak ada item yang cocok dengan pencarian Anda.' : 'Tidak ada layanan atau produk yang ditemukan.'}
+                 {items.length === 0 && <Link href="/services/new" className="text-primary hover:underline ml-1">Tambah item baru</Link>}
               </div>
             )}
           </CardContent>
@@ -138,9 +180,23 @@ export default function ServicesPage() {
             <p className="text-xs text-muted-foreground">Menampilkan {filteredItems.length} dari {items.length} item.</p>
           </CardFooter>
         </Card>
+        <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Konfirmasi Penghapusan</AlertDialogTitle>
+              <AlertDialogDescription>
+                Apakah Anda yakin ingin menghapus item "{itemToDelete?.name}"? Tindakan ini tidak dapat diurungkan.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setItemToDelete(null)}>Batal</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteItem} className={buttonVariants({variant: "destructive"})}>
+                Hapus
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </div>
   );
 }
-
-    

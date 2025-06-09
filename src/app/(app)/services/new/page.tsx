@@ -1,0 +1,190 @@
+
+"use client";
+
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import AppHeader from '@/components/layout/AppHeader';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Save, Loader2, ArrowLeft } from 'lucide-react';
+import { db } from '@/lib/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { toast } from '@/hooks/use-toast';
+import Link from 'next/link';
+import type { ServiceProduct } from '../page'; // Import type from parent page
+
+const serviceProductFormSchema = z.object({
+  name: z.string().min(2, "Nama item minimal 2 karakter").max(100, "Nama item maksimal 100 karakter"),
+  type: z.enum(['Layanan', 'Produk'], { required_error: "Jenis item diperlukan" }),
+  category: z.string().min(2, "Kategori minimal 2 karakter").max(50, "Kategori maksimal 50 karakter"),
+  price: z.preprocess(
+    (val) => (typeof val === 'string' ? parseFloat(val) : val),
+    z.number({ required_error: "Harga diperlukan" }).positive("Harga harus angka positif")
+  ),
+  description: z.string().max(500, "Deskripsi maksimal 500 karakter").optional(),
+});
+
+type ServiceProductFormValues = z.infer<typeof serviceProductFormSchema>;
+
+export default function NewServiceProductPage() {
+  const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const form = useForm<ServiceProductFormValues>({
+    resolver: zodResolver(serviceProductFormSchema),
+    defaultValues: {
+      name: '',
+      type: undefined, // Will be set by user selection
+      category: '',
+      price: undefined, // Will be set by user input
+      description: '',
+    },
+  });
+
+  const onSubmit = async (data: ServiceProductFormValues) => {
+    setIsSubmitting(true);
+    try {
+      const newServiceProductData: Omit<ServiceProduct, 'id'> & { createdAt: any } = {
+        name: data.name,
+        type: data.type,
+        category: data.category,
+        price: data.price,
+        description: data.description || '',
+        createdAt: serverTimestamp(),
+      };
+
+      const docRef = await addDoc(collection(db, 'services'), newServiceProductData);
+      toast({
+        title: "Sukses!",
+        description: `Item baru "${data.name}" berhasil ditambahkan.`,
+      });
+      router.push('/services');
+    } catch (error) {
+      console.error("Error adding service/product: ", error);
+      toast({
+        title: "Error",
+        description: "Gagal menambahkan item baru. Silakan coba lagi.",
+        variant: "destructive",
+      });
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <AppHeader title="Tambah Layanan/Produk Baru" />
+      <main className="flex-1 overflow-y-auto p-6">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            <Card>
+              <CardHeader>
+                <CardTitle>Informasi Layanan/Produk</CardTitle>
+                <CardDescription>Isi detail item baru di bawah ini.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nama Item</FormLabel>
+                      <FormControl>
+                        <Input placeholder="mis. Cuci Premium, Oli Mesin X" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormField
+                    control={form.control}
+                    name="type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Jenis Item</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Pilih jenis item" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="Layanan">Layanan</SelectItem>
+                            <SelectItem value="Produk">Produk</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="category"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Kategori</FormLabel>
+                        <FormControl>
+                          <Input placeholder="mis. Pencucian, Pelumas" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <FormField
+                  control={form.control}
+                  name="price"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Harga (Rp)</FormLabel>
+                      <FormControl>
+                        <Input type="number" placeholder="mis. 75000" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || '')} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Deskripsi (Opsional)</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Deskripsi singkat mengenai item..." {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+              <CardFooter className="flex justify-between">
+                <Button variant="outline" asChild>
+                  <Link href="/services">
+                    <ArrowLeft className="mr-2 h-4 w-4" /> Kembali ke Daftar
+                  </Link>
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="mr-2 h-4 w-4" />
+                  )}
+                  Simpan Item
+                </Button>
+              </CardFooter>
+            </Card>
+          </form>
+        </Form>
+      </main>
+    </div>
+  );
+}
