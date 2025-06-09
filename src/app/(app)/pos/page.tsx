@@ -37,7 +37,7 @@ import { Textarea } from '@/components/ui/textarea';
 
 const MINIMUM_POINTS_TO_REDEEM = 100; 
 const POINT_TO_RUPIAH_RATE = 10; 
-const SHOP_NAME = "QLAB Auto Detailing"; // Define shop name for receipts
+const SHOP_NAME = "QLAB Auto Detailing"; 
 
 export default function PosPage() {
   const [openTransactions, setOpenTransactions] = useState<Transaction[]>([]);
@@ -92,6 +92,7 @@ export default function PosPage() {
       const transactionsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
       setOpenTransactions(transactionsData);
       setLoadingTransactions(false);
+      // console.log('[POS] Open transactions updated:', transactionsData);
     }, (error) => {
       console.error("Error fetching open transactions: ", error);
       toast({
@@ -114,6 +115,7 @@ export default function PosPage() {
             const querySnapshot = await getDocs(q);
             const itemsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceProduct));
             setAvailableItems(itemsData);
+            // console.log('[POS] Available catalog items fetched:', itemsData);
         } catch (error) {
             console.error("Error fetching available items: ", error);
             toast({
@@ -137,6 +139,7 @@ export default function PosPage() {
             const querySnapshot = await getDocs(q);
             const clientsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
             setAvailableClients(clientsData);
+            // console.log('[POS] Available clients fetched:', clientsData);
         } catch (error) {
             console.error("Error fetching clients: ", error);
             toast({
@@ -158,8 +161,11 @@ export default function PosPage() {
 
    useEffect(() => {
     const updateSelectedClientDetails = async () => {
+      // console.log('[POS] useEffect updateSelectedClientDetails - selectedTransaction:', selectedTransaction);
+      // console.log('[POS] useEffect updateSelectedClientDetails - selectedTransaction?.clientId:', selectedTransaction?.clientId);
       if (selectedTransaction?.clientId) {
         const client = availableClients.find(c => c.id === selectedTransaction.clientId);
+        // console.log('[POS] useEffect updateSelectedClientDetails - Found client:', client);
         setSelectedClientDetails(client || null);
       } else {
         setSelectedClientDetails(null);
@@ -193,6 +199,7 @@ export default function PosPage() {
         toast({ title: "Error", description: "Item katalog tidak ditemukan.", variant: "destructive" });
         return;
     }
+    // console.log('[POS] handleAddItemToTransaction - catalogItem:', catalogItem);
 
 
     const quantity = parseInt(String(itemQuantity), 10);
@@ -211,6 +218,7 @@ export default function PosPage() {
       type: catalogItem.type === 'Layanan' ? 'service' : 'product', 
       pointsAwardedPerUnit: catalogItem.pointsAwarded || 0,
     };
+    // console.log('[POS] handleAddItemToTransaction - newItem to be added:', newItem);
 
 
     try {
@@ -366,7 +374,9 @@ export default function PosPage() {
     
     if (selectedTransaction.pointsRedeemed && selectedTransaction.pointsRedeemed > 0) {
         toast({title: "Info Diskon", description: "Diskon dari poin sudah diterapkan. Hapus diskon poin untuk menerapkan diskon manual.", variant: "default"});
-        
+        // Optionally, reset discount inputs here if needed
+        // form.setValue('discountAmountInput', ''); // Assuming you use react-hook-form or similar
+        // form.setValue('discountPercentageInput', '');
         return;
     }
 
@@ -390,7 +400,7 @@ export default function PosPage() {
             discountAmount: appliedDiscountAmount > 0 ? appliedDiscountAmount : (appliedDiscountPercentage > 0 ? calculatedDiscountAmount : 0),
             discountPercentage: appliedDiscountPercentage,
             total: total,
-            pointsRedeemed: 0, 
+            pointsRedeemed: 0, // Clear points redeemed if manual discount is applied
             pointsRedeemedValue: 0,
             updatedAt: serverTimestamp()
         });
@@ -444,7 +454,7 @@ export default function PosPage() {
     setIsSubmittingRedemption(true);
     const discountValueFromPoints = pointsToRedeem * POINT_TO_RUPIAH_RATE;
 
-    
+    // Ensure discount from points doesn't exceed subtotal
     const subtotal = selectedTransaction.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const effectiveDiscountValue = Math.min(discountValueFromPoints, subtotal);
 
@@ -456,8 +466,8 @@ export default function PosPage() {
       await updateDoc(transactionDocRef, {
         pointsRedeemed: pointsToRedeem,
         pointsRedeemedValue: effectiveDiscountValue,
-        discountAmount: effectiveDiscountValue, 
-        discountPercentage: 0, 
+        discountAmount: effectiveDiscountValue, // Set this to reflect the discount
+        discountPercentage: 0, // Clear percentage discount
         total: total,
         notes: `${selectedTransaction.notes || ''} [Tukar ${pointsToRedeem} poin senilai Rp ${effectiveDiscountValue.toLocaleString('id-ID')}]`.trim(),
         updatedAt: serverTimestamp(),
@@ -488,12 +498,21 @@ export default function PosPage() {
       const transactionDocRef = doc(db, 'transactions', selectedTransaction.id);
       
       let pointsEarnedThisTransaction = 0;
+      // console.log('[POS] handleConfirmPayment - selectedTransaction.clientId:', selectedTransaction.clientId);
+      // console.log('[POS] handleConfirmPayment - selectedTransaction.pointsRedeemed:', selectedTransaction.pointsRedeemed);
+      // console.log('[POS] handleConfirmPayment - Condition for earning points:', selectedTransaction.clientId && (!selectedTransaction.pointsRedeemed || selectedTransaction.pointsRedeemed === 0));
+      
+      // Only calculate pointsEarned if client exists and no points were redeemed in this transaction
       if (selectedTransaction.clientId && (!selectedTransaction.pointsRedeemed || selectedTransaction.pointsRedeemed === 0)) {
+         // console.log('[POS] handleConfirmPayment - Calculating pointsEarnedThisTransaction. Items:', selectedTransaction.items);
          pointsEarnedThisTransaction = selectedTransaction.items.reduce((sum, item) => {
+            // console.log(`[POS] Item: ${item.name}, pointsAwardedPerUnit: ${item.pointsAwardedPerUnit}, quantity: ${item.quantity}`);
             const awardedPoints = (typeof item.pointsAwardedPerUnit === 'number' && !isNaN(item.pointsAwardedPerUnit)) ? item.pointsAwardedPerUnit : 0;
-            const qty = (typeof item.quantity === 'number' && !isNaN(item.quantity) && item.quantity > 0) ? item.quantity : 1; 
+            const qty = (typeof item.quantity === 'number' && !isNaN(item.quantity) && item.quantity > 0) ? item.quantity : 1; // Default to 1 if quantity is somehow invalid
+            // console.log(`[POS] Effective awardedPoints: ${awardedPoints}, effective qty: ${qty}`);
             return sum + (awardedPoints * qty);
         }, 0);
+        // console.log('[POS] handleConfirmPayment - Total pointsEarnedThisTransaction:', pointsEarnedThisTransaction);
       }
       
       if (selectedTransaction.clientId) {
@@ -502,6 +521,7 @@ export default function PosPage() {
 
         if (clientDocSnap.exists()) {
             const clientData = clientDocSnap.data() as Client;
+            // console.log('[POS] Client data before update:', clientData);
             let currentLoyaltyPoints = (typeof clientData.loyaltyPoints === 'number' && !isNaN(clientData.loyaltyPoints)) ? clientData.loyaltyPoints : 0;
             
             const pointsRedeemedThisTransaction = (typeof selectedTransaction.pointsRedeemed === 'number' && !isNaN(selectedTransaction.pointsRedeemed)) ? selectedTransaction.pointsRedeemed : 0;
@@ -511,19 +531,20 @@ export default function PosPage() {
             if (pointsRedeemedThisTransaction > 0) {
                 newLoyaltyPoints -= pointsRedeemedThisTransaction;
                 clientUpdateMessageParts.push(`${pointsRedeemedThisTransaction} poin ditukar`);
-            } else {
+            } else { // Only add points if none were redeemed
                 newLoyaltyPoints += pointsEarnedThisTransaction;
                 if (pointsEarnedThisTransaction > 0) {
                     clientUpdateMessageParts.push(`${pointsEarnedThisTransaction} poin baru diperoleh`);
                 }
             }
             
-            const today = new Date().toLocaleDateString('en-CA'); 
+            const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
 
             await updateDoc(clientDocRef, {
                 loyaltyPoints: newLoyaltyPoints,
                 lastVisit: today,
             });
+            // console.log(`[POS] Client ${clientData.name} updated. New points: ${newLoyaltyPoints}, Last visit: ${today}`);
             
             let clientUpdateMessage = `Kunjungan terakhir untuk ${clientData.name} telah diperbarui.`;
             if (clientUpdateMessageParts.length > 0) {
@@ -535,20 +556,20 @@ export default function PosPage() {
         }
       }
       
-      const finalTransactionData = { ...selectedTransaction }; // Capture current state
+      const finalTransactionData = { ...selectedTransaction, paymentMethod: selectedPaymentMethod };
 
       await updateDoc(transactionDocRef, {
         status: 'paid',
         paymentMethod: selectedPaymentMethod,
-        notes: paymentNotes || selectedTransaction.notes || '', 
+        notes: paymentNotes || selectedTransaction.notes || '', // Prioritize new payment notes
         paidAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
       toast({ title: "Pembayaran Sukses", description: `Transaksi untuk ${selectedTransaction.customerName} berhasil dibayar.`});
       
-      setLastPaidTransactionDetails(finalTransactionData); // Store the paid transaction details
-      setWhatsAppNumberInput(selectedClientDetails?.phone || ''); // Pre-fill phone for WhatsApp
-      setIsWhatsAppDialogOpen(true); // Open WhatsApp dialog
+      setLastPaidTransactionDetails(finalTransactionData); 
+      setWhatsAppNumberInput(selectedClientDetails?.phone || ''); 
+      setIsWhatsAppDialogOpen(true);
 
       setIsPaymentDialogOpen(false);
       setSelectedTransactionId(null); 
@@ -564,12 +585,13 @@ export default function PosPage() {
 
   const generateWhatsAppReceiptText = (transaction: Transaction): string => {
     let text = `*Struk Digital - ${SHOP_NAME}*\n\n`;
-    text += `ID Transaksi: ${transaction.id.substring(0, 8)}...\n`; // Shorten ID for display
+    text += `ID Transaksi: ${transaction.id.substring(0, 8)}...\n`;
     text += `Pelanggan: ${transaction.customerName}\n`;
     if (transaction.paidAt && transaction.paidAt.toDate) {
         text += `Tanggal: ${transaction.paidAt.toDate().toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'})}\n\n`;
     } else {
-        text += `Tanggal: N/A\n\n`;
+        // Fallback if paidAt is not yet set (should be, but just in case)
+        text += `Tanggal: ${new Date().toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'})}\n\n`;
     }
     
     text += `Item:\n`;
@@ -581,19 +603,19 @@ export default function PosPage() {
       text += `Diskon: - Rp ${transaction.discountAmount.toLocaleString('id-ID')}\n`;
     }
     text += `*Total: Rp ${transaction.total.toLocaleString('id-ID')}*\n`;
-    text += `Metode Bayar: ${transaction.paymentMethod}\n\n`;
+    text += `Metode Bayar: ${transaction.paymentMethod || 'N/A'}\n\n`; // Handle if paymentMethod is undefined
     text += `Terima kasih atas kunjungan Anda!`;
     return text;
   }
 
   const formatWhatsAppNumber = (phone: string): string => {
-    let cleaned = phone.replace(/\D/g, ''); // Remove non-digits
+    let cleaned = phone.replace(/\D/g, ''); 
     if (cleaned.startsWith('0')) {
       cleaned = '62' + cleaned.substring(1);
-    } else if (cleaned.startsWith('8') && cleaned.length >= 9 && cleaned.length <=13) { // Common Indonesian local format without 0
+    } else if (cleaned.startsWith('8') && cleaned.length >= 9 && cleaned.length <=13) { 
       cleaned = '62' + cleaned;
     } else if (!cleaned.startsWith('62')) {
-      cleaned = '62' + cleaned; // Fallback, might need adjustment for other international numbers
+      cleaned = '62' + cleaned; 
     }
     return cleaned;
   };
@@ -604,7 +626,7 @@ export default function PosPage() {
       return;
     }
     const formattedNumber = formatWhatsAppNumber(whatsAppNumberInput);
-    if (!/^\d+$/.test(formattedNumber) || formattedNumber.length < 10) { // Basic validation
+    if (!/^\d+$/.test(formattedNumber) || formattedNumber.length < 10) { 
         toast({ title: "Nomor Tidak Valid", description: "Format nomor WhatsApp tidak benar.", variant: "destructive" });
         return;
     }
@@ -617,7 +639,7 @@ export default function PosPage() {
     
     toast({ title: "Struk Dikirim (via WhatsApp)", description: `Membuka WhatsApp untuk ${formattedNumber}.` });
     setIsWhatsAppDialogOpen(false);
-    setLastPaidTransactionDetails(null); // Clear it
+    setLastPaidTransactionDetails(null); 
   };
 
 
@@ -689,6 +711,8 @@ export default function PosPage() {
                         <CardDescription>
                             Transaksi ID: {selectedTransaction.id} | Staf Layanan: {selectedTransaction.serviceStaffName || "Belum Ditugaskan"}
                         </CardDescription>
+                        {/* console.log('[POS] Render - selectedClientDetails:', selectedClientDetails); */}
+                        {/* console.log('[POS] Render - condition for redeem button:', selectedClientDetails && (selectedClientDetails.loyaltyPoints || 0) >= MINIMUM_POINTS_TO_REDEEM); */}
                          {selectedClientDetails && (
                             <div className="mt-1 text-sm text-primary flex items-center">
                                 <Star className="h-4 w-4 mr-1 text-yellow-400" />
@@ -1095,10 +1119,10 @@ export default function PosPage() {
         </Dialog>
       )}
 
-       {/* WhatsApp Receipt Dialog */}
+       
       <Dialog open={isWhatsAppDialogOpen} onOpenChange={(isOpen) => {
         setIsWhatsAppDialogOpen(isOpen);
-        if (!isOpen) setLastPaidTransactionDetails(null); // Clear details if dialog is closed
+        if (!isOpen) setLastPaidTransactionDetails(null); 
       }}>
         <DialogContent>
           <DialogHeader>
