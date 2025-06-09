@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Trash2, CreditCard, Loader2, ShoppingBag, UserPlus, Star, Tags } from 'lucide-react';
+import { PlusCircle, Trash2, CreditCard, Loader2, ShoppingBag, UserPlus, Star, Tags, MessageSquareText, Send } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, arrayUnion, serverTimestamp, addDoc, type Timestamp, getDocs, getDoc } from 'firebase/firestore';
@@ -37,6 +37,7 @@ import { Textarea } from '@/components/ui/textarea';
 
 const MINIMUM_POINTS_TO_REDEEM = 100; 
 const POINT_TO_RUPIAH_RATE = 10; 
+const SHOP_NAME = "QLAB Auto Detailing"; // Define shop name for receipts
 
 export default function PosPage() {
   const [openTransactions, setOpenTransactions] = useState<Transaction[]>([]);
@@ -74,6 +75,10 @@ export default function PosPage() {
   const [isRedeemPointsDialogOpen, setIsRedeemPointsDialogOpen] = useState(false);
   const [pointsToRedeemInput, setPointsToRedeemInput] = useState<string>('');
   const [isSubmittingRedemption, setIsSubmittingRedemption] = useState(false);
+
+  const [isWhatsAppDialogOpen, setIsWhatsAppDialogOpen] = useState(false);
+  const [whatsAppNumberInput, setWhatsAppNumberInput] = useState('');
+  const [lastPaidTransactionDetails, setLastPaidTransactionDetails] = useState<Transaction | null>(null);
 
 
   const { toast } = useToast();
@@ -153,11 +158,8 @@ export default function PosPage() {
 
    useEffect(() => {
     const updateSelectedClientDetails = async () => {
-      console.log('[POS] useEffect for client details triggered. Selected Transaction:', selectedTransaction);
       if (selectedTransaction?.clientId) {
-        console.log('[POS] Client ID in transaction:', selectedTransaction.clientId);
         const client = availableClients.find(c => c.id === selectedTransaction.clientId);
-        console.log('[POS] Found client from availableClients:', client);
         setSelectedClientDetails(client || null);
       } else {
         setSelectedClientDetails(null);
@@ -191,7 +193,6 @@ export default function PosPage() {
         toast({ title: "Error", description: "Item katalog tidak ditemukan.", variant: "destructive" });
         return;
     }
-    console.log('[POS] Adding item. Catalog Item details:', catalogItem, 'Points Awarded:', catalogItem.pointsAwarded);
 
 
     const quantity = parseInt(String(itemQuantity), 10);
@@ -210,7 +211,6 @@ export default function PosPage() {
       type: catalogItem.type === 'Layanan' ? 'service' : 'product', 
       pointsAwardedPerUnit: catalogItem.pointsAwarded || 0,
     };
-    console.log('[POS] New Transaction Item to be added:', newItem);
 
 
     try {
@@ -474,62 +474,49 @@ export default function PosPage() {
 
 
   const handleConfirmPayment = async () => {
-    console.log("[POS] handleConfirmPayment started");
     if (!selectedTransaction) {
       toast({ title: "Error", description: "Tidak ada transaksi yang dipilih.", variant: "destructive"});
-      console.log("[POS] No selected transaction.");
       return;
     }
     if (!selectedPaymentMethod) {
       toast({ title: "Input Kurang", description: "Silakan pilih metode pembayaran.", variant: "destructive"});
-      console.log("[POS] No payment method selected.");
       return;
     }
 
     setIsProcessingPayment(true);
-    console.log("[POS] Processing payment for transaction ID:", selectedTransaction.id);
     try {
       const transactionDocRef = doc(db, 'transactions', selectedTransaction.id);
       
+      let pointsEarnedThisTransaction = 0;
+      if (selectedTransaction.clientId && (!selectedTransaction.pointsRedeemed || selectedTransaction.pointsRedeemed === 0)) {
+         pointsEarnedThisTransaction = selectedTransaction.items.reduce((sum, item) => {
+            const awardedPoints = (typeof item.pointsAwardedPerUnit === 'number' && !isNaN(item.pointsAwardedPerUnit)) ? item.pointsAwardedPerUnit : 0;
+            const qty = (typeof item.quantity === 'number' && !isNaN(item.quantity) && item.quantity > 0) ? item.quantity : 1; 
+            return sum + (awardedPoints * qty);
+        }, 0);
+      }
+      
       if (selectedTransaction.clientId) {
-        console.log("[POS] Client ID found:", selectedTransaction.clientId, "Attempting to update client loyalty points.");
         const clientDocRef = doc(db, 'clients', selectedTransaction.clientId);
         const clientDocSnap = await getDoc(clientDocRef);
 
         if (clientDocSnap.exists()) {
             const clientData = clientDocSnap.data() as Client;
             let currentLoyaltyPoints = (typeof clientData.loyaltyPoints === 'number' && !isNaN(clientData.loyaltyPoints)) ? clientData.loyaltyPoints : 0;
-            console.log("[POS] Current client loyalty points (before any change):", currentLoyaltyPoints);
             
-            console.log('[POS] Selected Transaction Items for Points Calc:', JSON.stringify(selectedTransaction.items, null, 2));
-
             const pointsRedeemedThisTransaction = (typeof selectedTransaction.pointsRedeemed === 'number' && !isNaN(selectedTransaction.pointsRedeemed)) ? selectedTransaction.pointsRedeemed : 0;
-            let pointsEarnedThisTransaction = 0;
             let newLoyaltyPoints = currentLoyaltyPoints;
             const clientUpdateMessageParts: string[] = [];
 
             if (pointsRedeemedThisTransaction > 0) {
                 newLoyaltyPoints -= pointsRedeemedThisTransaction;
-                console.log(`[POS] Client redeemed ${pointsRedeemedThisTransaction} points. Points after deduction: ${newLoyaltyPoints}. No new points will be earned for this transaction.`);
                 clientUpdateMessageParts.push(`${pointsRedeemedThisTransaction} poin ditukar`);
-                // pointsEarnedThisTransaction remains 0 as per new logic
             } else {
-                // Only calculate and add earned points if no points were redeemed
-                pointsEarnedThisTransaction = selectedTransaction.items.reduce((sum, item) => {
-                    const awardedPoints = (typeof item.pointsAwardedPerUnit === 'number' && !isNaN(item.pointsAwardedPerUnit)) ? item.pointsAwardedPerUnit : 0;
-                    const qty = (typeof item.quantity === 'number' && !isNaN(item.quantity) && item.quantity > 0) ? item.quantity : 1; 
-                    console.log(`[POS] Calculating points for item: ${item.name}, pointsAwardedPerUnit: ${awardedPoints}, quantity: ${qty}, Current sum: ${sum}`);
-                    return sum + (awardedPoints * qty);
-                }, 0);
-                console.log("[POS] Total points earned from this transaction (before adding to client):", pointsEarnedThisTransaction);
                 newLoyaltyPoints += pointsEarnedThisTransaction;
-
                 if (pointsEarnedThisTransaction > 0) {
                     clientUpdateMessageParts.push(`${pointsEarnedThisTransaction} poin baru diperoleh`);
                 }
             }
-            
-            console.log("[POS] Final new client loyalty points:", newLoyaltyPoints);
             
             const today = new Date().toLocaleDateString('en-CA'); 
 
@@ -544,18 +531,12 @@ export default function PosPage() {
             } else if (pointsRedeemedThisTransaction === 0 && pointsEarnedThisTransaction === 0) {
                  clientUpdateMessage += ` (Tidak ada poin diperoleh/ditukar pada transaksi ini).`;
             }
-
-            console.log('[POS] Client Update Message:', clientUpdateMessage);
             toast({ title: "Info Klien Diperbarui", description: clientUpdateMessage.trim() });
-
-        } else {
-            console.log("[POS] Client document not found for ID:", selectedTransaction.clientId);
         }
-      } else {
-        console.log("[POS] No client ID in transaction. Skipping client update.");
       }
       
-      
+      const finalTransactionData = { ...selectedTransaction }; // Capture current state
+
       await updateDoc(transactionDocRef, {
         status: 'paid',
         paymentMethod: selectedPaymentMethod,
@@ -565,18 +546,78 @@ export default function PosPage() {
       });
       toast({ title: "Pembayaran Sukses", description: `Transaksi untuk ${selectedTransaction.customerName} berhasil dibayar.`});
       
+      setLastPaidTransactionDetails(finalTransactionData); // Store the paid transaction details
+      setWhatsAppNumberInput(selectedClientDetails?.phone || ''); // Pre-fill phone for WhatsApp
+      setIsWhatsAppDialogOpen(true); // Open WhatsApp dialog
+
       setIsPaymentDialogOpen(false);
       setSelectedTransactionId(null); 
       setSelectedClientDetails(null);
-      console.log("[POS] Payment dialog closed, selected transaction reset.");
 
     } catch (error) {
-      console.error("[POS] Error processing payment or updating client: ", error);
+      console.error("Error processing payment or updating client: ", error);
       toast({ title: "Error Pembayaran/Klien", description: "Gagal memproses pembayaran atau memperbarui data klien.", variant: "destructive"});
     } finally {
       setIsProcessingPayment(false);
-      console.log("[POS] handleConfirmPayment finished.");
     }
+  };
+
+  const generateWhatsAppReceiptText = (transaction: Transaction): string => {
+    let text = `*Struk Digital - ${SHOP_NAME}*\n\n`;
+    text += `ID Transaksi: ${transaction.id.substring(0, 8)}...\n`; // Shorten ID for display
+    text += `Pelanggan: ${transaction.customerName}\n`;
+    if (transaction.paidAt && transaction.paidAt.toDate) {
+        text += `Tanggal: ${transaction.paidAt.toDate().toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'})}\n\n`;
+    } else {
+        text += `Tanggal: N/A\n\n`;
+    }
+    
+    text += `Item:\n`;
+    transaction.items.forEach(item => {
+      text += `- ${item.name} (${item.quantity} x Rp ${item.price.toLocaleString('id-ID')}) = Rp ${(item.quantity * item.price).toLocaleString('id-ID')}\n`;
+    });
+    text += `\nSubtotal: Rp ${transaction.subtotal.toLocaleString('id-ID')}\n`;
+    if (transaction.discountAmount > 0) {
+      text += `Diskon: - Rp ${transaction.discountAmount.toLocaleString('id-ID')}\n`;
+    }
+    text += `*Total: Rp ${transaction.total.toLocaleString('id-ID')}*\n`;
+    text += `Metode Bayar: ${transaction.paymentMethod}\n\n`;
+    text += `Terima kasih atas kunjungan Anda!`;
+    return text;
+  }
+
+  const formatWhatsAppNumber = (phone: string): string => {
+    let cleaned = phone.replace(/\D/g, ''); // Remove non-digits
+    if (cleaned.startsWith('0')) {
+      cleaned = '62' + cleaned.substring(1);
+    } else if (cleaned.startsWith('8') && cleaned.length >= 9 && cleaned.length <=13) { // Common Indonesian local format without 0
+      cleaned = '62' + cleaned;
+    } else if (!cleaned.startsWith('62')) {
+      cleaned = '62' + cleaned; // Fallback, might need adjustment for other international numbers
+    }
+    return cleaned;
+  };
+
+  const handleSendWhatsAppReceipt = () => {
+    if (!lastPaidTransactionDetails || !whatsAppNumberInput) {
+      toast({ title: "Error", description: "Detail transaksi atau nomor WhatsApp tidak valid.", variant: "destructive" });
+      return;
+    }
+    const formattedNumber = formatWhatsAppNumber(whatsAppNumberInput);
+    if (!/^\d+$/.test(formattedNumber) || formattedNumber.length < 10) { // Basic validation
+        toast({ title: "Nomor Tidak Valid", description: "Format nomor WhatsApp tidak benar.", variant: "destructive" });
+        return;
+    }
+
+    const receiptText = generateWhatsAppReceiptText(lastPaidTransactionDetails);
+    const encodedText = encodeURIComponent(receiptText);
+    const whatsappUrl = `https://wa.me/${formattedNumber}?text=${encodedText}`;
+    
+    window.open(whatsappUrl, '_blank');
+    
+    toast({ title: "Struk Dikirim (via WhatsApp)", description: `Membuka WhatsApp untuk ${formattedNumber}.` });
+    setIsWhatsAppDialogOpen(false);
+    setLastPaidTransactionDetails(null); // Clear it
   };
 
 
@@ -655,7 +696,6 @@ export default function PosPage() {
                             </div>
                         )}
                     </div>
-                    {console.log('[POS] Render Check - SelectedClientDetails:', selectedClientDetails, 'Loyalty Points:', selectedClientDetails?.loyaltyPoints, 'Min Redeem:', MINIMUM_POINTS_TO_REDEEM, 'Condition Met:', selectedClientDetails && (selectedClientDetails.loyaltyPoints || 0) >= MINIMUM_POINTS_TO_REDEEM)}
                     {selectedClientDetails && (selectedClientDetails.loyaltyPoints || 0) >= MINIMUM_POINTS_TO_REDEEM && (
                         <Button 
                           size="sm" 
@@ -876,7 +916,6 @@ export default function PosPage() {
                             setItemPrice(foundItem.price);
                             setItemType(foundItem.type === 'Layanan' ? 'service' : 'product');
                             setItemPointsAwarded(foundItem.pointsAwarded || 0);
-                            console.log('[POS] Catalog item selected in dialog. PointsAwarded:', foundItem.pointsAwarded);
                         } else {
                             setItemName('');
                             setItemPrice('');
@@ -1055,7 +1094,51 @@ export default function PosPage() {
           </DialogContent>
         </Dialog>
       )}
+
+       {/* WhatsApp Receipt Dialog */}
+      <Dialog open={isWhatsAppDialogOpen} onOpenChange={(isOpen) => {
+        setIsWhatsAppDialogOpen(isOpen);
+        if (!isOpen) setLastPaidTransactionDetails(null); // Clear details if dialog is closed
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center">
+              <MessageSquareText className="mr-2 h-5 w-5 text-green-500" /> Kirim Struk via WhatsApp
+            </DialogTitle>
+            <DialogDescription>
+              Masukkan nomor WhatsApp pelanggan untuk mengirim struk digital.
+              {lastPaidTransactionDetails && ` (Transaksi: ${lastPaidTransactionDetails.customerName})`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2 pb-4">
+            <div className="space-y-2">
+              <Label htmlFor="whatsapp-number-input">Nomor WhatsApp</Label>
+              <Input
+                id="whatsapp-number-input"
+                placeholder="mis. 6281234567890 atau 081234567890"
+                value={whatsAppNumberInput}
+                onChange={(e) => setWhatsAppNumberInput(e.target.value)}
+                type="tel"
+              />
+              <p className="text-xs text-muted-foreground">
+                Akan diformat ke standar internasional (mis. 62xxxx).
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setIsWhatsAppDialogOpen(false); setLastPaidTransactionDetails(null); }}>
+              Lewati
+            </Button>
+            <Button
+              onClick={handleSendWhatsAppReceipt}
+              disabled={!whatsAppNumberInput || !lastPaidTransactionDetails}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              <Send className="mr-2 h-4 w-4" /> Kirim Struk
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-
