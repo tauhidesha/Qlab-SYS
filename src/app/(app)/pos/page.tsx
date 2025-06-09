@@ -243,11 +243,10 @@ export default function PosPage() {
         }
       }
 
-      const newTransactionData: Omit<Transaction, 'id'> = {
+      const newTransactionBaseData = {
         customerName: customerNameForBill,
-        clientId: clientIdForBill,
-        status: 'open',
-        items: [],
+        status: 'open' as 'open',
+        items: [] as TransactionItem[],
         subtotal: 0,
         discountAmount: 0,
         discountPercentage: 0,
@@ -255,8 +254,15 @@ export default function PosPage() {
         createdAt: serverTimestamp() as Timestamp,
         updatedAt: serverTimestamp() as Timestamp,
       };
+      
+      const newTransactionData = {
+        ...newTransactionBaseData,
+        ...(clientIdForBill && { clientId: clientIdForBill }),
+      };
+      
+
       const docRef = await addDoc(collection(db, 'transactions'), newTransactionData);
-      setSelectedTransactionId(docRef.id); // Automatically select the new bill
+      setSelectedTransactionId(docRef.id); 
       toast({ title: "Sukses", description: `Transaksi baru untuk ${customerNameForBill} berhasil dibuat.` });
       setIsCreateBillDialogOpen(false);
       resetNewBillDialogState();
@@ -381,13 +387,13 @@ export default function PosPage() {
                 
                 const pointsEarned = selectedTransaction.items.reduce((sum, item) => {
                     const awardedPoints = (typeof item.pointsAwardedPerUnit === 'number' && !isNaN(item.pointsAwardedPerUnit)) ? item.pointsAwardedPerUnit : 0;
-                    const qty = (typeof item.quantity === 'number' && !isNaN(item.quantity)) ? item.quantity : 0; 
+                    const qty = (typeof item.quantity === 'number' && !isNaN(item.quantity) && item.quantity > 0) ? item.quantity : 0; 
                     return sum + (awardedPoints * qty);
                 }, 0);
 
                 const currentLoyaltyPoints = (typeof clientData.loyaltyPoints === 'number' && !isNaN(clientData.loyaltyPoints)) ? clientData.loyaltyPoints : 0;
                 const newLoyaltyPoints = currentLoyaltyPoints + pointsEarned;
-                const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+                const today = new Date().toLocaleDateString('en-CA'); 
 
                 await updateDoc(clientDocRef, {
                     loyaltyPoints: newLoyaltyPoints,
