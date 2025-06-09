@@ -51,6 +51,8 @@ export default function PosPage() {
   const [itemPrice, setItemPrice] = useState<number | string>(''); 
   const [itemQuantity, setItemQuantity] = useState<number | string>(1);
   const [itemType, setItemType] = useState<'service' | 'product' | 'food_drink' | 'other'>('product');
+  const [itemPointsAwarded, setItemPointsAwarded] = useState<number>(0);
+
 
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('');
@@ -152,6 +154,7 @@ export default function PosPage() {
     setItemPrice('');
     setItemQuantity(1);
     setItemType('product');
+    setItemPointsAwarded(0);
   };
 
   const handleAddItemToTransaction = async () => {
@@ -377,12 +380,12 @@ export default function PosPage() {
                 const clientData = clientDocSnap.data() as Client;
                 
                 const pointsEarned = selectedTransaction.items.reduce((sum, item) => {
-                    const awardedPoints = typeof item.pointsAwardedPerUnit === 'number' ? item.pointsAwardedPerUnit : 0;
-                    const qty = typeof item.quantity === 'number' ? item.quantity : 1; // Default quantity to 1 if not a number for safety
+                    const awardedPoints = (typeof item.pointsAwardedPerUnit === 'number' && !isNaN(item.pointsAwardedPerUnit)) ? item.pointsAwardedPerUnit : 0;
+                    const qty = (typeof item.quantity === 'number' && !isNaN(item.quantity)) ? item.quantity : 0; 
                     return sum + (awardedPoints * qty);
                 }, 0);
 
-                const currentLoyaltyPoints = typeof clientData.loyaltyPoints === 'number' ? clientData.loyaltyPoints : 0;
+                const currentLoyaltyPoints = (typeof clientData.loyaltyPoints === 'number' && !isNaN(clientData.loyaltyPoints)) ? clientData.loyaltyPoints : 0;
                 const newLoyaltyPoints = currentLoyaltyPoints + pointsEarned;
                 const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
 
@@ -672,10 +675,12 @@ export default function PosPage() {
                             setItemName(foundItem.name);
                             setItemPrice(foundItem.price);
                             setItemType(foundItem.type === 'Layanan' ? 'service' : 'product');
+                            setItemPointsAwarded(foundItem.pointsAwarded || 0);
                         } else {
                             setItemName('');
                             setItemPrice('');
                             setItemType('product');
+                            setItemPointsAwarded(0);
                         }
                     }}
                     disabled={loadingCatalogItems}
@@ -689,7 +694,7 @@ export default function PosPage() {
                         )}
                         {availableItems.map(item => (
                             <SelectItem key={item.id} value={item.id}>
-                                {item.name} (Rp {item.price.toLocaleString('id-ID')}) - [{item.type}]
+                                {item.name} (Rp {item.price.toLocaleString('id-ID')}) - [{item.type}] {item.pointsAwarded && item.pointsAwarded > 0 ? `(${item.pointsAwarded} pts)` : ''}
                             </SelectItem>
                         ))}
                     </SelectContent>
@@ -712,6 +717,10 @@ export default function PosPage() {
                         <Input value={itemType === 'service' ? 'Layanan' : 'Produk'} readOnly className="bg-muted/50 capitalize"/>
                     </div>
                   </div>
+                   <div className="space-y-2">
+                      <Label>Poin Diberikan per Unit</Label>
+                      <Input type="number" value={itemPointsAwarded} readOnly className="bg-muted/50"/>
+                    </div>
                 </>
               )}
                <div className="space-y-2">
