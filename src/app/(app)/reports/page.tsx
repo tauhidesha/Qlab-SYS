@@ -1,17 +1,11 @@
+
 import AppHeader from '@/components/layout/AppHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { DatePickerWithRange } from '@/components/ui/date-picker-range'; // Assume this component exists or will be created
+import { DatePickerWithRange } from '@/components/ui/date-picker-range';
 import { BarChart, LineChart, PieChart as LucidePieChart, Download } from 'lucide-react';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
-import { Bar, Pie, PieChart, ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip, Legend as RechartsLegend, CartesianGrid, Line } from 'recharts'; // Using recharts directly for more control
-
-// Placeholder DatePickerWithRange component - replace with actual implementation if available
-const DatePickerWithRange = ({ className }: { className?: string }) => (
-  <div className={cn("grid gap-2", className)}>
-    <Button variant="outline">Select Date Range</Button>
-  </div>
-);
+import { Bar, Pie, PieChart, ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip, Legend as RechartsLegend, CartesianGrid, Line, Cell } from 'recharts'; // Using recharts directly for more control & added Cell
 
 
 export default function ReportsPage() {
@@ -127,7 +121,3 @@ export default function ReportsPage() {
     </div>
   );
 }
-
-// Need to define Cell for PieChart colors
-const { Cell } = require('recharts'); 
-const { cn } = require('@/lib/utils'); // For DatePickerWithRange placeholder
