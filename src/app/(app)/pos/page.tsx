@@ -10,10 +10,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { PlusCircle, Trash2, CreditCard, Loader2, ShoppingBag, Edit, UserPlus } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, arrayUnion, serverTimestamp, addDoc, type Timestamp } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, arrayUnion, serverTimestamp, addDoc, type Timestamp, getDocs } from 'firebase/firestore';
 import type { Transaction, TransactionItem } from '@/types/transaction';
+import type { ServiceProduct } from '@/app/(app)/services/page'; // Import ServiceProduct
 import { useToast } from '@/hooks/use-toast';
-import { v4 as uuidv4 } from 'uuid'; // For generating unique IDs for items
+import { v4 as uuidv4 } from 'uuid';
 import {
   Dialog,
   DialogContent,
@@ -31,15 +32,6 @@ import {
 } from "@/components/ui/select";
 
 
-// Placeholder data for services/products if not fetched
-const placeholderServices = [
-  { id: 'S001', name: 'Cuci Motor Premium', price: 75000, type: 'Layanan', category: 'Pencucian' },
-  { id: 'P001', name: 'Pelumas Rantai (Merek X)', price: 60000, type: 'Produk', category: 'Pelumas' },
-  { id: 'F001', name: 'Kopi Susu', price: 15000, type: 'Minuman', category: 'Minuman Dingin' },
-  { id: 'F002', name: 'Roti Bakar Coklat', price: 12000, type: 'Makanan', category: 'Makanan Ringan' },
-];
-
-
 export default function PosPage() {
   const [openTransactions, setOpenTransactions] = useState<Transaction[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(true);
@@ -48,10 +40,13 @@ export default function PosPage() {
   const [isSubmittingItem, setIsSubmittingItem] = useState(false);
   
   // For Add Item Dialog
-  const [itemName, setItemName] = useState('');
-  const [itemPrice, setItemPrice] = useState<number | string>('');
+  const [availableItems, setAvailableItems] = useState<ServiceProduct[]>([]);
+  const [loadingCatalogItems, setLoadingCatalogItems] = useState(true);
+  const [selectedCatalogItemId, setSelectedCatalogItemId] = useState<string>('');
+  const [itemName, setItemName] = useState(''); // Will be auto-filled
+  const [itemPrice, setItemPrice] = useState<number | string>(''); // Will be auto-filled
   const [itemQuantity, setItemQuantity] = useState<number | string>(1);
-  const [itemType, setItemType] = useState<'product' | 'food_drink' | 'other'>('product');
+  const [itemType, setItemType] = useState<'service' | 'product' | 'food_drink' | 'other'>('product'); // Will be auto-filled
 
 
   const { toast } = useToast();
@@ -78,57 +73,90 @@ export default function PosPage() {
     return () => unsubscribe();
   }, [toast]);
 
+  useEffect(() => {
+    const fetchAvailableItems = async () => {
+        setLoadingCatalogItems(true);
+        try {
+            const itemsCollectionRef = collection(db, 'services');
+            const q = query(itemsCollectionRef, orderBy("name"));
+            const querySnapshot = await getDocs(q);
+            const itemsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceProduct));
+            setAvailableItems(itemsData);
+        } catch (error) {
+            console.error("Error fetching available items: ", error);
+            toast({
+                title: "Error",
+                description: "Tidak dapat mengambil daftar item layanan/produk.",
+                variant: "destructive",
+            });
+        } finally {
+            setLoadingCatalogItems(false);
+        }
+    };
+    fetchAvailableItems();
+  }, [toast]);
+
   const handleSelectTransaction = (transaction: Transaction) => {
     setSelectedTransaction(transaction);
   };
 
+  const resetAddItemForm = () => {
+    setSelectedCatalogItemId('');
+    setItemName('');
+    setItemPrice('');
+    setItemQuantity(1);
+    setItemType('product');
+  };
+
   const handleAddItemToTransaction = async () => {
-    if (!selectedTransaction) return;
-    if (!itemName || !itemPrice || !itemQuantity) {
-        toast({ title: "Input Tidak Lengkap", description: "Nama, harga, dan jumlah item harus diisi.", variant: "destructive" });
+    if (!selectedTransaction || !selectedCatalogItemId) {
+        toast({ title: "Input Tidak Lengkap", description: "Pilih item dari katalog dan pastikan jumlah diisi.", variant: "destructive" });
         return;
     }
 
-    const price = parseFloat(String(itemPrice));
-    const quantity = parseInt(String(itemQuantity), 10);
+    const catalogItem = availableItems.find(item => item.id === selectedCatalogItemId);
+    if (!catalogItem) {
+        toast({ title: "Error", description: "Item katalog tidak ditemukan.", variant: "destructive" });
+        return;
+    }
 
-    if (isNaN(price) || price <= 0 || isNaN(quantity) || quantity <= 0) {
-        toast({ title: "Input Tidak Valid", description: "Harga dan jumlah harus angka positif.", variant: "destructive" });
+    const quantity = parseInt(String(itemQuantity), 10);
+    if (isNaN(quantity) || quantity <= 0) {
+        toast({ title: "Input Tidak Valid", description: "Jumlah harus angka positif.", variant: "destructive" });
         return;
     }
 
     setIsSubmittingItem(true);
     const newItem: TransactionItem = {
-      id: uuidv4(), // Generate unique ID for this item instance
-      name: itemName,
-      price: price,
+      id: catalogItem.id, // Use catalog item ID
+      name: catalogItem.name,
+      price: catalogItem.price,
       quantity: quantity,
-      type: itemType,
+      type: catalogItem.type === 'Layanan' ? 'service' : 'product', // Map from ServiceProduct type
     };
 
     try {
       const transactionDocRef = doc(db, 'transactions', selectedTransaction.id);
       const updatedItems = arrayUnion(newItem);
-      const newSubtotal = selectedTransaction.subtotal + (newItem.price * newItem.quantity);
-      // Assuming discount doesn't change when adding items, recalculate total
-      const newTotal = newSubtotal - selectedTransaction.discountAmount;
+      // Recalculate totals
+      const tempUpdatedItems = [...selectedTransaction.items, newItem];
+      const { subtotal: newSubtotal, total: newTotal } = calculateTransactionTotals(
+        tempUpdatedItems,
+        selectedTransaction.discountAmount,
+        selectedTransaction.discountPercentage
+      );
 
 
       await updateDoc(transactionDocRef, {
         items: updatedItems,
         subtotal: newSubtotal,
-        total: newTotal, // Recalculate total based on new subtotal and existing discount
+        total: newTotal,
         updatedAt: serverTimestamp(),
       });
 
-      toast({ title: "Sukses", description: `${itemName} berhasil ditambahkan ke transaksi.` });
+      toast({ title: "Sukses", description: `${newItem.name} berhasil ditambahkan ke transaksi.` });
       setIsAddItemDialogOpen(false);
-      // Reset form
-      setItemName('');
-      setItemPrice('');
-      setItemQuantity(1);
-      setItemType('product');
-      // selectedTransaction will update via onSnapshot
+      resetAddItemForm();
     } catch (error) {
       console.error("Error adding item to transaction: ", error);
       toast({ title: "Error", description: "Gagal menambahkan item.", variant: "destructive" });
@@ -138,25 +166,21 @@ export default function PosPage() {
   };
   
   const handleCreateNewManualTransaction = async () => {
-    // For now, let's just create a basic transaction for a "Pelanggan Walk-in"
-    // In the future, this would open a dialog to select/enter customer details.
-    setLoadingTransactions(true); // Show loading feedback
+    setLoadingTransactions(true); 
     try {
-        const newTransactionRef = doc(collection(db, 'transactions')); // Auto-generate ID
-        const initialTransactionData: Omit<Transaction, 'id'> = {
-            customerName: "Pelanggan Walk-in " + (openTransactions.filter(t=> t.customerName.startsWith("Pelanggan Walk-in")).length + 1), // Simple naming
+        const newTransactionData: Omit<Transaction, 'id'> = {
+            customerName: "Pelanggan Walk-in " + (openTransactions.filter(t=> t.customerName.startsWith("Pelanggan Walk-in")).length + 1),
             status: 'open',
             items: [],
             subtotal: 0,
             discountAmount: 0,
             discountPercentage: 0,
             total: 0,
-            createdAt: serverTimestamp() as Timestamp, // Cast needed due to serverTimestamp
+            createdAt: serverTimestamp() as Timestamp, 
             updatedAt: serverTimestamp() as Timestamp,
         };
-        await addDoc(collection(db, 'transactions'), initialTransactionData);
+        await addDoc(collection(db, 'transactions'), newTransactionData);
         toast({ title: "Sukses", description: "Transaksi manual baru berhasil dibuat."});
-        // Data will refresh via onSnapshot
     } catch (error) {
         console.error("Error creating manual transaction: ", error);
         toast({ title: "Error", description: "Gagal membuat transaksi manual baru.", variant: "destructive" });
@@ -168,18 +192,19 @@ export default function PosPage() {
   const calculateTransactionTotals = (items: TransactionItem[], discountAmount: number = 0, discountPercentage: number = 0) => {
     const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
     let currentDiscountAmount = discountAmount;
-    if (discountPercentage > 0) {
+    if (discountPercentage > 0 && discountAmount === 0) { // Apply percentage if amount is not set
         currentDiscountAmount = subtotal * (discountPercentage / 100);
+    } else if (discountAmount > 0) { // If amount is set, it overrides percentage
+        // currentDiscountAmount is already discountAmount
     }
     const total = subtotal - currentDiscountAmount;
     return { subtotal, total, discountAmount: currentDiscountAmount };
   };
   
-  // Function to remove an item from the selected transaction
   const handleRemoveItemFromTransaction = async (itemIdToRemove: string) => {
     if (!selectedTransaction) return;
 
-    setIsSubmittingItem(true); // Reuse submitting state or create a new one
+    setIsSubmittingItem(true);
     try {
         const transactionDocRef = doc(db, 'transactions', selectedTransaction.id);
         const updatedItemsArray = selectedTransaction.items.filter(item => item.id !== itemIdToRemove);
@@ -190,17 +215,49 @@ export default function PosPage() {
             items: updatedItemsArray,
             subtotal: subtotal,
             total: total,
-            discountAmount: discountAmount, // Keep existing discount structure
+            discountAmount: discountAmount, 
             updatedAt: serverTimestamp(),
         });
 
         toast({ title: "Sukses", description: "Item berhasil dihapus dari transaksi." });
-        // selectedTransaction will update via onSnapshot, which re-renders the details
     } catch (error) {
         console.error("Error removing item from transaction: ", error);
         toast({ title: "Error", description: "Gagal menghapus item.", variant: "destructive" });
     } finally {
         setIsSubmittingItem(false);
+    }
+  };
+
+  const handleDiscountChange = async (transactionId: string, items: TransactionItem[], newDiscountAmount: number, newDiscountPercentage: number) => {
+    const { total, discountAmount: calculatedDiscountAmount } = calculateTransactionTotals(items, newDiscountAmount, newDiscountPercentage);
+    
+    // Optimistically update local state for better UX
+    setSelectedTransaction(prev => {
+      if (prev && prev.id === transactionId) {
+        return {
+          ...prev,
+          discountAmount: newDiscountAmount > 0 ? newDiscountAmount : (newDiscountPercentage > 0 ? calculatedDiscountAmount : 0),
+          discountPercentage: newDiscountPercentage,
+          total: total
+        };
+      }
+      return prev;
+    });
+
+    // Debounce or onBlur save to Firestore
+    try {
+        const transactionDocRef = doc(db, 'transactions', transactionId);
+        await updateDoc(transactionDocRef, {
+            discountAmount: newDiscountAmount > 0 ? newDiscountAmount : (newDiscountPercentage > 0 ? calculatedDiscountAmount : 0),
+            discountPercentage: newDiscountPercentage,
+            total: total,
+            updatedAt: serverTimestamp()
+        });
+        // toast({ title: "Diskon Diperbarui", description: "Diskon berhasil disimpan."});
+    } catch (error) {
+        console.error("Error updating discount:", error);
+        toast({ title: "Error Diskon", description: "Gagal menyimpan perubahan diskon.", variant: "destructive"});
+        // Revert optimistic update if needed, or re-fetch
     }
   };
 
@@ -221,7 +278,6 @@ export default function PosPage() {
     <div className="flex flex-col h-full">
       <AppHeader title="Titik Penjualan" />
       <main className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Side: Open Transactions List */}
         <div className="lg:col-span-1 space-y-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
@@ -259,7 +315,6 @@ export default function PosPage() {
           </Card>
         </div>
 
-        {/* Right Side: Selected Transaction Details & Actions */}
         <div className="lg:col-span-2 space-y-6">
           {selectedTransaction ? (
             <>
@@ -272,8 +327,8 @@ export default function PosPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex justify-end mb-2">
-                     <Button size="sm" onClick={() => setIsAddItemDialogOpen(true)}>
-                        <PlusCircle className="mr-2 h-4 w-4"/> Tambah Item Manual
+                     <Button size="sm" onClick={() => { resetAddItemForm(); setIsAddItemDialogOpen(true); }}>
+                        <PlusCircle className="mr-2 h-4 w-4"/> Tambah Item
                     </Button>
                   </div>
                   <Table>
@@ -287,8 +342,8 @@ export default function PosPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {selectedTransaction.items.map((item) => (
-                        <TableRow key={item.id}>
+                      {selectedTransaction.items.map((item, index) => ( // Added index for unique key if item.id is not unique enough across adds
+                        <TableRow key={`${item.id}-${index}`}>
                           <TableCell>
                             {item.name}
                             {item.type === 'service' && item.staffName && <span className="text-xs text-muted-foreground block">Oleh: {item.staffName}</span>}
@@ -301,7 +356,7 @@ export default function PosPage() {
                                 variant="ghost" 
                                 size="icon" 
                                 className="text-destructive hover:text-destructive h-8 w-8"
-                                onClick={() => handleRemoveItemFromTransaction(item.id)}
+                                onClick={() => handleRemoveItemFromTransaction(item.id)} // Assuming item.id is unique enough for removal here
                                 disabled={isSubmittingItem}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -333,26 +388,24 @@ export default function PosPage() {
                             type="number" 
                             placeholder="Rp" 
                             className="w-24 h-8 text-right" 
-                            value={selectedTransaction.discountAmount || ""}
+                            value={selectedTransaction.discountPercentage > 0 ? '' : (selectedTransaction.discountAmount || "")}
                             onChange={(e) => {
                                 const newDiscountAmount = parseFloat(e.target.value) || 0;
-                                const {total} = calculateTransactionTotals(selectedTransaction.items, newDiscountAmount, 0);
-                                setSelectedTransaction(prev => prev ? {...prev, discountAmount: newDiscountAmount, discountPercentage: 0, total} : null);
+                                handleDiscountChange(selectedTransaction.id, selectedTransaction.items, newDiscountAmount, 0);
                             }}
-                            // Add onBlur to save to Firestore
+                            disabled={selectedTransaction.discountPercentage > 0}
                         />
                         <span className="text-sm">atau</span>
                         <Input 
                             type="number" 
                             placeholder="%" 
                             className="w-16 h-8 text-right" 
-                            value={selectedTransaction.discountPercentage || ""}
+                            value={selectedTransaction.discountAmount > 0 ? '' : (selectedTransaction.discountPercentage || "")}
                             onChange={(e) => {
                                 const newDiscPercent = parseFloat(e.target.value) || 0;
-                                const {total, discountAmount} = calculateTransactionTotals(selectedTransaction.items, 0, newDiscPercent);
-                                setSelectedTransaction(prev => prev ? {...prev, discountAmount, discountPercentage: newDiscPercent, total} : null);
+                                handleDiscountChange(selectedTransaction.id, selectedTransaction.items, 0, newDiscPercent);
                             }}
-                            // Add onBlur to save to Firestore
+                            disabled={selectedTransaction.discountAmount > 0}
                          />
                     </div>
                   </div>
@@ -363,7 +416,7 @@ export default function PosPage() {
                   </div>
                 </CardContent>
                 <CardFooter className="flex-col space-y-2">
-                    <Button className="w-full" disabled> {/* Payment processing for later */}
+                    <Button className="w-full" disabled>
                       <CreditCard className="mr-2 h-5 w-5" /> Proses Pembayaran (Segera)
                     </Button>
                     <Button variant="outline" className="w-full" disabled>Simpan sebagai Draf (Segera)</Button>
@@ -382,46 +435,86 @@ export default function PosPage() {
         </div>
       </main>
 
-      {/* Dialog for Adding Manual Item */}
       {selectedTransaction && (
-        <Dialog open={isAddItemDialogOpen} onOpenChange={setIsAddItemDialogOpen}>
+        <Dialog open={isAddItemDialogOpen} onOpenChange={(isOpen) => {
+            setIsAddItemDialogOpen(isOpen);
+            if (!isOpen) resetAddItemForm();
+        }}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Tambah Item Manual ke Transaksi</DialogTitle>
+              <DialogTitle>Tambah Item ke Transaksi</DialogTitle>
               <DialogDescription>Untuk {selectedTransaction.customerName}</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-2 pb-4">
               <div className="space-y-2">
-                <Label htmlFor="item-name">Nama Item</Label>
-                <Input id="item-name" value={itemName} onChange={(e) => setItemName(e.target.value)} placeholder="mis. Kopi Susu, Stiker QLAB" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="item-price">Harga Satuan (Rp)</Label>
-                  <Input id="item-price" type="number" value={itemPrice} onChange={(e) => setItemPrice(e.target.value)} placeholder="15000" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="item-quantity">Jumlah</Label>
-                  <Input id="item-quantity" type="number" value={itemQuantity} onChange={(e) => setItemQuantity(e.target.value)} placeholder="1" min="1" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="item-type">Jenis Item</Label>
-                <Select value={itemType} onValueChange={(value: 'product' | 'food_drink' | 'other') => setItemType(value)}>
-                    <SelectTrigger id="item-type">
-                        <SelectValue placeholder="Pilih jenis item" />
+                <Label htmlFor="catalog-item-select">Pilih Item dari Katalog</Label>
+                <Select 
+                    value={selectedCatalogItemId}
+                    onValueChange={(value) => {
+                        setSelectedCatalogItemId(value);
+                        const foundItem = availableItems.find(item => item.id === value);
+                        if (foundItem) {
+                            setItemName(foundItem.name);
+                            setItemPrice(foundItem.price);
+                            setItemType(foundItem.type === 'Layanan' ? 'service' : 'product');
+                        } else {
+                            setItemName('');
+                            setItemPrice('');
+                            setItemType('product');
+                        }
+                    }}
+                    disabled={loadingCatalogItems}
+                >
+                    <SelectTrigger id="catalog-item-select">
+                        <SelectValue placeholder={loadingCatalogItems ? "Memuat item..." : "Pilih item"} />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="product">Produk</SelectItem>
-                        <SelectItem value="food_drink">Makanan/Minuman</SelectItem>
-                        <SelectItem value="other">Lainnya</SelectItem>
+                        {!loadingCatalogItems && availableItems.length === 0 && (
+                            <SelectItem value="no-items" disabled>Tidak ada item di katalog.</SelectItem>
+                        )}
+                        {availableItems.map(item => (
+                            <SelectItem key={item.id} value={item.id}>
+                                {item.name} (Rp {item.price.toLocaleString('id-ID')}) - [{item.type}]
+                            </SelectItem>
+                        ))}
                     </SelectContent>
                 </Select>
               </div>
+
+              {selectedCatalogItemId && (
+                <>
+                  <div className="space-y-2">
+                    <Label>Nama Item</Label>
+                    <Input value={itemName} readOnly className="bg-muted/50"/>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Harga Satuan (Rp)</Label>
+                      <Input type="number" value={itemPrice} readOnly className="bg-muted/50"/>
+                    </div>
+                     <div className="space-y-2">
+                        <Label>Jenis Item</Label>
+                        <Input value={itemType === 'service' ? 'Layanan' : 'Produk'} readOnly className="bg-muted/50 capitalize"/>
+                    </div>
+                  </div>
+                </>
+              )}
+               <div className="space-y-2">
+                  <Label htmlFor="item-quantity">Jumlah</Label>
+                  <Input 
+                    id="item-quantity" 
+                    type="number" 
+                    value={itemQuantity} 
+                    onChange={(e) => setItemQuantity(e.target.value)} 
+                    placeholder="1" 
+                    min="1" 
+                    disabled={!selectedCatalogItemId}
+                  />
+                </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddItemDialogOpen(false)} disabled={isSubmittingItem}>Batal</Button>
-              <Button onClick={handleAddItemToTransaction} disabled={isSubmittingItem}>
+              <Button variant="outline" onClick={() => { setIsAddItemDialogOpen(false); resetAddItemForm(); }} disabled={isSubmittingItem}>Batal</Button>
+              <Button onClick={handleAddItemToTransaction} disabled={isSubmittingItem || !selectedCatalogItemId || loadingCatalogItems}>
                 {isSubmittingItem && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Tambah Item
               </Button>
@@ -432,5 +525,3 @@ export default function PosPage() {
     </div>
   );
 }
-
-    
