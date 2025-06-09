@@ -168,6 +168,8 @@ export default function PosPage() {
         toast({ title: "Error", description: "Item katalog tidak ditemukan.", variant: "destructive" });
         return;
     }
+    console.log('[POS] Adding item. Catalog Item details:', catalogItem);
+
 
     const quantity = parseInt(String(itemQuantity), 10);
     if (isNaN(quantity) || quantity <= 0) {
@@ -185,6 +187,8 @@ export default function PosPage() {
       type: catalogItem.type === 'Layanan' ? 'service' : 'product', 
       pointsAwardedPerUnit: catalogItem.pointsAwarded || 0,
     };
+    console.log('[POS] New Transaction Item to be added:', newItem);
+
 
     try {
       const transactionDocRef = doc(db, 'transactions', selectedTransaction.id);
@@ -398,9 +402,12 @@ export default function PosPage() {
                 console.log("[POS] Transaction items for points calculation:", selectedTransaction.items);
 
                 const pointsEarned = selectedTransaction.items.reduce((sum, item) => {
+                    console.log(
+                      `[POS] Calculating points for item: ${item.name}, item.pointsAwardedPerUnit: ${item.pointsAwardedPerUnit} (type: ${typeof item.pointsAwardedPerUnit}), item.quantity: ${item.quantity} (type: ${typeof item.quantity})`
+                    );
                     const awardedPoints = (typeof item.pointsAwardedPerUnit === 'number' && !isNaN(item.pointsAwardedPerUnit)) ? item.pointsAwardedPerUnit : 0;
                     const qty = (typeof item.quantity === 'number' && !isNaN(item.quantity) && item.quantity > 0) ? item.quantity : 0;
-                    console.log(`[POS] Item: ${item.name}, Points per unit: ${awardedPoints}, Qty: ${qty}, Points for this item: ${awardedPoints * qty}`);
+                    console.log(`[POS] Effective awardedPoints: ${awardedPoints}, Effective qty: ${qty}, Points for this item: ${awardedPoints * qty}`);
                     return sum + (awardedPoints * qty);
                 }, 0);
                 console.log("[POS] Total points earned from this transaction:", pointsEarned);
