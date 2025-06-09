@@ -69,10 +69,10 @@ interface QueueItem {
 }
 
 const queueItemFormSchema = z.object({
-  customerName: z.string().min(1, "Nama pelanggan diperlukan"), // Akan menjadi select
+  customerName: z.string().min(1, "Nama pelanggan diperlukan"),
   clientId: z.string().optional(),
-  vehicleInfo: z.string().min(1, "Info kendaraan diperlukan"), // Akan menjadi select
-  service: z.string().min(1, "Layanan diperlukan"), // Akan menjadi select
+  vehicleInfo: z.string().min(1, "Info kendaraan diperlukan"), 
+  service: z.string().min(1, "Layanan diperlukan"), 
   serviceId: z.string().optional(),
   estimatedTime: z.string().min(1, "Estimasi waktu diperlukan"),
   status: z.enum(['Menunggu', 'Dalam Layanan', 'Selesai']),
@@ -86,6 +86,8 @@ interface ClientForSelect extends Client {
 interface ServiceForSelect extends ServiceProduct {
 // jika ada tambahan spesifik untuk select
 }
+
+const WALK_IN_CLIENT_VALUE = "##WALK_IN_CLIENT##";
 
 interface QueueItemFormProps {
   onSubmit: (data: QueueItemFormData) => Promise<void>;
@@ -106,46 +108,59 @@ function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting, client
   const [selectedClientMotorcycles, setSelectedClientMotorcycles] = useState<Motorcycle[]>([]);
 
   useEffect(() => {
-    form.reset(defaultValues);
-    const client = clientsList.find(c => c.id === defaultValues.clientId);
-    setSelectedClientMotorcycles(client?.motorcycles || []);
-    if (client && defaultValues.vehicleInfo) {
-      const vehicleExists = client.motorcycles.some(m => `${m.name} (${m.licensePlate.toUpperCase()})` === defaultValues.vehicleInfo);
-      if (!vehicleExists) {
-        form.setValue('vehicleInfo', '');
+    const initialClientId = defaultValues.clientId;
+    const isWalkInByDefault = !initialClientId || initialClientId === WALK_IN_CLIENT_VALUE;
+    
+    form.reset({
+      ...defaultValues,
+      clientId: initialClientId, 
+      customerName: isWalkInByDefault && !defaultValues.customerName ? '' : defaultValues.customerName,
+    });
+
+    if (initialClientId && initialClientId !== WALK_IN_CLIENT_VALUE) {
+      const client = clientsList.find(c => c.id === initialClientId);
+      setSelectedClientMotorcycles(client?.motorcycles || []);
+      if (client && defaultValues.vehicleInfo) {
+        const vehicleExists = client.motorcycles.some(m => `${m.name} (${m.licensePlate.toUpperCase()})` === defaultValues.vehicleInfo);
+        if (!vehicleExists) {
+          form.setValue('vehicleInfo', '');
+        }
       }
-    } else if (!defaultValues.clientId) {
-        form.setValue('customerName', defaultValues.customerName || ''); // For walk-in
+    } else {
+      setSelectedClientMotorcycles([]);
+      form.setValue('vehicleInfo', '');
     }
   }, [defaultValues, form, clientsList]);
 
   useEffect(() => {
-    if (selectedClientId) {
+    if (selectedClientId && selectedClientId !== WALK_IN_CLIENT_VALUE) {
       const client = clientsList.find(c => c.id === selectedClientId);
-      form.setValue('customerName', client?.name || '');
+      // Customer name is set by onValueChange, no need to set here unless for initial load
       setSelectedClientMotorcycles(client?.motorcycles || []);
       const currentVehicleInfo = form.getValues('vehicleInfo');
       if (currentVehicleInfo) {
         const vehicleIsValidForNewCustomer = client?.motorcycles.some(m => `${m.name} (${m.licensePlate.toUpperCase()})` === currentVehicleInfo);
         if (!vehicleIsValidForNewCustomer) {
-          form.setValue('vehicleInfo', '');
+          form.setValue('vehicleInfo', ''); 
         }
       }
-    } else {
-      // Manual input for customer name if no client is selected (walk-in)
+    } else { // Handles selectedClientId being undefined, null, or WALK_IN_CLIENT_VALUE
       setSelectedClientMotorcycles([]);
       form.setValue('vehicleInfo', ''); 
+      if (selectedClientId === WALK_IN_CLIENT_VALUE) {
+        // form.setValue('customerName', ''); // Already handled in onValueChange
+      }
     }
   }, [selectedClientId, clientsList, form]);
 
 
   const internalSubmit = form.handleSubmit(async (data) => {
-     // Ensure serviceId is populated based on selected service name
     const selectedService = servicesList.find(s => s.name === data.service);
-    if (selectedService) {
-      data.serviceId = selectedService.id;
-    }
-    await onSubmit(data);
+    const dataToSubmit = {
+      ...data,
+      serviceId: selectedService?.id || undefined,
+    };
+    await onSubmit(dataToSubmit);
   });
   
   return (
@@ -159,20 +174,31 @@ function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting, client
               <FormLabel>Pelanggan Terdaftar (Opsional)</FormLabel>
               <Select 
                 onValueChange={(value) => {
-                  field.onChange(value);
-                  if (!value) { // If "Walk-in" or empty is chosen
-                    form.setValue('customerName', ''); // Clear or allow manual input
+                  field.onChange(value); // value is client.id or WALK_IN_CLIENT_VALUE
+                  if (value === WALK_IN_CLIENT_VALUE) {
+                    form.setValue('customerName', ''); 
+                    setSelectedClientMotorcycles([]);
+                    form.setValue('vehicleInfo', '');
+                  } else {
+                    const client = clientsList.find(c => c.id === value);
+                    form.setValue('customerName', client?.name || '');
+                    setSelectedClientMotorcycles(client?.motorcycles || []);
+                    // If current vehicle is not in new client's list, clear it
+                    const currentVehicle = form.getValues('vehicleInfo');
+                    if(client && currentVehicle && !client.motorcycles.some(m => `${m.name} (${m.licensePlate.toUpperCase()})` === currentVehicle)){
+                        form.setValue('vehicleInfo', '');
+                    }
                   }
                 }} 
-                value={field.value || ""}
+                value={field.value} // Use field.value directly (can be undefined)
               >
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Pilih pelanggan atau biarkan kosong untuk walk-in" />
+                    <SelectValue placeholder="Pilih pelanggan atau isi nama (walk-in)" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="">-- Pelanggan Walk-in --</SelectItem>
+                  <SelectItem value={WALK_IN_CLIENT_VALUE}>-- Pelanggan Walk-in --</SelectItem>
                   {clientsList.map(client => (
                     <SelectItem key={client.id} value={client.id}>
                       {client.name} ({client.phone})
@@ -190,12 +216,12 @@ function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting, client
           name="customerName"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Nama Pelanggan (Walk-in)</FormLabel>
+              <FormLabel>Nama Pelanggan</FormLabel>
               <FormControl>
                 <Input 
-                  placeholder="Masukkan nama jika pelanggan walk-in" 
+                  placeholder="Masukkan nama pelanggan" 
                   {...field} 
-                  disabled={!!selectedClientId} // Disable if a registered client is selected
+                  disabled={!!selectedClientId && selectedClientId !== WALK_IN_CLIENT_VALUE}
                 />
               </FormControl>
               <FormMessage />
@@ -209,15 +235,14 @@ function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting, client
           render={({ field }) => (
             <FormItem>
               <FormLabel>Info Kendaraan</FormLabel>
-              {selectedClientId ? (
+              {(selectedClientId && selectedClientId !== WALK_IN_CLIENT_VALUE && selectedClientMotorcycles.length > 0) ? (
                 <Select 
                   onValueChange={field.onChange} 
                   value={field.value}
-                  disabled={selectedClientMotorcycles.length === 0}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder={selectedClientMotorcycles.length > 0 ? "Pilih info kendaraan" : "Klien ini tidak memiliki motor terdaftar"} />
+                      <SelectValue placeholder="Pilih info kendaraan" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -230,9 +255,16 @@ function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting, client
                 </Select>
               ) : (
                 <FormControl>
-                  <Input placeholder="Mis. Honda Vario (B 1234 XYZ)" {...field} />
+                  <Input 
+                    placeholder="Mis. Honda Vario (B 1234 XYZ)" 
+                    {...field} 
+                    disabled={!!selectedClientId && selectedClientId !== WALK_IN_CLIENT_VALUE && selectedClientMotorcycles.length === 0}
+                  />
                 </FormControl>
               )}
+               {selectedClientId && selectedClientId !== WALK_IN_CLIENT_VALUE && selectedClientMotorcycles.length === 0 && (
+                <p className="text-sm text-muted-foreground">Klien ini tidak memiliki motor terdaftar. Isi manual atau tambahkan di halaman klien.</p>
+               )}
               <FormMessage />
             </FormItem>
           )}
@@ -321,7 +353,7 @@ interface AssignStaffDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (staffName: string) => Promise<void>;
-  staffList: string[]; // Assuming staff list is just names for now
+  staffList: string[]; 
   isSubmitting: boolean;
 }
 
@@ -387,7 +419,6 @@ export default function QueuePage() {
   
   const [clientsList, setClientsList] = useState<ClientForSelect[]>([]);
   const [servicesList, setServicesList] = useState<ServiceForSelect[]>([]);
-  // Placeholder staff list, ideally fetched from Firestore or config
   const staffList = ['Andi P.', 'Budi S.', 'Rian S.', 'Siti K.', 'Eko W.', 'Lainnya']; 
 
   const [isAssignStaffDialogOpen, setIsAssignStaffDialogOpen] = useState(false);
@@ -473,7 +504,7 @@ export default function QueuePage() {
 
   const defaultQueueItemValues: QueueItemFormData = {
     customerName: '',
-    clientId: undefined,
+    clientId: undefined, // Important: Start as undefined for placeholder to show
     vehicleInfo: '',
     service: '',
     serviceId: undefined,
@@ -496,15 +527,19 @@ export default function QueuePage() {
   const handleFormSubmit = async (formData: QueueItemFormData) => {
     setIsSubmitting(true);
     try {
-      const firestoreData: Omit<QueueItem, 'id' | 'createdAt' | 'staff'> = {
-        customerName: formData.customerName,
-        clientId: formData.clientId,
-        vehicleInfo: formData.vehicleInfo,
-        service: formData.service,
-        serviceId: formData.serviceId,
-        estimatedTime: formData.estimatedTime,
-        status: formData.status,
+      const { clientId: formClientId, ...otherFormData } = formData;
+      const actualClientId = formClientId === WALK_IN_CLIENT_VALUE ? undefined : formClientId;
+
+      const firestoreData: Omit<QueueItem, 'id' | 'createdAt' | 'staff'> & { clientId?: string } = {
+          ...otherFormData,
+          ...(actualClientId && { clientId: actualClientId }) 
       };
+      // Firestore doesn't like explicit 'undefined' values for fields that might not exist.
+      // If actualClientId is undefined, ensure the clientId property is not in firestoreData.
+      if (!actualClientId) {
+          delete (firestoreData as any).clientId;
+      }
+
 
       if (currentEditingItem) { 
         const itemDocRef = doc(db, 'queueItems', currentEditingItem.id);
@@ -535,7 +570,7 @@ export default function QueuePage() {
     } else if (newStatus === 'Selesai') {
       try {
         const itemDocRef = doc(db, 'queueItems', item.id);
-        await updateDoc(itemDocRef, { status: newStatus, staff: item.staff || 'Tidak Ditugaskan' }); // Keep staff if already assigned
+        await updateDoc(itemDocRef, { status: newStatus, staff: item.staff || 'Tidak Ditugaskan' });
         toast({ title: "Status Diperbarui", description: `Status untuk ${item.customerName} diubah menjadi ${newStatus}.` });
         fetchQueueItems(); 
       } catch (error) {
@@ -556,7 +591,6 @@ export default function QueuePage() {
         staff: staffName 
       });
 
-      // Create or update transaction
       const serviceDetails = servicesList.find(s => s.name === itemBeingAssigned.service || s.id === itemBeingAssigned.serviceId);
       if (!serviceDetails) {
         toast({ title: "Error", description: "Detail layanan tidak ditemukan untuk membuat transaksi.", variant: "destructive" });
@@ -582,29 +616,39 @@ export default function QueuePage() {
 
       let transactionIdToUpdate: string | null = null;
       let existingItems: TransactionItem[] = [];
+      let existingTransactionData: Partial<Transaction> = {};
+
 
       if (!existingTransactionsSnap.empty) {
         const existingDoc = existingTransactionsSnap.docs[0];
         transactionIdToUpdate = existingDoc.id;
-        existingItems = (existingDoc.data() as Transaction).items || [];
+        const currentTransaction = existingDoc.data() as Transaction;
+        existingItems = currentTransaction.items || [];
+        existingTransactionData = currentTransaction;
       }
       
       const updatedItems = [...existingItems, newTransactionItem];
-      const subtotal = updatedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      const { subtotal, total, discountAmount } = calculateTransactionTotals(
+        updatedItems, 
+        existingTransactionData.discountAmount || 0, 
+        existingTransactionData.discountPercentage || 0
+      );
+
 
       if (transactionIdToUpdate) {
         const transactionDocRef = doc(db, 'transactions', transactionIdToUpdate);
         batch.update(transactionDocRef, {
           items: updatedItems,
-          serviceStaffName: staffName, // Or update logic for multiple staff
+          serviceStaffName: staffName, 
           updatedAt: serverTimestamp(),
           subtotal: subtotal,
-          total: subtotal // Assuming no discount for now
+          total: total,
+          discountAmount: discountAmount
         });
       } else {
-        const newTransactionRef = doc(collection(db, 'transactions')); // Auto-generate ID
+        const newTransactionRef = doc(collection(db, 'transactions')); 
         batch.set(newTransactionRef, {
-          clientId: itemBeingAssigned.clientId,
+          clientId: itemBeingAssigned.clientId === WALK_IN_CLIENT_VALUE ? undefined : itemBeingAssigned.clientId,
           customerName: itemBeingAssigned.customerName,
           queueItemId: itemBeingAssigned.id,
           status: 'open',
@@ -631,6 +675,18 @@ export default function QueuePage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const calculateTransactionTotals = (items: TransactionItem[], discountAmount: number = 0, discountPercentage: number = 0) => {
+    const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    let currentDiscountAmount = discountAmount;
+    if (discountPercentage > 0 && discountAmount === 0) { // Prioritize percentage if amount is not manually set
+        currentDiscountAmount = subtotal * (discountPercentage / 100);
+    } else if (discountAmount > 0) { // If amount is set, percentage is ignored for this calculation
+        // discountPercentage can be set to 0 in calling function if needed
+    }
+    const total = subtotal - currentDiscountAmount;
+    return { subtotal, total, discountAmount: currentDiscountAmount };
   };
   
   const handleDeleteConfirmation = (item: QueueItem) => {
@@ -804,7 +860,7 @@ export default function QueuePage() {
               onSubmit={handleFormSubmit}
               defaultValues={currentEditingItem ? {
                 customerName: currentEditingItem.customerName,
-                clientId: currentEditingItem.clientId,
+                clientId: currentEditingItem.clientId || WALK_IN_CLIENT_VALUE, // Ensure walk-in value if undefined
                 vehicleInfo: currentEditingItem.vehicleInfo,
                 service: currentEditingItem.service,
                 serviceId: currentEditingItem.serviceId,
@@ -826,10 +882,13 @@ export default function QueuePage() {
             setItemBeingAssigned(null);
           }}
           onSubmit={handleConfirmAssignStaff}
-          staffList={staffList} // Ensure staffList is passed
+          staffList={staffList} 
           isSubmitting={isSubmitting}
         />
       </main>
     </div>
   );
 }
+
+
+    
