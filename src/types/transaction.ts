@@ -1,0 +1,31 @@
+
+import type { Timestamp } from 'firebase/firestore';
+
+export interface TransactionItem {
+  id: string; // ID unik untuk item dalam transaksi, bisa UUID atau service/product ID
+  name: string;
+  price: number;
+  quantity: number;
+  type: 'service' | 'product' | 'food_drink' | 'other'; // Untuk membedakan jenis item
+  staffName?: string; // Staf yang terkait dengan item layanan spesifik jika perlu
+}
+
+export interface Transaction {
+  id: string; // ID dokumen Firestore
+  clientId?: string; // Opsional, jika pelanggan terdaftar
+  customerName: string; // Nama pelanggan (bisa dari klien terdaftar atau manual)
+  queueItemId?: string; // Opsional, jika transaksi berasal dari antrian
+  status: 'open' | 'draft' | 'paid' | 'cancelled';
+  items: TransactionItem[];
+  serviceStaffName?: string; // Staf utama yang menangani layanan dari antrian
+  transactionStaffName?: string; // Staf yang memproses transaksi di POS (bisa beda)
+  subtotal: number;
+  discountAmount: number; // Nominal diskon
+  discountPercentage: number; // Persentase diskon (0-100)
+  total: number;
+  paymentMethod?: string;
+  notes?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  paidAt?: Timestamp;
+}
