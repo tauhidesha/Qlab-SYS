@@ -285,7 +285,7 @@ export default function PosPage() {
         updatedAt: serverTimestamp() as Timestamp,
       };
       
-      const newTransactionData: Partial<Transaction> & { createdAt: any, updatedAt: any } = {
+      const newTransactionData: Partial<Omit<Transaction, 'id'>> & { createdAt: any, updatedAt: any } = {
         ...newTransactionBaseData,
       };
 
@@ -500,8 +500,10 @@ export default function PosPage() {
             const clientData = clientDocSnap.data() as Client;
             let currentLoyaltyPoints = (typeof clientData.loyaltyPoints === 'number' && !isNaN(clientData.loyaltyPoints)) ? clientData.loyaltyPoints : 0;
             console.log("[POS] Current client loyalty points (before any change):", currentLoyaltyPoints);
+            
+            console.log('[POS] Selected Transaction Items for Points Calc:', JSON.stringify(selectedTransaction.items, null, 2));
 
-            const pointsRedeemedThisTransaction = selectedTransaction.pointsRedeemed || 0;
+            const pointsRedeemedThisTransaction = (typeof selectedTransaction.pointsRedeemed === 'number' && !isNaN(selectedTransaction.pointsRedeemed)) ? selectedTransaction.pointsRedeemed : 0;
             let pointsEarnedThisTransaction = 0;
             let newLoyaltyPoints = currentLoyaltyPoints;
             const clientUpdateMessageParts: string[] = [];
@@ -516,7 +518,7 @@ export default function PosPage() {
                 pointsEarnedThisTransaction = selectedTransaction.items.reduce((sum, item) => {
                     const awardedPoints = (typeof item.pointsAwardedPerUnit === 'number' && !isNaN(item.pointsAwardedPerUnit)) ? item.pointsAwardedPerUnit : 0;
                     const qty = (typeof item.quantity === 'number' && !isNaN(item.quantity) && item.quantity > 0) ? item.quantity : 1; 
-                    console.log(`[POS] Calculating points for item: ${item.name}, pointsAwardedPerUnit: ${awardedPoints}, quantity: ${qty}`);
+                    console.log(`[POS] Calculating points for item: ${item.name}, pointsAwardedPerUnit: ${awardedPoints}, quantity: ${qty}, Current sum: ${sum}`);
                     return sum + (awardedPoints * qty);
                 }, 0);
                 console.log("[POS] Total points earned from this transaction (before adding to client):", pointsEarnedThisTransaction);
@@ -601,7 +603,7 @@ export default function PosPage() {
                 <Button 
                   onClick={() => { resetNewBillDialogState(); setIsCreateBillDialogOpen(true); }} 
                   size="sm" 
-                  variant="outline"
+                  className="bg-accent text-primary hover:bg-accent/90"
                 >
                     <PlusCircle className="mr-2 h-4 w-4" /> Bill Baru
                 </Button>
@@ -655,7 +657,11 @@ export default function PosPage() {
                     </div>
                     {console.log('[POS] Render Check - SelectedClientDetails:', selectedClientDetails, 'Loyalty Points:', selectedClientDetails?.loyaltyPoints, 'Min Redeem:', MINIMUM_POINTS_TO_REDEEM, 'Condition Met:', selectedClientDetails && (selectedClientDetails.loyaltyPoints || 0) >= MINIMUM_POINTS_TO_REDEEM)}
                     {selectedClientDetails && (selectedClientDetails.loyaltyPoints || 0) >= MINIMUM_POINTS_TO_REDEEM && (
-                        <Button variant="default" size="sm" onClick={handleOpenRedeemPointsDialog}>
+                        <Button 
+                          size="sm" 
+                          onClick={handleOpenRedeemPointsDialog}
+                          className="bg-accent text-primary hover:bg-accent/90"
+                        >
                             <Tags className="mr-2 h-4 w-4" /> Tukar Poin
                         </Button>
                     )}
@@ -663,7 +669,11 @@ export default function PosPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex justify-end mb-2">
-                     <Button size="sm" onClick={() => { resetAddItemForm(); setIsAddItemDialogOpen(true); }}>
+                     <Button 
+                        size="sm" 
+                        onClick={() => { resetAddItemForm(); setIsAddItemDialogOpen(true); }}
+                        className="bg-accent text-primary hover:bg-accent/90"
+                     >
                         <PlusCircle className="mr-2 h-4 w-4"/> Tambah Item
                     </Button>
                   </div>
@@ -758,7 +768,7 @@ export default function PosPage() {
                 </CardContent>
                 <CardFooter className="flex-col space-y-2">
                     <Button 
-                      className="w-full" 
+                      className="w-full bg-accent text-primary hover:bg-accent/90" 
                       onClick={handleOpenPaymentDialog}
                       disabled={!selectedTransaction || selectedTransaction.items.length === 0 || isProcessingPayment}
                     >
@@ -828,7 +838,11 @@ export default function PosPage() {
             <DialogClose asChild>
               <Button variant="outline" onClick={resetNewBillDialogState} disabled={isSubmittingNewBill}>Batal</Button>
             </DialogClose>
-            <Button onClick={handleConfirmCreateBill} disabled={isSubmittingNewBill || (newBillType === 'existing-client' && !selectedClientIdForNewBill && !loadingClients)}>
+            <Button 
+              onClick={handleConfirmCreateBill} 
+              disabled={isSubmittingNewBill || (newBillType === 'existing-client' && !selectedClientIdForNewBill && !loadingClients)}
+              className="bg-accent text-primary hover:bg-accent/90"
+            >
               {isSubmittingNewBill ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
               Buat Transaksi
             </Button>
@@ -924,7 +938,11 @@ export default function PosPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => { setIsAddItemDialogOpen(false); resetAddItemForm(); }} disabled={isSubmittingItem}>Batal</Button>
-              <Button onClick={handleAddItemToTransaction} disabled={isSubmittingItem || !selectedCatalogItemId || loadingCatalogItems}>
+              <Button 
+                onClick={handleAddItemToTransaction} 
+                disabled={isSubmittingItem || !selectedCatalogItemId || loadingCatalogItems}
+                className="bg-accent text-primary hover:bg-accent/90"
+              >
                 {isSubmittingItem && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Tambah Item
               </Button>
@@ -971,7 +989,11 @@ export default function PosPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsRedeemPointsDialogOpen(false)} disabled={isSubmittingRedemption}>Batal</Button>
-              <Button onClick={handleApplyPointDiscount} disabled={isSubmittingRedemption || !pointsToRedeemInput || parseInt(pointsToRedeemInput, 10) <= 0}>
+              <Button 
+                onClick={handleApplyPointDiscount} 
+                disabled={isSubmittingRedemption || !pointsToRedeemInput || parseInt(pointsToRedeemInput, 10) <= 0}
+                className="bg-accent text-primary hover:bg-accent/90"
+              >
                 {isSubmittingRedemption && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Terapkan Diskon dari Poin
               </Button>
@@ -1020,7 +1042,11 @@ export default function PosPage() {
               <DialogClose asChild>
                 <Button variant="outline" disabled={isProcessingPayment}>Batal</Button>
               </DialogClose>
-              <Button onClick={handleConfirmPayment} disabled={isProcessingPayment || !selectedPaymentMethod}>
+              <Button 
+                onClick={handleConfirmPayment} 
+                disabled={isProcessingPayment || !selectedPaymentMethod}
+                className="bg-accent text-primary hover:bg-accent/90"
+              >
                 {isProcessingPayment && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Konfirmasi Pembayaran
               </Button>
