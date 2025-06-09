@@ -529,13 +529,11 @@ const SidebarMenuButton = React.forwardRef<
       size = "default",
       className,
       children,
-      ...rest // All other props, including potentially 'asChild' from a parent
+      ...rest
     },
     ref
   ) => {
     const Comp = ownAsChild ? Slot : "button";
-    // Explicitly destructure 'asChild' from 'rest' to prevent it from being passed to the DOM element,
-    // renaming it to avoid conflict with 'ownAsChild'.
     const { asChild: _forwardedAsChild, ...elementProps } = rest;
 
     return (
@@ -545,7 +543,7 @@ const SidebarMenuButton = React.forwardRef<
         data-size={size}
         data-active={isActive}
         className={cn(sidebarMenuButtonVariants({ variant, size, className }))}
-        {...elementProps} // Spread the remaining props; _forwardedAsChild is now excluded
+        {...elementProps}
       >
         {children}
       </Comp>
@@ -673,7 +671,6 @@ const SidebarMenuSubButton = React.forwardRef<
   }
 >(({ asChild: ownAsChild = false, size = "md", isActive, className, children, ...rest }, ref) => {
   const Comp = ownAsChild ? Slot : "a";
-  // Explicitly destructure 'asChild' from 'rest' to prevent it from being passed to the DOM element
   const { asChild: _forwardedAsChild, ...elementProps } = rest;
 
   return (
@@ -690,7 +687,7 @@ const SidebarMenuSubButton = React.forwardRef<
         "group-data-[collapsible=icon]:hidden",
         className
       )}
-      {...elementProps} // Spread the remaining props; _forwardedAsChild is now excluded
+      {...elementProps}
     >
       {children}
     </Comp>
