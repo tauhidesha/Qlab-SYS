@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -17,7 +16,7 @@ import {
   SidebarMenuButton,
   SidebarMenuSub,
   SidebarMenuSubButton,
-  SidebarTrigger, // Added SidebarTrigger
+  SidebarTrigger,
   SidebarMenuSubItem,
   useSidebar,
 } from "@/components/ui/sidebar";
@@ -37,151 +36,115 @@ interface AppSidebarProps {
 
 export function AppSidebar({ className }: AppSidebarProps) {
   const pathname = usePathname();
-  const { state, open: sidebarOpen, isMobile } = useSidebar(); // Removed openMobile, setOpenMobile as they are not directly used here
+  const { state, open: sidebarOpen, isMobile } = useSidebar();
   const [openSubMenus, setOpenSubMenus] = React.useState<Record<string, boolean>>({});
 
   const toggleSubMenu = (title: string) => {
     setOpenSubMenus(prev => ({ ...prev, [title]: !prev[title] }));
   };
 
-  // Determine if text should be shown based on sidebar state and mobile status
   const showText = sidebarOpen || isMobile;
 
   const renderNavItem = (item: NavItem) => {
-    const isActive = pathname === item.href || (item.href && item.href !== '/' && pathname.startsWith(item.href));
+    const isActive =
+      pathname === item.href ||
+      (item.href && item.href !== "/" && pathname.startsWith(item.href));
     const Icon = item.icon;
 
-    const buttonContent = (
+    const content = (
       <>
         <Icon />
         {showText && <span>{item.title}</span>}
       </>
     );
 
-    if (item.items && item.items.length > 0) { // Group with sub-items
-      const groupButtonTriggerContent = (
-        <div className="flex items-center gap-2">
-          <Icon />
-          {showText && <span>{item.title}</span>}
-        </div>
-      );
-      
+    if (item.items?.length) {
+      // Group with sub-items
       const groupButton = (
         <SidebarMenuButton
-            onClick={() => toggleSubMenu(item.title)}
-            className="justify-between w-full"
-            isActive={isActive && !openSubMenus[item.title]}
-            aria-expanded={openSubMenus[item.title]}
-          >
-            {groupButtonTriggerContent}
-            {showText && (openSubMenus[item.title] ? <ChevronUp size={16} /> : <ChevronDown size={16} />)}
+          onClick={() => toggleSubMenu(item.title)}
+          className="justify-between w-full"
+          isActive={isActive && !openSubMenus[item.title]}
+          aria-expanded={openSubMenus[item.title]}
+        >
+          <div className="flex items-center gap-2">
+            <Icon />
+            {showText && <span>{item.title}</span>}
+          </div>
+          {showText &&
+            (openSubMenus[item.title] ? <ChevronUp size={16} /> : <ChevronDown size={16} />)}
         </SidebarMenuButton>
       );
-      
+
       let navElement = groupButton;
-      if (!sidebarOpen && !isMobile && item.title) { 
+      if (!sidebarOpen && !isMobile) {
         navElement = (
           <TooltipProvider delayDuration={0}>
             <Tooltip>
               <TooltipTrigger asChild>{groupButton}</TooltipTrigger>
-              <TooltipContent side="right" align="center">{item.title}</TooltipContent>
+              <TooltipContent side="right" align="center">
+                {item.title}
+              </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         );
       }
-      
+
       return (
         <SidebarMenuItem key={item.title}>
           {navElement}
-          {openSubMenus[item.title] && showText && ( 
+          {openSubMenus[item.title] && showText && (
             <SidebarMenuSub>
-              {item.items.map((subItem) => {
-                const subIsActive = pathname === subItem.href || (subItem.href && pathname.startsWith(subItem.href));
-                const SubIcon = subItem.icon;
-                const subButtonContent = (
-                  <>
-                    {SubIcon && <SubIcon />}
-                    <span>{subItem.title}</span>
-                  </>
-                );
-
-                // SidebarMenuSubButton renders an 'a' tag by default
-                const subActualButton = (
-                   <SidebarMenuSubButton href={subItem.href} isActive={subIsActive}>
-                      {subButtonContent}
-                    </SidebarMenuSubButton>
-                );
-                
-                let subNavElement = subActualButton;
-                // No tooltip for sub-items in this simplified version, assuming showText is true
-                
+              {item.items.map(sub => {
+                const subActive =
+                  pathname === sub.href ||
+                  (sub.href && pathname.startsWith(sub.href));
                 return (
-                   <SidebarMenuSubItem key={subItem.title}>
-                    {subNavElement}
-                   </SidebarMenuSubItem>
+                  <SidebarMenuSubItem key={sub.title}>
+                    <SidebarMenuSubButton
+                      asChild
+                      isActive={subActive}
+                      href={sub.href}
+                    >
+                      <Link href={sub.href}>{sub.title}</Link>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
                 );
               })}
             </SidebarMenuSub>
           )}
         </SidebarMenuItem>
       );
+    }
 
-    } else { // Single navigation item
-      const singleButtonElement = (
-        <SidebarMenuButton isActive={isActive}>
-          {buttonContent}
-        </SidebarMenuButton>
-      );
+    // Single item
+    const button = (
+      <SidebarMenuButton
+        asChild={!!item.href}
+        isActive={isActive}
+        href={item.href}
+      >
+        {item.href ? <Link href={item.href}>{content}</Link> : content}
+      </SidebarMenuButton>
+    );
 
-      let navElement = singleButtonElement;
-      if (item.href) {
-        const linkedButton = (
-          <Link href={item.href} asChild>
-            {singleButtonElement}
-          </Link>
-        );
-        navElement = linkedButton;
-      }
-      
-      if (!sidebarOpen && !isMobile && item.title) {
-        navElement = (
+    if (!sidebarOpen && !isMobile) {
+      return (
+        <SidebarMenuItem key={item.title}>
           <TooltipProvider delayDuration={0}>
             <Tooltip>
-              <TooltipTrigger asChild>
-                {/* If it's a link, Link component should be inside TooltipTrigger if asChild is used by Link */}
-                {/* If singleButtonElement is already wrapped by Link, it's fine. */}
-                {/* If Link asChild wraps TooltipTrigger asChild, then SidebarMenuButton must handle both sets of props. */}
-                {item.href ? (
-                    <Link href={item.href} passHref legacyBehavior>
-                        <TooltipTrigger asChild>
-                            {singleButtonElement}
-                        </TooltipTrigger>
-                    </Link>
-                 ) : (
-                    <TooltipTrigger asChild>
-                       {singleButtonElement}
-                    </TooltipTrigger>
-                 )
-                }
-              </TooltipTrigger>
-              <TooltipContent side="right" align="center">{item.title}</TooltipContent>
+              <TooltipTrigger asChild>{button}</TooltipTrigger>
+              <TooltipContent side="right" align="center">
+                {item.title}
+              </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-        );
-      } else if (item.href) {
-         // If text is shown or mobile, Link wraps SidebarMenuButton
-         navElement = (
-            <Link href={item.href} asChild>
-                {singleButtonElement}
-            </Link>
-         );
-      }
-
-
-      return <SidebarMenuItem key={item.title}>{navElement}</SidebarMenuItem>;
+        </SidebarMenuItem>
+      );
     }
-  };
 
+    return <SidebarMenuItem key={item.title}>{button}</SidebarMenuItem>;
+  };
 
   return (
     <Sidebar className={cn("border-r", className)} collapsible="icon">
@@ -189,34 +152,42 @@ export function AppSidebar({ className }: AppSidebarProps) {
         <div className="flex items-center gap-2">
           <Logo />
           <div className="grow" />
-          {/* SidebarTrigger for mobile, correctly uses useSidebar context */}
           <SidebarTrigger className="md:hidden" />
         </div>
       </SidebarHeader>
       <SidebarContent className="p-2">
         <SidebarMenu>
-          {mainNavItems.map((item) => renderNavItem(item))}
+          {mainNavItems.map(i => renderNavItem(i))}
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter className="p-2 border-t">
         <SidebarMenu>
           {renderNavItem(settingsNavItem)}
           <SidebarMenuItem>
-             {/* User profile section */}
-            <div className={cn(
+            <div
+              className={cn(
                 "flex items-center gap-2 p-2 rounded-md",
-                 showText ? "hover:bg-sidebar-accent" : "" // Only apply hover if text is shown
-              )}>
-                <Avatar className="h-8 w-8">
-                    <AvatarImage src="https://placehold.co/40x40.png" alt="User Avatar" data-ai-hint="user avatar" />
-                    <AvatarFallback>QP</AvatarFallback>
-                </Avatar>
-                {showText && (
-                  <div className="flex flex-col">
-                      <span className="text-sm font-medium text-sidebar-foreground">Demo User</span>
-                      <span className="text-xs text-sidebar-foreground/70">admin@qlab.pos</span>
-                  </div>
-                )}
+                showText ? "hover:bg-sidebar-accent" : ""
+              )}
+            >
+              <Avatar className="h-8 w-8">
+                <AvatarImage
+                  src="https://placehold.co/40x40.png"
+                  alt="User Avatar"
+                  data-ai-hint="user avatar"
+                />
+                <AvatarFallback>QP</AvatarFallback>
+              </Avatar>
+              {showText && (
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-sidebar-foreground">
+                    Demo User
+                  </span>
+                  <span className="text-xs text-sidebar-foreground/70">
+                    admin@qlab.pos
+                  </span>
+                </div>
+              )}
             </div>
           </SidebarMenuItem>
         </SidebarMenu>

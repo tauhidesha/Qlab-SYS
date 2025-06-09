@@ -34,8 +34,21 @@ export default function DashboardPage() {
     } else {
       toast({
         title: "Error Seeding Data",
-        description: result.message,
+        description: (
+          <>
+            {result.message}
+            <br />
+            <p className="mt-2 text-xs">
+              Troubleshooting tips:
+              <ul className="list-disc pl-4 mt-1">
+                <li>Ensure your Firebase project is correctly configured in the <code>.env</code> file.</li>
+                <li>Check your Firestore security rules to allow write access to the following collections for seeding: <code>clients</code>, <code>services</code>, <code>queueItems</code>, <code>attendanceRecords</code>, <code>payrollData</code>.</li>
+              </ul>
+            </p>
+          </>
+        ),
         variant: "destructive",
+        duration: 15000, // Longer duration for detailed error
       });
     }
     setIsSeeding(false);
