@@ -17,13 +17,12 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogClose,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -38,7 +37,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-
+import type { Client, Motorcycle } from '@/types/client'; // Asumsi ada definisi Motorcycle
+import type { ServiceProduct } from '@/app/(app)/services/page'; // Asumsi path dan ekspor ada
 
 interface QueueItem {
   id: string;
@@ -62,22 +62,68 @@ const queueItemFormSchema = z.object({
 
 type QueueItemFormData = z.infer<typeof queueItemFormSchema>;
 
+interface ClientForSelect extends Client {
+  // jika ada tambahan spesifik untuk select
+}
+interface ServiceForSelect extends ServiceProduct {
+电流 // jika ada tambahan spesifik untuk select
+}
+
 interface QueueItemFormProps {
   onSubmit: (data: QueueItemFormData) => Promise<void>;
   defaultValues: QueueItemFormData;
   onCancel: () => void;
   isSubmitting: boolean;
+  clientsList: ClientForSelect[];
+  servicesList: ServiceForSelect[];
+  staffList: string[];
 }
 
-function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting }: QueueItemFormProps) {
+function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting, clientsList, servicesList, staffList }: QueueItemFormProps) {
   const form = useForm<QueueItemFormData>({
     resolver: zodResolver(queueItemFormSchema),
     defaultValues: defaultValues,
   });
 
+  const selectedCustomerName = form.watch('customerName');
+  const [selectedClientMotorcycles, setSelectedClientMotorcycles] = useState<Motorcycle[]>([]);
+
   useEffect(() => {
     form.reset(defaultValues);
-  }, [defaultValues, form]);
+    // Saat defaultValues (terutama customerName) berubah, update daftar motor
+    if (defaultValues.customerName) {
+      const client = clientsList.find(c => c.name === defaultValues.customerName);
+      setSelectedClientMotorcycles(client?.motorcycles || []);
+      // Jika ada default vehicleInfo, pastikan itu valid untuk klien yang dipilih
+      if (client && defaultValues.vehicleInfo) {
+        const vehicleExists = client.motorcycles.some(m => `${m.name} (${m.licensePlate.toUpperCase()})` === defaultValues.vehicleInfo);
+        if (!vehicleExists) {
+          form.setValue('vehicleInfo', ''); // Reset jika tidak valid
+        }
+      }
+    } else {
+      setSelectedClientMotorcycles([]);
+    }
+  }, [defaultValues, form, clientsList]);
+
+  useEffect(() => {
+    if (selectedCustomerName) {
+      const client = clientsList.find(c => c.name === selectedCustomerName);
+      setSelectedClientMotorcycles(client?.motorcycles || []);
+      // Cek apakah vehicleInfo yang ada saat ini masih valid untuk customer baru. Jika tidak, reset.
+      const currentVehicleInfo = form.getValues('vehicleInfo');
+      if (currentVehicleInfo) {
+        const vehicleIsValidForNewCustomer = client?.motorcycles.some(m => `${m.name} (${m.licensePlate.toUpperCase()})` === currentVehicleInfo);
+        if (!vehicleIsValidForNewCustomer) {
+          form.setValue('vehicleInfo', '');
+        }
+      }
+    } else {
+      setSelectedClientMotorcycles([]);
+      form.setValue('vehicleInfo', ''); // Reset vehicleInfo jika tidak ada customer terpilih
+    }
+  }, [selectedCustomerName, clientsList, form]);
+
 
   const internalSubmit = form.handleSubmit(async (data) => {
     await onSubmit(data);
@@ -92,9 +138,26 @@ function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting }: Queu
           render={({ field }) => (
             <FormItem>
               <FormLabel>Nama Pelanggan</FormLabel>
-              <FormControl>
-                <Input placeholder="Masukkan nama pelanggan" {...field} />
-              </FormControl>
+              <Select 
+                onValueChange={(value) => {
+                  field.onChange(value);
+                }} 
+                defaultValue={field.value}
+                value={field.value}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih nama pelanggan" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {clientsList.map(client => (
+                    <SelectItem key={client.id} value={client.name}>
+                      {client.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
@@ -105,9 +168,25 @@ function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting }: Queu
           render={({ field }) => (
             <FormItem>
               <FormLabel>Info Kendaraan</FormLabel>
-              <FormControl>
-                <Input placeholder="mis. Honda Beat - B 1234 ABC" {...field} />
-              </FormControl>
+              <Select 
+                onValueChange={field.onChange} 
+                defaultValue={field.value}
+                value={field.value}
+                disabled={!selectedCustomerName || selectedClientMotorcycles.length === 0}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder={!selectedCustomerName ? "Pilih pelanggan dahulu" : "Pilih info kendaraan"} />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {selectedClientMotorcycles.map(motorcycle => (
+                    <SelectItem key={motorcycle.licensePlate} value={`${motorcycle.name} (${motorcycle.licensePlate.toUpperCase()})`}>
+                      {motorcycle.name} ({motorcycle.licensePlate.toUpperCase()})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
@@ -118,9 +197,20 @@ function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting }: Queu
           render={({ field }) => (
             <FormItem>
               <FormLabel>Layanan</FormLabel>
-              <FormControl>
-                <Input placeholder="mis. Cuci Reguler, Ganti Oli" {...field} />
-              </FormControl>
+              <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih layanan" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {servicesList.map(service => (
+                    <SelectItem key={service.id} value={service.name}>
+                      {service.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
@@ -144,9 +234,21 @@ function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting }: Queu
           render={({ field }) => (
             <FormItem>
               <FormLabel>Staf (Opsional)</FormLabel>
-              <FormControl>
-                <Input placeholder="Nama staf yang menangani" {...field} />
-              </FormControl>
+              <Select onValueChange={field.onChange} defaultValue={field.value || ""} value={field.value || ""}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih staf" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="">Tidak Ada / Pilih Staf</SelectItem>
+                  {staffList.map(staffName => (
+                    <SelectItem key={staffName} value={staffName}>
+                      {staffName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
@@ -157,7 +259,7 @@ function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting }: Queu
           render={({ field }) => (
             <FormItem>
               <FormLabel>Status</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Pilih status antrian" />
@@ -195,12 +297,57 @@ export default function QueuePage() {
   const [currentEditingItem, setCurrentEditingItem] = useState<QueueItem | null>(null);
   const [itemToDelete, setItemToDelete] = useState<QueueItem | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const [clientsList, setClientsList] = useState<ClientForSelect[]>([]);
+  const [servicesList, setServicesList] = useState<ServiceForSelect[]>([]);
+  const staffList = ['Andi P.', 'Budi S.', 'Rian S.', 'Siti K.', 'Eko W.', 'Lainnya']; // Placeholder
 
   const { toast } = useToast();
 
   useEffect(() => {
     console.log('[QueuePage] isFormDialogOpen changed to:', isFormDialogOpen);
   }, [isFormDialogOpen]);
+  
+  const fetchClients = useCallback(async () => {
+    try {
+      const clientsCollectionRef = collection(db, 'clients');
+      const q = query(clientsCollectionRef, orderBy("name"));
+      const querySnapshot = await getDocs(q);
+      const clientsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ClientForSelect));
+      setClientsList(clientsData);
+      console.log('Fetched clients for dropdown:', clientsData);
+    } catch (error) {
+      console.error("Error fetching clients for dropdown: ", error);
+      toast({
+        title: "Error",
+        description: "Tidak dapat mengambil data klien untuk dropdown.",
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
+
+  const fetchServices = useCallback(async () => {
+    try {
+      const servicesCollectionRef = collection(db, 'services');
+      const q = query(servicesCollectionRef, orderBy("name"));
+      const querySnapshot = await getDocs(q);
+      const servicesData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceForSelect));
+      setServicesList(servicesData);
+      console.log('Fetched services for dropdown:', servicesData);
+    } catch (error) {
+      console.error("Error fetching services for dropdown: ", error);
+      toast({
+        title: "Error",
+        description: "Tidak dapat mengambil data layanan untuk dropdown.",
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchClients();
+    fetchServices();
+  }, [fetchClients, fetchServices]);
 
   const fetchQueueItems = useCallback(async () => {
     setLoading(true);
@@ -255,7 +402,7 @@ export default function QueuePage() {
 
   const handleOpenAddDialog = () => {
     console.log('[QueuePage] handleOpenAddDialog called');
-    setCurrentEditingItem(null);
+    setCurrentEditingItem(null); // Pastikan ini null untuk mode tambah
     setIsFormDialogOpen(true);
   };
 
@@ -267,14 +414,18 @@ export default function QueuePage() {
   const handleFormSubmit = async (data: QueueItemFormData) => {
     setIsSubmitting(true);
     try {
+      const dataToSave = {
+        ...data,
+        staff: data.staff === "" ? undefined : data.staff, // Simpan undefined jika staff kosong
+      };
+
       if (currentEditingItem) { 
         const itemDocRef = doc(db, 'queueItems', currentEditingItem.id);
-        await updateDoc(itemDocRef, { ...data, staff: data.staff || "" }); 
+        await updateDoc(itemDocRef, dataToSave); 
         toast({ title: "Sukses", description: "Item antrian berhasil diperbarui." });
       } else { 
         await addDoc(collection(db, 'queueItems'), { 
-          ...data, 
-          staff: data.staff || "", 
+          ...dataToSave, 
           createdAt: serverTimestamp() 
         });
         toast({ title: "Sukses", description: "Item baru berhasil ditambahkan ke antrian." });
@@ -341,13 +492,13 @@ export default function QueuePage() {
     return <Clock className="h-4 w-4 text-yellow-500" />;
   };
 
-  if (loading) {
+  if (loading && (clientsList.length === 0 || servicesList.length === 0)) {
     return (
       <div className="flex flex-col h-full">
         <AppHeader title="Manajemen Antrian" />
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="ml-2">Memuat data antrian...</p>
+          <p className="ml-2">Memuat data antrian dan pendukung...</p>
         </div>
       </div>
     );
@@ -404,7 +555,7 @@ export default function QueuePage() {
                           Masuk: {item.createdAt?.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
                         </div>
                       </CardContent>
-                      <CardFooter className="flex flex-col sm:flex-row sm:justify-end gap-2 pt-4 border-t mt-auto">
+                       <CardFooter className="flex flex-col sm:flex-row sm:justify-end gap-2 pt-4 border-t mt-auto">
                         <Button variant="outline" size="sm" onClick={() => handleEditItem(item)} className="w-full sm:w-auto order-1 sm:order-1">
                           <Edit3 className="mr-2 h-4 w-4" /> Ubah
                         </Button>
@@ -475,6 +626,9 @@ export default function QueuePage() {
               } : defaultQueueItemValues}
               onCancel={() => setIsFormDialogOpen(false)}
               isSubmitting={isSubmitting}
+              clientsList={clientsList}
+              servicesList={servicesList}
+              staffList={staffList}
             />
           </DialogContent>
         </Dialog>

@@ -12,7 +12,7 @@ import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { toast } from "@/hooks/use-toast";
 
-interface ServiceProduct {
+export interface ServiceProduct { // Diekspor agar bisa digunakan di QueuePage
   id: string;
   name: string;
   type: 'Layanan' | 'Produk';
@@ -142,3 +142,5 @@ export default function ServicesPage() {
     </div>
   );
 }
+
+    
