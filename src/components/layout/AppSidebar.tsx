@@ -18,7 +18,7 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarTrigger,
-  SidebarMenuSubItem, // Added import
+  SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import Logo from "@/components/Logo";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -37,7 +37,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
     setOpenSubMenus(prev => ({ ...prev, [title]: !prev[title] }));
   };
 
-  const renderNavItem = (item: NavItem) => { // Removed isSubItem param as it's not used for logic branching here
+  const renderNavItem = (item: NavItem) => {
     const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
     const Icon = item.icon;
 
@@ -63,9 +63,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
                   <Link href={subItem.href} asChild>
                     <SidebarMenuSubButton
                       isActive={pathname === subItem.href || pathname.startsWith(subItem.href)}
-                      // REMOVED asChild from SidebarMenuSubButton
                     >
-                      {/* REMOVED inner <a> tag, content is direct child */}
                       {subItem.icon && <subItem.icon />}
                       <span>{subItem.title}</span>
                     </SidebarMenuSubButton>
@@ -79,17 +77,14 @@ export function AppSidebar({ className }: AppSidebarProps) {
     }
     
     // This case is for top-level items that are direct links (not groups)
-    // Here, ButtonComponent will be SidebarMenuButton
-    // For SidebarMenuButton (which defaults to <button>), we need asChild on it
-    // and an inner <a> to make it a link.
+    // SidebarMenuButton will render as a <button> by default.
+    // Link asChild will pass href and navigation logic to this button.
     return (
       <SidebarMenuItem key={item.title}>
         <Link href={item.href} asChild>
-          <SidebarMenuButton isActive={isActive} asChild>
-            <a>
-              <Icon />
-              <span>{item.title}</span>
-            </a>
+          <SidebarMenuButton isActive={isActive}>
+            <Icon />
+            <span>{item.title}</span>
           </SidebarMenuButton>
         </Link>
       </SidebarMenuItem>
@@ -131,3 +126,4 @@ export function AppSidebar({ className }: AppSidebarProps) {
     </Sidebar>
   );
 }
+
