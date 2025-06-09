@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
 import { Skeleton } from "@/components/ui/skeleton"
-// Tooltip related imports are removed from here
+// TooltipProvider, Tooltip, TooltipTrigger, TooltipContent are imported in AppSidebar.tsx
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state"
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
@@ -116,13 +116,8 @@ const SidebarProvider = React.forwardRef<
       [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]
     )
 
-    // Import TooltipProvider here if it's the root for tooltips
-    const { TooltipProvider: ActualTooltipProvider } = React.lazy(() => import('@/components/ui/tooltip'));
-
-
     return (
       <SidebarContext.Provider value={contextValue}>
-         {/* Wrap with ActualTooltipProvider if needed at this level, or ensure it's higher up */}
         <div
           style={
             {
@@ -523,9 +518,7 @@ const sidebarMenuButtonVariants = cva(
 const SidebarMenuButton = React.forwardRef<
   HTMLButtonElement,
   React.ComponentProps<"button"> & {
-    asChild?: boolean;
     isActive?: boolean;
-    // Tooltip prop removed
   } & VariantProps<typeof sidebarMenuButtonVariants>
 >(
   (
@@ -541,6 +534,7 @@ const SidebarMenuButton = React.forwardRef<
     ref
   ) => {
     const Comp = ownAsChild ? Slot : "button";
+    // Explicitly destructure and remove `asChild` from `rest` so it's not passed to the DOM element
     const { asChild: _forwardedAsChild, ...elementProps } = rest;
 
     return (
@@ -673,13 +667,12 @@ SidebarMenuSubItem.displayName = "SidebarMenuSubItem"
 const SidebarMenuSubButton = React.forwardRef<
   HTMLAnchorElement,
   React.ComponentProps<"a"> & {
-    asChild?: boolean;
     size?: "sm" | "md";
     isActive?: boolean;
-    // Tooltip prop removed
   }
 >(({ asChild: ownAsChild = false, size = "md", isActive, className, children, ...rest }, ref) => {
   const Comp = ownAsChild ? Slot : "a";
+  // Explicitly destructure and remove `asChild` from `rest` so it's not passed to the DOM element
   const { asChild: _forwardedAsChild, ...elementProps } = rest;
 
   return (
@@ -731,4 +724,3 @@ export {
   useSidebar,
 }
 
-    
