@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -543,53 +544,56 @@ const SidebarMenuButton = React.forwardRef<
 >(
   (
     {
-      asChild = false,
+      asChild: localAsChild = false,
       isActive = false,
       variant = "default",
       size = "default",
       tooltip,
       className,
-      ...props
+      ...rest // Changed from ...props to ...rest
     },
     ref
   ) => {
-    const Comp = asChild ? Slot : "button"
-    const { isMobile, state } = useSidebar()
+    const Comp = localAsChild ? Slot : "button";
+    const { isMobile, state } = useSidebar();
 
-    const button = (
+    // Explicitly remove `asChild` from `rest` if it exists, so it's not spread to DOM element
+    const { asChild: _forwardedAsChild, ...elementProps } = rest;
+
+    const buttonElement = ( // Renamed to avoid conflict with tooltip variable
       <Comp
         ref={ref}
         data-sidebar="menu-button"
         data-size={size}
         data-active={isActive}
         className={cn(sidebarMenuButtonVariants({ variant, size }), className)}
-        {...props}
+        {...elementProps} // Use elementProps here
       />
-    )
+    );
 
     if (!tooltip) {
-      return button
+      return buttonElement;
     }
 
     if (typeof tooltip === "string") {
       tooltip = {
         children: tooltip,
-      }
+      };
     }
 
     return (
       <Tooltip>
-        <TooltipTrigger asChild>{button}</TooltipTrigger>
+        <TooltipTrigger asChild>{buttonElement}</TooltipTrigger>
         <TooltipContent
           side="right"
           align="center"
           hidden={state !== "collapsed" || isMobile}
-          {...tooltip}
+          {...(tooltip as React.ComponentProps<typeof TooltipContent>)} // Ensure tooltip is of correct type
         />
       </Tooltip>
-    )
+    );
   }
-)
+);
 SidebarMenuButton.displayName = "SidebarMenuButton"
 
 const SidebarMenuAction = React.forwardRef<
@@ -712,8 +716,10 @@ const SidebarMenuSubButton = React.forwardRef<
     size?: "sm" | "md"
     isActive?: boolean
   }
->(({ asChild = false, size = "md", isActive, className, ...props }, ref) => {
-  const Comp = asChild ? Slot : "a"
+>(({ asChild: localAsChild = false, size = "md", isActive, className, ...rest }, ref) => { // Changed from ...props to ...rest
+  const Comp = localAsChild ? Slot : "a";
+  // Explicitly remove `asChild` from `rest` if it exists, so it's not spread to DOM element
+  const { asChild: _forwardedAsChild, ...elementProps } = rest;
 
   return (
     <Comp
@@ -729,7 +735,7 @@ const SidebarMenuSubButton = React.forwardRef<
         "group-data-[collapsible=icon]:hidden",
         className
       )}
-      {...props}
+      {...elementProps} // Use elementProps here
     />
   )
 })
