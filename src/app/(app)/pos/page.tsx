@@ -10,10 +10,26 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { PlusCircle, Trash2, CreditCard, Loader2, ShoppingBag, Edit, UserPlus } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, arrayUnion, serverTimestamp, addDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, arrayUnion, serverTimestamp, addDoc, type Timestamp } from 'firebase/firestore';
 import type { Transaction, TransactionItem } from '@/types/transaction';
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid'; // For generating unique IDs for items
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
 
 // Placeholder data for services/products if not fetched
 const placeholderServices = [
@@ -416,3 +432,5 @@ export default function PosPage() {
     </div>
   );
 }
+
+    
