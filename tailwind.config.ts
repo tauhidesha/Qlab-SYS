@@ -10,8 +10,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['Inter', 'sans-serif'],
-        headline: ['Inter', 'sans-serif'],
+        body: ['"League Spartan"', 'sans-serif'],
+        headline: ['"League Spartan"', 'sans-serif'],
         code: ['monospace'],
       },
       colors: {
