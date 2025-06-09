@@ -498,21 +498,14 @@ export default function PosPage() {
       const transactionDocRef = doc(db, 'transactions', selectedTransaction.id);
       
       let pointsEarnedThisTransaction = 0;
-      // console.log('[POS] handleConfirmPayment - selectedTransaction.clientId:', selectedTransaction.clientId);
-      // console.log('[POS] handleConfirmPayment - selectedTransaction.pointsRedeemed:', selectedTransaction.pointsRedeemed);
-      // console.log('[POS] handleConfirmPayment - Condition for earning points:', selectedTransaction.clientId && (!selectedTransaction.pointsRedeemed || selectedTransaction.pointsRedeemed === 0));
       
       // Only calculate pointsEarned if client exists and no points were redeemed in this transaction
       if (selectedTransaction.clientId && (!selectedTransaction.pointsRedeemed || selectedTransaction.pointsRedeemed === 0)) {
-         // console.log('[POS] handleConfirmPayment - Calculating pointsEarnedThisTransaction. Items:', selectedTransaction.items);
          pointsEarnedThisTransaction = selectedTransaction.items.reduce((sum, item) => {
-            // console.log(`[POS] Item: ${item.name}, pointsAwardedPerUnit: ${item.pointsAwardedPerUnit}, quantity: ${item.quantity}`);
             const awardedPoints = (typeof item.pointsAwardedPerUnit === 'number' && !isNaN(item.pointsAwardedPerUnit)) ? item.pointsAwardedPerUnit : 0;
-            const qty = (typeof item.quantity === 'number' && !isNaN(item.quantity) && item.quantity > 0) ? item.quantity : 1; // Default to 1 if quantity is somehow invalid
-            // console.log(`[POS] Effective awardedPoints: ${awardedPoints}, effective qty: ${qty}`);
+            const qty = (typeof item.quantity === 'number' && !isNaN(item.quantity) && item.quantity > 0) ? item.quantity : 1; 
             return sum + (awardedPoints * qty);
         }, 0);
-        // console.log('[POS] handleConfirmPayment - Total pointsEarnedThisTransaction:', pointsEarnedThisTransaction);
       }
       
       if (selectedTransaction.clientId) {
@@ -521,7 +514,6 @@ export default function PosPage() {
 
         if (clientDocSnap.exists()) {
             const clientData = clientDocSnap.data() as Client;
-            // console.log('[POS] Client data before update:', clientData);
             let currentLoyaltyPoints = (typeof clientData.loyaltyPoints === 'number' && !isNaN(clientData.loyaltyPoints)) ? clientData.loyaltyPoints : 0;
             
             const pointsRedeemedThisTransaction = (typeof selectedTransaction.pointsRedeemed === 'number' && !isNaN(selectedTransaction.pointsRedeemed)) ? selectedTransaction.pointsRedeemed : 0;
@@ -531,6 +523,7 @@ export default function PosPage() {
             if (pointsRedeemedThisTransaction > 0) {
                 newLoyaltyPoints -= pointsRedeemedThisTransaction;
                 clientUpdateMessageParts.push(`${pointsRedeemedThisTransaction} poin ditukar`);
+                // pointsEarnedThisTransaction is already 0 if points were redeemed
             } else { // Only add points if none were redeemed
                 newLoyaltyPoints += pointsEarnedThisTransaction;
                 if (pointsEarnedThisTransaction > 0) {
@@ -544,19 +537,22 @@ export default function PosPage() {
                 loyaltyPoints: newLoyaltyPoints,
                 lastVisit: today,
             });
-            // console.log(`[POS] Client ${clientData.name} updated. New points: ${newLoyaltyPoints}, Last visit: ${today}`);
             
             let clientUpdateMessage = `Kunjungan terakhir untuk ${clientData.name} telah diperbarui.`;
             if (clientUpdateMessageParts.length > 0) {
                 clientUpdateMessage += ` ${clientUpdateMessageParts.join(', ')}.`;
             } else if (pointsRedeemedThisTransaction === 0 && pointsEarnedThisTransaction === 0) {
-                 clientUpdateMessage += ` (Tidak ada poin diperoleh/ditukar pada transaksi ini).`;
+                 clientUpdateMessage += ` (Tidak ada perubahan poin pada transaksi ini).`;
             }
             toast({ title: "Info Klien Diperbarui", description: clientUpdateMessage.trim() });
         }
       }
       
-      const finalTransactionData = { ...selectedTransaction, paymentMethod: selectedPaymentMethod };
+      const finalTransactionData: Transaction = { 
+        ...selectedTransaction, 
+        paymentMethod: selectedPaymentMethod,
+        pointsEarnedInThisTx: pointsEarnedThisTransaction,
+      };
 
       await updateDoc(transactionDocRef, {
         status: 'paid',
@@ -590,7 +586,6 @@ export default function PosPage() {
     if (transaction.paidAt && transaction.paidAt.toDate) {
         text += `Tanggal: ${transaction.paidAt.toDate().toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'})}\n\n`;
     } else {
-        // Fallback if paidAt is not yet set (should be, but just in case)
         text += `Tanggal: ${new Date().toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'})}\n\n`;
     }
     
@@ -603,8 +598,16 @@ export default function PosPage() {
       text += `Diskon: - Rp ${transaction.discountAmount.toLocaleString('id-ID')}\n`;
     }
     text += `*Total: Rp ${transaction.total.toLocaleString('id-ID')}*\n`;
-    text += `Metode Bayar: ${transaction.paymentMethod || 'N/A'}\n\n`; // Handle if paymentMethod is undefined
-    text += `Terima kasih atas kunjungan Anda!`;
+    text += `Metode Bayar: ${transaction.paymentMethod || 'N/A'}\n`;
+
+    if (transaction.pointsRedeemed && transaction.pointsRedeemed > 0) {
+        text += `Poin Ditukar: ${transaction.pointsRedeemed.toLocaleString('id-ID')} poin\n`;
+        text += `(Tidak ada poin baru diperoleh pada transaksi ini karena penukaran poin.)\n`;
+    } else if (transaction.pointsEarnedInThisTx && transaction.pointsEarnedInThisTx > 0) {
+        text += `Poin Baru Diperoleh: ${transaction.pointsEarnedInThisTx.toLocaleString('id-ID')} poin\n`;
+    }
+    
+    text += `\nTerima kasih atas kunjungan Anda!`;
     return text;
   }
 

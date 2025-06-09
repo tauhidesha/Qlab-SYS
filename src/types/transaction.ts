@@ -29,6 +29,7 @@ export interface Transaction {
   notes?: string;
   pointsRedeemed?: number; // Jumlah poin yang ditukarkan klien untuk transaksi ini
   pointsRedeemedValue?: number; // Nilai diskon (Rp) dari poin yang ditukarkan
+  pointsEarnedInThisTx?: number; // Jumlah poin yang diperoleh dari transaksi ini (untuk struk)
   createdAt: Timestamp;
   updatedAt: Timestamp;
   paidAt?: Timestamp;
