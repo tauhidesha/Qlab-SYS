@@ -49,6 +49,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
             className="justify-between w-full"
             isActive={isActive && !openSubMenus[item.title]}
             aria-expanded={openSubMenus[item.title]}
+            tooltip={item.title}
           >
             <div className="flex items-center gap-2">
               <Icon />
@@ -63,6 +64,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
                   <Link href={subItem.href} asChild>
                     <SidebarMenuSubButton
                       isActive={pathname === subItem.href || pathname.startsWith(subItem.href)}
+                      tooltip={subItem.title}
                     >
                       {subItem.icon && <subItem.icon />}
                       <span>{subItem.title}</span>
@@ -76,13 +78,10 @@ export function AppSidebar({ className }: AppSidebarProps) {
       );
     }
     
-    // This case is for top-level items that are direct links (not groups)
-    // SidebarMenuButton will render as a <button> by default.
-    // Link asChild will pass href and navigation logic to this button.
     return (
       <SidebarMenuItem key={item.title}>
         <Link href={item.href} asChild>
-          <SidebarMenuButton isActive={isActive}>
+          <SidebarMenuButton isActive={isActive} tooltip={item.title}>
             <Icon />
             <span>{item.title}</span>
           </SidebarMenuButton>
@@ -126,4 +125,3 @@ export function AppSidebar({ className }: AppSidebarProps) {
     </Sidebar>
   );
 }
-
