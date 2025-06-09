@@ -1,7 +1,7 @@
 
 "use client";
 import AppHeader from '@/components/layout/AppHeader';
-import { Button, buttonVariants } from '@/components/ui/button'; // Ditambahkan buttonVariants
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -11,7 +11,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy, deleteDoc, doc } from 'firebase/firestore';
 import { toast } from "@/hooks/use-toast";
-import type { Client } from '@/types/client'; // Import Client type
+import type { Client } from '@/types/client';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,7 +34,7 @@ export default function ClientsPage() {
     setLoading(true);
     try {
       const clientsCollectionRef = collection(db, 'clients');
-      const q = query(clientsCollectionRef, orderBy("name")); 
+      const q = query(clientsCollectionRef, orderBy("name"));
       const querySnapshot = await getDocs(q);
       const clientsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
       setClients(clientsData);
@@ -78,7 +78,7 @@ export default function ClientsPage() {
   const filteredClients = clients.filter(client =>
     client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     client.phone.includes(searchTerm) ||
-    client.motorcycles.some(mc => mc.name.toLowerCase().includes(searchTerm.toLowerCase()) || mc.licensePlate.toLowerCase().includes(searchTerm.toLowerCase()))
+    (client.motorcycles && client.motorcycles.some(mc => mc.name.toLowerCase().includes(searchTerm.toLowerCase()) || mc.licensePlate.toLowerCase().includes(searchTerm.toLowerCase())))
   );
 
   if (loading) {
@@ -141,24 +141,23 @@ export default function ClientsPage() {
                     <TableCell>{client.phone}</TableCell>
                     <TableCell>
                       <ul className="list-disc list-inside text-sm">
-                        {client.motorcycles.map(mc => (
+                        {client.motorcycles && client.motorcycles.length > 0 ? client.motorcycles.map(mc => (
                           <li key={mc.licensePlate}>
                             {mc.name} ({mc.licensePlate})
                           </li>
-                        ))}
-                        {client.motorcycles.length === 0 && <span className="text-muted-foreground">Tidak ada sepeda motor</span>}
+                        )) : <span className="text-muted-foreground">Tidak ada sepeda motor</span>}
                       </ul>
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center">
                         <Star className="h-4 w-4 text-yellow-400 mr-1" />
-                        {client.loyaltyPoints.toLocaleString('id-ID')}
+                        {client.loyaltyPoints?.toLocaleString('id-ID') || 0}
                       </div>
                     </TableCell>
                     <TableCell>{client.lastVisit || 'N/A'}</TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="icon" asChild className="hover:text-primary">
-                        <Link href={`/clients/${client.id}/edit`}> {/* Nantinya akan dibuatkan halaman edit */}
+                        <Link href={`/clients/${client.id}/edit`}>
                           <Edit3 className="h-4 w-4" />
                         </Link>
                       </Button>
