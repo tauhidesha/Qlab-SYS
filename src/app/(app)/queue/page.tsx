@@ -66,7 +66,7 @@ interface ClientForSelect extends Client {
   // jika ada tambahan spesifik untuk select
 }
 interface ServiceForSelect extends ServiceProduct {
-电流 // jika ada tambahan spesifik untuk select
+// jika ada tambahan spesifik untuk select
 }
 
 interface QueueItemFormProps {
@@ -241,7 +241,7 @@ function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting, client
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="">Tidak Ada / Pilih Staf</SelectItem>
+                  {/* <SelectItem value="">Tidak Ada / Pilih Staf</SelectItem> */} {/* Item ini menyebabkan error */}
                   {staffList.map(staffName => (
                     <SelectItem key={staffName} value={staffName}>
                       {staffName}
@@ -402,7 +402,7 @@ export default function QueuePage() {
 
   const handleOpenAddDialog = () => {
     console.log('[QueuePage] handleOpenAddDialog called');
-    setCurrentEditingItem(null); // Pastikan ini null untuk mode tambah
+    setCurrentEditingItem(null); 
     setIsFormDialogOpen(true);
   };
 
@@ -416,7 +416,7 @@ export default function QueuePage() {
     try {
       const dataToSave = {
         ...data,
-        staff: data.staff === "" ? undefined : data.staff, // Simpan undefined jika staff kosong
+        staff: data.staff === "" ? undefined : data.staff, 
       };
 
       if (currentEditingItem) { 
@@ -572,7 +572,7 @@ export default function QueuePage() {
                         )}
                         
                         <AlertDialogTrigger asChild>
-                          <Button variant="destructive" size="sm" onClick={() => handleDeleteConfirmation(item)} className="w-full sm:w-auto order-3 sm:order-3">
+                           <Button variant="destructive" size="sm" onClick={() => handleDeleteConfirmation(item)} className="w-full sm:w-auto order-3 sm:order-3">
                             <Trash2 className="mr-2 h-4 w-4" /> Hapus
                           </Button>
                         </AlertDialogTrigger>
