@@ -14,7 +14,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Save, Loader2, ArrowLeft } from 'lucide-react';
+import { Save, Loader2, ArrowLeft, Gift } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
@@ -28,6 +28,10 @@ const serviceProductFormSchema = z.object({
   price: z.preprocess(
     (val) => (val === '' || val === undefined || val === null ? undefined : parseFloat(String(val))),
     z.number({ required_error: "Harga diperlukan", invalid_type_error: "Harga harus berupa angka" }).positive("Harga harus angka positif")
+  ),
+  pointsAwarded: z.preprocess(
+    (val) => (val === '' || val === undefined || val === null ? undefined : parseInt(String(val), 10)),
+    z.number({ invalid_type_error: "Poin harus berupa angka" }).nonnegative("Poin tidak boleh negatif").optional()
   ),
   description: z.string().max(500, "Deskripsi maksimal 500 karakter").optional(),
 });
@@ -44,7 +48,8 @@ export default function NewServiceProductPage() {
       name: '',
       type: undefined, 
       category: '',
-      price: '' as any, // Initialize as empty string for controlled input, cast as any to satisfy TS temporarily
+      price: '' as any, 
+      pointsAwarded: undefined,
       description: '',
     },
   });
@@ -56,7 +61,8 @@ export default function NewServiceProductPage() {
         name: data.name,
         type: data.type,
         category: data.category,
-        price: data.price, // Zod preprocess ensures this is a number if valid
+        price: data.price,
+        pointsAwarded: data.pointsAwarded || 0,
         description: data.description || '',
         createdAt: serverTimestamp(),
       };
@@ -139,28 +145,54 @@ export default function NewServiceProductPage() {
                     )}
                   />
                 </div>
-                <FormField
-                  control={form.control}
-                  name="price"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Harga (Rp)</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          placeholder="mis. 75000" 
-                          {...field} 
-                          value={field.value === undefined ? '' : field.value} // Ensure value is '' if undefined
-                          onChange={e => {
-                            const val = e.target.value;
-                            field.onChange(val === '' ? '' : parseFloat(val)); // Keep as '' or parse to float
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormField
+                    control={form.control}
+                    name="price"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Harga (Rp)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            placeholder="mis. 75000" 
+                            {...field} 
+                            value={field.value === undefined ? '' : field.value}
+                            onChange={e => {
+                              const val = e.target.value;
+                              field.onChange(val === '' ? '' : parseFloat(val));
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="pointsAwarded"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center">
+                          <Gift className="mr-2 h-4 w-4 text-yellow-500" /> Poin Diberikan (Opsional)
+                        </FormLabel>
+                        <FormControl>
+                           <Input 
+                            type="number" 
+                            placeholder="mis. 100" 
+                            {...field} 
+                            value={field.value === undefined ? '' : field.value}
+                            onChange={e => {
+                              const val = e.target.value;
+                              field.onChange(val === '' ? undefined : parseInt(val, 10));
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
                 <FormField
                   control={form.control}
                   name="description"

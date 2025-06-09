@@ -9,6 +9,7 @@ export interface TransactionItem {
   quantity: number;
   type: 'service' | 'product' | 'food_drink' | 'other'; // To membedakan jenis item
   staffName?: string; // Staf yang terkait dengan item layanan spesifik jika perlu
+  pointsAwardedPerUnit: number; // Poin yang diberikan untuk satu unit item ini
 }
 
 export interface Transaction {

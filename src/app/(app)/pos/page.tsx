@@ -180,6 +180,7 @@ export default function PosPage() {
       price: catalogItem.price,
       quantity: quantity,
       type: catalogItem.type === 'Layanan' ? 'service' : 'product', 
+      pointsAwardedPerUnit: catalogItem.pointsAwarded || 0,
     };
 
     try {
@@ -368,14 +369,18 @@ export default function PosPage() {
 
       toast({ title: "Pembayaran Sukses", description: `Transaksi untuk ${selectedTransaction.customerName} berhasil dibayar.`});
       
-      // Update client loyalty points and last visit
       if (selectedTransaction.clientId) {
         try {
             const clientDocRef = doc(db, 'clients', selectedTransaction.clientId);
             const clientDocSnap = await getDoc(clientDocRef);
             if (clientDocSnap.exists()) {
                 const clientData = clientDocSnap.data() as Client;
-                const pointsEarned = Math.floor(selectedTransaction.total / 1000); // 1 point per Rp 1000
+                
+                // Calculate points based on items
+                const pointsEarned = selectedTransaction.items.reduce((sum, item) => {
+                    return sum + (item.pointsAwardedPerUnit * item.quantity);
+                }, 0);
+
                 const newLoyaltyPoints = (clientData.loyaltyPoints || 0) + pointsEarned;
                 const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
 
@@ -383,11 +388,14 @@ export default function PosPage() {
                     loyaltyPoints: newLoyaltyPoints,
                     lastVisit: today,
                 });
-                toast({ title: "Info Klien Diperbarui", description: `Poin loyalitas (${pointsEarned} poin) & kunjungan terakhir untuk ${clientData.name} telah diperbarui.` });
+                if (pointsEarned > 0) {
+                  toast({ title: "Info Klien Diperbarui", description: `Poin loyalitas (${pointsEarned} poin) & kunjungan terakhir untuk ${clientData.name} telah diperbarui.` });
+                } else {
+                  toast({ title: "Info Klien Diperbarui", description: `Kunjungan terakhir untuk ${clientData.name} telah diperbarui.` });
+                }
             }
         } catch (clientUpdateError) {
             console.error("Error updating client loyalty/visit: ", clientUpdateError);
-            // Non-critical error, so we don't block the main payment success flow
             toast({ title: "Peringatan", description: "Pembayaran berhasil, tapi gagal memperbarui data loyalitas klien.", variant: "destructive" });
         }
       }

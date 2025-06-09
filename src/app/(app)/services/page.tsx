@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Edit3, Trash2, Wrench, ShoppingBag, Search, Loader2 } from 'lucide-react';
+import { PlusCircle, Edit3, Trash2, Wrench, ShoppingBag, Search, Loader2, Gift } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
@@ -33,6 +33,7 @@ export interface ServiceProduct {
   category: string;
   price: number;
   description?: string;
+  pointsAwarded?: number; // Poin yang diberikan untuk item ini
 }
 
 export default function ServicesPage() {
@@ -141,6 +142,7 @@ export default function ServicesPage() {
                     <TableHead>Jenis</TableHead>
                     <TableHead>Kategori</TableHead>
                     <TableHead className="text-right">Harga</TableHead>
+                    <TableHead className="text-center">Poin</TableHead>
                     <TableHead className="text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -156,6 +158,15 @@ export default function ServicesPage() {
                       </TableCell>
                       <TableCell>{item.category}</TableCell>
                       <TableCell className="text-right">Rp {item.price.toLocaleString('id-ID')}</TableCell>
+                      <TableCell className="text-center">
+                        {item.pointsAwarded && item.pointsAwarded > 0 ? (
+                           <div className="flex items-center justify-center">
+                             <Gift className="mr-1 h-3 w-3 text-yellow-500" /> {item.pointsAwarded}
+                           </div>
+                        ) : (
+                          '-'
+                        )}
+                      </TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="icon" className="hover:text-primary" disabled> {/* Edit functionality to be added */}
                           <Edit3 className="h-4 w-4" />
