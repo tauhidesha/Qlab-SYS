@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -16,7 +17,6 @@ import {
   SidebarMenuButton,
   SidebarMenuSub,
   SidebarMenuSubButton,
-  SidebarMenuSubItem,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import Logo from "@/components/Logo";
@@ -59,7 +59,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
             <SidebarMenuSub>
               {item.items.map((subItem) => (
                 <SidebarMenuSubItem key={subItem.title}>
-                  <Link href={subItem.href} passHref legacyBehavior>
+                  <Link href={subItem.href} asChild>
                     <SidebarMenuSubButton
                       isActive={pathname === subItem.href || pathname.startsWith(subItem.href)}
                       asChild
@@ -82,7 +82,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
 
     return (
       <SidebarMenuItem key={item.title}>
-        <Link href={item.href} passHref legacyBehavior>
+        <Link href={item.href} asChild>
           <ButtonComponent isActive={isActive} asChild>
             <a>
               <Icon />
