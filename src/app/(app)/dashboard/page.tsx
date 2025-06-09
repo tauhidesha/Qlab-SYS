@@ -16,64 +16,11 @@ export default function DashboardPage() {
     { title: "Pending Services", value: "8", icon: BarChartBig, dataAiHint: "tasks progress" },
   ];
 
-  const [isSeeding, setIsSeeding] = React.useState(false);
-
-  const handleSeedData = async () => {
-    setIsSeeding(true);
-    toast({
-      title: "Seeding Data...",
-      description: "Please wait while mock data is being pushed to Firestore.",
-    });
-    const result = await seedAllMockData();
-    if (result.success) {
-      toast({
-        title: "Success!",
-        description: result.message,
-        variant: "default",
-      });
-    } else {
-      toast({
-        title: "Error Seeding Data",
-        description: (
-          <>
-            {result.message}
-            <br />
-            <p className="mt-2 text-xs">
-              Troubleshooting tips:
-              <ul className="list-disc pl-4 mt-1">
-                <li>Ensure your Firebase project is correctly configured in the <code>.env</code> file.</li>
-                <li>Check your Firestore security rules to allow write access to the following collections for seeding: <code>clients</code>, <code>services</code>, <code>queueItems</code>, <code>attendanceRecords</code>, <code>payrollData</code>.</li>
-              </ul>
-            </p>
-          </>
-        ),
-        variant: "destructive",
-        duration: 15000, // Longer duration for detailed error
-      });
-    }
-    setIsSeeding(false);
-  };
-
   return (
     <div className="flex flex-col h-full">
       <AppHeader title="Dashboard" />
       <main className="flex-1 overflow-y-auto p-6">
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Data Management</CardTitle>
-            <CardDescription>Initialize your Firestore database with mock data.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={handleSeedData} disabled={isSeeding}>
-              <Database className="mr-2 h-4 w-4" />
-              {isSeeding ? "Seeding Data..." : "Seed Mock Data to Firestore"}
-            </Button>
-             <p className="text-xs text-muted-foreground mt-2">
-              Click this button to populate your Firestore collections with the initial mock data.
-              This is useful for development and testing. Data with existing IDs will be overwritten.
-            </p>
-          </CardContent>
-        </Card>
+        {/* Data Management Card with Seed Button has been removed */}
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
           {summaryCards.map((card) => (
