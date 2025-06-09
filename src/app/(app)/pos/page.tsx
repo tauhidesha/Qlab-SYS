@@ -512,7 +512,7 @@ export default function PosPage() {
                 newLoyaltyPoints -= pointsRedeemedThisTransaction;
                 console.log(`[POS] Client redeemed ${pointsRedeemedThisTransaction} points. Points after deduction: ${newLoyaltyPoints}. No new points will be earned for this transaction.`);
                 clientUpdateMessageParts.push(`${pointsRedeemedThisTransaction} poin ditukar`);
-                // pointsEarnedThisTransaction remains 0, so no new points are added
+                // pointsEarnedThisTransaction remains 0 as per new logic
             } else {
                 // Only calculate and add earned points if no points were redeemed
                 pointsEarnedThisTransaction = selectedTransaction.items.reduce((sum, item) => {
@@ -599,11 +599,11 @@ export default function PosPage() {
         <div className="lg:col-span-1 space-y-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Transaksi Terbuka</CardTitle>
+                <CardTitle className="text-lg">Transaksi Terbuka</CardTitle>
                 <Button 
                   onClick={() => { resetNewBillDialogState(); setIsCreateBillDialogOpen(true); }} 
                   size="sm" 
-                  className="bg-accent text-accent-foreground hover:bg-accent/90 text-xs"
+                  className="bg-accent text-accent-foreground hover:bg-accent/90"
                 >
                     <PlusCircle className="mr-2 h-4 w-4" /> Bill Baru
                 </Button>
@@ -673,7 +673,7 @@ export default function PosPage() {
                      <Button 
                         size="sm" 
                         onClick={() => { resetAddItemForm(); setIsAddItemDialogOpen(true); }}
-                        className="bg-accent text-accent-foreground hover:bg-accent/90 text-xs"
+                        className="bg-accent text-accent-foreground hover:bg-accent/90"
                      >
                         <PlusCircle className="mr-2 h-4 w-4"/> Tambah Item
                     </Button>
@@ -769,7 +769,7 @@ export default function PosPage() {
                 </CardContent>
                 <CardFooter className="flex-col space-y-2">
                     <Button 
-                      className="w-full bg-accent text-accent-foreground hover:bg-accent/90 text-xs" 
+                      className="w-full bg-accent text-accent-foreground hover:bg-accent/90" 
                       onClick={handleOpenPaymentDialog}
                       disabled={!selectedTransaction || selectedTransaction.items.length === 0 || isProcessingPayment}
                     >
@@ -842,7 +842,7 @@ export default function PosPage() {
             <Button 
               onClick={handleConfirmCreateBill} 
               disabled={isSubmittingNewBill || (newBillType === 'existing-client' && !selectedClientIdForNewBill && !loadingClients)}
-              className="bg-accent text-accent-foreground hover:bg-accent/90 text-xs"
+              className="bg-accent text-accent-foreground hover:bg-accent/90"
             >
               {isSubmittingNewBill ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
               Buat Transaksi
@@ -942,7 +942,7 @@ export default function PosPage() {
               <Button 
                 onClick={handleAddItemToTransaction} 
                 disabled={isSubmittingItem || !selectedCatalogItemId || loadingCatalogItems}
-                className="bg-accent text-accent-foreground hover:bg-accent/90 text-xs"
+                className="bg-accent text-accent-foreground hover:bg-accent/90"
               >
                 {isSubmittingItem && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Tambah Item
@@ -993,7 +993,7 @@ export default function PosPage() {
               <Button 
                 onClick={handleApplyPointDiscount} 
                 disabled={isSubmittingRedemption || !pointsToRedeemInput || parseInt(pointsToRedeemInput, 10) <= 0}
-                className="bg-accent text-accent-foreground hover:bg-accent/90 text-xs"
+                className="bg-accent text-accent-foreground hover:bg-accent/90"
               >
                 {isSubmittingRedemption && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Terapkan Diskon dari Poin
@@ -1046,7 +1046,7 @@ export default function PosPage() {
               <Button 
                 onClick={handleConfirmPayment} 
                 disabled={isProcessingPayment || !selectedPaymentMethod}
-                className="bg-accent text-accent-foreground hover:bg-accent/90 text-xs"
+                className="bg-accent text-accent-foreground hover:bg-accent/90"
               >
                 {isProcessingPayment && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Konfirmasi Pembayaran
