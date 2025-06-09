@@ -6,19 +6,25 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building, Palette, Bell, Users, CreditCard as CreditCardIcon } from 'lucide-react';
+import { Building, Palette, Bell, Users, CreditCard as CreditCardIcon, Gift } from 'lucide-react';
+import React from 'react'; // Assuming you might use useState for local input values
 
 export default function SettingsPage() {
+  // Example local state for loyalty settings - in a real app, these would be fetched/saved
+  const [pointToRupiahRate, setPointToRupiahRate] = React.useState('10'); // 1 point = Rp 10
+  const [minPointsToRedeem, setMinPointsToRedeem] = React.useState('100');
+
   return (
     <div className="flex flex-col h-full">
       <AppHeader title="Pengaturan" />
       <main className="flex-1 overflow-y-auto p-6">
         <Tabs defaultValue="general" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 md:grid-cols-5 mb-6">
+          <TabsList className="grid w-full grid-cols-4 md:grid-cols-6 mb-6"> {/* Adjusted grid columns */}
             <TabsTrigger value="general"><Building className="mr-2 h-4 w-4 hidden md:inline" />Umum</TabsTrigger>
+            <TabsTrigger value="loyalty"><Gift className="mr-2 h-4 w-4 hidden md:inline" />Loyalitas</TabsTrigger>
             <TabsTrigger value="appearance"><Palette className="mr-2 h-4 w-4 hidden md:inline" />Tampilan</TabsTrigger>
             <TabsTrigger value="notifications"><Bell className="mr-2 h-4 w-4 hidden md:inline" />Notifikasi</TabsTrigger>
-            <TabsTrigger value="users"><Users className="mr-2 h-4 w-4 hidden md:inline" />Peran Pengguna</TabsTrigger>
+            <TabsTrigger value="users"><Users className="mr-2 h-4 w-4 hidden md:inline" />Peran</TabsTrigger> {/* Shortened for space */}
             <TabsTrigger value="billing"><CreditCardIcon className="mr-2 h-4 w-4 hidden md:inline" />Tagihan</TabsTrigger>
           </TabsList>
           
@@ -41,16 +47,59 @@ export default function SettingsPage() {
                   <Label htmlFor="workshop-phone">Nomor Telepon</Label>
                   <Input id="workshop-phone" type="tel" defaultValue="+62 21 555 0123" />
                 </div>
+              </CardContent>
+              <CardFooter>
+                <Button disabled>Simpan Perubahan Umum (Segera)</Button>
+              </CardFooter>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="loyalty">
+            <Card>
+              <CardHeader>
+                <CardTitle>Pengaturan Program Loyalitas</CardTitle>
+                <CardDescription>Konfigurasi bagaimana pelanggan mendapatkan dan menukarkan poin.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
                 <div className="flex items-center justify-between rounded-lg border p-4">
                   <div>
-                    <Label htmlFor="loyalty-program" className="font-medium">Aktifkan Program Loyalitas</Label>
+                    <Label htmlFor="loyalty-program-active" className="font-medium">Aktifkan Program Loyalitas</Label>
                     <p className="text-sm text-muted-foreground">Izinkan pelanggan mendapatkan dan menukarkan poin.</p>
                   </div>
-                  <Switch id="loyalty-program" defaultChecked />
+                  <Switch id="loyalty-program-active" defaultChecked />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="point-to-rupiah">Nilai Tukar Poin (1 Poin = X Rupiah)</Label>
+                  <Input 
+                    id="point-to-rupiah" 
+                    type="number" 
+                    value={pointToRupiahRate} 
+                    onChange={(e) => setPointToRupiahRate(e.target.value)}
+                    placeholder="mis. 10"
+                  />
+                   <p className="text-xs text-muted-foreground">Contoh: Jika diisi 10, maka 1 poin bernilai Rp 10.</p>
+                </div>
+                 <div className="space-y-2">
+                  <Label htmlFor="min-points-redeem">Minimum Poin untuk Penukaran</Label>
+                  <Input 
+                    id="min-points-redeem" 
+                    type="number" 
+                    value={minPointsToRedeem}
+                    onChange={(e) => setMinPointsToRedeem(e.target.value)}
+                    placeholder="mis. 100"
+                  />
+                   <p className="text-xs text-muted-foreground">Jumlah poin minimum yang harus dimiliki klien untuk bisa menukar.</p>
+                </div>
+                <div>
+                    <h3 className="text-md font-medium mb-2">Opsi Penukaran Lanjutan</h3>
+                    <p className="text-sm text-muted-foreground">
+                        Pengelolaan opsi penukaran yang lebih detail (misalnya, item gratis, voucher khusus) akan ditambahkan di sini.
+                        Untuk saat ini, penukaran poin hanya berlaku sebagai diskon langsung pada total transaksi di POS.
+                    </p>
                 </div>
               </CardContent>
               <CardFooter>
-                <Button>Simpan Perubahan</Button>
+                <Button disabled>Simpan Pengaturan Loyalitas (Segera)</Button>
               </CardFooter>
             </Card>
           </TabsContent>
@@ -70,7 +119,7 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
                <CardFooter>
-                <Button disabled>Simpan Perubahan</Button>
+                <Button disabled>Simpan Perubahan Tampilan (Segera)</Button>
               </CardFooter>
             </Card>
           </TabsContent>

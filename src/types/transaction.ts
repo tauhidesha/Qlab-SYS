@@ -27,6 +27,8 @@ export interface Transaction {
   total: number;
   paymentMethod?: string;
   notes?: string;
+  pointsRedeemed?: number; // Jumlah poin yang ditukarkan klien untuk transaksi ini
+  pointsRedeemedValue?: number; // Nilai diskon (Rp) dari poin yang ditukarkan
   createdAt: Timestamp;
   updatedAt: Timestamp;
   paidAt?: Timestamp;

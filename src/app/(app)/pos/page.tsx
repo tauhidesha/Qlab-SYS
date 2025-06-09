@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Trash2, CreditCard, Loader2, ShoppingBag, UserPlus } from 'lucide-react';
+import { PlusCircle, Trash2, CreditCard, Loader2, ShoppingBag, UserPlus, Star, Tags } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, arrayUnion, serverTimestamp, addDoc, type Timestamp, getDocs, getDoc } from 'firebase/firestore';
@@ -35,6 +35,8 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from '@/components/ui/textarea';
 
+const MINIMUM_POINTS_TO_REDEEM = 100; // Example value, make configurable later
+const POINT_TO_RUPIAH_RATE = 10; // Example value, 1 point = Rp 10
 
 export default function PosPage() {
   const [openTransactions, setOpenTransactions] = useState<Transaction[]>([]);
@@ -67,6 +69,11 @@ export default function PosPage() {
   const [loadingClients, setLoadingClients] = useState(true);
   const [selectedClientIdForNewBill, setSelectedClientIdForNewBill] = useState<string | undefined>(undefined);
   const [isSubmittingNewBill, setIsSubmittingNewBill] = useState(false);
+
+  const [selectedClientDetails, setSelectedClientDetails] = useState<Client | null>(null);
+  const [isRedeemPointsDialogOpen, setIsRedeemPointsDialogOpen] = useState(false);
+  const [pointsToRedeemInput, setPointsToRedeemInput] = useState<string>('');
+  const [isSubmittingRedemption, setIsSubmittingRedemption] = useState(false);
 
 
   const { toast } = useToast();
@@ -144,6 +151,19 @@ export default function PosPage() {
     return openTransactions.find(t => t.id === selectedTransactionId) || null;
   }, [openTransactions, selectedTransactionId]);
 
+   useEffect(() => {
+    const updateSelectedClientDetails = async () => {
+      if (selectedTransaction?.clientId) {
+        const client = availableClients.find(c => c.id === selectedTransaction.clientId);
+        setSelectedClientDetails(client || null);
+      } else {
+        setSelectedClientDetails(null);
+      }
+    };
+    updateSelectedClientDetails();
+  }, [selectedTransaction, availableClients]);
+
+
   const handleSelectTransaction = (transactionId: string) => {
     setSelectedTransactionId(transactionId);
   };
@@ -198,7 +218,8 @@ export default function PosPage() {
       const { subtotal: newSubtotal, total: newTotal } = calculateTransactionTotals(
         updatedItemsForCalc,
         selectedTransaction.discountAmount,
-        selectedTransaction.discountPercentage
+        selectedTransaction.discountPercentage,
+        selectedTransaction.pointsRedeemedValue
       );
 
       await updateDoc(transactionDocRef, {
@@ -254,6 +275,8 @@ export default function PosPage() {
         subtotal: 0,
         discountAmount: 0,
         discountPercentage: 0,
+        pointsRedeemed: 0,
+        pointsRedeemedValue: 0,
         total: 0,
         createdAt: serverTimestamp() as Timestamp,
         updatedAt: serverTimestamp() as Timestamp,
@@ -282,14 +305,25 @@ export default function PosPage() {
   };
 
 
-  const calculateTransactionTotals = (items: TransactionItem[], discountAmount: number = 0, discountPercentage: number = 0) => {
+  const calculateTransactionTotals = (
+    items: TransactionItem[], 
+    discountAmountManual: number = 0, 
+    discountPercentageManual: number = 0,
+    pointsRedeemedValue: number = 0
+  ) => {
     const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    let currentDiscountAmount = discountAmount;
-    if (discountPercentage > 0 && discountAmount === 0) { 
-        currentDiscountAmount = subtotal * (discountPercentage / 100);
+    let effectiveDiscountAmount = 0;
+
+    if (pointsRedeemedValue > 0) {
+      effectiveDiscountAmount = pointsRedeemedValue;
+    } else if (discountAmountManual > 0) {
+      effectiveDiscountAmount = discountAmountManual;
+    } else if (discountPercentageManual > 0) {
+      effectiveDiscountAmount = subtotal * (discountPercentageManual / 100);
     }
-    const total = subtotal - currentDiscountAmount;
-    return { subtotal, total, discountAmount: currentDiscountAmount };
+    
+    const total = Math.max(0, subtotal - effectiveDiscountAmount); // Ensure total is not negative
+    return { subtotal, total, discountAmount: effectiveDiscountAmount };
   };
   
   const handleRemoveItemFromTransaction = async (itemIdToRemove: string) => {
@@ -300,7 +334,12 @@ export default function PosPage() {
         const transactionDocRef = doc(db, 'transactions', selectedTransaction.id);
         const updatedItemsArray = selectedTransaction.items.filter(item => item.id !== itemIdToRemove);
         
-        const { subtotal, total, discountAmount } = calculateTransactionTotals(updatedItemsArray, selectedTransaction.discountAmount, selectedTransaction.discountPercentage);
+        const { subtotal, total, discountAmount } = calculateTransactionTotals(
+            updatedItemsArray, 
+            selectedTransaction.pointsRedeemedValue && selectedTransaction.pointsRedeemedValue > 0 ? 0 : selectedTransaction.discountAmount, 
+            selectedTransaction.pointsRedeemedValue && selectedTransaction.pointsRedeemedValue > 0 ? 0 : selectedTransaction.discountPercentage,
+            selectedTransaction.pointsRedeemedValue
+        );
 
         await updateDoc(transactionDocRef, {
             items: updatedItemsArray,
@@ -320,6 +359,14 @@ export default function PosPage() {
   };
 
   const handleDiscountChange = async (transactionId: string, items: TransactionItem[], newDiscountAmountInput: string, newDiscountPercentageInput: string) => {
+    if (!selectedTransaction) return;
+    // If points have been redeemed, manual discount is overridden / not allowed for now
+    if (selectedTransaction.pointsRedeemed && selectedTransaction.pointsRedeemed > 0) {
+        toast({title: "Info Diskon", description: "Diskon dari poin sudah diterapkan. Hapus diskon poin untuk menerapkan diskon manual.", variant: "default"});
+        // Optionally reset input fields for manual discount here if needed
+        return;
+    }
+
     const newDiscountAmount = parseFloat(newDiscountAmountInput) || 0;
     const newDiscountPercentage = parseFloat(newDiscountPercentageInput) || 0;
 
@@ -332,7 +379,7 @@ export default function PosPage() {
         appliedDiscountPercentage = newDiscountPercentage;
     }
 
-    const { total, discountAmount: calculatedDiscountAmount } = calculateTransactionTotals(items, appliedDiscountAmount, appliedDiscountPercentage);
+    const { total, discountAmount: calculatedDiscountAmount } = calculateTransactionTotals(items, appliedDiscountAmount, appliedDiscountPercentage, 0);
     
     try {
         const transactionDocRef = doc(db, 'transactions', transactionId);
@@ -340,8 +387,11 @@ export default function PosPage() {
             discountAmount: appliedDiscountAmount > 0 ? appliedDiscountAmount : (appliedDiscountPercentage > 0 ? calculatedDiscountAmount : 0),
             discountPercentage: appliedDiscountPercentage,
             total: total,
+            pointsRedeemed: 0, // Clear any point redemption if manual discount is applied
+            pointsRedeemedValue: 0,
             updatedAt: serverTimestamp()
         });
+         toast({ title: "Diskon Diperbarui", description: "Diskon manual berhasil diterapkan.", variant: "default"});
     } catch (error) {
         console.error("Error updating discount:", error);
         toast({ title: "Error Diskon", description: "Gagal menyimpan perubahan diskon.", variant: "destructive"});
@@ -361,6 +411,64 @@ export default function PosPage() {
       });
     }
   };
+  
+  const handleOpenRedeemPointsDialog = () => {
+    if (selectedClientDetails && selectedTransaction && selectedClientDetails.loyaltyPoints >= MINIMUM_POINTS_TO_REDEEM) {
+      setPointsToRedeemInput('');
+      setIsRedeemPointsDialogOpen(true);
+    } else {
+      toast({title: "Info", description: `Klien tidak memenuhi syarat atau tidak memiliki poin minimum (${MINIMUM_POINTS_TO_REDEEM}) untuk penukaran.`, variant:"default"});
+    }
+  };
+
+  const handleApplyPointDiscount = async () => {
+    if (!selectedTransaction || !selectedClientDetails) return;
+
+    const pointsToRedeem = parseInt(pointsToRedeemInput, 10);
+    if (isNaN(pointsToRedeem) || pointsToRedeem <= 0) {
+      toast({ title: "Input Tidak Valid", description: "Jumlah poin harus angka positif.", variant: "destructive" });
+      return;
+    }
+    if (pointsToRedeem > selectedClientDetails.loyaltyPoints) {
+      toast({ title: "Poin Tidak Cukup", description: "Klien tidak memiliki cukup poin.", variant: "destructive" });
+      return;
+    }
+    if (pointsToRedeem < MINIMUM_POINTS_TO_REDEEM && selectedTransaction.items.length > 0) { // Allow redeeming less than min if transaction is empty (unlikely here)
+        toast({ title: "Minimum Poin", description: `Minimal ${MINIMUM_POINTS_TO_REDEEM} poin untuk penukaran.`, variant: "destructive" });
+        return;
+    }
+
+    setIsSubmittingRedemption(true);
+    const discountValueFromPoints = pointsToRedeem * POINT_TO_RUPIAH_RATE;
+
+    // Ensure discount does not exceed subtotal
+    const subtotal = selectedTransaction.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const effectiveDiscountValue = Math.min(discountValueFromPoints, subtotal);
+
+
+    const { total } = calculateTransactionTotals(selectedTransaction.items, 0, 0, effectiveDiscountValue);
+
+    try {
+      const transactionDocRef = doc(db, 'transactions', selectedTransaction.id);
+      await updateDoc(transactionDocRef, {
+        pointsRedeemed: pointsToRedeem,
+        pointsRedeemedValue: effectiveDiscountValue,
+        discountAmount: effectiveDiscountValue, // This is now the primary discount
+        discountPercentage: 0, // Clear percentage discount
+        total: total,
+        notes: `${selectedTransaction.notes || ''} [Tukar ${pointsToRedeem} poin senilai Rp ${effectiveDiscountValue.toLocaleString('id-ID')}]`.trim(),
+        updatedAt: serverTimestamp(),
+      });
+      toast({ title: "Sukses", description: `Diskon Rp ${effectiveDiscountValue.toLocaleString('id-ID')} dari ${pointsToRedeem} poin berhasil diterapkan.` });
+      setIsRedeemPointsDialogOpen(false);
+    } catch (error) {
+      console.error("Error applying point discount: ", error);
+      toast({ title: "Error", description: "Gagal menerapkan diskon poin.", variant: "destructive" });
+    } finally {
+      setIsSubmittingRedemption(false);
+    }
+  };
+
 
   const handleConfirmPayment = async () => {
     console.log("[POS] handleConfirmPayment started");
@@ -379,76 +487,78 @@ export default function PosPage() {
     console.log("[POS] Processing payment for transaction ID:", selectedTransaction.id);
     try {
       const transactionDocRef = doc(db, 'transactions', selectedTransaction.id);
-      await updateDoc(transactionDocRef, {
-        status: 'paid',
-        paymentMethod: selectedPaymentMethod,
-        notes: paymentNotes || '',
-        paidAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-
-      toast({ title: "Pembayaran Sukses", description: `Transaksi untuk ${selectedTransaction.customerName} berhasil dibayar.`});
-      console.log("[POS] Transaction status updated to 'paid'.");
       
+      // Client update logic
       if (selectedTransaction.clientId) {
         console.log("[POS] Client ID found:", selectedTransaction.clientId, "Attempting to update client loyalty points.");
-        try {
-            const clientDocRef = doc(db, 'clients', selectedTransaction.clientId);
-            const clientDocSnap = await getDoc(clientDocRef);
+        const clientDocRef = doc(db, 'clients', selectedTransaction.clientId);
+        const clientDocSnap = await getDoc(clientDocRef);
 
-            if (clientDocSnap.exists()) {
-                const clientData = clientDocSnap.data() as Client;
-                console.log("[POS] Client data found:", clientData);
-                console.log("[POS] Transaction items for points calculation:", selectedTransaction.items);
+        if (clientDocSnap.exists()) {
+            const clientData = clientDocSnap.data() as Client;
+            let currentLoyaltyPoints = (typeof clientData.loyaltyPoints === 'number' && !isNaN(clientData.loyaltyPoints)) ? clientData.loyaltyPoints : 0;
+            console.log("[POS] Current client loyalty points (before any change):", currentLoyaltyPoints);
 
-                const pointsEarned = selectedTransaction.items.reduce((sum, item) => {
-                    console.log(
-                      `[POS] Calculating points for item: ${item.name}, item.pointsAwardedPerUnit: ${item.pointsAwardedPerUnit} (type: ${typeof item.pointsAwardedPerUnit}), item.quantity: ${item.quantity} (type: ${typeof item.quantity})`
-                    );
-                    const awardedPoints = (typeof item.pointsAwardedPerUnit === 'number' && !isNaN(item.pointsAwardedPerUnit)) ? item.pointsAwardedPerUnit : 0;
-                    const qty = (typeof item.quantity === 'number' && !isNaN(item.quantity) && item.quantity > 0) ? item.quantity : 0;
-                    console.log(`[POS] Effective awardedPoints: ${awardedPoints}, Effective qty: ${qty}, Points for this item: ${awardedPoints * qty}`);
-                    return sum + (awardedPoints * qty);
-                }, 0);
-                console.log("[POS] Total points earned from this transaction:", pointsEarned);
-
-                const currentLoyaltyPoints = (typeof clientData.loyaltyPoints === 'number' && !isNaN(clientData.loyaltyPoints)) ? clientData.loyaltyPoints : 0;
-                console.log("[POS] Current client loyalty points:", currentLoyaltyPoints);
-                
-                const newLoyaltyPoints = currentLoyaltyPoints + pointsEarned;
-                console.log("[POS] New client loyalty points:", newLoyaltyPoints);
-                
-                const today = new Date().toLocaleDateString('en-CA'); 
-
-                await updateDoc(clientDocRef, {
-                    loyaltyPoints: newLoyaltyPoints,
-                    lastVisit: today,
-                });
-                
-                if (pointsEarned > 0) {
-                  toast({ title: "Info Klien Diperbarui", description: `Poin loyalitas (${pointsEarned} poin) & kunjungan terakhir untuk ${clientData.name} telah diperbarui.` });
-                  console.log(`[POS] Client ${clientData.name} updated with ${pointsEarned} new points and last visit.`);
-                } else {
-                  toast({ title: "Info Klien Diperbarui", description: `Kunjungan terakhir untuk ${clientData.name} telah diperbarui.` });
-                  console.log(`[POS] Client ${clientData.name} last visit updated (no points earned).`);
-                }
-            } else {
-                console.log("[POS] Client document not found for ID:", selectedTransaction.clientId);
+            // 1. Deduct redeemed points (if any)
+            const pointsRedeemedThisTransaction = selectedTransaction.pointsRedeemed || 0;
+            if (pointsRedeemedThisTransaction > 0) {
+                currentLoyaltyPoints -= pointsRedeemedThisTransaction;
+                console.log(`[POS] Deducted ${pointsRedeemedThisTransaction} redeemed points. Points now: ${currentLoyaltyPoints}`);
             }
-        } catch (clientUpdateError) {
-            console.error("[POS] Error updating client loyalty/visit: ", clientUpdateError);
-            toast({ title: "Peringatan", description: "Pembayaran berhasil, tapi gagal memperbarui data loyalitas klien.", variant: "destructive" });
+            
+            // 2. Award new points for this transaction
+            // Points awarded based on original item values, not after discount from points
+            const pointsEarnedThisTransaction = selectedTransaction.items.reduce((sum, item) => {
+                const awardedPoints = (typeof item.pointsAwardedPerUnit === 'number' && !isNaN(item.pointsAwardedPerUnit)) ? item.pointsAwardedPerUnit : 0;
+                const qty = (typeof item.quantity === 'number' && !isNaN(item.quantity) && item.quantity > 0) ? item.quantity : 0;
+                return sum + (awardedPoints * qty);
+            }, 0);
+            console.log("[POS] Total points earned from this transaction (before adding to client):", pointsEarnedThisTransaction);
+
+            const newLoyaltyPoints = currentLoyaltyPoints + pointsEarnedThisTransaction;
+            console.log("[POS] New client loyalty points (after redemption and award):", newLoyaltyPoints);
+            
+            const today = new Date().toLocaleDateString('en-CA'); 
+
+            await updateDoc(clientDocRef, {
+                loyaltyPoints: newLoyaltyPoints,
+                lastVisit: today,
+            });
+            
+            let clientUpdateMessage = `Kunjungan terakhir untuk ${clientData.name} telah diperbarui.`;
+            if (pointsRedeemedThisTransaction > 0) {
+                 clientUpdateMessage += ` ${pointsRedeemedThisTransaction} poin ditukar.`
+            }
+            if (pointsEarnedThisTransaction > 0) {
+                clientUpdateMessage += ` ${pointsEarnedThisTransaction} poin baru diperoleh.`
+            }
+            toast({ title: "Info Klien Diperbarui", description: clientUpdateMessage.trim() });
+
+        } else {
+            console.log("[POS] Client document not found for ID:", selectedTransaction.clientId);
         }
       } else {
         console.log("[POS] No client ID in transaction. Skipping client update.");
       }
       
+      // Update transaction to paid AFTER client update attempt
+      await updateDoc(transactionDocRef, {
+        status: 'paid',
+        paymentMethod: selectedPaymentMethod,
+        notes: paymentNotes || selectedTransaction.notes || '', // Persist notes from redemption
+        paidAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      toast({ title: "Pembayaran Sukses", description: `Transaksi untuk ${selectedTransaction.customerName} berhasil dibayar.`});
+      
       setIsPaymentDialogOpen(false);
       setSelectedTransactionId(null); 
+      setSelectedClientDetails(null);
       console.log("[POS] Payment dialog closed, selected transaction reset.");
+
     } catch (error) {
-      console.error("[POS] Error processing payment: ", error);
-      toast({ title: "Error Pembayaran", description: "Gagal memproses pembayaran.", variant: "destructive"});
+      console.error("[POS] Error processing payment or updating client: ", error);
+      toast({ title: "Error Pembayaran/Klien", description: "Gagal memproses pembayaran atau memperbarui data klien.", variant: "destructive"});
     } finally {
       setIsProcessingPayment(false);
       console.log("[POS] handleConfirmPayment finished.");
@@ -518,10 +628,25 @@ export default function PosPage() {
             <>
               <Card>
                 <CardHeader>
-                  <CardTitle>Detail Pesanan: {selectedTransaction.customerName}</CardTitle>
-                  <CardDescription>
-                    Transaksi ID: {selectedTransaction.id} | Staf Layanan: {selectedTransaction.serviceStaffName || "Belum Ditugaskan"}
-                  </CardDescription>
+                  <div className="flex justify-between items-start">
+                    <div>
+                        <CardTitle>Detail Pesanan: {selectedTransaction.customerName}</CardTitle>
+                        <CardDescription>
+                            Transaksi ID: {selectedTransaction.id} | Staf Layanan: {selectedTransaction.serviceStaffName || "Belum Ditugaskan"}
+                        </CardDescription>
+                         {selectedClientDetails && (
+                            <div className="mt-1 text-sm text-primary flex items-center">
+                                <Star className="h-4 w-4 mr-1 text-yellow-400" />
+                                Poin Klien: {selectedClientDetails.loyaltyPoints.toLocaleString('id-ID')}
+                            </div>
+                        )}
+                    </div>
+                    {selectedClientDetails && selectedClientDetails.loyaltyPoints >= MINIMUM_POINTS_TO_REDEEM && (
+                        <Button variant="outline" size="sm" onClick={handleOpenRedeemPointsDialog}>
+                            <Tags className="mr-2 h-4 w-4" /> Tukar Poin
+                        </Button>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="flex justify-end mb-2">
@@ -579,32 +704,39 @@ export default function PosPage() {
                     <span>Subtotal ({selectedTransaction.items.reduce((acc,item)=> acc + item.quantity, 0)} item)</span>
                     <span>Rp {selectedTransaction.subtotal.toLocaleString('id-ID')}</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span>Diskon</span>
-                    <div className="flex items-center gap-2">
-                         <Input 
-                            type="number" 
-                            placeholder="Rp" 
-                            className="w-24 h-8 text-right" 
-                            defaultValue={selectedTransaction.discountPercentage > 0 ? '' : (selectedTransaction.discountAmount || "")}
-                            onBlur={(e) => {
-                                handleDiscountChange(selectedTransaction.id, selectedTransaction.items, e.target.value, '0');
-                            }}
-                            disabled={selectedTransaction.discountPercentage > 0}
-                        />
-                        <span className="text-sm">atau</span>
-                        <Input 
-                            type="number" 
-                            placeholder="%" 
-                            className="w-16 h-8 text-right" 
-                            defaultValue={selectedTransaction.discountAmount > 0 ? '' : (selectedTransaction.discountPercentage || "")}
-                            onBlur={(e) => {
-                                handleDiscountChange(selectedTransaction.id, selectedTransaction.items, '0', e.target.value);
-                            }}
-                            disabled={selectedTransaction.discountAmount > 0}
-                         />
+                  {selectedTransaction.pointsRedeemed && selectedTransaction.pointsRedeemed > 0 ? (
+                     <div className="flex justify-between text-green-600">
+                        <span>Diskon dari {selectedTransaction.pointsRedeemed.toLocaleString('id-ID')} Poin</span>
+                        <span>- Rp {(selectedTransaction.pointsRedeemedValue || 0).toLocaleString('id-ID')}</span>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="flex justify-between items-center">
+                        <span>Diskon Manual</span>
+                        <div className="flex items-center gap-2">
+                            <Input 
+                                type="number" 
+                                placeholder="Rp" 
+                                className="w-24 h-8 text-right" 
+                                defaultValue={selectedTransaction.discountPercentage > 0 ? '' : (selectedTransaction.discountAmount || "")}
+                                onBlur={(e) => {
+                                    handleDiscountChange(selectedTransaction.id, selectedTransaction.items, e.target.value, '0');
+                                }}
+                                disabled={selectedTransaction.discountPercentage > 0 || (selectedTransaction.pointsRedeemed && selectedTransaction.pointsRedeemed > 0)}
+                            />
+                            <span className="text-sm">atau</span>
+                            <Input 
+                                type="number" 
+                                placeholder="%" 
+                                className="w-16 h-8 text-right" 
+                                defaultValue={selectedTransaction.discountAmount > 0 ? '' : (selectedTransaction.discountPercentage || "")}
+                                onBlur={(e) => {
+                                    handleDiscountChange(selectedTransaction.id, selectedTransaction.items, '0', e.target.value);
+                                }}
+                                disabled={selectedTransaction.discountAmount > 0 || (selectedTransaction.pointsRedeemed && selectedTransaction.pointsRedeemed > 0)}
+                            />
+                        </div>
+                    </div>
+                  )}
                   <Separator />
                   <div className="flex justify-between font-bold text-lg">
                     <span>Total</span>
@@ -786,6 +918,51 @@ export default function PosPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Dialog for Redeeming Points */}
+      {selectedTransaction && selectedClientDetails && (
+        <Dialog open={isRedeemPointsDialogOpen} onOpenChange={setIsRedeemPointsDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Tukar Poin Loyalitas</DialogTitle>
+              <DialogDescription>
+                Klien: {selectedClientDetails.name} | Poin Tersedia: {selectedClientDetails.loyaltyPoints.toLocaleString('id-ID')}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2 pb-4">
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">1 Poin = Rp {POINT_TO_RUPIAH_RATE.toLocaleString('id-ID')}</p>
+                <p className="text-sm text-muted-foreground">Minimum penukaran: {MINIMUM_POINTS_TO_REDEEM.toLocaleString('id-ID')} Poin</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="points-to-redeem">Jumlah Poin Akan Ditukar</Label>
+                <Input 
+                  id="points-to-redeem"
+                  type="number"
+                  value={pointsToRedeemInput}
+                  onChange={(e) => setPointsToRedeemInput(e.target.value)}
+                  placeholder={`mis. ${MINIMUM_POINTS_TO_REDEEM}`}
+                  min="0"
+                  max={selectedClientDetails.loyaltyPoints.toString()}
+                />
+              </div>
+              {parseInt(pointsToRedeemInput, 10) > 0 && (
+                 <div className="text-sm font-medium">
+                    Potensi Diskon: Rp {(parseInt(pointsToRedeemInput, 10) * POINT_TO_RUPIAH_RATE).toLocaleString('id-ID')}
+                 </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsRedeemPointsDialogOpen(false)} disabled={isSubmittingRedemption}>Batal</Button>
+              <Button onClick={handleApplyPointDiscount} disabled={isSubmittingRedemption || !pointsToRedeemInput || parseInt(pointsToRedeemInput, 10) <= 0}>
+                {isSubmittingRedemption && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Terapkan Diskon dari Poin
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
 
       {/* Dialog for Payment Processing */}
       {selectedTransaction && (
