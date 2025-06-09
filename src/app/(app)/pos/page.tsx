@@ -10,9 +10,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { PlusCircle, Trash2, CreditCard, Loader2, ShoppingBag, UserPlus } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, arrayUnion, serverTimestamp, addDoc, type Timestamp, getDocs } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, arrayUnion, serverTimestamp, addDoc, type Timestamp, getDocs, getDoc } from 'firebase/firestore';
 import type { Transaction, TransactionItem } from '@/types/transaction';
 import type { ServiceProduct } from '@/app/(app)/services/page'; 
+import type { Client } from '@/types/client';
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -31,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from '@/components/ui/textarea';
 
 
@@ -56,6 +58,14 @@ export default function PosPage() {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   const paymentMethods = ["Tunai", "QRIS", "Kartu Debit"];
+
+  const [isCreateBillDialogOpen, setIsCreateBillDialogOpen] = useState(false);
+  const [newBillType, setNewBillType] = useState<'walk-in' | 'existing-client'>('walk-in');
+  const [availableClients, setAvailableClients] = useState<Client[]>([]);
+  const [loadingClients, setLoadingClients] = useState(true);
+  const [selectedClientIdForNewBill, setSelectedClientIdForNewBill] = useState<string | undefined>(undefined);
+  const [isSubmittingNewBill, setIsSubmittingNewBill] = useState(false);
+
 
   const { toast } = useToast();
 
@@ -102,6 +112,29 @@ export default function PosPage() {
         }
     };
     fetchAvailableItems();
+  }, [toast]);
+
+  useEffect(() => {
+    const fetchClients = async () => {
+        setLoadingClients(true);
+        try {
+            const clientsCollectionRef = collection(db, 'clients');
+            const q = query(clientsCollectionRef, orderBy("name"));
+            const querySnapshot = await getDocs(q);
+            const clientsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
+            setAvailableClients(clientsData);
+        } catch (error) {
+            console.error("Error fetching clients: ", error);
+            toast({
+                title: "Error",
+                description: "Tidak dapat mengambil daftar klien.",
+                variant: "destructive",
+            });
+        } finally {
+            setLoadingClients(false);
+        }
+    };
+    fetchClients();
   }, [toast]);
 
   const selectedTransaction = useMemo(() => {
@@ -178,28 +211,59 @@ export default function PosPage() {
     }
   };
   
-  const handleCreateNewManualTransaction = async () => {
-    setLoadingTransactions(true); 
+  const resetNewBillDialogState = () => {
+    setNewBillType('walk-in');
+    setSelectedClientIdForNewBill(undefined);
+  };
+
+  const handleConfirmCreateBill = async () => {
+    if (newBillType === 'existing-client' && !selectedClientIdForNewBill) {
+      toast({ title: "Input Kurang", description: "Silakan pilih klien terdaftar.", variant: "destructive" });
+      return;
+    }
+    
+    setIsSubmittingNewBill(true);
     try {
-        const newTransactionData: Omit<Transaction, 'id'> = {
-            customerName: "Pelanggan Walk-in " + (openTransactions.filter(t=> t.customerName.startsWith("Pelanggan Walk-in")).length + 1),
-            status: 'open',
-            items: [],
-            subtotal: 0,
-            discountAmount: 0,
-            discountPercentage: 0,
-            total: 0,
-            createdAt: serverTimestamp() as Timestamp, 
-            updatedAt: serverTimestamp() as Timestamp,
-        };
-        const docRef = await addDoc(collection(db, 'transactions'), newTransactionData);
-        setSelectedTransactionId(docRef.id); 
-        toast({ title: "Sukses", description: "Transaksi manual baru berhasil dibuat."});
+      let customerNameForBill = "Pelanggan Walk-in #" + (openTransactions.filter(t => t.customerName.startsWith("Pelanggan Walk-in")).length + 1 + Math.floor(Math.random()*100));
+      let clientIdForBill: string | undefined = undefined;
+
+      if (newBillType === 'existing-client' && selectedClientIdForNewBill) {
+        const client = availableClients.find(c => c.id === selectedClientIdForNewBill);
+        if (client) {
+          customerNameForBill = client.name;
+          clientIdForBill = client.id;
+        } else {
+          toast({ title: "Error", description: "Klien yang dipilih tidak ditemukan.", variant: "destructive" });
+          setIsSubmittingNewBill(false);
+          return;
+        }
+      }
+
+      const newTransactionData: Omit<Transaction, 'id'> = {
+        customerName: customerNameForBill,
+        clientId: clientIdForBill,
+        status: 'open',
+        items: [],
+        subtotal: 0,
+        discountAmount: 0,
+        discountPercentage: 0,
+        total: 0,
+        createdAt: serverTimestamp() as Timestamp,
+        updatedAt: serverTimestamp() as Timestamp,
+      };
+      const docRef = await addDoc(collection(db, 'transactions'), newTransactionData);
+      setSelectedTransactionId(docRef.id); // Automatically select the new bill
+      toast({ title: "Sukses", description: `Transaksi baru untuk ${customerNameForBill} berhasil dibuat.` });
+      setIsCreateBillDialogOpen(false);
+      resetNewBillDialogState();
     } catch (error) {
-        console.error("Error creating manual transaction: ", error);
-        toast({ title: "Error", description: "Gagal membuat transaksi manual baru.", variant: "destructive" });
+      console.error("Error creating new bill: ", error);
+      toast({ title: "Error", description: "Gagal membuat bill baru.", variant: "destructive" });
+    } finally {
+      setIsSubmittingNewBill(false);
     }
   };
+
 
   const calculateTransactionTotals = (items: TransactionItem[], discountAmount: number = 0, discountPercentage: number = 0) => {
     const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -303,9 +367,33 @@ export default function PosPage() {
       });
 
       toast({ title: "Pembayaran Sukses", description: `Transaksi untuk ${selectedTransaction.customerName} berhasil dibayar.`});
+      
+      // Update client loyalty points and last visit
+      if (selectedTransaction.clientId) {
+        try {
+            const clientDocRef = doc(db, 'clients', selectedTransaction.clientId);
+            const clientDocSnap = await getDoc(clientDocRef);
+            if (clientDocSnap.exists()) {
+                const clientData = clientDocSnap.data() as Client;
+                const pointsEarned = Math.floor(selectedTransaction.total / 1000); // 1 point per Rp 1000
+                const newLoyaltyPoints = (clientData.loyaltyPoints || 0) + pointsEarned;
+                const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+
+                await updateDoc(clientDocRef, {
+                    loyaltyPoints: newLoyaltyPoints,
+                    lastVisit: today,
+                });
+                toast({ title: "Info Klien Diperbarui", description: `Poin loyalitas (${pointsEarned} poin) & kunjungan terakhir untuk ${clientData.name} telah diperbarui.` });
+            }
+        } catch (clientUpdateError) {
+            console.error("Error updating client loyalty/visit: ", clientUpdateError);
+            // Non-critical error, so we don't block the main payment success flow
+            toast({ title: "Peringatan", description: "Pembayaran berhasil, tapi gagal memperbarui data loyalitas klien.", variant: "destructive" });
+        }
+      }
+      
       setIsPaymentDialogOpen(false);
-      setSelectedTransactionId(null); // Clear selected transaction
-      // Loyalty points and client last visit update can be added here later
+      setSelectedTransactionId(null); 
     } catch (error) {
       console.error("Error processing payment: ", error);
       toast({ title: "Error Pembayaran", description: "Gagal memproses pembayaran.", variant: "destructive"});
@@ -315,13 +403,13 @@ export default function PosPage() {
   };
 
 
-  if (loadingTransactions) {
+  if (loadingTransactions || loadingCatalogItems || loadingClients) {
     return (
       <div className="flex flex-col h-full">
         <AppHeader title="Titik Penjualan" />
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="ml-2">Memuat transaksi terbuka...</p>
+          <p className="ml-2">Memuat data...</p>
         </div>
       </div>
     );
@@ -335,7 +423,11 @@ export default function PosPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Transaksi Terbuka</CardTitle>
-                <Button onClick={handleCreateNewManualTransaction} size="sm" variant="outline">
+                <Button 
+                  onClick={() => { resetNewBillDialogState(); setIsCreateBillDialogOpen(true); }} 
+                  size="sm" 
+                  variant="outline"
+                >
                     <PlusCircle className="mr-2 h-4 w-4" /> Bill Baru
                 </Button>
             </CardHeader>
@@ -483,13 +575,71 @@ export default function PosPage() {
               <CardContent className="text-center text-muted-foreground">
                 <ShoppingBag className="mx-auto h-12 w-12 mb-4" />
                 <p>Pilih transaksi dari daftar di sebelah kiri untuk melihat detailnya,</p>
-                <p>atau buat bill baru untuk pelanggan walk-in.</p>
+                <p>atau buat bill baru.</p>
               </CardContent>
             </Card>
           )}
         </div>
       </main>
 
+      {/* Dialog for Creating New Bill */}
+      <Dialog open={isCreateBillDialogOpen} onOpenChange={setIsCreateBillDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Buat Bill Baru</DialogTitle>
+            <DialogDescription>Pilih jenis pelanggan atau pelanggan terdaftar.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2 pb-4">
+            <RadioGroup value={newBillType} onValueChange={(value: 'walk-in' | 'existing-client') => setNewBillType(value)}>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="walk-in" id="rb-walk-in" />
+                <Label htmlFor="rb-walk-in">Pelanggan Walk-in</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="existing-client" id="rb-existing-client" />
+                <Label htmlFor="rb-existing-client">Klien Terdaftar</Label>
+              </div>
+            </RadioGroup>
+
+            {newBillType === 'existing-client' && (
+              <div className="space-y-2">
+                <Label htmlFor="client-select-for-bill">Pilih Klien</Label>
+                <Select 
+                  value={selectedClientIdForNewBill}
+                  onValueChange={setSelectedClientIdForNewBill}
+                  disabled={loadingClients}
+                >
+                  <SelectTrigger id="client-select-for-bill">
+                    <SelectValue placeholder={loadingClients ? "Memuat klien..." : "Pilih klien"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {!loadingClients && availableClients.length === 0 && (
+                      <SelectItem value="no-clients" disabled>Tidak ada klien terdaftar.</SelectItem>
+                    )}
+                    {availableClients.map(client => (
+                      <SelectItem key={client.id} value={client.id}>
+                        {client.name} ({client.phone})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" onClick={resetNewBillDialogState} disabled={isSubmittingNewBill}>Batal</Button>
+            </DialogClose>
+            <Button onClick={handleConfirmCreateBill} disabled={isSubmittingNewBill || (newBillType === 'existing-client' && !selectedClientIdForNewBill && !loadingClients)}>
+              {isSubmittingNewBill ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
+              Buat Transaksi
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
+      {/* Dialog for Adding Item to Transaction */}
       {selectedTransaction && (
         <Dialog open={isAddItemDialogOpen} onOpenChange={(isOpen) => {
             setIsAddItemDialogOpen(isOpen);
@@ -578,6 +728,7 @@ export default function PosPage() {
         </Dialog>
       )}
 
+      {/* Dialog for Payment Processing */}
       {selectedTransaction && (
          <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
           <DialogContent>
@@ -627,5 +778,3 @@ export default function PosPage() {
     </div>
   );
 }
-
-    
