@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DatePickerWithRange } from '@/components/ui/date-picker-range';
 import { Download } from 'lucide-react';
-import { Bar, Pie, PieChart, ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip, Legend as RechartsLegend, CartesianGrid, Line, Cell } from 'recharts'; // Using recharts directly for more control & added Cell
+import { LineChart, Bar, Pie, PieChart, ResponsiveContainer, XAxis, YAxis, Tooltip as RechartsTooltip, Legend as RechartsLegend, CartesianGrid, Line, Cell } from 'recharts'; // Using recharts directly for more control & added Cell
 
 
 export default function ReportsPage() {
