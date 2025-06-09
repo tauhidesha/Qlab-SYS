@@ -37,8 +37,6 @@ const visualizeRepaintPrompt = ai.definePrompt({
   name: 'visualizeRepaintPrompt',
   model: 'googleai/gemini-2.0-flash-exp', // Specify the image model
   input: {schema: VisualizeRepaintInputSchema},
-  // Output schema removed from prompt as we primarily care about media from candidates for images.
-  // The flow's outputSchema will ensure the final return type.
   prompt: `Consider the following image: {{media url=vehiclePhotoDataUri}}.
 Your task is to repaint the primary vehicle in this image with the color '{{repaintColor}}'.
 Important:
@@ -47,7 +45,25 @@ Important:
 3. The shape, model, and details of the vehicle (wheels, lights, windows, etc.) must also remain unchanged, only its paint color should be modified.
 Generate the repainted image.`,
   config: {
-    responseModalities: ['TEXT', 'IMAGE'] // Must provide both TEXT and IMAGE for this model
+    responseModalities: ['TEXT', 'IMAGE'], // Must provide both TEXT and IMAGE for this model
+    safetySettings: [
+      {
+        category: 'HARM_CATEGORY_HATE_SPEECH',
+        threshold: 'BLOCK_ONLY_HIGH',
+      },
+      {
+        category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+        threshold: 'BLOCK_NONE',
+      },
+      {
+        category: 'HARM_CATEGORY_HARASSMENT',
+        threshold: 'BLOCK_ONLY_HIGH',
+      },
+      {
+        category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+        threshold: 'BLOCK_ONLY_HIGH',
+      },
+    ],
   }
 });
 
@@ -58,7 +74,7 @@ const visualizeRepaintFlow = ai.defineFlow(
     outputSchema: VisualizeRepaintOutputSchema,
   },
   async (input: VisualizeRepaintInput): Promise<VisualizeRepaintOutput> => {
-    const response = await visualizeRepaintPrompt(input); // This is a GenerateResponse object
+    const response = await visualizeRepaintPrompt(input); // This call invokes the model
 
     const firstCandidate = response.candidates?.[0];
     if (!firstCandidate) {
