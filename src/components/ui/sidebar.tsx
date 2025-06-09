@@ -1,5 +1,5 @@
 
-"use client"
+"use client";
 
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
@@ -76,15 +76,17 @@ const SidebarProvider = React.forwardRef<
         } else {
           _setOpen(openState)
         }
-        document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
+        if (typeof document !== "undefined") {
+          document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
+        }
       },
       [setOpenProp, open]
     )
 
     const toggleSidebar = React.useCallback(() => {
       return isMobile
-        ? setOpenMobile((open) => !open)
-        : setOpen((open) => !open)
+        ? setOpenMobile((openState) => !openState)
+        : setOpen((openState) => !openState)
     }, [isMobile, setOpen, setOpenMobile])
 
     React.useEffect(() => {
@@ -97,8 +99,10 @@ const SidebarProvider = React.forwardRef<
           toggleSidebar()
         }
       }
-      window.addEventListener("keydown", handleKeyDown)
-      return () => window.removeEventListener("keydown", handleKeyDown)
+      if (typeof window !== "undefined") {
+        window.addEventListener("keydown", handleKeyDown)
+        return () => window.removeEventListener("keydown", handleKeyDown)
+      }
     }, [toggleSidebar])
 
     const state = open ? "expanded" : "collapsed"
@@ -523,18 +527,22 @@ const SidebarMenuButton = React.forwardRef<
 >(
   (
     {
-      asChild: ownAsChild = false,
+      asChild: ownAsChild = false, // This is the component's own asChild prop
       isActive = false,
       variant = "default",
       size = "default",
       className,
       children,
-      ...rest
+      ...rest // Props from parent, e.g., Link (which passes its own asChild)
     },
     ref
   ) => {
     const Comp = ownAsChild ? Slot : "button";
-    const { asChild: _forwardedAsChild, ...elementProps } = rest;
+    // Destructure asChild from 'rest' so it's not in 'elementProps'
+    // This ensures that if 'Link asChild' passes 'asChild=true' to this component,
+    // and this component is rendering a native <button>, the 'asChild' prop from Link
+    // is not passed to the native <button> element.
+    const { asChild: _forwardedAsChildFromRest, ...elementProps } = rest;
 
     return (
       <Comp
@@ -543,7 +551,7 @@ const SidebarMenuButton = React.forwardRef<
         data-size={size}
         data-active={isActive}
         className={cn(sidebarMenuButtonVariants({ variant, size, className }))}
-        {...elementProps}
+        {...elementProps} // 'elementProps' should now be clean of 'asChild' from 'rest'
       >
         {children}
       </Comp>
@@ -664,14 +672,15 @@ const SidebarMenuSubItem = React.forwardRef<
 SidebarMenuSubItem.displayName = "SidebarMenuSubItem"
 
 const SidebarMenuSubButton = React.forwardRef<
-  HTMLAnchorElement,
+  HTMLAnchorElement, // Renders an <a> or Slot
   React.ComponentProps<"a"> & {
     size?: "sm" | "md";
     isActive?: boolean;
   }
 >(({ asChild: ownAsChild = false, size = "md", isActive, className, children, ...rest }, ref) => {
   const Comp = ownAsChild ? Slot : "a";
-  const { asChild: _forwardedAsChild, ...elementProps } = rest;
+  // Destructure asChild from 'rest' so it's not in 'elementProps'
+  const { asChild: _forwardedAsChildFromRest, ...elementProps } = rest;
 
   return (
     <Comp
@@ -687,7 +696,7 @@ const SidebarMenuSubButton = React.forwardRef<
         "group-data-[collapsible=icon]:hidden",
         className
       )}
-      {...elementProps}
+      {...elementProps} // 'elementProps' should now be clean of 'asChild' from 'rest'
     >
       {children}
     </Comp>
@@ -721,5 +730,3 @@ export {
   SidebarTrigger,
   useSidebar,
 }
-
-    
