@@ -491,7 +491,6 @@ export default function PosPage() {
     try {
       const transactionDocRef = doc(db, 'transactions', selectedTransaction.id);
       
-      
       if (selectedTransaction.clientId) {
         console.log("[POS] Client ID found:", selectedTransaction.clientId, "Attempting to update client loyalty points.");
         const clientDocRef = doc(db, 'clients', selectedTransaction.clientId);
@@ -502,25 +501,33 @@ export default function PosPage() {
             let currentLoyaltyPoints = (typeof clientData.loyaltyPoints === 'number' && !isNaN(clientData.loyaltyPoints)) ? clientData.loyaltyPoints : 0;
             console.log("[POS] Current client loyalty points (before any change):", currentLoyaltyPoints);
 
-            
             const pointsRedeemedThisTransaction = selectedTransaction.pointsRedeemed || 0;
+            let pointsEarnedThisTransaction = 0;
+            let newLoyaltyPoints = currentLoyaltyPoints;
+            const clientUpdateMessageParts: string[] = [];
+
             if (pointsRedeemedThisTransaction > 0) {
-                currentLoyaltyPoints -= pointsRedeemedThisTransaction;
-                console.log(`[POS] Deducted ${pointsRedeemedThisTransaction} redeemed points. Points now: ${currentLoyaltyPoints}`);
+                newLoyaltyPoints -= pointsRedeemedThisTransaction;
+                console.log(`[POS] Client redeemed ${pointsRedeemedThisTransaction} points. Points after deduction: ${newLoyaltyPoints}. No new points will be earned for this transaction.`);
+                clientUpdateMessageParts.push(`${pointsRedeemedThisTransaction} poin ditukar`);
+                // pointsEarnedThisTransaction remains 0, so no new points are added
+            } else {
+                // Only calculate and add earned points if no points were redeemed
+                pointsEarnedThisTransaction = selectedTransaction.items.reduce((sum, item) => {
+                    const awardedPoints = (typeof item.pointsAwardedPerUnit === 'number' && !isNaN(item.pointsAwardedPerUnit)) ? item.pointsAwardedPerUnit : 0;
+                    const qty = (typeof item.quantity === 'number' && !isNaN(item.quantity) && item.quantity > 0) ? item.quantity : 1; 
+                    console.log(`[POS] Calculating points for item: ${item.name}, pointsAwardedPerUnit: ${awardedPoints}, quantity: ${qty}`);
+                    return sum + (awardedPoints * qty);
+                }, 0);
+                console.log("[POS] Total points earned from this transaction (before adding to client):", pointsEarnedThisTransaction);
+                newLoyaltyPoints += pointsEarnedThisTransaction;
+
+                if (pointsEarnedThisTransaction > 0) {
+                    clientUpdateMessageParts.push(`${pointsEarnedThisTransaction} poin baru diperoleh`);
+                }
             }
             
-            
-            
-            const pointsEarnedThisTransaction = selectedTransaction.items.reduce((sum, item) => {
-                const awardedPoints = (typeof item.pointsAwardedPerUnit === 'number' && !isNaN(item.pointsAwardedPerUnit)) ? item.pointsAwardedPerUnit : 0;
-                const qty = (typeof item.quantity === 'number' && !isNaN(item.quantity) && item.quantity > 0) ? item.quantity : 1; 
-                console.log(`[POS] Calculating points for item: ${item.name}, pointsAwardedPerUnit: ${awardedPoints}, quantity: ${qty}`);
-                return sum + (awardedPoints * qty);
-            }, 0);
-            console.log("[POS] Total points earned from this transaction (before adding to client):", pointsEarnedThisTransaction);
-
-            const newLoyaltyPoints = currentLoyaltyPoints + pointsEarnedThisTransaction;
-            console.log("[POS] New client loyalty points (after redemption and award):", newLoyaltyPoints);
+            console.log("[POS] Final new client loyalty points:", newLoyaltyPoints);
             
             const today = new Date().toLocaleDateString('en-CA'); 
 
@@ -530,14 +537,12 @@ export default function PosPage() {
             });
             
             let clientUpdateMessage = `Kunjungan terakhir untuk ${clientData.name} telah diperbarui.`;
-            if (pointsRedeemedThisTransaction > 0) {
-                 clientUpdateMessage += ` ${pointsRedeemedThisTransaction} poin ditukar.`
+            if (clientUpdateMessageParts.length > 0) {
+                clientUpdateMessage += ` ${clientUpdateMessageParts.join(', ')}.`;
+            } else if (pointsRedeemedThisTransaction === 0 && pointsEarnedThisTransaction === 0) {
+                 clientUpdateMessage += ` (Tidak ada poin diperoleh/ditukar pada transaksi ini).`;
             }
-            if (pointsEarnedThisTransaction > 0) {
-                clientUpdateMessage += ` ${pointsEarnedThisTransaction} poin baru diperoleh.`
-            } else if (pointsEarnedThisTransaction === 0 && pointsRedeemedThisTransaction === 0) {
-                clientUpdateMessage += ` (Tidak ada poin diperoleh/ditukar pada transaksi ini).`
-            }
+
             console.log('[POS] Client Update Message:', clientUpdateMessage);
             toast({ title: "Info Klien Diperbarui", description: clientUpdateMessage.trim() });
 
@@ -856,6 +861,7 @@ export default function PosPage() {
                             setItemPrice(foundItem.price);
                             setItemType(foundItem.type === 'Layanan' ? 'service' : 'product');
                             setItemPointsAwarded(foundItem.pointsAwarded || 0);
+                            console.log('[POS] Catalog item selected in dialog. PointsAwarded:', foundItem.pointsAwarded);
                         } else {
                             setItemName('');
                             setItemPrice('');
