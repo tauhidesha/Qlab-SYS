@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Trash2, CreditCard, Loader2, ShoppingBag, Edit, UserPlus } from 'lucide-react';
+import { PlusCircle, Trash2, CreditCard, Loader2, ShoppingBag, UserPlus } from 'lucide-react'; // Removed Edit
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, arrayUnion, serverTimestamp, addDoc, type Timestamp, getDocs } from 'firebase/firestore';
@@ -22,6 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogClose,
 } from '@/components/ui/dialog';
 import {
   Select,
@@ -30,12 +31,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from '@/components/ui/textarea';
 
 
 export default function PosPage() {
   const [openTransactions, setOpenTransactions] = useState<Transaction[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(true);
   const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(null);
+  
   const [isAddItemDialogOpen, setIsAddItemDialogOpen] = useState(false);
   const [isSubmittingItem, setIsSubmittingItem] = useState(false);
   
@@ -47,6 +50,12 @@ export default function PosPage() {
   const [itemQuantity, setItemQuantity] = useState<number | string>(1);
   const [itemType, setItemType] = useState<'service' | 'product' | 'food_drink' | 'other'>('product');
 
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('');
+  const [paymentNotes, setPaymentNotes] = useState<string>('');
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
+  const paymentMethods = ["Tunai", "QRIS", "Kartu Kredit", "Kartu Debit", "Transfer Bank"];
 
   const { toast } = useToast();
 
@@ -100,8 +109,8 @@ export default function PosPage() {
     return openTransactions.find(t => t.id === selectedTransactionId) || null;
   }, [openTransactions, selectedTransactionId]);
 
-  const handleSelectTransaction = (transaction: Transaction) => {
-    setSelectedTransactionId(transaction.id);
+  const handleSelectTransaction = (transactionId: string) => {
+    setSelectedTransactionId(transactionId);
   };
 
   const resetAddItemForm = () => {
@@ -184,13 +193,11 @@ export default function PosPage() {
             updatedAt: serverTimestamp() as Timestamp,
         };
         const docRef = await addDoc(collection(db, 'transactions'), newTransactionData);
-        setSelectedTransactionId(docRef.id); // Select the new transaction
+        setSelectedTransactionId(docRef.id); 
         toast({ title: "Sukses", description: "Transaksi manual baru berhasil dibuat."});
     } catch (error) {
         console.error("Error creating manual transaction: ", error);
         toast({ title: "Error", description: "Gagal membuat transaksi manual baru.", variant: "destructive" });
-    } finally {
-        // setLoadingTransactions(false); // onSnapshot will handle this
     }
   };
 
@@ -199,7 +206,6 @@ export default function PosPage() {
     let currentDiscountAmount = discountAmount;
     if (discountPercentage > 0 && discountAmount === 0) { 
         currentDiscountAmount = subtotal * (discountPercentage / 100);
-    } else if (discountAmount > 0) { 
     }
     const total = subtotal - currentDiscountAmount;
     return { subtotal, total, discountAmount: currentDiscountAmount };
@@ -236,33 +242,75 @@ export default function PosPage() {
     const newDiscountAmount = parseFloat(newDiscountAmountInput) || 0;
     const newDiscountPercentage = parseFloat(newDiscountPercentageInput) || 0;
 
-    // Determine which discount to apply (amount takes precedence if both are > 0 or if percentage leads to 0 discountAmount but amount itself is > 0)
     let appliedDiscountAmount = 0;
     let appliedDiscountPercentage = 0;
 
     if (newDiscountAmount > 0) {
         appliedDiscountAmount = newDiscountAmount;
-        // appliedDiscountPercentage = 0; // Clear percentage if amount is set
     } else if (newDiscountPercentage > 0) {
         appliedDiscountPercentage = newDiscountPercentage;
-        // appliedDiscountAmount = 0; // Clear amount if percentage is set
     }
 
     const { total, discountAmount: calculatedDiscountAmount } = calculateTransactionTotals(items, appliedDiscountAmount, appliedDiscountPercentage);
     
-    // Optimistic update for UI consistency is handled by useMemo deriving selectedTransaction
-
     try {
         const transactionDocRef = doc(db, 'transactions', transactionId);
         await updateDoc(transactionDocRef, {
             discountAmount: appliedDiscountAmount > 0 ? appliedDiscountAmount : (appliedDiscountPercentage > 0 ? calculatedDiscountAmount : 0),
-            discountPercentage: appliedDiscountPercentage, // Store the percentage that was input
+            discountPercentage: appliedDiscountPercentage,
             total: total,
             updatedAt: serverTimestamp()
         });
     } catch (error) {
         console.error("Error updating discount:", error);
         toast({ title: "Error Diskon", description: "Gagal menyimpan perubahan diskon.", variant: "destructive"});
+    }
+  };
+
+  const handleOpenPaymentDialog = () => {
+    if (selectedTransaction && selectedTransaction.items.length > 0) {
+      setSelectedPaymentMethod('');
+      setPaymentNotes('');
+      setIsPaymentDialogOpen(true);
+    } else {
+      toast({
+        title: "Tidak Dapat Memproses",
+        description: "Tidak ada item dalam transaksi atau transaksi tidak dipilih.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleConfirmPayment = async () => {
+    if (!selectedTransaction) {
+      toast({ title: "Error", description: "Tidak ada transaksi yang dipilih.", variant: "destructive"});
+      return;
+    }
+    if (!selectedPaymentMethod) {
+      toast({ title: "Input Kurang", description: "Silakan pilih metode pembayaran.", variant: "destructive"});
+      return;
+    }
+
+    setIsProcessingPayment(true);
+    try {
+      const transactionDocRef = doc(db, 'transactions', selectedTransaction.id);
+      await updateDoc(transactionDocRef, {
+        status: 'paid',
+        paymentMethod: selectedPaymentMethod,
+        notes: paymentNotes || '',
+        paidAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+
+      toast({ title: "Pembayaran Sukses", description: `Transaksi untuk ${selectedTransaction.customerName} berhasil dibayar.`});
+      setIsPaymentDialogOpen(false);
+      setSelectedTransactionId(null); // Clear selected transaction
+      // Loyalty points and client last visit update can be added here later
+    } catch (error) {
+      console.error("Error processing payment: ", error);
+      toast({ title: "Error Pembayaran", description: "Gagal memproses pembayaran.", variant: "destructive"});
+    } finally {
+      setIsProcessingPayment(false);
     }
   };
 
@@ -301,7 +349,7 @@ export default function PosPage() {
                       key={trans.id}
                       variant={selectedTransactionId === trans.id ? "secondary" : "outline"}
                       className="w-full justify-start h-auto py-3"
-                      onClick={() => handleSelectTransaction(trans)}
+                      onClick={() => handleSelectTransaction(trans.id)}
                     >
                       <div className="flex flex-col items-start">
                         <span className="font-semibold">{trans.customerName}</span>
@@ -419,8 +467,13 @@ export default function PosPage() {
                   </div>
                 </CardContent>
                 <CardFooter className="flex-col space-y-2">
-                    <Button className="w-full" disabled>
-                      <CreditCard className="mr-2 h-5 w-5" /> Proses Pembayaran (Segera)
+                    <Button 
+                      className="w-full" 
+                      onClick={handleOpenPaymentDialog}
+                      disabled={!selectedTransaction || selectedTransaction.items.length === 0 || isProcessingPayment}
+                    >
+                      {isProcessingPayment ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <CreditCard className="mr-2 h-5 w-5" />}
+                      Proses Pembayaran
                     </Button>
                 </CardFooter>
               </Card>
@@ -524,10 +577,55 @@ export default function PosPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      {selectedTransaction && (
+         <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Proses Pembayaran</DialogTitle>
+              <DialogDescription>
+                Untuk transaksi: {selectedTransaction.customerName} <br />
+                Total Tagihan: <span className="font-bold text-lg">Rp {selectedTransaction.total.toLocaleString('id-ID')}</span>
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-2 pb-4">
+              <div className="space-y-2">
+                <Label htmlFor="payment-method-select">Metode Pembayaran</Label>
+                <Select value={selectedPaymentMethod} onValueChange={setSelectedPaymentMethod}>
+                  <SelectTrigger id="payment-method-select">
+                    <SelectValue placeholder="Pilih metode pembayaran" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {paymentMethods.map(method => (
+                      <SelectItem key={method} value={method}>{method}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="payment-notes">Catatan (Opsional)</Label>
+                <Textarea 
+                  id="payment-notes" 
+                  value={paymentNotes} 
+                  onChange={(e) => setPaymentNotes(e.target.value)}
+                  placeholder="Mis. Pembayaran DP, Lunas dengan diskon khusus, dll." 
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button variant="outline" disabled={isProcessingPayment}>Batal</Button>
+              </DialogClose>
+              <Button onClick={handleConfirmPayment} disabled={isProcessingPayment || !selectedPaymentMethod}>
+                {isProcessingPayment && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Konfirmasi Pembayaran
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
-
-    
 
     
