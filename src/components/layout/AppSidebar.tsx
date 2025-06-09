@@ -18,6 +18,7 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarTrigger,
+  SidebarMenuSubItem, // Added import
 } from "@/components/ui/sidebar";
 import Logo from "@/components/Logo";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -36,7 +37,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
     setOpenSubMenus(prev => ({ ...prev, [title]: !prev[title] }));
   };
 
-  const renderNavItem = (item: NavItem, isSubItem = false) => {
+  const renderNavItem = (item: NavItem) => { // Removed isSubItem param as it's not used for logic branching here
     const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
     const Icon = item.icon;
 
@@ -46,7 +47,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
           <SidebarMenuButton
             onClick={() => toggleSubMenu(item.title)}
             className="justify-between w-full"
-            isActive={isActive && !openSubMenus[item.title]} // Active if parent path matches and not expanded
+            isActive={isActive && !openSubMenus[item.title]}
             aria-expanded={openSubMenus[item.title]}
           >
             <div className="flex items-center gap-2">
@@ -62,12 +63,11 @@ export function AppSidebar({ className }: AppSidebarProps) {
                   <Link href={subItem.href} asChild>
                     <SidebarMenuSubButton
                       isActive={pathname === subItem.href || pathname.startsWith(subItem.href)}
-                      asChild
+                      // REMOVED asChild from SidebarMenuSubButton
                     >
-                      <a>
-                        {subItem.icon && <subItem.icon />}
-                        <span>{subItem.title}</span>
-                      </a>
+                      {/* REMOVED inner <a> tag, content is direct child */}
+                      {subItem.icon && <subItem.icon />}
+                      <span>{subItem.title}</span>
                     </SidebarMenuSubButton>
                   </Link>
                 </SidebarMenuSubItem>
@@ -78,17 +78,19 @@ export function AppSidebar({ className }: AppSidebarProps) {
       );
     }
     
-    const ButtonComponent = isSubItem ? SidebarMenuSubButton : SidebarMenuButton;
-
+    // This case is for top-level items that are direct links (not groups)
+    // Here, ButtonComponent will be SidebarMenuButton
+    // For SidebarMenuButton (which defaults to <button>), we need asChild on it
+    // and an inner <a> to make it a link.
     return (
       <SidebarMenuItem key={item.title}>
         <Link href={item.href} asChild>
-          <ButtonComponent isActive={isActive} asChild>
+          <SidebarMenuButton isActive={isActive} asChild>
             <a>
               <Icon />
               <span>{item.title}</span>
             </a>
-          </ButtonComponent>
+          </SidebarMenuButton>
         </Link>
       </SidebarMenuItem>
     );
