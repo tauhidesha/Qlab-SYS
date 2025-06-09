@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Trash2, CreditCard, Loader2, ShoppingBag, UserPlus } from 'lucide-react'; // Removed Edit
+import { PlusCircle, Trash2, CreditCard, Loader2, ShoppingBag, UserPlus } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, arrayUnion, serverTimestamp, addDoc, type Timestamp, getDocs } from 'firebase/firestore';
@@ -55,7 +55,7 @@ export default function PosPage() {
   const [paymentNotes, setPaymentNotes] = useState<string>('');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
-  const paymentMethods = ["Tunai", "QRIS", "Kartu Kredit", "Kartu Debit", "Transfer Bank"];
+  const paymentMethods = ["Tunai", "QRIS", "Kartu Debit"];
 
   const { toast } = useToast();
 
