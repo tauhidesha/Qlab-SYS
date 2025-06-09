@@ -35,8 +35,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+  AlertDialogTrigger, 
+} from "@/components/ui/alert-dialog"; 
 import type { Client, Motorcycle } from '@/types/client';
 import type { ServiceProduct } from '@/app/(app)/services/page';
 
@@ -56,7 +56,6 @@ const queueItemFormSchema = z.object({
   vehicleInfo: z.string().min(1, "Info kendaraan diperlukan"),
   service: z.string().min(1, "Layanan diperlukan"),
   estimatedTime: z.string().min(1, "Estimasi waktu diperlukan"),
-  // staff: z.string().optional(), // Dihapus dari form utama
   status: z.enum(['Menunggu', 'Dalam Layanan', 'Selesai']),
 });
 
@@ -76,7 +75,6 @@ interface QueueItemFormProps {
   isSubmitting: boolean;
   clientsList: ClientForSelect[];
   servicesList: ServiceForSelect[];
-  // staffList: string[]; // Dihapus dari props form utama
 }
 
 function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting, clientsList, servicesList }: QueueItemFormProps) {
@@ -89,7 +87,7 @@ function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting, client
   const [selectedClientMotorcycles, setSelectedClientMotorcycles] = useState<Motorcycle[]>([]);
 
   useEffect(() => {
-    form.reset(defaultValues);
+    form.reset(defaultValues); 
     if (defaultValues.customerName) {
       const client = clientsList.find(c => c.name === defaultValues.customerName);
       setSelectedClientMotorcycles(client?.motorcycles || []);
@@ -278,11 +276,16 @@ function AssignStaffDialog({ isOpen, onClose, onSubmit, staffList, isSubmitting 
       return;
     }
     await onSubmit(selectedStaff);
-    setSelectedStaff(''); // Reset for next use
+    setSelectedStaff(''); 
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      if (!open) {
+        onClose();
+        setSelectedStaff(''); 
+      }
+    }}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Tugaskan Staf</DialogTitle>
@@ -304,7 +307,7 @@ function AssignStaffDialog({ isOpen, onClose, onSubmit, staffList, isSubmitting 
           </Select>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={isSubmitting}>Batal</Button>
+          <Button variant="outline" onClick={() => { onClose(); setSelectedStaff('');}} disabled={isSubmitting}>Batal</Button>
           <Button onClick={handleSubmit} disabled={isSubmitting || !selectedStaff}>
             {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
             Konfirmasi Staf
@@ -344,7 +347,6 @@ export default function QueuePage() {
       const querySnapshot = await getDocs(q);
       const clientsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ClientForSelect));
       setClientsList(clientsData);
-      console.log('Fetched clients for dropdown:', clientsData);
     } catch (error) {
       console.error("Error fetching clients for dropdown: ", error);
       toast({
@@ -362,7 +364,6 @@ export default function QueuePage() {
       const querySnapshot = await getDocs(q);
       const servicesData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceForSelect));
       setServicesList(servicesData);
-      console.log('Fetched services for dropdown:', servicesData);
     } catch (error) {
       console.error("Error fetching services for dropdown: ", error);
       toast({
@@ -380,13 +381,10 @@ export default function QueuePage() {
 
   const fetchQueueItems = useCallback(async () => {
     setLoading(true);
-    console.log("Mengambil item antrian dari Firestore...");
     try {
       const queueCollectionRef = collection(db, 'queueItems');
       const q = query(queueCollectionRef, orderBy("createdAt", "asc"));
       const querySnapshot = await getDocs(q);
-      
-      console.log(`Mengambil ${querySnapshot.docs.length} dokumen antrian.`);
       
       const itemsData = querySnapshot.docs.map(doc => {
         const data = doc.data();
@@ -396,8 +394,6 @@ export default function QueuePage() {
           createdAt: data.createdAt || Timestamp.now() 
         } as QueueItem;
       });
-      
-      console.log('Data item antrian yang dipetakan:', itemsData);
       setQueueItems(itemsData);
 
     } catch (error) {
@@ -429,7 +425,6 @@ export default function QueuePage() {
   };
 
   const handleOpenAddDialog = () => {
-    console.log('[QueuePage] handleOpenAddDialog called');
     setCurrentEditingItem(null); 
     setIsFormDialogOpen(true);
   };
@@ -442,17 +437,21 @@ export default function QueuePage() {
   const handleFormSubmit = async (data: QueueItemFormData) => {
     setIsSubmitting(true);
     try {
-      const dataToSave = {
-        ...data,
+      const firestoreData: QueueItemFormData = {
+        customerName: data.customerName,
+        vehicleInfo: data.vehicleInfo,
+        service: data.service,
+        estimatedTime: data.estimatedTime,
+        status: data.status,
       };
 
       if (currentEditingItem) { 
         const itemDocRef = doc(db, 'queueItems', currentEditingItem.id);
-        await updateDoc(itemDocRef, dataToSave); 
+        await updateDoc(itemDocRef, firestoreData); 
         toast({ title: "Sukses", description: "Item antrian berhasil diperbarui." });
       } else { 
         await addDoc(collection(db, 'queueItems'), { 
-          ...dataToSave, 
+          ...firestoreData, 
           createdAt: serverTimestamp() 
         });
         toast({ title: "Sukses", description: "Item baru berhasil ditambahkan ke antrian." });
@@ -561,7 +560,7 @@ export default function QueuePage() {
     <div className="flex flex-col h-full">
       <AppHeader title="Manajemen Antrian" />
       <main className="flex-1 overflow-y-auto p-6">
-        <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+       <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
@@ -573,7 +572,12 @@ export default function QueuePage() {
               </Button>
             </CardHeader>
             <CardContent>
-              {queueItems.length === 0 && !loading ? (
+              {loading && queueItems.length === 0 ? (
+                 <div className="flex items-center justify-center py-10">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="ml-2">Memuat antrian...</p>
+                </div>
+              ) : queueItems.length === 0 && !loading ? (
                 <div className="text-center py-10 text-muted-foreground">
                   Antrian saat ini kosong. Klik "Tambah ke Antrian" untuk memulai.
                 </div>
@@ -698,4 +702,6 @@ export default function QueuePage() {
     </div>
   );
 }
+    
+
     
