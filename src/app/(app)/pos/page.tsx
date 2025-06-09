@@ -1,7 +1,7 @@
 
 "use client";
 import AppHeader from '@/components/layout/AppHeader';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,12 +10,23 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { PlusCircle, Trash2, CreditCard, Loader2, ShoppingBag, UserPlus, Star, Tags, MessageSquareText, Send } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, arrayUnion, serverTimestamp, addDoc, type Timestamp, getDocs, getDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, arrayUnion, serverTimestamp, addDoc, type Timestamp, getDocs, getDoc, deleteDoc } from 'firebase/firestore';
 import type { Transaction, TransactionItem } from '@/types/transaction';
 import type { ServiceProduct } from '@/app/(app)/services/page'; 
 import type { Client } from '@/types/client';
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -80,6 +91,9 @@ export default function PosPage() {
   const [whatsAppNumberInput, setWhatsAppNumberInput] = useState('');
   const [lastPaidTransactionDetails, setLastPaidTransactionDetails] = useState<Transaction | null>(null);
 
+  const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
+  const [isDeletingTransaction, setIsDeletingTransaction] = useState<boolean>(false);
+
 
   const { toast } = useToast();
 
@@ -92,7 +106,6 @@ export default function PosPage() {
       const transactionsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
       setOpenTransactions(transactionsData);
       setLoadingTransactions(false);
-      // console.log('[POS] Open transactions updated:', transactionsData);
     }, (error) => {
       console.error("Error fetching open transactions: ", error);
       toast({
@@ -115,7 +128,6 @@ export default function PosPage() {
             const querySnapshot = await getDocs(q);
             const itemsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceProduct));
             setAvailableItems(itemsData);
-            // console.log('[POS] Available catalog items fetched:', itemsData);
         } catch (error) {
             console.error("Error fetching available items: ", error);
             toast({
@@ -139,7 +151,6 @@ export default function PosPage() {
             const querySnapshot = await getDocs(q);
             const clientsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
             setAvailableClients(clientsData);
-            // console.log('[POS] Available clients fetched:', clientsData);
         } catch (error) {
             console.error("Error fetching clients: ", error);
             toast({
@@ -161,11 +172,8 @@ export default function PosPage() {
 
    useEffect(() => {
     const updateSelectedClientDetails = async () => {
-      // console.log('[POS] useEffect updateSelectedClientDetails - selectedTransaction:', selectedTransaction);
-      // console.log('[POS] useEffect updateSelectedClientDetails - selectedTransaction?.clientId:', selectedTransaction?.clientId);
       if (selectedTransaction?.clientId) {
         const client = availableClients.find(c => c.id === selectedTransaction.clientId);
-        // console.log('[POS] useEffect updateSelectedClientDetails - Found client:', client);
         setSelectedClientDetails(client || null);
       } else {
         setSelectedClientDetails(null);
@@ -199,8 +207,6 @@ export default function PosPage() {
         toast({ title: "Error", description: "Item katalog tidak ditemukan.", variant: "destructive" });
         return;
     }
-    // console.log('[POS] handleAddItemToTransaction - catalogItem:', catalogItem);
-
 
     const quantity = parseInt(String(itemQuantity), 10);
     if (isNaN(quantity) || quantity <= 0) {
@@ -218,8 +224,6 @@ export default function PosPage() {
       type: catalogItem.type === 'Layanan' ? 'service' : 'product', 
       pointsAwardedPerUnit: catalogItem.pointsAwarded || 0,
     };
-    // console.log('[POS] handleAddItemToTransaction - newItem to be added:', newItem);
-
 
     try {
       const transactionDocRef = doc(db, 'transactions', selectedTransaction.id);
@@ -374,9 +378,6 @@ export default function PosPage() {
     
     if (selectedTransaction.pointsRedeemed && selectedTransaction.pointsRedeemed > 0) {
         toast({title: "Info Diskon", description: "Diskon dari poin sudah diterapkan. Hapus diskon poin untuk menerapkan diskon manual.", variant: "default"});
-        // Optionally, reset discount inputs here if needed
-        // form.setValue('discountAmountInput', ''); // Assuming you use react-hook-form or similar
-        // form.setValue('discountPercentageInput', '');
         return;
     }
 
@@ -400,7 +401,7 @@ export default function PosPage() {
             discountAmount: appliedDiscountAmount > 0 ? appliedDiscountAmount : (appliedDiscountPercentage > 0 ? calculatedDiscountAmount : 0),
             discountPercentage: appliedDiscountPercentage,
             total: total,
-            pointsRedeemed: 0, // Clear points redeemed if manual discount is applied
+            pointsRedeemed: 0, 
             pointsRedeemedValue: 0,
             updatedAt: serverTimestamp()
         });
@@ -453,11 +454,8 @@ export default function PosPage() {
 
     setIsSubmittingRedemption(true);
     const discountValueFromPoints = pointsToRedeem * POINT_TO_RUPIAH_RATE;
-
-    // Ensure discount from points doesn't exceed subtotal
     const subtotal = selectedTransaction.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const effectiveDiscountValue = Math.min(discountValueFromPoints, subtotal);
-
 
     const { total } = calculateTransactionTotals(selectedTransaction.items, 0, 0, effectiveDiscountValue);
 
@@ -466,8 +464,8 @@ export default function PosPage() {
       await updateDoc(transactionDocRef, {
         pointsRedeemed: pointsToRedeem,
         pointsRedeemedValue: effectiveDiscountValue,
-        discountAmount: effectiveDiscountValue, // Set this to reflect the discount
-        discountPercentage: 0, // Clear percentage discount
+        discountAmount: effectiveDiscountValue, 
+        discountPercentage: 0, 
         total: total,
         notes: `${selectedTransaction.notes || ''} [Tukar ${pointsToRedeem} poin senilai Rp ${effectiveDiscountValue.toLocaleString('id-ID')}]`.trim(),
         updatedAt: serverTimestamp(),
@@ -499,7 +497,6 @@ export default function PosPage() {
       
       let pointsEarnedThisTransaction = 0;
       
-      // Only calculate pointsEarned if client exists and no points were redeemed in this transaction
       if (selectedTransaction.clientId && (!selectedTransaction.pointsRedeemed || selectedTransaction.pointsRedeemed === 0)) {
          pointsEarnedThisTransaction = selectedTransaction.items.reduce((sum, item) => {
             const awardedPoints = (typeof item.pointsAwardedPerUnit === 'number' && !isNaN(item.pointsAwardedPerUnit)) ? item.pointsAwardedPerUnit : 0;
@@ -523,15 +520,14 @@ export default function PosPage() {
             if (pointsRedeemedThisTransaction > 0) {
                 newLoyaltyPoints -= pointsRedeemedThisTransaction;
                 clientUpdateMessageParts.push(`${pointsRedeemedThisTransaction} poin ditukar`);
-                // pointsEarnedThisTransaction is already 0 if points were redeemed
-            } else { // Only add points if none were redeemed
+            } else { 
                 newLoyaltyPoints += pointsEarnedThisTransaction;
                 if (pointsEarnedThisTransaction > 0) {
                     clientUpdateMessageParts.push(`${pointsEarnedThisTransaction} poin baru diperoleh`);
                 }
             }
             
-            const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+            const today = new Date().toLocaleDateString('en-CA'); 
 
             await updateDoc(clientDocRef, {
                 loyaltyPoints: newLoyaltyPoints,
@@ -557,9 +553,10 @@ export default function PosPage() {
       await updateDoc(transactionDocRef, {
         status: 'paid',
         paymentMethod: selectedPaymentMethod,
-        notes: paymentNotes || selectedTransaction.notes || '', // Prioritize new payment notes
+        notes: paymentNotes || selectedTransaction.notes || '', 
         paidAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
+        pointsEarnedInThisTx: pointsEarnedThisTransaction,
       });
       toast({ title: "Pembayaran Sukses", description: `Transaksi untuk ${selectedTransaction.customerName} berhasil dibayar.`});
       
@@ -645,6 +642,33 @@ export default function PosPage() {
     setLastPaidTransactionDetails(null); 
   };
 
+  const handleDeleteOpenTransaction = async () => {
+    if (!transactionToDelete) return;
+    setIsDeletingTransaction(true);
+    try {
+      await deleteDoc(doc(db, 'transactions', transactionToDelete.id));
+      toast({
+        title: "Sukses",
+        description: `Transaksi untuk "${transactionToDelete.customerName}" berhasil dihapus.`,
+      });
+      if (selectedTransactionId === transactionToDelete.id) {
+        setSelectedTransactionId(null);
+        setSelectedClientDetails(null);
+      }
+      setTransactionToDelete(null);
+      // onSnapshot will update the list
+    } catch (error) {
+      console.error("Error deleting transaction: ", error);
+      toast({
+        title: "Error",
+        description: "Gagal menghapus transaksi.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeletingTransaction(false);
+    }
+  };
+
 
   if (loadingTransactions || loadingCatalogItems || loadingClients) {
     return (
@@ -663,44 +687,76 @@ export default function PosPage() {
       <AppHeader title="Titik Penjualan" />
       <main className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 space-y-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between p-4">
-                <CardTitle className="text-lg flex-grow mr-4">Transaksi Terbuka</CardTitle>
-                <Button 
-                  onClick={() => { resetNewBillDialogState(); setIsCreateBillDialogOpen(true); }} 
-                  size="sm" 
-                  className="bg-accent text-accent-foreground hover:bg-accent/90 flex-shrink-0"
-                >
-                    <PlusCircle className="mr-2 h-4 w-4" /> Bill Baru
-                </Button>
-            </CardHeader>
-            <CardContent className="max-h-[calc(100vh-200px)] overflow-y-auto">
-              {openTransactions.length === 0 ? (
-                <p className="text-muted-foreground text-center py-4">Tidak ada transaksi terbuka.</p>
-              ) : (
-                <div className="space-y-3">
-                  {openTransactions.map((trans) => (
-                    <Button
-                      key={trans.id}
-                      variant={selectedTransactionId === trans.id ? "secondary" : "outline"}
-                      className="w-full justify-start h-auto py-3"
-                      onClick={() => handleSelectTransaction(trans.id)}
-                    >
-                      <div className="flex flex-col items-start">
-                        <span className="font-semibold">{trans.customerName}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {trans.items.length} item - Total: Rp {trans.total.toLocaleString('id-ID')}
-                        </span>
-                         <span className="text-xs text-muted-foreground">
-                            Staf Layanan: {trans.serviceStaffName || 'N/A'}
-                         </span>
+           <AlertDialog open={!!transactionToDelete} onOpenChange={(open) => !open && setTransactionToDelete(null)}>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between p-4">
+                  <CardTitle className="text-lg flex-grow mr-4">Transaksi Terbuka</CardTitle>
+                  <Button 
+                    onClick={() => { resetNewBillDialogState(); setIsCreateBillDialogOpen(true); }} 
+                    size="sm" 
+                    className="bg-accent text-accent-foreground hover:bg-accent/90 flex-shrink-0"
+                  >
+                      <PlusCircle className="mr-2 h-4 w-4" /> Bill Baru
+                  </Button>
+              </CardHeader>
+              <CardContent className="max-h-[calc(100vh-200px)] overflow-y-auto">
+                {openTransactions.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">Tidak ada transaksi terbuka.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {openTransactions.map((trans) => (
+                      <div key={trans.id} className="flex items-center gap-2">
+                        <Button
+                          variant={selectedTransactionId === trans.id ? "secondary" : "outline"}
+                          className="w-full justify-start h-auto py-3 flex-grow"
+                          onClick={() => handleSelectTransaction(trans.id)}
+                        >
+                          <div className="flex flex-col items-start">
+                            <span className="font-semibold">{trans.customerName}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {trans.items.length} item - Total: Rp {trans.total.toLocaleString('id-ID')}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                                Staf Layanan: {trans.serviceStaffName || 'N/A'}
+                            </span>
+                          </div>
+                        </Button>
+                        <AlertDialogTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="text-destructive hover:text-destructive flex-shrink-0"
+                            onClick={() => setTransactionToDelete(trans)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
                       </div>
-                    </Button>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Konfirmasi Penghapusan</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Apakah Anda yakin ingin menghapus transaksi untuk "{transactionToDelete?.customerName}"? Transaksi ini berstatus 'terbuka' dan akan dihapus permanen.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setTransactionToDelete(null)} disabled={isDeletingTransaction}>Batal</AlertDialogCancel>
+                <AlertDialogAction 
+                  onClick={handleDeleteOpenTransaction} 
+                  disabled={isDeletingTransaction}
+                  className={buttonVariants({ variant: "destructive" })}
+                >
+                  {isDeletingTransaction ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Hapus Transaksi
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
 
         <div className="lg:col-span-2 space-y-6">
@@ -714,8 +770,6 @@ export default function PosPage() {
                         <CardDescription>
                             Transaksi ID: {selectedTransaction.id} | Staf Layanan: {selectedTransaction.serviceStaffName || "Belum Ditugaskan"}
                         </CardDescription>
-                        {/* console.log('[POS] Render - selectedClientDetails:', selectedClientDetails); */}
-                        {/* console.log('[POS] Render - condition for redeem button:', selectedClientDetails && (selectedClientDetails.loyaltyPoints || 0) >= MINIMUM_POINTS_TO_REDEEM); */}
                          {selectedClientDetails && (
                             <div className="mt-1 text-sm text-primary flex items-center">
                                 <Star className="h-4 w-4 mr-1 text-yellow-400" />
@@ -1169,3 +1223,5 @@ export default function PosPage() {
     </div>
   );
 }
+
+    
