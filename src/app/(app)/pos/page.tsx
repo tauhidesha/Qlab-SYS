@@ -422,7 +422,6 @@ export default function PosPage() {
                     <Button className="w-full" disabled>
                       <CreditCard className="mr-2 h-5 w-5" /> Proses Pembayaran (Segera)
                     </Button>
-                    <Button variant="outline" className="w-full" disabled>Simpan sebagai Draf (Segera)</Button>
                 </CardFooter>
               </Card>
             </>
@@ -528,5 +527,7 @@ export default function PosPage() {
     </div>
   );
 }
+
+    
 
     
