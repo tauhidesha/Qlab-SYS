@@ -4,7 +4,7 @@ import AppHeader from '@/components/layout/AppHeader';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, Edit3, CheckCircle, Clock, Loader2, Trash2 } from 'lucide-react';
+import { PlusCircle, Edit3, CheckCircle, Clock, Loader2, Trash2, UserPlus } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
@@ -17,11 +17,11 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogClose,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -37,8 +37,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import type { Client, Motorcycle } from '@/types/client'; // Asumsi ada definisi Motorcycle
-import type { ServiceProduct } from '@/app/(app)/services/page'; // Asumsi path dan ekspor ada
+import type { Client, Motorcycle } from '@/types/client';
+import type { ServiceProduct } from '@/app/(app)/services/page';
 
 interface QueueItem {
   id: string;
@@ -56,7 +56,7 @@ const queueItemFormSchema = z.object({
   vehicleInfo: z.string().min(1, "Info kendaraan diperlukan"),
   service: z.string().min(1, "Layanan diperlukan"),
   estimatedTime: z.string().min(1, "Estimasi waktu diperlukan"),
-  staff: z.string().optional(),
+  // staff: z.string().optional(), // Dihapus dari form utama
   status: z.enum(['Menunggu', 'Dalam Layanan', 'Selesai']),
 });
 
@@ -76,10 +76,10 @@ interface QueueItemFormProps {
   isSubmitting: boolean;
   clientsList: ClientForSelect[];
   servicesList: ServiceForSelect[];
-  staffList: string[];
+  // staffList: string[]; // Dihapus dari props form utama
 }
 
-function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting, clientsList, servicesList, staffList }: QueueItemFormProps) {
+function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting, clientsList, servicesList }: QueueItemFormProps) {
   const form = useForm<QueueItemFormData>({
     resolver: zodResolver(queueItemFormSchema),
     defaultValues: defaultValues,
@@ -90,15 +90,13 @@ function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting, client
 
   useEffect(() => {
     form.reset(defaultValues);
-    // Saat defaultValues (terutama customerName) berubah, update daftar motor
     if (defaultValues.customerName) {
       const client = clientsList.find(c => c.name === defaultValues.customerName);
       setSelectedClientMotorcycles(client?.motorcycles || []);
-      // Jika ada default vehicleInfo, pastikan itu valid untuk klien yang dipilih
       if (client && defaultValues.vehicleInfo) {
         const vehicleExists = client.motorcycles.some(m => `${m.name} (${m.licensePlate.toUpperCase()})` === defaultValues.vehicleInfo);
         if (!vehicleExists) {
-          form.setValue('vehicleInfo', ''); // Reset jika tidak valid
+          form.setValue('vehicleInfo', ''); 
         }
       }
     } else {
@@ -110,7 +108,6 @@ function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting, client
     if (selectedCustomerName) {
       const client = clientsList.find(c => c.name === selectedCustomerName);
       setSelectedClientMotorcycles(client?.motorcycles || []);
-      // Cek apakah vehicleInfo yang ada saat ini masih valid untuk customer baru. Jika tidak, reset.
       const currentVehicleInfo = form.getValues('vehicleInfo');
       if (currentVehicleInfo) {
         const vehicleIsValidForNewCustomer = client?.motorcycles.some(m => `${m.name} (${m.licensePlate.toUpperCase()})` === currentVehicleInfo);
@@ -120,7 +117,7 @@ function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting, client
       }
     } else {
       setSelectedClientMotorcycles([]);
-      form.setValue('vehicleInfo', ''); // Reset vehicleInfo jika tidak ada customer terpilih
+      form.setValue('vehicleInfo', ''); 
     }
   }, [selectedCustomerName, clientsList, form]);
 
@@ -230,31 +227,6 @@ function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting, client
         />
         <FormField
           control={form.control}
-          name="staff"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Staf (Opsional)</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value || ""} value={field.value || ""}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih staf" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {/* <SelectItem value="">Tidak Ada / Pilih Staf</SelectItem> */} {/* Item ini menyebabkan error */}
-                  {staffList.map(staffName => (
-                    <SelectItem key={staffName} value={staffName}>
-                      {staffName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
           name="status"
           render={({ field }) => (
             <FormItem>
@@ -289,6 +261,60 @@ function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting, client
   );
 }
 
+interface AssignStaffDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (staffName: string) => Promise<void>;
+  staffList: string[];
+  isSubmitting: boolean;
+}
+
+function AssignStaffDialog({ isOpen, onClose, onSubmit, staffList, isSubmitting }: AssignStaffDialogProps) {
+  const [selectedStaff, setSelectedStaff] = useState<string>('');
+
+  const handleSubmit = async () => {
+    if (!selectedStaff) {
+      toast({ title: "Error", description: "Silakan pilih staf.", variant: "destructive" });
+      return;
+    }
+    await onSubmit(selectedStaff);
+    setSelectedStaff(''); // Reset for next use
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Tugaskan Staf</DialogTitle>
+          <DialogDescription>Pilih staf yang akan menangani layanan ini.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <Label htmlFor="staff-select">Staf yang Bertugas</Label>
+          <Select value={selectedStaff} onValueChange={setSelectedStaff}>
+            <SelectTrigger id="staff-select">
+              <SelectValue placeholder="Pilih staf" />
+            </SelectTrigger>
+            <SelectContent>
+              {staffList.map(staffName => (
+                <SelectItem key={staffName} value={staffName}>
+                  {staffName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={isSubmitting}>Batal</Button>
+          <Button onClick={handleSubmit} disabled={isSubmitting || !selectedStaff}>
+            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
+            Konfirmasi Staf
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 export default function QueuePage() {
   const [queueItems, setQueueItems] = useState<QueueItem[]>([]);
@@ -300,7 +326,10 @@ export default function QueuePage() {
   
   const [clientsList, setClientsList] = useState<ClientForSelect[]>([]);
   const [servicesList, setServicesList] = useState<ServiceForSelect[]>([]);
-  const staffList = ['Andi P.', 'Budi S.', 'Rian S.', 'Siti K.', 'Eko W.', 'Lainnya']; // Placeholder
+  const staffList = ['Andi P.', 'Budi S.', 'Rian S.', 'Siti K.', 'Eko W.', 'Lainnya']; 
+
+  const [isAssignStaffDialogOpen, setIsAssignStaffDialogOpen] = useState(false);
+  const [itemBeingAssigned, setItemBeingAssigned] = useState<QueueItem | null>(null);
 
   const { toast } = useToast();
 
@@ -396,7 +425,6 @@ export default function QueuePage() {
     vehicleInfo: '',
     service: '',
     estimatedTime: '',
-    staff: '',
     status: 'Menunggu',
   };
 
@@ -416,7 +444,6 @@ export default function QueuePage() {
     try {
       const dataToSave = {
         ...data,
-        staff: data.staff === "" ? undefined : data.staff, 
       };
 
       if (currentEditingItem) { 
@@ -441,14 +468,40 @@ export default function QueuePage() {
   };
 
   const handleStatusChange = async (item: QueueItem, newStatus: QueueItem['status']) => {
+    if (newStatus === 'Dalam Layanan') {
+      setItemBeingAssigned(item);
+      setIsAssignStaffDialogOpen(true);
+    } else if (newStatus === 'Selesai') {
+      try {
+        const itemDocRef = doc(db, 'queueItems', item.id);
+        await updateDoc(itemDocRef, { status: newStatus });
+        toast({ title: "Status Diperbarui", description: `Status untuk ${item.customerName} diubah menjadi ${newStatus}.` });
+        fetchQueueItems(); 
+      } catch (error) {
+        console.error("Error updating status to Selesai: ", error);
+        toast({ title: "Error", description: "Gagal memperbarui status item.", variant: "destructive" });
+      }
+    }
+  };
+
+  const handleConfirmAssignStaff = async (staffName: string) => {
+    if (!itemBeingAssigned) return;
+    setIsSubmitting(true);
     try {
-      const itemDocRef = doc(db, 'queueItems', item.id);
-      await updateDoc(itemDocRef, { status: newStatus });
-      toast({ title: "Status Diperbarui", description: `Status untuk ${item.customerName} diubah menjadi ${newStatus}.` });
-      fetchQueueItems(); 
+      const itemDocRef = doc(db, 'queueItems', itemBeingAssigned.id);
+      await updateDoc(itemDocRef, { 
+        status: 'Dalam Layanan',
+        staff: staffName 
+      });
+      toast({ title: "Staf Ditugaskan", description: `${staffName} telah ditugaskan ke ${itemBeingAssigned.customerName}. Status diubah menjadi Dalam Layanan.` });
+      fetchQueueItems();
+      setIsAssignStaffDialogOpen(false);
+      setItemBeingAssigned(null);
     } catch (error) {
-      console.error("Error updating status: ", error);
-      toast({ title: "Error", description: "Gagal memperbarui status item.", variant: "destructive" });
+      console.error("Error assigning staff: ", error);
+      toast({ title: "Error", description: "Gagal menugaskan staf.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
     }
   };
   
@@ -621,20 +674,28 @@ export default function QueuePage() {
                 vehicleInfo: currentEditingItem.vehicleInfo,
                 service: currentEditingItem.service,
                 estimatedTime: currentEditingItem.estimatedTime,
-                staff: currentEditingItem.staff || '',
                 status: currentEditingItem.status,
               } : defaultQueueItemValues}
               onCancel={() => setIsFormDialogOpen(false)}
               isSubmitting={isSubmitting}
               clientsList={clientsList}
               servicesList={servicesList}
-              staffList={staffList}
             />
           </DialogContent>
         </Dialog>
+
+        <AssignStaffDialog
+          isOpen={isAssignStaffDialogOpen}
+          onClose={() => {
+            setIsAssignStaffDialogOpen(false);
+            setItemBeingAssigned(null);
+          }}
+          onSubmit={handleConfirmAssignStaff}
+          staffList={staffList}
+          isSubmitting={isSubmitting}
+        />
       </main>
     </div>
   );
 }
-
     
