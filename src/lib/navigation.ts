@@ -1,5 +1,6 @@
+
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, BarChartBig, Settings, Clipboard, Banknote, CalendarDays } from 'lucide-react'; // Palette dihapus
+import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, BarChartBig, Settings, Clipboard, Banknote, CalendarDays } from 'lucide-react';
 
 export interface NavItem {
   title: string;
@@ -10,68 +11,62 @@ export interface NavItem {
   label?: string;
   description?: string;
   items?: NavItem[];
-  collapsible?: boolean; // Added for sidebar group
+  collapsible?: boolean;
 }
 
 export const mainNavItems: NavItem[] = [
   {
-    title: 'Dashboard',
+    title: 'Dasbor',
     href: '/dashboard',
     icon: LayoutDashboard,
-    description: 'Overview of workshop activities.',
+    description: 'Gambaran umum aktivitas bengkel.',
   },
-  // { // AI Visualizer dihapus
-  //   title: 'AI Visualizer',
-  //   href: '/ai-visualizer',
-  //   icon: Palette,
-  //   description: 'Visualize vehicle repaints.',
-  // },
   {
-    title: 'Point of Sale',
+    title: 'Titik Penjualan',
     href: '/pos',
     icon: ShoppingCart,
-    description: 'Manage sales and transactions.',
+    description: 'Kelola penjualan dan transaksi.',
   },
   {
-    title: 'Queue Management',
+    title: 'Manajemen Antrian',
     href: '/queue',
     icon: ListOrdered,
-    description: 'Manage customer queues.',
+    description: 'Kelola antrian pelanggan.',
   },
   {
-    title: 'Clients',
+    title: 'Klien',
     href: '/clients',
     icon: Users,
-    description: 'Manage client information and motorcycles.',
+    description: 'Kelola informasi klien dan sepeda motor.',
   },
   {
-    title: 'Services & Products',
+    title: 'Layanan & Produk',
     href: '/services',
     icon: Wrench,
-    description: 'Manage service and product catalog.',
+    description: 'Kelola katalog layanan dan produk.',
   },
   {
-    title: 'Staff Management',
-    href: '/staff', // Parent route for staff section
-    icon: Clipboard, // Changed from ClipboardUser
-    description: 'Manage staff attendance and payroll.',
+    title: 'Manajemen Staf',
+    href: '/staff',
+    icon: Clipboard,
+    description: 'Kelola absensi dan penggajian staf.',
     collapsible: true,
     items: [
-        { title: 'Attendance', href: '/staff/attendance', icon: CalendarDays, description: "Track staff attendance."},
-        { title: 'Payroll', href: '/staff/payroll', icon: Banknote, description: "Manage staff payroll."},
+        { title: 'Absensi', href: '/staff/attendance', icon: CalendarDays, description: "Lacak absensi staf."},
+        { title: 'Penggajian', href: '/staff/payroll', icon: Banknote, description: "Kelola penggajian staf."},
     ]
   },
   {
-    title: 'Reports',
+    title: 'Laporan',
     href: '/reports',
     icon: BarChartBig,
-    description: 'View income and expense reports.',
+    description: 'Lihat laporan pendapatan dan pengeluaran.',
   },
 ];
 
 export const settingsNavItem: NavItem = {
-  title: 'Settings',
+  title: 'Pengaturan',
   href: '/settings',
   icon: Settings,
-  description: 'Configure application settings.',
+  description: 'Konfigurasi pengaturan aplikasi.',
 };

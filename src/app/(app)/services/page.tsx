@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Edit3, Trash2, Wrench, ShoppingBag, Search, Tag, Loader2 } from 'lucide-react';
+import { PlusCircle, Edit3, Trash2, Wrench, ShoppingBag, Search, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
@@ -15,7 +15,7 @@ import { toast } from "@/hooks/use-toast";
 interface ServiceProduct {
   id: string;
   name: string;
-  type: 'Service' | 'Product';
+  type: 'Layanan' | 'Produk';
   category: string;
   price: number;
   description: string;
@@ -39,7 +39,7 @@ export default function ServicesPage() {
         console.error("Error fetching services/products: ", error);
         toast({
           title: "Error",
-          description: "Could not fetch services/products data from Firestore.",
+          description: "Tidak dapat mengambil data layanan/produk dari Firestore.",
           variant: "destructive",
         });
       } finally {
@@ -58,10 +58,10 @@ export default function ServicesPage() {
   if (loading) {
     return (
       <div className="flex flex-col h-full">
-        <AppHeader title="Services & Products" />
+        <AppHeader title="Layanan & Produk" />
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="ml-2">Loading services & products...</p>
+          <p className="ml-2">Memuat layanan & produk...</p>
         </div>
       </div>
     );
@@ -69,27 +69,27 @@ export default function ServicesPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <AppHeader title="Services & Products" />
+      <AppHeader title="Layanan & Produk" />
       <main className="flex-1 overflow-y-auto p-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Service & Product Catalog</CardTitle>
-              <CardDescription>Manage your offerings and their details.</CardDescription>
+              <CardTitle>Katalog Layanan & Produk</CardTitle>
+              <CardDescription>Kelola penawaran Anda dan detailnya.</CardDescription>
             </div>
              <div className="flex gap-2 items-center">
                <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
-                  placeholder="Search items..."
+                  placeholder="Cari item..."
                   className="pl-8 sm:w-[300px] md:w-[200px] lg:w-[300px]"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
               <Button>
-                <PlusCircle className="mr-2 h-4 w-4" /> Add New Item
+                <PlusCircle className="mr-2 h-4 w-4" /> Tambah Item Baru
               </Button>
             </div>
           </CardHeader>
@@ -97,11 +97,11 @@ export default function ServicesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead className="text-right">Price</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>Nama</TableHead>
+                  <TableHead>Jenis</TableHead>
+                  <TableHead>Kategori</TableHead>
+                  <TableHead className="text-right">Harga</TableHead>
+                  <TableHead className="text-right">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -109,13 +109,13 @@ export default function ServicesPage() {
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell>
-                      <Badge variant={item.type === 'Service' ? 'default' : 'secondary'} className="capitalize">
-                        {item.type === 'Service' ? <Wrench className="mr-1 h-3 w-3" /> : <ShoppingBag className="mr-1 h-3 w-3" />}
+                      <Badge variant={item.type === 'Layanan' ? 'default' : 'secondary'} className="capitalize">
+                        {item.type === 'Layanan' ? <Wrench className="mr-1 h-3 w-3" /> : <ShoppingBag className="mr-1 h-3 w-3" />}
                         {item.type}
                       </Badge>
                     </TableCell>
                     <TableCell>{item.category}</TableCell>
-                    <TableCell className="text-right">Rp {item.price.toLocaleString()}</TableCell>
+                    <TableCell className="text-right">Rp {item.price.toLocaleString('id-ID')}</TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="icon" className="hover:text-primary">
                         <Edit3 className="h-4 w-4" />
@@ -130,12 +130,12 @@ export default function ServicesPage() {
             </Table>
              {filteredItems.length === 0 && (
               <div className="text-center py-10 text-muted-foreground">
-                 {items.length > 0 ? 'No items match your search.' : 'No services or products found.'} Add a new item to get started.
+                 {items.length > 0 ? 'Tidak ada item yang cocok dengan pencarian Anda.' : 'Tidak ada layanan atau produk yang ditemukan.'} Tambah item baru untuk memulai.
               </div>
             )}
           </CardContent>
            <CardFooter>
-            <p className="text-xs text-muted-foreground">Showing {filteredItems.length} of {items.length} items.</p>
+            <p className="text-xs text-muted-foreground">Menampilkan {filteredItems.length} dari {items.length} item.</p>
           </CardFooter>
         </Card>
       </main>

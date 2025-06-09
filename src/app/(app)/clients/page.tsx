@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Edit3, Trash2, Bike, Star, Search, Loader2 } from 'lucide-react';
+import { PlusCircle, Edit3, Trash2, Star, Search, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
@@ -31,7 +31,7 @@ export default function ClientsPage() {
       setLoading(true);
       try {
         const clientsCollectionRef = collection(db, 'clients');
-        const q = query(clientsCollectionRef, orderBy("name")); // Order by name
+        const q = query(clientsCollectionRef, orderBy("name")); 
         const querySnapshot = await getDocs(q);
         const clientsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
         setClients(clientsData);
@@ -39,7 +39,7 @@ export default function ClientsPage() {
         console.error("Error fetching clients: ", error);
         toast({
           title: "Error",
-          description: "Could not fetch client data from Firestore.",
+          description: "Tidak dapat mengambil data klien dari Firestore.",
           variant: "destructive",
         });
       } finally {
@@ -58,10 +58,10 @@ export default function ClientsPage() {
   if (loading) {
     return (
       <div className="flex flex-col h-full">
-        <AppHeader title="Client Management" />
+        <AppHeader title="Manajemen Klien" />
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="ml-2">Loading client data...</p>
+          <p className="ml-2">Memuat data klien...</p>
         </div>
       </div>
     );
@@ -69,20 +69,20 @@ export default function ClientsPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <AppHeader title="Client Management" />
+      <AppHeader title="Manajemen Klien" />
       <main className="flex-1 overflow-y-auto p-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Client List</CardTitle>
-              <CardDescription>Manage client data, motorcycles, and loyalty points.</CardDescription>
+              <CardTitle>Daftar Klien</CardTitle>
+              <CardDescription>Kelola data klien, sepeda motor, dan poin loyalitas.</CardDescription>
             </div>
             <div className="flex gap-2 items-center">
                <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
-                  placeholder="Search clients..."
+                  placeholder="Cari klien..."
                   className="pl-8 sm:w-[300px] md:w-[200px] lg:w-[300px]"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -90,7 +90,7 @@ export default function ClientsPage() {
               </div>
               <Button asChild>
                 <Link href="/clients/new">
-                  <PlusCircle className="mr-2 h-4 w-4" /> Add New Client
+                  <PlusCircle className="mr-2 h-4 w-4" /> Tambah Klien Baru
                 </Link>
               </Button>
             </div>
@@ -99,12 +99,12 @@ export default function ClientsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Motorcycles</TableHead>
-                  <TableHead className="text-center">Loyalty Points</TableHead>
-                  <TableHead>Last Visit</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>Nama</TableHead>
+                  <TableHead>Telepon</TableHead>
+                  <TableHead>Sepeda Motor</TableHead>
+                  <TableHead className="text-center">Poin Loyalitas</TableHead>
+                  <TableHead>Kunjungan Terakhir</TableHead>
+                  <TableHead className="text-right">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -119,13 +119,13 @@ export default function ClientsPage() {
                             {mc.name} ({mc.licensePlate})
                           </li>
                         ))}
-                        {client.motorcycles.length === 0 && <span className="text-muted-foreground">No motorcycles</span>}
+                        {client.motorcycles.length === 0 && <span className="text-muted-foreground">Tidak ada sepeda motor</span>}
                       </ul>
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center">
                         <Star className="h-4 w-4 text-yellow-400 mr-1" />
-                        {client.loyaltyPoints.toLocaleString()}
+                        {client.loyaltyPoints.toLocaleString('id-ID')}
                       </div>
                     </TableCell>
                     <TableCell>{client.lastVisit}</TableCell>
@@ -145,13 +145,13 @@ export default function ClientsPage() {
             </Table>
             {filteredClients.length === 0 && (
               <div className="text-center py-10 text-muted-foreground">
-                {clients.length > 0 ? 'No clients match your search.' : 'No clients found.'}
-                <Link href="/clients/new" className="text-primary hover:underline ml-1">Add a new client</Link>.
+                {clients.length > 0 ? 'Tidak ada klien yang cocok dengan pencarian Anda.' : 'Tidak ada klien yang ditemukan.'}
+                <Link href="/clients/new" className="text-primary hover:underline ml-1">Tambah klien baru</Link>.
               </div>
             )}
           </CardContent>
           <CardFooter>
-            <p className="text-xs text-muted-foreground">Showing {filteredClients.length} of {clients.length} clients.</p>
+            <p className="text-xs text-muted-foreground">Menampilkan {filteredClients.length} dari {clients.length} klien.</p>
           </CardFooter>
         </Card>
       </main>

@@ -8,7 +8,7 @@ import { PlusCircle, Edit3, CheckCircle, Clock, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore'; // Consider an order for queue items, e.g., timestamp
+import { collection, getDocs, query } from 'firebase/firestore';
 import { toast } from "@/hooks/use-toast";
 
 interface QueueItem {
@@ -16,7 +16,7 @@ interface QueueItem {
   customerName: string;
   vehicleInfo: string;
   service: string;
-  status: 'Waiting' | 'In Service' | 'Completed';
+  status: 'Menunggu' | 'Dalam Layanan' | 'Selesai';
   estimatedTime: string;
   staff?: string;
 }
@@ -28,32 +28,30 @@ export default function QueuePage() {
   useEffect(() => {
     const fetchQueueItems = async () => {
       setLoading(true);
-      console.log("Fetching queue items from Firestore...");
+      console.log("Mengambil item antrian dari Firestore...");
       try {
         const queueCollectionRef = collection(db, 'queueItems');
-        // Example: Order by a 'createdAt' timestamp if you add one, or by status
-        const q = query(queueCollectionRef); // Add orderBy('status') or a timestamp field
+        const q = query(queueCollectionRef);
         const querySnapshot = await getDocs(q);
         
-        console.log(`Fetched ${querySnapshot.docs.length} queue documents.`);
+        console.log(`Mengambil ${querySnapshot.docs.length} dokumen antrian.`);
         
         const itemsData = querySnapshot.docs.map(doc => {
           const data = doc.data();
-          // console.log(`Document ID: ${doc.id}`, data); // Optional: log each document
           return { id: doc.id, ...data } as QueueItem;
         });
         
-        console.log('Mapped queue items data:', itemsData);
+        console.log('Data item antrian yang dipetakan:', itemsData);
         setQueueItems(itemsData);
 
       } catch (error) {
         console.error("Error fetching queue items: ", error);
-        let description = "Could not fetch queue data. Please check your internet connection.";
+        let description = "Tidak dapat mengambil data antrian. Silakan periksa koneksi internet Anda.";
         if (error instanceof Error) {
-            description = `Error: ${error.message}. Please check Firestore security rules and collection name ('queueItems').`;
+            description = `Error: ${error.message}. Silakan periksa aturan keamanan Firestore dan nama koleksi ('queueItems').`;
         }
         toast({
-          title: "Fetch Error",
+          title: "Error Pengambilan",
           description: description,
           variant: "destructive",
         });
@@ -65,24 +63,24 @@ export default function QueuePage() {
   }, []);
 
   const getStatusBadgeVariant = (status: QueueItem['status']) => {
-    if (status === 'In Service') return 'default'; 
-    if (status === 'Completed') return 'secondary'; 
+    if (status === 'Dalam Layanan') return 'default'; 
+    if (status === 'Selesai') return 'secondary'; 
     return 'outline'; 
   };
   
   const getStatusIcon = (status: QueueItem['status']) => {
-    if (status === 'In Service') return <Clock className="h-4 w-4 text-primary" />;
-    if (status === 'Completed') return <CheckCircle className="h-4 w-4 text-green-500" />;
+    if (status === 'Dalam Layanan') return <Clock className="h-4 w-4 text-primary" />;
+    if (status === 'Selesai') return <CheckCircle className="h-4 w-4 text-green-500" />;
     return <Clock className="h-4 w-4 text-yellow-500" />;
   };
 
   if (loading) {
     return (
       <div className="flex flex-col h-full">
-        <AppHeader title="Queue Management" />
+        <AppHeader title="Manajemen Antrian" />
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="ml-2">Loading queue data...</p>
+          <p className="ml-2">Memuat data antrian...</p>
         </div>
       </div>
     );
@@ -90,16 +88,16 @@ export default function QueuePage() {
 
   return (
     <div className="flex flex-col h-full">
-      <AppHeader title="Queue Management" />
+      <AppHeader title="Manajemen Antrian" />
       <main className="flex-1 overflow-y-auto p-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Customer Queue</CardTitle>
-              <CardDescription>Manage waiting and in-service customers.</CardDescription>
+              <CardTitle>Antrian Pelanggan</CardTitle>
+              <CardDescription>Kelola pelanggan yang menunggu dan sedang dilayani.</CardDescription>
             </div>
             <Button>
-              <PlusCircle className="mr-2 h-4 w-4" /> Add to Queue
+              <PlusCircle className="mr-2 h-4 w-4" /> Tambah ke Antrian
             </Button>
           </CardHeader>
           <CardContent>
@@ -118,32 +116,31 @@ export default function QueuePage() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-sm text-muted-foreground mb-1">
-                      Estimated Time: {item.estimatedTime}
+                      Perkiraan Waktu: {item.estimatedTime}
                     </div>
                     {item.staff && (
                       <div className="text-sm text-muted-foreground flex items-center">
                         <Avatar className="h-5 w-5 mr-2">
-                           <AvatarImage src={`https://placehold.co/40x40.png?text=${item.staff.substring(0,1)}`} data-ai-hint="employee avatar" />
+                           <AvatarImage src={`https://placehold.co/40x40.png?text=${item.staff.substring(0,1)}`} data-ai-hint="avatar karyawan" />
                            <AvatarFallback>{item.staff.substring(0,1)}</AvatarFallback>
                         </Avatar>
-                        Serviced by: {item.staff}
+                        Dilayani oleh: {item.staff}
                       </div>
                     )}
                   </CardContent>
                   <CardFooter className="flex justify-end gap-2">
                     <Button variant="outline" size="sm">
-                      <Edit3 className="mr-2 h-4 w-4" /> Edit
+                      <Edit3 className="mr-2 h-4 w-4" /> Ubah
                     </Button>
-                    {item.status === 'Waiting' && <Button size="sm">Start Service</Button>}
-                    {item.status === 'In Service' && <Button size="sm" variant="secondary">Mark Complete</Button>}
+                    {item.status === 'Menunggu' && <Button size="sm">Mulai Layanan</Button>}
+                    {item.status === 'Dalam Layanan' && <Button size="sm" variant="secondary">Tandai Selesai</Button>}
                   </CardFooter>
                 </Card>
               ))}
             </div>
             {queueItems.length === 0 && !loading && (
               <div className="text-center py-10 text-muted-foreground">
-                The queue is currently empty.
-                {/* You can add a link to add items or check if data was expected */}
+                Antrian saat ini kosong.
               </div>
             )}
           </CardContent>

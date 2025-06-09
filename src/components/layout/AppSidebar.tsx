@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -59,7 +60,6 @@ export function AppSidebar({ className }: AppSidebarProps) {
     );
 
     if (item.items?.length) {
-      // Group with sub-items
       const groupButton = (
         <SidebarMenuButton
           onClick={() => toggleSubMenu(item.title)}
@@ -117,33 +117,54 @@ export function AppSidebar({ className }: AppSidebarProps) {
       );
     }
 
-    // Single item
-    const button = (
-      <SidebarMenuButton
-        asChild={!!item.href}
+    const singleButtonElement = (
+       <SidebarMenuButton
         isActive={isActive}
-        href={item.href}
       >
-        {item.href ? <Link href={item.href}>{content}</Link> : content}
+        {content}
       </SidebarMenuButton>
     );
+    
+    let navElement = singleButtonElement;
 
-    if (!sidebarOpen && !isMobile) {
-      return (
-        <SidebarMenuItem key={item.title}>
+    if (item.href) {
+       if (!sidebarOpen && !isMobile) {
+         navElement = (
           <TooltipProvider delayDuration={0}>
             <Tooltip>
-              <TooltipTrigger asChild>{button}</TooltipTrigger>
-              <TooltipContent side="right" align="center">
-                {item.title}
-              </TooltipContent>
+              <TooltipTrigger asChild>
+                <Link href={item.href} passHref>
+                  {singleButtonElement}
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right" align="center">{item.title}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
-        </SidebarMenuItem>
-      );
+         );
+       } else {
+         navElement = (
+            <Link href={item.href} asChild>
+                {singleButtonElement}
+            </Link>
+         );
+       }
+    } else {
+       if (!sidebarOpen && !isMobile) {
+          navElement = (
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  {singleButtonElement}
+                </TooltipTrigger>
+                <TooltipContent side="right" align="center">{item.title}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          );
+       }
     }
 
-    return <SidebarMenuItem key={item.title}>{button}</SidebarMenuItem>;
+
+    return <SidebarMenuItem key={item.title}>{navElement}</SidebarMenuItem>;
   };
 
   return (
@@ -173,15 +194,15 @@ export function AppSidebar({ className }: AppSidebarProps) {
               <Avatar className="h-8 w-8">
                 <AvatarImage
                   src="https://placehold.co/40x40.png"
-                  alt="User Avatar"
-                  data-ai-hint="user avatar"
+                  alt="Avatar Pengguna"
+                  data-ai-hint="avatar pengguna"
                 />
-                <AvatarFallback>QP</AvatarFallback>
+                <AvatarFallback>PD</AvatarFallback>
               </Avatar>
               {showText && (
                 <div className="flex flex-col">
                   <span className="text-sm font-medium text-sidebar-foreground">
-                    Demo User
+                    Pengguna Demo
                   </span>
                   <span className="text-xs text-sidebar-foreground/70">
                     admin@qlab.pos

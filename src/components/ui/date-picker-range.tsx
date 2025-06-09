@@ -1,7 +1,9 @@
+
 "use client"
 
 import * as React from "react"
-import { format } from "date-fns"
+import { format, Locale } from "date-fns"
+import { id } from 'date-fns/locale'; // Import Indonesian locale
 import { Calendar as CalendarIcon } from "lucide-react"
 import type { DateRange } from "react-day-picker"
 
@@ -55,14 +57,14 @@ export function DatePickerWithRange({
             {date?.from ? (
               date.to ? (
                 <>
-                  {format(date.from, "LLL dd, y")} -{" "}
-                  {format(date.to, "LLL dd, y")}
+                  {format(date.from, "PPP", { locale: id })} -{" "}
+                  {format(date.to, "PPP", { locale: id })}
                 </>
               ) : (
-                format(date.from, "LLL dd, y")
+                format(date.from, "PPP", { locale: id })
               )
             ) : (
-              <span>Pick a date range</span>
+              <span>Pilih rentang tanggal</span>
             )}
           </Button>
         </PopoverTrigger>
@@ -74,6 +76,7 @@ export function DatePickerWithRange({
             selected={date}
             onSelect={handleSelect}
             numberOfMonths={2}
+            locale={id as Locale}
           />
         </PopoverContent>
       </Popover>
