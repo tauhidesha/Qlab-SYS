@@ -34,6 +34,7 @@ export interface ServiceProduct {
   price: number;
   description?: string;
   pointsAwarded?: number; // Poin yang diberikan untuk item ini
+  createdAt?: any; // Added to satisfy Omit in new/edit page
 }
 
 export default function ServicesPage() {
@@ -168,8 +169,10 @@ export default function ServicesPage() {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" className="hover:text-primary" disabled> {/* Edit functionality to be added */}
-                          <Edit3 className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" asChild className="hover:text-primary">
+                           <Link href={`/services/${item.id}/edit`}>
+                            <Edit3 className="h-4 w-4" />
+                          </Link>
                         </Button>
                         <AlertDialogTrigger asChild>
                           <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setItemToDelete(item)}>
