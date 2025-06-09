@@ -608,11 +608,13 @@ export default function QueuePage() {
 
       const newTransactionItem: TransactionItem = {
         id: serviceDetails.id || uuidv4(),
+        catalogItemId: serviceDetails.id,
         name: serviceDetails.name,
         price: serviceDetails.price,
         quantity: 1,
         type: 'service',
         staffName: staffName,
+        pointsAwardedPerUnit: serviceDetails.pointsAwarded || 0,
       };
       
       const transactionsRef = collection(db, "transactions");
@@ -664,10 +666,10 @@ export default function QueuePage() {
           serviceStaffName: staffName,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
-          subtotal: newTransactionItem.price,
+          subtotal: newTransactionItem.price, // Subtotal for single item transaction
           discountAmount: 0,
           discountPercentage: 0,
-          total: newTransactionItem.price,
+          total: newTransactionItem.price, // Total for single item transaction
         } as Omit<Transaction, 'id'>);
       }
 
@@ -896,3 +898,4 @@ export default function QueuePage() {
     </div>
   );
 }
+
