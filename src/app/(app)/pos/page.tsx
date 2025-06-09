@@ -599,11 +599,11 @@ export default function PosPage() {
         <div className="lg:col-span-1 space-y-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between p-4">
-                <CardTitle className="text-lg">Transaksi Terbuka</CardTitle>
+                <CardTitle className="text-lg flex-grow mr-4">Transaksi Terbuka</CardTitle>
                 <Button 
                   onClick={() => { resetNewBillDialogState(); setIsCreateBillDialogOpen(true); }} 
                   size="sm" 
-                  className="bg-accent text-accent-foreground hover:bg-accent/90"
+                  className="bg-accent text-accent-foreground hover:bg-accent/90 flex-shrink-0"
                 >
                     <PlusCircle className="mr-2 h-4 w-4" /> Bill Baru
                 </Button>
