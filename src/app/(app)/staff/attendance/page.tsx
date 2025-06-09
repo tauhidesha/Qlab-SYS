@@ -1,28 +1,60 @@
+
+"use client";
 import AppHeader from '@/components/layout/AppHeader';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Clock, LogIn, LogOut, UserCheck, UserX, PlusCircle } from 'lucide-react';
+import { Clock, LogIn, LogOut, UserCheck, UserX, PlusCircle, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import React, { useState, useEffect } from 'react';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { toast } from "@/hooks/use-toast";
+import type { DateValue } from 'react-aria'; // For calendar type
+import { parseDate, getLocalTimeZone, today } from '@internationalized/date'; // For date handling with calendar
 
 interface AttendanceRecord {
   id: string;
   staffName: string;
-  date: string;
+  date: string; // YYYY-MM-DD
   clockIn?: string;
   clockOut?: string;
   status: 'Present' | 'Absent' | 'Late' | 'On Leave';
 }
 
 export default function AttendancePage() {
-  const attendanceRecords: AttendanceRecord[] = [
-    { id: 'A001', staffName: 'Andi P.', date: '2024-07-28', clockIn: '08:55', clockOut: '17:05', status: 'Present' },
-    { id: 'A002', staffName: 'Budi S.', date: '2024-07-28', clockIn: '09:15', clockOut: '17:00', status: 'Late' },
-    { id: 'A003', staffName: 'Rian S.', date: '2024-07-28', status: 'Absent' },
-    { id: 'A004', staffName: 'Siti K.', date: '2024-07-28', clockIn: '09:00', status: 'Present' }, // Still clocked in
-    { id: 'A005', staffName: 'Eko W.', date: '2024-07-27', clockIn: '09:02', clockOut: '17:03', status: 'Present' },
-  ];
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date()); // For calendar selection
+
+  const formatDateForFirestore = (date: Date): string => {
+    return date.toLocaleDateString('en-CA'); // YYYY-MM-DD
+  };
+
+  useEffect(() => {
+    const fetchAttendance = async (dateToFetch: Date) => {
+      setLoading(true);
+      try {
+        const attendanceCollectionRef = collection(db, 'attendanceRecords');
+        const formattedDate = formatDateForFirestore(dateToFetch);
+        const q = query(attendanceCollectionRef, where("date", "==", formattedDate), orderBy("staffName"));
+        const querySnapshot = await getDocs(q);
+        const recordsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AttendanceRecord));
+        setAttendanceRecords(recordsData);
+      } catch (error) {
+        console.error("Error fetching attendance records: ", error);
+        toast({
+          title: "Error",
+          description: "Could not fetch attendance data from Firestore.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAttendance(selectedDate);
+  }, [selectedDate]);
 
   const getStatusBadge = (status: AttendanceRecord['status']) => {
     switch(status) {
@@ -32,7 +64,7 @@ export default function AttendancePage() {
       case 'On Leave': return <Badge variant="secondary">On Leave</Badge>;
       default: return <Badge>{status}</Badge>;
     }
-  }
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -43,36 +75,50 @@ export default function AttendancePage() {
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>Attendance Log</CardTitle>
-                <CardDescription>Daily staff attendance records for {new Date().toLocaleDateString('en-CA')}.</CardDescription>
+                <CardDescription>Daily staff attendance records for {selectedDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}.</CardDescription>
               </div>
               <Button><PlusCircle className="mr-2 h-4 w-4" /> Manual Entry</Button>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Staff Name</TableHead>
-                    <TableHead>Clock In</TableHead>
-                    <TableHead>Clock Out</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {attendanceRecords.filter(r => r.date === new Date().toLocaleDateString('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-')).map((record) => (
-                    <TableRow key={record.id}>
-                      <TableCell className="font-medium">{record.staffName}</TableCell>
-                      <TableCell>{record.clockIn || 'N/A'}</TableCell>
-                      <TableCell>{record.clockOut || (record.clockIn ? 'Clocked In' : 'N/A')}</TableCell>
-                      <TableCell>{getStatusBadge(record.status)}</TableCell>
-                      <TableCell className="text-right">
-                        {!record.clockIn && <Button variant="outline" size="sm"><LogIn className="mr-1 h-3 w-3"/> Clock In</Button>}
-                        {record.clockIn && !record.clockOut && <Button variant="outline" size="sm"><LogOut className="mr-1 h-3 w-3"/> Clock Out</Button>}
-                      </TableCell>
+              {loading ? (
+                <div className="flex items-center justify-center py-10">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="ml-2">Loading attendance...</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Staff Name</TableHead>
+                      <TableHead>Clock In</TableHead>
+                      <TableHead>Clock Out</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {attendanceRecords.map((record) => (
+                      <TableRow key={record.id}>
+                        <TableCell className="font-medium">{record.staffName}</TableCell>
+                        <TableCell>{record.clockIn || 'N/A'}</TableCell>
+                        <TableCell>{record.clockOut || (record.clockIn ? 'Clocked In' : 'N/A')}</TableCell>
+                        <TableCell>{getStatusBadge(record.status)}</TableCell>
+                        <TableCell className="text-right">
+                          {!record.clockIn && <Button variant="outline" size="sm"><LogIn className="mr-1 h-3 w-3"/> Clock In</Button>}
+                          {record.clockIn && !record.clockOut && <Button variant="outline" size="sm"><LogOut className="mr-1 h-3 w-3"/> Clock Out</Button>}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {attendanceRecords.length === 0 && (
+                       <TableRow>
+                        <TableCell colSpan={5} className="text-center text-muted-foreground py-10">
+                          No attendance records found for this date.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -85,9 +131,11 @@ export default function AttendancePage() {
             <CardContent className="flex justify-center">
               <Calendar
                 mode="single"
-                // selected={new Date()} // Implement date selection state
-                // onSelect={}
+                selected={selectedDate}
+                onSelect={(date) => date && setSelectedDate(date)}
                 className="rounded-md border"
+                disabled={(date) => date > new Date() || date < new Date("2000-01-01")} // Example disable future/past dates
+                initialFocus
               />
             </CardContent>
           </Card>

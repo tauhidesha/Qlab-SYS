@@ -1,10 +1,15 @@
 
+"use client";
 import AppHeader from '@/components/layout/AppHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, Edit3, CheckCircle, Clock } from 'lucide-react';
+import { PlusCircle, Edit3, CheckCircle, Clock, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import React, { useState, useEffect } from 'react';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore'; // Consider an order for queue items, e.g., timestamp
+import { toast } from "@/hooks/use-toast";
 
 interface QueueItem {
   id: string;
@@ -17,24 +22,56 @@ interface QueueItem {
 }
 
 export default function QueuePage() {
-  const queueItems: QueueItem[] = [
-    { id: 'Q001', customerName: 'Budi Santoso', vehicleInfo: 'Honda Beat - B 4321 ABC', service: 'Regular Wash', status: 'Waiting', estimatedTime: '15 min' },
-    { id: 'Q002', customerName: 'Citra Lestari', vehicleInfo: 'Yamaha NMAX - D 8765 XYZ', service: 'Full Detailing', status: 'In Service', estimatedTime: '45 min remaining', staff: 'Andi P.' },
-    { id: 'Q003', customerName: 'Ahmad Yani', vehicleInfo: 'Suzuki GSX - A 1122 BBB', service: 'Tire Change', status: 'Waiting', estimatedTime: '30 min' },
-    { id: 'Q004', customerName: 'Dewi Anggraini', vehicleInfo: 'Kawasaki Ninja - L 5544 CCC', service: 'Oil Change', status: 'Completed', estimatedTime: 'Done', staff: 'Rian S.' },
-  ];
+  const [queueItems, setQueueItems] = useState<QueueItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchQueueItems = async () => {
+      setLoading(true);
+      try {
+        const queueCollectionRef = collection(db, 'queueItems');
+        // Example: Order by a 'createdAt' timestamp if you add one, or by status
+        const q = query(queueCollectionRef); // Add orderBy('status') or a timestamp field
+        const querySnapshot = await getDocs(q);
+        const itemsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as QueueItem));
+        setQueueItems(itemsData);
+      } catch (error) {
+        console.error("Error fetching queue items: ", error);
+        toast({
+          title: "Error",
+          description: "Could not fetch queue data from Firestore.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchQueueItems();
+  }, []);
 
   const getStatusBadgeVariant = (status: QueueItem['status']) => {
-    if (status === 'In Service') return 'default'; // Blueish from primary
-    if (status === 'Completed') return 'secondary'; // Greyish
-    return 'outline'; // For waiting (default accent or neutral)
+    if (status === 'In Service') return 'default'; 
+    if (status === 'Completed') return 'secondary'; 
+    return 'outline'; 
   };
   
   const getStatusIcon = (status: QueueItem['status']) => {
     if (status === 'In Service') return <Clock className="h-4 w-4 text-primary" />;
     if (status === 'Completed') return <CheckCircle className="h-4 w-4 text-green-500" />;
-    return <Clock className="h-4 w-4 text-amber-500" />;
+    return <Clock className="h-4 w-4 text-yellow-500" />;
   };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col h-full">
+        <AppHeader title="Queue Management" />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="ml-2">Loading queue data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full">

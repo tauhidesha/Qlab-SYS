@@ -1,10 +1,16 @@
+
+"use client";
 import AppHeader from '@/components/layout/AppHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Edit3, Trash2, Wrench, ShoppingBag, Search, Tag } from 'lucide-react';
+import { PlusCircle, Edit3, Trash2, Wrench, ShoppingBag, Search, Tag, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import React, { useState, useEffect } from 'react';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { toast } from "@/hooks/use-toast";
 
 interface ServiceProduct {
   id: string;
@@ -16,13 +22,50 @@ interface ServiceProduct {
 }
 
 export default function ServicesPage() {
-  const items: ServiceProduct[] = [
-    { id: 'S001', name: 'Premium Motorcycle Wash', type: 'Service', category: 'Washing', price: 75000, description: 'Complete wash including body, engine, and wheels.' },
-    { id: 'S002', name: 'Full Detailing Package', type: 'Service', category: 'Detailing', price: 350000, description: 'Includes wash, polish, wax, and interior cleaning.' },
-    { id: 'P001', name: 'Chain Lube (Brand X)', type: 'Product', category: 'Lubricants', price: 60000, description: 'High-performance chain lubricant, 250ml.' },
-    { id: 'P002', name: 'Microfiber Towel Set', type: 'Product', category: 'Accessories', price: 50000, description: 'Set of 3 premium microfiber towels.' },
-    { id: 'S003', name: 'Helmet Sanitizing', type: 'Service', category: 'Hygiene', price: 20000, description: 'Kills germs and freshens helmet interior.' },
-  ];
+  const [items, setItems] = useState<ServiceProduct[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    const fetchItems = async () => {
+      setLoading(true);
+      try {
+        const itemsCollectionRef = collection(db, 'services');
+        const q = query(itemsCollectionRef, orderBy("name"));
+        const querySnapshot = await getDocs(q);
+        const itemsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceProduct));
+        setItems(itemsData);
+      } catch (error) {
+        console.error("Error fetching services/products: ", error);
+        toast({
+          title: "Error",
+          description: "Could not fetch services/products data from Firestore.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchItems();
+  }, []);
+
+  const filteredItems = items.filter(item =>
+    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.type.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  if (loading) {
+    return (
+      <div className="flex flex-col h-full">
+        <AppHeader title="Services & Products" />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="ml-2">Loading services & products...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -37,7 +80,13 @@ export default function ServicesPage() {
              <div className="flex gap-2 items-center">
                <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input type="search" placeholder="Search items..." className="pl-8 sm:w-[300px] md:w-[200px] lg:w-[300px]" />
+                <Input
+                  type="search"
+                  placeholder="Search items..."
+                  className="pl-8 sm:w-[300px] md:w-[200px] lg:w-[300px]"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </div>
               <Button>
                 <PlusCircle className="mr-2 h-4 w-4" /> Add New Item
@@ -56,7 +105,7 @@ export default function ServicesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {items.map((item) => (
+                {filteredItems.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell>
@@ -79,14 +128,14 @@ export default function ServicesPage() {
                 ))}
               </TableBody>
             </Table>
-             {items.length === 0 && (
+             {filteredItems.length === 0 && (
               <div className="text-center py-10 text-muted-foreground">
-                No services or products found. Add a new item to get started.
+                 {items.length > 0 ? 'No items match your search.' : 'No services or products found.'} Add a new item to get started.
               </div>
             )}
           </CardContent>
            <CardFooter>
-            <p className="text-xs text-muted-foreground">Showing {items.length} of {items.length} items.</p>
+            <p className="text-xs text-muted-foreground">Showing {filteredItems.length} of {items.length} items.</p>
           </CardFooter>
         </Card>
       </main>

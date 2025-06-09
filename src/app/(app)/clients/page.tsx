@@ -1,10 +1,16 @@
+
+"use client";
 import AppHeader from '@/components/layout/AppHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Edit3, Trash2, Bike, Star, Search } from 'lucide-react';
+import { PlusCircle, Edit3, Trash2, Bike, Star, Search, Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import React, { useState, useEffect } from 'react';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { toast } from "@/hooks/use-toast";
 
 interface Client {
   id: string;
@@ -16,11 +22,50 @@ interface Client {
 }
 
 export default function ClientsPage() {
-  const clients: Client[] = [
-    { id: 'C001', name: 'Rina Amelia', phone: '0812-3456-7890', motorcycles: [{ name: 'Honda Vario 150', licensePlate: 'B 1234 RIN' }, { name: 'Yamaha XMAX', licensePlate: 'B 5678 AML' }], loyaltyPoints: 1250, lastVisit: '2024-07-15' },
-    { id: 'C002', name: 'Bambang Pamungkas', phone: '0821-9876-5432', motorcycles: [{ name: 'Kawasaki W175', licensePlate: 'D 4321 BAM' }], loyaltyPoints: 800, lastVisit: '2024-07-10' },
-    { id: 'C003', name: 'Siti Fatimah', phone: '0855-1122-3344', motorcycles: [{ name: 'Suzuki Address', licensePlate: 'F 9876 SIT' }], loyaltyPoints: 200, lastVisit: '2024-06-20' },
-  ];
+  const [clients, setClients] = useState<Client[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    const fetchClients = async () => {
+      setLoading(true);
+      try {
+        const clientsCollectionRef = collection(db, 'clients');
+        const q = query(clientsCollectionRef, orderBy("name")); // Order by name
+        const querySnapshot = await getDocs(q);
+        const clientsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
+        setClients(clientsData);
+      } catch (error) {
+        console.error("Error fetching clients: ", error);
+        toast({
+          title: "Error",
+          description: "Could not fetch client data from Firestore.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchClients();
+  }, []);
+
+  const filteredClients = clients.filter(client =>
+    client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    client.phone.includes(searchTerm) ||
+    client.motorcycles.some(mc => mc.name.toLowerCase().includes(searchTerm.toLowerCase()) || mc.licensePlate.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  if (loading) {
+    return (
+      <div className="flex flex-col h-full">
+        <AppHeader title="Client Management" />
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="ml-2">Loading client data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -35,7 +80,13 @@ export default function ClientsPage() {
             <div className="flex gap-2 items-center">
                <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input type="search" placeholder="Search clients..." className="pl-8 sm:w-[300px] md:w-[200px] lg:w-[300px]" />
+                <Input
+                  type="search"
+                  placeholder="Search clients..."
+                  className="pl-8 sm:w-[300px] md:w-[200px] lg:w-[300px]"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </div>
               <Button asChild>
                 <Link href="/clients/new">
@@ -57,7 +108,7 @@ export default function ClientsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {clients.map((client) => (
+                {filteredClients.map((client) => (
                   <TableRow key={client.id}>
                     <TableCell className="font-medium">{client.name}</TableCell>
                     <TableCell>{client.phone}</TableCell>
@@ -92,14 +143,15 @@ export default function ClientsPage() {
                 ))}
               </TableBody>
             </Table>
-            {clients.length === 0 && (
+            {filteredClients.length === 0 && (
               <div className="text-center py-10 text-muted-foreground">
-                No clients found. <Link href="/clients/new" className="text-primary hover:underline">Add a new client</Link>.
+                {clients.length > 0 ? 'No clients match your search.' : 'No clients found.'}
+                <Link href="/clients/new" className="text-primary hover:underline ml-1">Add a new client</Link>.
               </div>
             )}
           </CardContent>
           <CardFooter>
-            <p className="text-xs text-muted-foreground">Showing {clients.length} of {clients.length} clients.</p>
+            <p className="text-xs text-muted-foreground">Showing {filteredClients.length} of {clients.length} clients.</p>
           </CardFooter>
         </Card>
       </main>

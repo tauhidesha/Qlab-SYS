@@ -1,6 +1,12 @@
+
+"use client";
 import AppHeader from '@/components/layout/AppHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChartBig, Users, ShoppingCart, ListOrdered } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { BarChartBig, Users, ShoppingCart, ListOrdered, Database } from 'lucide-react';
+import { seedAllMockData } from '@/lib/seedFirestore';
+import { toast } from "@/hooks/use-toast";
+import React from 'react';
 
 export default function DashboardPage() {
   const summaryCards = [
@@ -10,10 +16,52 @@ export default function DashboardPage() {
     { title: "Pending Services", value: "8", icon: BarChartBig, dataAiHint: "tasks progress" },
   ];
 
+  const [isSeeding, setIsSeeding] = React.useState(false);
+
+  const handleSeedData = async () => {
+    setIsSeeding(true);
+    toast({
+      title: "Seeding Data...",
+      description: "Please wait while mock data is being pushed to Firestore.",
+    });
+    const result = await seedAllMockData();
+    if (result.success) {
+      toast({
+        title: "Success!",
+        description: result.message,
+        variant: "default",
+      });
+    } else {
+      toast({
+        title: "Error Seeding Data",
+        description: result.message,
+        variant: "destructive",
+      });
+    }
+    setIsSeeding(false);
+  };
+
   return (
     <div className="flex flex-col h-full">
       <AppHeader title="Dashboard" />
       <main className="flex-1 overflow-y-auto p-6">
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Data Management</CardTitle>
+            <CardDescription>Initialize your Firestore database with mock data.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={handleSeedData} disabled={isSeeding}>
+              <Database className="mr-2 h-4 w-4" />
+              {isSeeding ? "Seeding Data..." : "Seed Mock Data to Firestore"}
+            </Button>
+             <p className="text-xs text-muted-foreground mt-2">
+              Click this button to populate your Firestore collections with the initial mock data.
+              This is useful for development and testing. Data with existing IDs will be overwritten.
+            </p>
+          </CardContent>
+        </Card>
+
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
           {summaryCards.map((card) => (
             <Card key={card.title}>
