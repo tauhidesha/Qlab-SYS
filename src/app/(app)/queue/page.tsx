@@ -28,18 +28,33 @@ export default function QueuePage() {
   useEffect(() => {
     const fetchQueueItems = async () => {
       setLoading(true);
+      console.log("Fetching queue items from Firestore...");
       try {
         const queueCollectionRef = collection(db, 'queueItems');
         // Example: Order by a 'createdAt' timestamp if you add one, or by status
         const q = query(queueCollectionRef); // Add orderBy('status') or a timestamp field
         const querySnapshot = await getDocs(q);
-        const itemsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as QueueItem));
+        
+        console.log(`Fetched ${querySnapshot.docs.length} queue documents.`);
+        
+        const itemsData = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          // console.log(`Document ID: ${doc.id}`, data); // Optional: log each document
+          return { id: doc.id, ...data } as QueueItem;
+        });
+        
+        console.log('Mapped queue items data:', itemsData);
         setQueueItems(itemsData);
+
       } catch (error) {
         console.error("Error fetching queue items: ", error);
+        let description = "Could not fetch queue data. Please check your internet connection.";
+        if (error instanceof Error) {
+            description = `Error: ${error.message}. Please check Firestore security rules and collection name ('queueItems').`;
+        }
         toast({
-          title: "Error",
-          description: "Could not fetch queue data from Firestore.",
+          title: "Fetch Error",
+          description: description,
           variant: "destructive",
         });
       } finally {
@@ -125,9 +140,10 @@ export default function QueuePage() {
                 </Card>
               ))}
             </div>
-            {queueItems.length === 0 && (
+            {queueItems.length === 0 && !loading && (
               <div className="text-center py-10 text-muted-foreground">
                 The queue is currently empty.
+                {/* You can add a link to add items or check if data was expected */}
               </div>
             )}
           </CardContent>
