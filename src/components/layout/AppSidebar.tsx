@@ -164,7 +164,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
         );
       } else { // No tooltip shown
         navElement = item.href ? (
-          <Link href={item.href} asChild>
+          <Link href={item.href}>
             {sidebarMenuButtonElement}
           </Link>
         ) : (
