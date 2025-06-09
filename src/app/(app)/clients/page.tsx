@@ -1,7 +1,7 @@
 
 "use client";
 import AppHeader from '@/components/layout/AppHeader';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button'; // Ditambahkan buttonVariants
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -97,6 +97,7 @@ export default function ClientsPage() {
     <div className="flex flex-col h-full">
       <AppHeader title="Manajemen Klien" />
       <main className="flex-1 overflow-y-auto p-6">
+        <AlertDialog open={!!clientToDelete} onOpenChange={(open) => !open && setClientToDelete(null)}>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
@@ -182,7 +183,7 @@ export default function ClientsPage() {
             <p className="text-xs text-muted-foreground">Menampilkan {filteredClients.length} dari {clients.length} klien.</p>
           </CardFooter>
         </Card>
-        <AlertDialog open={!!clientToDelete} onOpenChange={(open) => !open && setClientToDelete(null)}>
+        
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Konfirmasi Penghapusan</AlertDialogTitle>
