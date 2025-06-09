@@ -376,12 +376,14 @@ export default function PosPage() {
             if (clientDocSnap.exists()) {
                 const clientData = clientDocSnap.data() as Client;
                 
-                // Calculate points based on items
                 const pointsEarned = selectedTransaction.items.reduce((sum, item) => {
-                    return sum + (item.pointsAwardedPerUnit * item.quantity);
+                    const awardedPoints = typeof item.pointsAwardedPerUnit === 'number' ? item.pointsAwardedPerUnit : 0;
+                    const qty = typeof item.quantity === 'number' ? item.quantity : 1; // Default quantity to 1 if not a number for safety
+                    return sum + (awardedPoints * qty);
                 }, 0);
 
-                const newLoyaltyPoints = (clientData.loyaltyPoints || 0) + pointsEarned;
+                const currentLoyaltyPoints = typeof clientData.loyaltyPoints === 'number' ? clientData.loyaltyPoints : 0;
+                const newLoyaltyPoints = currentLoyaltyPoints + pointsEarned;
                 const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
 
                 await updateDoc(clientDocRef, {
@@ -786,3 +788,4 @@ export default function PosPage() {
     </div>
   );
 }
+
