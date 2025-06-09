@@ -8,11 +8,11 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { PlusCircle, Trash2, CreditCard, Loader2, ShoppingBag, Edit, UserPlus } from 'lucide-react';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, arrayUnion, serverTimestamp, addDoc, type Timestamp, getDocs } from 'firebase/firestore';
 import type { Transaction, TransactionItem } from '@/types/transaction';
-import type { ServiceProduct } from '@/app/(app)/services/page'; // Import ServiceProduct
+import type { ServiceProduct } from '@/app/(app)/services/page'; 
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -35,18 +35,17 @@ import {
 export default function PosPage() {
   const [openTransactions, setOpenTransactions] = useState<Transaction[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(true);
-  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(null);
   const [isAddItemDialogOpen, setIsAddItemDialogOpen] = useState(false);
   const [isSubmittingItem, setIsSubmittingItem] = useState(false);
   
-  // For Add Item Dialog
   const [availableItems, setAvailableItems] = useState<ServiceProduct[]>([]);
   const [loadingCatalogItems, setLoadingCatalogItems] = useState(true);
   const [selectedCatalogItemId, setSelectedCatalogItemId] = useState<string>('');
-  const [itemName, setItemName] = useState(''); // Will be auto-filled
-  const [itemPrice, setItemPrice] = useState<number | string>(''); // Will be auto-filled
+  const [itemName, setItemName] = useState(''); 
+  const [itemPrice, setItemPrice] = useState<number | string>(''); 
   const [itemQuantity, setItemQuantity] = useState<number | string>(1);
-  const [itemType, setItemType] = useState<'service' | 'product' | 'food_drink' | 'other'>('product'); // Will be auto-filled
+  const [itemType, setItemType] = useState<'service' | 'product' | 'food_drink' | 'other'>('product');
 
 
   const { toast } = useToast();
@@ -96,8 +95,13 @@ export default function PosPage() {
     fetchAvailableItems();
   }, [toast]);
 
+  const selectedTransaction = useMemo(() => {
+    if (!selectedTransactionId) return null;
+    return openTransactions.find(t => t.id === selectedTransactionId) || null;
+  }, [openTransactions, selectedTransactionId]);
+
   const handleSelectTransaction = (transaction: Transaction) => {
-    setSelectedTransaction(transaction);
+    setSelectedTransactionId(transaction.id);
   };
 
   const resetAddItemForm = () => {
@@ -128,27 +132,27 @@ export default function PosPage() {
 
     setIsSubmittingItem(true);
     const newItem: TransactionItem = {
-      id: catalogItem.id, // Use catalog item ID
+      id: uuidv4(), 
+      catalogItemId: catalogItem.id,
       name: catalogItem.name,
       price: catalogItem.price,
       quantity: quantity,
-      type: catalogItem.type === 'Layanan' ? 'service' : 'product', // Map from ServiceProduct type
+      type: catalogItem.type === 'Layanan' ? 'service' : 'product', 
     };
 
     try {
       const transactionDocRef = doc(db, 'transactions', selectedTransaction.id);
-      const updatedItems = arrayUnion(newItem);
-      // Recalculate totals
-      const tempUpdatedItems = [...selectedTransaction.items, newItem];
+      const currentItems = selectedTransaction.items || [];
+      const updatedItemsForCalc = [...currentItems, newItem];
+      
       const { subtotal: newSubtotal, total: newTotal } = calculateTransactionTotals(
-        tempUpdatedItems,
+        updatedItemsForCalc,
         selectedTransaction.discountAmount,
         selectedTransaction.discountPercentage
       );
 
-
       await updateDoc(transactionDocRef, {
-        items: updatedItems,
+        items: arrayUnion(newItem),
         subtotal: newSubtotal,
         total: newTotal,
         updatedAt: serverTimestamp(),
@@ -179,23 +183,23 @@ export default function PosPage() {
             createdAt: serverTimestamp() as Timestamp, 
             updatedAt: serverTimestamp() as Timestamp,
         };
-        await addDoc(collection(db, 'transactions'), newTransactionData);
+        const docRef = await addDoc(collection(db, 'transactions'), newTransactionData);
+        setSelectedTransactionId(docRef.id); // Select the new transaction
         toast({ title: "Sukses", description: "Transaksi manual baru berhasil dibuat."});
     } catch (error) {
         console.error("Error creating manual transaction: ", error);
         toast({ title: "Error", description: "Gagal membuat transaksi manual baru.", variant: "destructive" });
     } finally {
-        setLoadingTransactions(false);
+        // setLoadingTransactions(false); // onSnapshot will handle this
     }
   };
 
   const calculateTransactionTotals = (items: TransactionItem[], discountAmount: number = 0, discountPercentage: number = 0) => {
     const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
     let currentDiscountAmount = discountAmount;
-    if (discountPercentage > 0 && discountAmount === 0) { // Apply percentage if amount is not set
+    if (discountPercentage > 0 && discountAmount === 0) { 
         currentDiscountAmount = subtotal * (discountPercentage / 100);
-    } else if (discountAmount > 0) { // If amount is set, it overrides percentage
-        // currentDiscountAmount is already discountAmount
+    } else if (discountAmount > 0) { 
     }
     const total = subtotal - currentDiscountAmount;
     return { subtotal, total, discountAmount: currentDiscountAmount };
@@ -228,36 +232,37 @@ export default function PosPage() {
     }
   };
 
-  const handleDiscountChange = async (transactionId: string, items: TransactionItem[], newDiscountAmount: number, newDiscountPercentage: number) => {
-    const { total, discountAmount: calculatedDiscountAmount } = calculateTransactionTotals(items, newDiscountAmount, newDiscountPercentage);
-    
-    // Optimistically update local state for better UX
-    setSelectedTransaction(prev => {
-      if (prev && prev.id === transactionId) {
-        return {
-          ...prev,
-          discountAmount: newDiscountAmount > 0 ? newDiscountAmount : (newDiscountPercentage > 0 ? calculatedDiscountAmount : 0),
-          discountPercentage: newDiscountPercentage,
-          total: total
-        };
-      }
-      return prev;
-    });
+  const handleDiscountChange = async (transactionId: string, items: TransactionItem[], newDiscountAmountInput: string, newDiscountPercentageInput: string) => {
+    const newDiscountAmount = parseFloat(newDiscountAmountInput) || 0;
+    const newDiscountPercentage = parseFloat(newDiscountPercentageInput) || 0;
 
-    // Debounce or onBlur save to Firestore
+    // Determine which discount to apply (amount takes precedence if both are > 0 or if percentage leads to 0 discountAmount but amount itself is > 0)
+    let appliedDiscountAmount = 0;
+    let appliedDiscountPercentage = 0;
+
+    if (newDiscountAmount > 0) {
+        appliedDiscountAmount = newDiscountAmount;
+        // appliedDiscountPercentage = 0; // Clear percentage if amount is set
+    } else if (newDiscountPercentage > 0) {
+        appliedDiscountPercentage = newDiscountPercentage;
+        // appliedDiscountAmount = 0; // Clear amount if percentage is set
+    }
+
+    const { total, discountAmount: calculatedDiscountAmount } = calculateTransactionTotals(items, appliedDiscountAmount, appliedDiscountPercentage);
+    
+    // Optimistic update for UI consistency is handled by useMemo deriving selectedTransaction
+
     try {
         const transactionDocRef = doc(db, 'transactions', transactionId);
         await updateDoc(transactionDocRef, {
-            discountAmount: newDiscountAmount > 0 ? newDiscountAmount : (newDiscountPercentage > 0 ? calculatedDiscountAmount : 0),
-            discountPercentage: newDiscountPercentage,
+            discountAmount: appliedDiscountAmount > 0 ? appliedDiscountAmount : (appliedDiscountPercentage > 0 ? calculatedDiscountAmount : 0),
+            discountPercentage: appliedDiscountPercentage, // Store the percentage that was input
             total: total,
             updatedAt: serverTimestamp()
         });
-        // toast({ title: "Diskon Diperbarui", description: "Diskon berhasil disimpan."});
     } catch (error) {
         console.error("Error updating discount:", error);
         toast({ title: "Error Diskon", description: "Gagal menyimpan perubahan diskon.", variant: "destructive"});
-        // Revert optimistic update if needed, or re-fetch
     }
   };
 
@@ -294,7 +299,7 @@ export default function PosPage() {
                   {openTransactions.map((trans) => (
                     <Button
                       key={trans.id}
-                      variant={selectedTransaction?.id === trans.id ? "secondary" : "outline"}
+                      variant={selectedTransactionId === trans.id ? "secondary" : "outline"}
                       className="w-full justify-start h-auto py-3"
                       onClick={() => handleSelectTransaction(trans)}
                     >
@@ -342,8 +347,8 @@ export default function PosPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {selectedTransaction.items.map((item, index) => ( // Added index for unique key if item.id is not unique enough across adds
-                        <TableRow key={`${item.id}-${index}`}>
+                      {selectedTransaction.items.map((item) => ( 
+                        <TableRow key={item.id}>
                           <TableCell>
                             {item.name}
                             {item.type === 'service' && item.staffName && <span className="text-xs text-muted-foreground block">Oleh: {item.staffName}</span>}
@@ -356,7 +361,7 @@ export default function PosPage() {
                                 variant="ghost" 
                                 size="icon" 
                                 className="text-destructive hover:text-destructive h-8 w-8"
-                                onClick={() => handleRemoveItemFromTransaction(item.id)} // Assuming item.id is unique enough for removal here
+                                onClick={() => handleRemoveItemFromTransaction(item.id)} 
                                 disabled={isSubmittingItem}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -388,10 +393,9 @@ export default function PosPage() {
                             type="number" 
                             placeholder="Rp" 
                             className="w-24 h-8 text-right" 
-                            value={selectedTransaction.discountPercentage > 0 ? '' : (selectedTransaction.discountAmount || "")}
-                            onChange={(e) => {
-                                const newDiscountAmount = parseFloat(e.target.value) || 0;
-                                handleDiscountChange(selectedTransaction.id, selectedTransaction.items, newDiscountAmount, 0);
+                            defaultValue={selectedTransaction.discountPercentage > 0 ? '' : (selectedTransaction.discountAmount || "")}
+                            onBlur={(e) => {
+                                handleDiscountChange(selectedTransaction.id, selectedTransaction.items, e.target.value, '0');
                             }}
                             disabled={selectedTransaction.discountPercentage > 0}
                         />
@@ -400,10 +404,9 @@ export default function PosPage() {
                             type="number" 
                             placeholder="%" 
                             className="w-16 h-8 text-right" 
-                            value={selectedTransaction.discountAmount > 0 ? '' : (selectedTransaction.discountPercentage || "")}
-                            onChange={(e) => {
-                                const newDiscPercent = parseFloat(e.target.value) || 0;
-                                handleDiscountChange(selectedTransaction.id, selectedTransaction.items, 0, newDiscPercent);
+                            defaultValue={selectedTransaction.discountAmount > 0 ? '' : (selectedTransaction.discountPercentage || "")}
+                            onBlur={(e) => {
+                                handleDiscountChange(selectedTransaction.id, selectedTransaction.items, '0', e.target.value);
                             }}
                             disabled={selectedTransaction.discountAmount > 0}
                          />
@@ -525,3 +528,5 @@ export default function PosPage() {
     </div>
   );
 }
+
+    

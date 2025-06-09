@@ -2,11 +2,12 @@
 import type { Timestamp } from 'firebase/firestore';
 
 export interface TransactionItem {
-  id: string; // ID unik untuk item dalam transaksi, bisa UUID atau service/product ID
+  id: string; // Unique ID for this line item in the transaction (e.g., uuid)
+  catalogItemId: string; // ID of the service/product from the catalog
   name: string;
   price: number;
   quantity: number;
-  type: 'service' | 'product' | 'food_drink' | 'other'; // Untuk membedakan jenis item
+  type: 'service' | 'product' | 'food_drink' | 'other'; // To membedakan jenis item
   staffName?: string; // Staf yang terkait dengan item layanan spesifik jika perlu
 }
 
@@ -29,3 +30,5 @@ export interface Transaction {
   updatedAt: Timestamp;
   paidAt?: Timestamp;
 }
+
+    
