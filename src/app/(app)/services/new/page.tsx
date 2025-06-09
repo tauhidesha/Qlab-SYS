@@ -26,8 +26,8 @@ const serviceProductFormSchema = z.object({
   type: z.enum(['Layanan', 'Produk'], { required_error: "Jenis item diperlukan" }),
   category: z.string().min(2, "Kategori minimal 2 karakter").max(50, "Kategori maksimal 50 karakter"),
   price: z.preprocess(
-    (val) => (typeof val === 'string' ? parseFloat(val) : val),
-    z.number({ required_error: "Harga diperlukan" }).positive("Harga harus angka positif")
+    (val) => (val === '' || val === undefined || val === null ? undefined : parseFloat(String(val))),
+    z.number({ required_error: "Harga diperlukan", invalid_type_error: "Harga harus berupa angka" }).positive("Harga harus angka positif")
   ),
   description: z.string().max(500, "Deskripsi maksimal 500 karakter").optional(),
 });
@@ -42,9 +42,9 @@ export default function NewServiceProductPage() {
     resolver: zodResolver(serviceProductFormSchema),
     defaultValues: {
       name: '',
-      type: undefined, // Will be set by user selection
+      type: undefined, 
       category: '',
-      price: undefined, // Will be set by user input
+      price: '' as any, // Initialize as empty string for controlled input, cast as any to satisfy TS temporarily
       description: '',
     },
   });
@@ -56,7 +56,7 @@ export default function NewServiceProductPage() {
         name: data.name,
         type: data.type,
         category: data.category,
-        price: data.price,
+        price: data.price, // Zod preprocess ensures this is a number if valid
         description: data.description || '',
         createdAt: serverTimestamp(),
       };
@@ -146,7 +146,16 @@ export default function NewServiceProductPage() {
                     <FormItem>
                       <FormLabel>Harga (Rp)</FormLabel>
                       <FormControl>
-                        <Input type="number" placeholder="mis. 75000" {...field} onChange={e => field.onChange(parseFloat(e.target.value) || '')} />
+                        <Input 
+                          type="number" 
+                          placeholder="mis. 75000" 
+                          {...field} 
+                          value={field.value === undefined ? '' : field.value} // Ensure value is '' if undefined
+                          onChange={e => {
+                            const val = e.target.value;
+                            field.onChange(val === '' ? '' : parseFloat(val)); // Keep as '' or parse to float
+                          }}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

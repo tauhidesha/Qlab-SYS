@@ -128,14 +128,13 @@ function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting, client
       }
     } else {
       setSelectedClientMotorcycles([]);
-      form.setValue('vehicleInfo', '');
+      form.setValue('vehicleInfo', defaultValues.vehicleInfo || ''); // Ensure vehicleInfo is string
     }
   }, [defaultValues, form, clientsList]);
 
   useEffect(() => {
     if (selectedClientId && selectedClientId !== WALK_IN_CLIENT_VALUE) {
       const client = clientsList.find(c => c.id === selectedClientId);
-      // Customer name is set by onValueChange, no need to set here unless for initial load
       setSelectedClientMotorcycles(client?.motorcycles || []);
       const currentVehicleInfo = form.getValues('vehicleInfo');
       if (currentVehicleInfo) {
@@ -144,11 +143,13 @@ function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting, client
           form.setValue('vehicleInfo', ''); 
         }
       }
-    } else { // Handles selectedClientId being undefined, null, or WALK_IN_CLIENT_VALUE
+    } else { 
       setSelectedClientMotorcycles([]);
-      form.setValue('vehicleInfo', ''); 
       if (selectedClientId === WALK_IN_CLIENT_VALUE) {
-        // form.setValue('customerName', ''); // Already handled in onValueChange
+        // For walk-in, vehicleInfo could be manually entered, retain its current value or default from form
+        form.setValue('vehicleInfo', form.getValues('vehicleInfo') || '');
+      } else {
+        form.setValue('vehicleInfo', '');
       }
     }
   }, [selectedClientId, clientsList, form]);
@@ -174,7 +175,7 @@ function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting, client
               <FormLabel>Pelanggan Terdaftar (Opsional)</FormLabel>
               <Select 
                 onValueChange={(value) => {
-                  field.onChange(value); // value is client.id or WALK_IN_CLIENT_VALUE
+                  field.onChange(value); 
                   if (value === WALK_IN_CLIENT_VALUE) {
                     form.setValue('customerName', ''); 
                     setSelectedClientMotorcycles([]);
@@ -183,14 +184,13 @@ function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting, client
                     const client = clientsList.find(c => c.id === value);
                     form.setValue('customerName', client?.name || '');
                     setSelectedClientMotorcycles(client?.motorcycles || []);
-                    // If current vehicle is not in new client's list, clear it
                     const currentVehicle = form.getValues('vehicleInfo');
                     if(client && currentVehicle && !client.motorcycles.some(m => `${m.name} (${m.licensePlate.toUpperCase()})` === currentVehicle)){
                         form.setValue('vehicleInfo', '');
                     }
                   }
                 }} 
-                value={field.value} // Use field.value directly (can be undefined)
+                value={field.value || WALK_IN_CLIENT_VALUE} 
               >
                 <FormControl>
                   <SelectTrigger>
@@ -504,7 +504,7 @@ export default function QueuePage() {
 
   const defaultQueueItemValues: QueueItemFormData = {
     customerName: '',
-    clientId: undefined, // Important: Start as undefined for placeholder to show
+    clientId: WALK_IN_CLIENT_VALUE, 
     vehicleInfo: '',
     service: '',
     serviceId: undefined,
@@ -530,14 +530,22 @@ export default function QueuePage() {
       const { clientId: formClientId, ...otherFormData } = formData;
       const actualClientId = formClientId === WALK_IN_CLIENT_VALUE ? undefined : formClientId;
 
-      const firestoreData: Omit<QueueItem, 'id' | 'createdAt' | 'staff'> & { clientId?: string } = {
-          ...otherFormData,
-          ...(actualClientId && { clientId: actualClientId }) 
+      // Explicitly define the structure for Firestore, excluding 'staff'
+      const firestoreData: Omit<QueueItem, 'id' | 'createdAt' | 'staff' | 'serviceId'> & { clientId?: string; serviceId?: string} = {
+          customerName: otherFormData.customerName,
+          vehicleInfo: otherFormData.vehicleInfo,
+          service: otherFormData.service,
+          estimatedTime: otherFormData.estimatedTime,
+          status: otherFormData.status,
+          ...(actualClientId && { clientId: actualClientId }),
+          ...(otherFormData.serviceId && { serviceId: otherFormData.serviceId})
       };
-      // Firestore doesn't like explicit 'undefined' values for fields that might not exist.
-      // If actualClientId is undefined, ensure the clientId property is not in firestoreData.
+      
       if (!actualClientId) {
           delete (firestoreData as any).clientId;
+      }
+      if (!otherFormData.serviceId) {
+          delete (firestoreData as any).serviceId;
       }
 
 
@@ -680,10 +688,9 @@ export default function QueuePage() {
   const calculateTransactionTotals = (items: TransactionItem[], discountAmount: number = 0, discountPercentage: number = 0) => {
     const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
     let currentDiscountAmount = discountAmount;
-    if (discountPercentage > 0 && discountAmount === 0) { // Prioritize percentage if amount is not manually set
+    if (discountPercentage > 0 && discountAmount === 0) { 
         currentDiscountAmount = subtotal * (discountPercentage / 100);
-    } else if (discountAmount > 0) { // If amount is set, percentage is ignored for this calculation
-        // discountPercentage can be set to 0 in calling function if needed
+    } else if (discountAmount > 0) { 
     }
     const total = subtotal - currentDiscountAmount;
     return { subtotal, total, discountAmount: currentDiscountAmount };
@@ -860,11 +867,11 @@ export default function QueuePage() {
               onSubmit={handleFormSubmit}
               defaultValues={currentEditingItem ? {
                 customerName: currentEditingItem.customerName,
-                clientId: currentEditingItem.clientId || WALK_IN_CLIENT_VALUE, // Ensure walk-in value if undefined
-                vehicleInfo: currentEditingItem.vehicleInfo,
+                clientId: currentEditingItem.clientId || WALK_IN_CLIENT_VALUE, 
+                vehicleInfo: currentEditingItem.vehicleInfo || '',
                 service: currentEditingItem.service,
                 serviceId: currentEditingItem.serviceId,
-                estimatedTime: currentEditingItem.estimatedTime,
+                estimatedTime: currentEditingItem.estimatedTime || '',
                 status: currentEditingItem.status,
               } : defaultQueueItemValues}
               onCancel={() => { setIsFormDialogOpen(false); setCurrentEditingItem(null);}}
@@ -889,6 +896,3 @@ export default function QueuePage() {
     </div>
   );
 }
-
-
-    
