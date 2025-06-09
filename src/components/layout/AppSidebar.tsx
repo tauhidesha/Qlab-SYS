@@ -17,7 +17,7 @@ import {
   SidebarMenuButton,
   SidebarMenuSub,
   SidebarMenuSubButton,
-  SidebarTrigger,
+  SidebarTrigger, // Added SidebarTrigger
   SidebarMenuSubItem,
   useSidebar,
 } from "@/components/ui/sidebar";
@@ -37,19 +37,19 @@ interface AppSidebarProps {
 
 export function AppSidebar({ className }: AppSidebarProps) {
   const pathname = usePathname();
-  const { state, open: sidebarOpen, isMobile, openMobile, setOpenMobile } = useSidebar();
+  const { state, open: sidebarOpen, isMobile } = useSidebar(); // Removed openMobile, setOpenMobile as they are not directly used here
   const [openSubMenus, setOpenSubMenus] = React.useState<Record<string, boolean>>({});
 
   const toggleSubMenu = (title: string) => {
     setOpenSubMenus(prev => ({ ...prev, [title]: !prev[title] }));
   };
 
+  // Determine if text should be shown based on sidebar state and mobile status
   const showText = sidebarOpen || isMobile;
 
   const renderNavItem = (item: NavItem) => {
     const isActive = pathname === item.href || (item.href && item.href !== '/' && pathname.startsWith(item.href));
     const Icon = item.icon;
-    let navElement;
 
     const buttonContent = (
       <>
@@ -78,18 +78,21 @@ export function AppSidebar({ className }: AppSidebarProps) {
         </SidebarMenuButton>
       );
       
-      navElement = (
-        <>
-          {(!sidebarOpen && !isMobile && item.title) ? ( 
-            <TooltipProvider delayDuration={0}>
-              <Tooltip>
-                <TooltipTrigger asChild>{groupButton}</TooltipTrigger>
-                <TooltipContent side="right" align="center">{item.title}</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          ) : (
-            groupButton
-          )}
+      let navElement = groupButton;
+      if (!sidebarOpen && !isMobile && item.title) { 
+        navElement = (
+          <TooltipProvider delayDuration={0}>
+            <Tooltip>
+              <TooltipTrigger asChild>{groupButton}</TooltipTrigger>
+              <TooltipContent side="right" align="center">{item.title}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        );
+      }
+      
+      return (
+        <SidebarMenuItem key={item.title}>
+          {navElement}
           {openSubMenus[item.title] && showText && ( 
             <SidebarMenuSub>
               {item.items.map((subItem) => {
@@ -102,27 +105,15 @@ export function AppSidebar({ className }: AppSidebarProps) {
                   </>
                 );
 
+                // SidebarMenuSubButton renders an 'a' tag by default
                 const subActualButton = (
                    <SidebarMenuSubButton href={subItem.href} isActive={subIsActive}>
                       {subButtonContent}
                     </SidebarMenuSubButton>
                 );
                 
-                let subNavElement;
-                if (!sidebarOpen && !isMobile && subItem.title) {
-                  subNavElement = (
-                    <TooltipProvider delayDuration={0}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          {subActualButton}
-                        </TooltipTrigger>
-                        <TooltipContent side="right" align="center">{subItem.title}</TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  );
-                } else {
-                  subNavElement = subActualButton;
-                }
+                let subNavElement = subActualButton;
+                // No tooltip for sub-items in this simplified version, assuming showText is true
                 
                 return (
                    <SidebarMenuSubItem key={subItem.title}>
@@ -132,45 +123,61 @@ export function AppSidebar({ className }: AppSidebarProps) {
               })}
             </SidebarMenuSub>
           )}
-        </>
+        </SidebarMenuItem>
       );
-      return <SidebarMenuItem key={item.title}>{navElement}</SidebarMenuItem>;
 
     } else { // Single navigation item
-      const sidebarMenuButtonElement = (
+      const singleButtonElement = (
         <SidebarMenuButton isActive={isActive}>
           {buttonContent}
         </SidebarMenuButton>
       );
 
-      if (!sidebarOpen && !isMobile && item.title) { // Tooltip shown
+      let navElement = singleButtonElement;
+      if (item.href) {
+        const linkedButton = (
+          <Link href={item.href} asChild>
+            {singleButtonElement}
+          </Link>
+        );
+        navElement = linkedButton;
+      }
+      
+      if (!sidebarOpen && !isMobile && item.title) {
         navElement = (
           <TooltipProvider delayDuration={0}>
             <Tooltip>
-              {item.href ? (
-                <Link href={item.href} asChild>
-                  <TooltipTrigger asChild>
-                    {sidebarMenuButtonElement}
-                  </TooltipTrigger>
-                </Link>
-              ) : (
-                <TooltipTrigger asChild>
-                  {sidebarMenuButtonElement}
-                </TooltipTrigger>
-              )}
+              <TooltipTrigger asChild>
+                {/* If it's a link, Link component should be inside TooltipTrigger if asChild is used by Link */}
+                {/* If singleButtonElement is already wrapped by Link, it's fine. */}
+                {/* If Link asChild wraps TooltipTrigger asChild, then SidebarMenuButton must handle both sets of props. */}
+                {item.href ? (
+                    <Link href={item.href} passHref legacyBehavior>
+                        <TooltipTrigger asChild>
+                            {singleButtonElement}
+                        </TooltipTrigger>
+                    </Link>
+                 ) : (
+                    <TooltipTrigger asChild>
+                       {singleButtonElement}
+                    </TooltipTrigger>
+                 )
+                }
+              </TooltipTrigger>
               <TooltipContent side="right" align="center">{item.title}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         );
-      } else { // No tooltip shown
-        navElement = item.href ? (
-          <Link href={item.href}>
-            {sidebarMenuButtonElement}
-          </Link>
-        ) : (
-          sidebarMenuButtonElement
-        );
+      } else if (item.href) {
+         // If text is shown or mobile, Link wraps SidebarMenuButton
+         navElement = (
+            <Link href={item.href} asChild>
+                {singleButtonElement}
+            </Link>
+         );
       }
+
+
       return <SidebarMenuItem key={item.title}>{navElement}</SidebarMenuItem>;
     }
   };
@@ -182,6 +189,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
         <div className="flex items-center gap-2">
           <Logo />
           <div className="grow" />
+          {/* SidebarTrigger for mobile, correctly uses useSidebar context */}
           <SidebarTrigger className="md:hidden" />
         </div>
       </SidebarHeader>
@@ -194,7 +202,11 @@ export function AppSidebar({ className }: AppSidebarProps) {
         <SidebarMenu>
           {renderNavItem(settingsNavItem)}
           <SidebarMenuItem>
-            <div className="flex items-center gap-2 p-2 rounded-md hover:bg-sidebar-accent">
+             {/* User profile section */}
+            <div className={cn(
+                "flex items-center gap-2 p-2 rounded-md",
+                 showText ? "hover:bg-sidebar-accent" : "" // Only apply hover if text is shown
+              )}>
                 <Avatar className="h-8 w-8">
                     <AvatarImage src="https://placehold.co/40x40.png" alt="User Avatar" data-ai-hint="user avatar" />
                     <AvatarFallback>QP</AvatarFallback>
