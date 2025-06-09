@@ -255,10 +255,13 @@ export default function PosPage() {
         updatedAt: serverTimestamp() as Timestamp,
       };
       
-      const newTransactionData = {
+      const newTransactionData: Partial<Transaction> & { createdAt: any, updatedAt: any } = {
         ...newTransactionBaseData,
-        ...(clientIdForBill && { clientId: clientIdForBill }),
       };
+
+      if (clientIdForBill) {
+        newTransactionData.clientId = clientIdForBill;
+      }
       
 
       const docRef = await addDoc(collection(db, 'transactions'), newTransactionData);
@@ -356,16 +359,20 @@ export default function PosPage() {
   };
 
   const handleConfirmPayment = async () => {
+    console.log("[POS] handleConfirmPayment started");
     if (!selectedTransaction) {
       toast({ title: "Error", description: "Tidak ada transaksi yang dipilih.", variant: "destructive"});
+      console.log("[POS] No selected transaction.");
       return;
     }
     if (!selectedPaymentMethod) {
       toast({ title: "Input Kurang", description: "Silakan pilih metode pembayaran.", variant: "destructive"});
+      console.log("[POS] No payment method selected.");
       return;
     }
 
     setIsProcessingPayment(true);
+    console.log("[POS] Processing payment for transaction ID:", selectedTransaction.id);
     try {
       const transactionDocRef = doc(db, 'transactions', selectedTransaction.id);
       await updateDoc(transactionDocRef, {
@@ -377,47 +384,67 @@ export default function PosPage() {
       });
 
       toast({ title: "Pembayaran Sukses", description: `Transaksi untuk ${selectedTransaction.customerName} berhasil dibayar.`});
+      console.log("[POS] Transaction status updated to 'paid'.");
       
       if (selectedTransaction.clientId) {
+        console.log("[POS] Client ID found:", selectedTransaction.clientId, "Attempting to update client loyalty points.");
         try {
             const clientDocRef = doc(db, 'clients', selectedTransaction.clientId);
             const clientDocSnap = await getDoc(clientDocRef);
+
             if (clientDocSnap.exists()) {
                 const clientData = clientDocSnap.data() as Client;
-                
+                console.log("[POS] Client data found:", clientData);
+                console.log("[POS] Transaction items for points calculation:", selectedTransaction.items);
+
                 const pointsEarned = selectedTransaction.items.reduce((sum, item) => {
                     const awardedPoints = (typeof item.pointsAwardedPerUnit === 'number' && !isNaN(item.pointsAwardedPerUnit)) ? item.pointsAwardedPerUnit : 0;
-                    const qty = (typeof item.quantity === 'number' && !isNaN(item.quantity) && item.quantity > 0) ? item.quantity : 0; 
+                    const qty = (typeof item.quantity === 'number' && !isNaN(item.quantity) && item.quantity > 0) ? item.quantity : 0;
+                    console.log(`[POS] Item: ${item.name}, Points per unit: ${awardedPoints}, Qty: ${qty}, Points for this item: ${awardedPoints * qty}`);
                     return sum + (awardedPoints * qty);
                 }, 0);
+                console.log("[POS] Total points earned from this transaction:", pointsEarned);
 
                 const currentLoyaltyPoints = (typeof clientData.loyaltyPoints === 'number' && !isNaN(clientData.loyaltyPoints)) ? clientData.loyaltyPoints : 0;
+                console.log("[POS] Current client loyalty points:", currentLoyaltyPoints);
+                
                 const newLoyaltyPoints = currentLoyaltyPoints + pointsEarned;
+                console.log("[POS] New client loyalty points:", newLoyaltyPoints);
+                
                 const today = new Date().toLocaleDateString('en-CA'); 
 
                 await updateDoc(clientDocRef, {
                     loyaltyPoints: newLoyaltyPoints,
                     lastVisit: today,
                 });
+                
                 if (pointsEarned > 0) {
                   toast({ title: "Info Klien Diperbarui", description: `Poin loyalitas (${pointsEarned} poin) & kunjungan terakhir untuk ${clientData.name} telah diperbarui.` });
+                  console.log(`[POS] Client ${clientData.name} updated with ${pointsEarned} new points and last visit.`);
                 } else {
                   toast({ title: "Info Klien Diperbarui", description: `Kunjungan terakhir untuk ${clientData.name} telah diperbarui.` });
+                  console.log(`[POS] Client ${clientData.name} last visit updated (no points earned).`);
                 }
+            } else {
+                console.log("[POS] Client document not found for ID:", selectedTransaction.clientId);
             }
         } catch (clientUpdateError) {
-            console.error("Error updating client loyalty/visit: ", clientUpdateError);
+            console.error("[POS] Error updating client loyalty/visit: ", clientUpdateError);
             toast({ title: "Peringatan", description: "Pembayaran berhasil, tapi gagal memperbarui data loyalitas klien.", variant: "destructive" });
         }
+      } else {
+        console.log("[POS] No client ID in transaction. Skipping client update.");
       }
       
       setIsPaymentDialogOpen(false);
       setSelectedTransactionId(null); 
+      console.log("[POS] Payment dialog closed, selected transaction reset.");
     } catch (error) {
-      console.error("Error processing payment: ", error);
+      console.error("[POS] Error processing payment: ", error);
       toast({ title: "Error Pembayaran", description: "Gagal memproses pembayaran.", variant: "destructive"});
     } finally {
       setIsProcessingPayment(false);
+      console.log("[POS] handleConfirmPayment finished.");
     }
   };
 
