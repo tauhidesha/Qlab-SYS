@@ -404,27 +404,27 @@ export default function QueuePage() {
                           Masuk: {item.createdAt?.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
                         </div>
                       </CardContent>
-                      <CardFooter className="flex flex-col sm:flex-row justify-end gap-2 pt-4">
-                        <div className="flex gap-2 w-full sm:w-auto">
-                          <Button variant="outline" size="sm" onClick={() => handleEditItem(item)} className="flex-1 sm:flex-none">
-                            <Edit3 className="mr-2 h-4 w-4" /> Ubah
-                          </Button>
-                          <AlertDialogTrigger asChild>
-                              <Button variant="destructive" size="sm" onClick={() => handleDeleteConfirmation(item)} className="flex-1 sm:flex-none">
-                                  <Trash2 className="mr-2 h-4 w-4" /> Hapus
-                              </Button>
-                          </AlertDialogTrigger>
-                        </div>
+                      <CardFooter className="flex flex-col sm:flex-row sm:justify-end gap-2 pt-4 border-t mt-auto">
+                        <Button variant="outline" size="sm" onClick={() => handleEditItem(item)} className="w-full sm:w-auto order-1 sm:order-1">
+                          <Edit3 className="mr-2 h-4 w-4" /> Ubah
+                        </Button>
+                        
                         {item.status === 'Menunggu' && (
-                          <Button size="sm" onClick={() => handleStatusChange(item, 'Dalam Layanan')} className="w-full sm:w-auto">
+                          <Button size="sm" onClick={() => handleStatusChange(item, 'Dalam Layanan')} className="w-full sm:w-auto order-2 sm:order-2">
                             Mulai Layanan
                           </Button>
                         )}
                         {item.status === 'Dalam Layanan' && (
-                          <Button size="sm" variant="secondary" onClick={() => handleStatusChange(item, 'Selesai')} className="w-full sm:w-auto">
+                          <Button size="sm" variant="secondary" onClick={() => handleStatusChange(item, 'Selesai')} className="w-full sm:w-auto order-2 sm:order-2">
                             Tandai Selesai
                           </Button>
                         )}
+                        
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" size="sm" onClick={() => handleDeleteConfirmation(item)} className="w-full sm:w-auto order-3 sm:order-3">
+                            <Trash2 className="mr-2 h-4 w-4" /> Hapus
+                          </Button>
+                        </AlertDialogTrigger>
                       </CardFooter>
                     </Card>
                   ))}
@@ -482,3 +482,5 @@ export default function QueuePage() {
     </div>
   );
 }
+
+    
