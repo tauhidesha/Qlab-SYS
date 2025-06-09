@@ -198,7 +198,6 @@ export default function QueuePage() {
 
   const { toast } = useToast();
 
-  // Untuk debugging state dialog
   useEffect(() => {
     console.log('[QueuePage] isFormDialogOpen changed to:', isFormDialogOpen);
   }, [isFormDialogOpen]);
@@ -218,7 +217,7 @@ export default function QueuePage() {
         return { 
           id: doc.id, 
           ...data,
-          createdAt: data.createdAt || Timestamp.now() // Fallback jika createdAt null
+          createdAt: data.createdAt || Timestamp.now() 
         } as QueueItem;
       });
       
@@ -257,7 +256,6 @@ export default function QueuePage() {
   const handleOpenAddDialog = () => {
     console.log('[QueuePage] handleOpenAddDialog called');
     setCurrentEditingItem(null);
-    // Reset form default values for QueueItemForm will be handled by passing defaultQueueItemValues
     setIsFormDialogOpen(true);
   };
 
@@ -269,20 +267,20 @@ export default function QueuePage() {
   const handleFormSubmit = async (data: QueueItemFormData) => {
     setIsSubmitting(true);
     try {
-      if (currentEditingItem) { // Update existing item
+      if (currentEditingItem) { 
         const itemDocRef = doc(db, 'queueItems', currentEditingItem.id);
-        await updateDoc(itemDocRef, { ...data, staff: data.staff || "" }); // Pastikan staff tidak undefined
+        await updateDoc(itemDocRef, { ...data, staff: data.staff || "" }); 
         toast({ title: "Sukses", description: "Item antrian berhasil diperbarui." });
-      } else { // Add new item
+      } else { 
         await addDoc(collection(db, 'queueItems'), { 
           ...data, 
-          staff: data.staff || "", // Pastikan staff tidak undefined
+          staff: data.staff || "", 
           createdAt: serverTimestamp() 
         });
         toast({ title: "Sukses", description: "Item baru berhasil ditambahkan ke antrian." });
       }
       setIsFormDialogOpen(false);
-      fetchQueueItems(); // Refresh list
+      fetchQueueItems(); 
     } catch (error) {
       console.error("Error submitting form: ", error);
       toast({ title: "Error", description: "Gagal menyimpan item antrian.", variant: "destructive" });
@@ -296,7 +294,7 @@ export default function QueuePage() {
       const itemDocRef = doc(db, 'queueItems', item.id);
       await updateDoc(itemDocRef, { status: newStatus });
       toast({ title: "Status Diperbarui", description: `Status untuk ${item.customerName} diubah menjadi ${newStatus}.` });
-      fetchQueueItems(); // Refresh list
+      fetchQueueItems(); 
     } catch (error) {
       console.error("Error updating status: ", error);
       toast({ title: "Error", description: "Gagal memperbarui status item.", variant: "destructive" });
@@ -359,85 +357,103 @@ export default function QueuePage() {
     <div className="flex flex-col h-full">
       <AppHeader title="Manajemen Antrian" />
       <main className="flex-1 overflow-y-auto p-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Antrian Pelanggan</CardTitle>
-              <CardDescription>Kelola pelanggan yang menunggu dan sedang dilayani.</CardDescription>
-            </div>
-            <Button onClick={handleOpenAddDialog}>
-              <PlusCircle className="mr-2 h-4 w-4" /> Tambah ke Antrian
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {queueItems.length === 0 && !loading ? (
-              <div className="text-center py-10 text-muted-foreground">
-                Antrian saat ini kosong. Klik "Tambah ke Antrian" untuk memulai.
+        <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Antrian Pelanggan</CardTitle>
+                <CardDescription>Kelola pelanggan yang menunggu dan sedang dilayani.</CardDescription>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {queueItems.map((item) => (
-                  <Card key={item.id} className="shadow-lg flex flex-col">
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg">{item.customerName}</CardTitle>
-                        <Badge variant={getStatusBadgeVariant(item.status)} className="capitalize">
-                          {getStatusIcon(item.status)}
-                          <span className="ml-1">{item.status}</span>
-                        </Badge>
-                      </div>
-                      <CardDescription>{item.vehicleInfo} - {item.service}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-grow">
-                      <div className="text-sm text-muted-foreground mb-1">
-                        Estimasi: {item.estimatedTime}
-                      </div>
-                      {item.staff && (
-                        <div className="text-sm text-muted-foreground flex items-center">
-                          <Avatar className="h-5 w-5 mr-2">
-                             <AvatarImage src={`https://placehold.co/40x40.png?text=${item.staff.substring(0,1)}`} data-ai-hint="avatar karyawan" />
-                             <AvatarFallback>{item.staff.substring(0,1)}</AvatarFallback>
-                          </Avatar>
-                          Staf: {item.staff}
+              <Button onClick={handleOpenAddDialog}>
+                <PlusCircle className="mr-2 h-4 w-4" /> Tambah ke Antrian
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {queueItems.length === 0 && !loading ? (
+                <div className="text-center py-10 text-muted-foreground">
+                  Antrian saat ini kosong. Klik "Tambah ke Antrian" untuk memulai.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {queueItems.map((item) => (
+                    <Card key={item.id} className="shadow-lg flex flex-col">
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg">{item.customerName}</CardTitle>
+                          <Badge variant={getStatusBadgeVariant(item.status)} className="capitalize">
+                            {getStatusIcon(item.status)}
+                            <span className="ml-1">{item.status}</span>
+                          </Badge>
                         </div>
-                      )}
-                       <div className="text-xs text-muted-foreground mt-1">
-                        Masuk: {item.createdAt?.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    </CardContent>
-                    <CardFooter className="flex flex-col sm:flex-row justify-end gap-2 pt-4">
-                      <div className="flex gap-2 w-full sm:w-auto">
-                        <Button variant="outline" size="sm" onClick={() => handleEditItem(item)} className="flex-1 sm:flex-none">
-                          <Edit3 className="mr-2 h-4 w-4" /> Ubah
-                        </Button>
-                        <AlertDialogTrigger asChild>
-                            <Button variant="destructive" size="sm" onClick={() => handleDeleteConfirmation(item)} className="flex-1 sm:flex-none">
-                                <Trash2 className="mr-2 h-4 w-4" /> Hapus
-                            </Button>
-                        </AlertDialogTrigger>
-                      </div>
-                      {item.status === 'Menunggu' && (
-                        <Button size="sm" onClick={() => handleStatusChange(item, 'Dalam Layanan')} className="w-full sm:w-auto">
-                          Mulai Layanan
-                        </Button>
-                      )}
-                      {item.status === 'Dalam Layanan' && (
-                        <Button size="sm" variant="secondary" onClick={() => handleStatusChange(item, 'Selesai')} className="w-full sm:w-auto">
-                          Tandai Selesai
-                        </Button>
-                      )}
-                    </CardFooter>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                        <CardDescription>{item.vehicleInfo} - {item.service}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="flex-grow">
+                        <div className="text-sm text-muted-foreground mb-1">
+                          Estimasi: {item.estimatedTime}
+                        </div>
+                        {item.staff && (
+                          <div className="text-sm text-muted-foreground flex items-center">
+                            <Avatar className="h-5 w-5 mr-2">
+                               <AvatarImage src={`https://placehold.co/40x40.png?text=${item.staff.substring(0,1)}`} data-ai-hint="avatar karyawan" />
+                               <AvatarFallback>{item.staff.substring(0,1)}</AvatarFallback>
+                            </Avatar>
+                            Staf: {item.staff}
+                          </div>
+                        )}
+                         <div className="text-xs text-muted-foreground mt-1">
+                          Masuk: {item.createdAt?.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </CardContent>
+                      <CardFooter className="flex flex-col sm:flex-row justify-end gap-2 pt-4">
+                        <div className="flex gap-2 w-full sm:w-auto">
+                          <Button variant="outline" size="sm" onClick={() => handleEditItem(item)} className="flex-1 sm:flex-none">
+                            <Edit3 className="mr-2 h-4 w-4" /> Ubah
+                          </Button>
+                          <AlertDialogTrigger asChild>
+                              <Button variant="destructive" size="sm" onClick={() => handleDeleteConfirmation(item)} className="flex-1 sm:flex-none">
+                                  <Trash2 className="mr-2 h-4 w-4" /> Hapus
+                              </Button>
+                          </AlertDialogTrigger>
+                        </div>
+                        {item.status === 'Menunggu' && (
+                          <Button size="sm" onClick={() => handleStatusChange(item, 'Dalam Layanan')} className="w-full sm:w-auto">
+                            Mulai Layanan
+                          </Button>
+                        )}
+                        {item.status === 'Dalam Layanan' && (
+                          <Button size="sm" variant="secondary" onClick={() => handleStatusChange(item, 'Selesai')} className="w-full sm:w-auto">
+                            Tandai Selesai
+                          </Button>
+                        )}
+                      </CardFooter>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <AlertDialogContent>
+              <AlertDialogHeader>
+              <AlertDialogTitle>Konfirmasi Penghapusan</AlertDialogTitle>
+              <AlertDialogDescription>
+                  Apakah Anda yakin ingin menghapus item antrian untuk "{itemToDelete?.customerName}"? Tindakan ini tidak dapat diurungkan.
+              </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setItemToDelete(null)}>Batal</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteItem} disabled={isSubmitting} className={buttonVariants({variant: "destructive"})}>
+                  {isSubmitting && itemToDelete ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Hapus
+              </AlertDialogAction>
+              </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <Dialog open={isFormDialogOpen} onOpenChange={(openState) => {
             setIsFormDialogOpen(openState);
-            if (!openState) { // Jika dialog ditutup (baik oleh tombol batal atau klik di luar)
-                setCurrentEditingItem(null); // Reset mode edit
+            if (!openState) { 
+                setCurrentEditingItem(null); 
             }
         }}>
           <DialogContent className="sm:max-w-lg">
@@ -462,29 +478,7 @@ export default function QueuePage() {
             />
           </DialogContent>
         </Dialog>
-
-        <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                <AlertDialogTitle>Konfirmasi Penghapusan</AlertDialogTitle>
-                <AlertDialogDescription>
-                    Apakah Anda yakin ingin menghapus item antrian untuk "{itemToDelete?.customerName}"? Tindakan ini tidak dapat diurungkan.
-                </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setItemToDelete(null)}>Batal</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDeleteItem} disabled={isSubmitting} className={buttonVariants({variant: "destructive"})}>
-                    {isSubmitting && itemToDelete ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    Hapus
-                </AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
-
       </main>
     </div>
   );
 }
-
-
-    
