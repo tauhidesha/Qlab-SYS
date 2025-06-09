@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, Palette, BarChartBig, Settings, Clipboard, Banknote, CalendarDays, Bike } from 'lucide-react';
+import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, BarChartBig, Settings, Clipboard, Banknote, CalendarDays } from 'lucide-react'; // Palette dihapus
 
 export interface NavItem {
   title: string;
@@ -20,12 +20,12 @@ export const mainNavItems: NavItem[] = [
     icon: LayoutDashboard,
     description: 'Overview of workshop activities.',
   },
-  {
-    title: 'AI Visualizer',
-    href: '/ai-visualizer',
-    icon: Palette,
-    description: 'Visualize vehicle repaints.',
-  },
+  // { // AI Visualizer dihapus
+  //   title: 'AI Visualizer',
+  //   href: '/ai-visualizer',
+  //   icon: Palette,
+  //   description: 'Visualize vehicle repaints.',
+  // },
   {
     title: 'Point of Sale',
     href: '/pos',
