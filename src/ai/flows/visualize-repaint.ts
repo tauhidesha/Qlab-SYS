@@ -1,3 +1,4 @@
+
 // src/ai/flows/visualize-repaint.ts
 'use server';
 /**
@@ -55,8 +56,9 @@ const visualizeRepaintFlow = ai.defineFlow(
     outputSchema: VisualizeRepaintOutputSchema,
   },
   async input => {
+    const renderedPromptContent = await visualizeRepaintPrompt.render(input);
     const {media} = await ai.generate({
-      prompt: visualizeRepaintPrompt.prompt(input),
+      prompt: renderedPromptContent,
       model: 'googleai/gemini-2.0-flash-exp',
       config: {
         responseModalities: ['TEXT', 'IMAGE'],
@@ -66,3 +68,4 @@ const visualizeRepaintFlow = ai.defineFlow(
     return {transformedVehiclePhotoDataUri: media.url!};
   }
 );
+
