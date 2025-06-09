@@ -10,7 +10,7 @@ export default function Logo({ className }: { className?: string }) {
     <div className={cn("flex items-center", className)}>
       <Image
         src="/logo.png" // Pastikan file ini ada di public/logo.png
-        alt="QLAB Moto Detailing Laboratory Logo"
+        alt="QLAB POS Logo"
         width={128} // Lebar gambar logo (misalnya 128px) - SESUAIKAN
         height={42} // Tinggi gambar logo (misalnya 42px) - SESUAIKAN
         priority // Penting untuk LCP jika logo terlihat di bagian atas halaman
