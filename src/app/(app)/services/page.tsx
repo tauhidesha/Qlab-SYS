@@ -5,12 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Edit3, Trash2, Wrench, ShoppingBag, Search, Loader2, Gift } from 'lucide-react';
+import { PlusCircle, Edit3, Trash2, Wrench, ShoppingBag, Search, Loader2, Gift, UploadCloud } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, orderBy, deleteDoc, doc } from 'firebase/firestore';
-import { toast } from "@/hooks/use-toast";
+import { collection, getDocs, query, orderBy, deleteDoc, doc, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { useToast } from "@/hooks/use-toast";
 import Link from 'next/link';
 import {
   AlertDialog,
@@ -23,7 +23,18 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogHeader as InfoDialogHeader, // Renamed to avoid conflict
+  DialogContent as InfoDialogContent,
+  DialogTitle as InfoDialogTitle,
+  DialogDescription as InfoDialogDescription,
+  DialogFooter as InfoDialogFooter,
+  DialogTrigger as InfoDialogTrigger,
+  DialogClose
+} from '@/components/ui/dialog';
 import { buttonVariants } from '@/components/ui/button';
+import Papa from 'papaparse';
 
 
 export interface ServiceProduct {
@@ -33,8 +44,8 @@ export interface ServiceProduct {
   category: string;
   price: number;
   description?: string;
-  pointsAwarded?: number; // Poin yang diberikan untuk item ini
-  createdAt?: any; // Added to satisfy Omit in new/edit page
+  pointsAwarded?: number; 
+  createdAt?: any; 
 }
 
 export default function ServicesPage() {
@@ -42,6 +53,11 @@ export default function ServicesPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [itemToDelete, setItemToDelete] = useState<ServiceProduct | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
+
+  const { toast } = useToast();
 
   const fetchItems = async () => {
     setLoading(true);
@@ -88,13 +104,132 @@ export default function ServicesPage() {
     }
   };
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setIsImporting(true);
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: async (results) => {
+          const parsedData = results.data as Array<Record<string, string>>;
+          if (!parsedData || parsedData.length === 0) {
+            toast({ title: "File Kosong", description: "File CSV yang diupload tidak berisi data.", variant: "destructive" });
+            setIsImporting(false);
+            return;
+          }
+
+          // Validate header
+          const expectedHeaders = ['name', 'type', 'category', 'price'];
+          const actualHeaders = Object.keys(parsedData[0]);
+          const missingHeaders = expectedHeaders.filter(h => !actualHeaders.includes(h));
+          if (missingHeaders.length > 0) {
+            toast({
+              title: "Format CSV Salah",
+              description: `Header kolom yang hilang: ${missingHeaders.join(', ')}. Pastikan CSV memiliki kolom: name, type, category, price, description (opsional), pointsAwarded (opsional).`,
+              variant: "destructive",
+              duration: 10000,
+            });
+            setIsImporting(false);
+            return;
+          }
+          
+          const batch = writeBatch(db);
+          let itemsAddedCount = 0;
+          let itemsFailedCount = 0;
+
+          parsedData.forEach((row, index) => {
+            const name = row.name?.trim();
+            const type = row.type?.trim();
+            const category = row.category?.trim();
+            const priceString = row.price?.trim();
+            const description = row.description?.trim() || '';
+            const pointsAwardedString = row.pointsAwarded?.trim();
+
+            if (!name || !type || !category || !priceString) {
+              console.warn(`Baris ${index + 2} dilewati: field wajib tidak lengkap.`);
+              itemsFailedCount++;
+              return;
+            }
+
+            if (type !== 'Layanan' && type !== 'Produk') {
+              console.warn(`Baris ${index + 2} dilewati: tipe tidak valid ('${type}'). Harus 'Layanan' atau 'Produk'.`);
+              itemsFailedCount++;
+              return;
+            }
+            
+            const price = parseFloat(priceString);
+            if (isNaN(price) || price <= 0) {
+              console.warn(`Baris ${index + 2} dilewati: harga tidak valid ('${priceString}').`);
+              itemsFailedCount++;
+              return;
+            }
+            
+            let pointsAwarded = 0;
+            if (pointsAwardedString) {
+                const parsedPoints = parseInt(pointsAwardedString, 10);
+                if (!isNaN(parsedPoints) && parsedPoints >= 0) {
+                    pointsAwarded = parsedPoints;
+                } else {
+                    console.warn(`Baris ${index + 2}: pointsAwarded tidak valid ('${pointsAwardedString}'), akan diabaikan.`);
+                }
+            }
+
+
+            const newItemRef = doc(collection(db, 'services'));
+            batch.set(newItemRef, {
+              name,
+              type,
+              category,
+              price,
+              description,
+              pointsAwarded,
+              createdAt: serverTimestamp(),
+            });
+            itemsAddedCount++;
+          });
+
+          try {
+            await batch.commit();
+            toast({
+              title: "Import Selesai",
+              description: `${itemsAddedCount} item berhasil diimpor. ${itemsFailedCount > 0 ? `${itemsFailedCount} item gagal (cek konsol untuk detail).` : ''}`,
+            });
+            fetchItems(); // Refresh list
+          } catch (error) {
+            console.error("Error importing CSV: ", error);
+            toast({ title: "Error Impor", description: "Gagal menyimpan data ke database.", variant: "destructive" });
+          } finally {
+            setIsImporting(false);
+            if (fileInputRef.current) {
+              fileInputRef.current.value = ""; // Reset file input
+            }
+          }
+        },
+        error: (error: any) => {
+          console.error("Error parsing CSV:", error);
+          toast({ title: "Error Parsing CSV", description: error.message, variant: "destructive" });
+          setIsImporting(false);
+          if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+          }
+        }
+      });
+    }
+  };
+
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
+  };
+
+
   const filteredItems = items.filter(item =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.type.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (loading) {
+  if (loading && !isImporting) {
     return (
       <div className="flex flex-col h-full">
         <AppHeader title="Layanan & Produk" />
@@ -123,11 +258,49 @@ export default function ServicesPage() {
                   <Input
                     type="search"
                     placeholder="Cari item..."
-                    className="pl-8 sm:w-[300px] md:w-[200px] lg:w-[300px]"
+                    className="pl-8 sm:w-[200px] md:w-[150px] lg:w-[250px]"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  accept=".csv"
+                  onChange={handleFileChange}
+                />
+                <Dialog open={isInfoDialogOpen} onOpenChange={setIsInfoDialogOpen}>
+                  <InfoDialogTrigger asChild>
+                    <Button variant="outline" size="sm">Info Format CSV</Button>
+                  </InfoDialogTrigger>
+                  <InfoDialogContent>
+                    <InfoDialogHeader>
+                      <InfoDialogTitle>Format CSV untuk Impor Layanan/Produk</InfoDialogTitle>
+                      <InfoDialogDescription>
+                        Pastikan file CSV Anda memiliki header kolom berikut (urutan tidak masalah, case-sensitive):
+                      </InfoDialogDescription>
+                    </InfoDialogHeader>
+                    <ul className="list-disc list-inside space-y-1 text-sm my-4">
+                      <li><code className="bg-muted px-1 rounded-sm">name</code> (Teks, Wajib) - Nama layanan/produk.</li>
+                      <li><code className="bg-muted px-1 rounded-sm">type</code> (Teks, Wajib) - Harus 'Layanan' atau 'Produk'.</li>
+                      <li><code className="bg-muted px-1 rounded-sm">category</code> (Teks, Wajib) - Kategori item.</li>
+                      <li><code className="bg-muted px-1 rounded-sm">price</code> (Angka, Wajib) - Harga item (contoh: 50000).</li>
+                      <li><code className="bg-muted px-1 rounded-sm">description</code> (Teks, Opsional) - Deskripsi item.</li>
+                      <li><code className="bg-muted px-1 rounded-sm">pointsAwarded</code> (Angka, Opsional) - Poin loyalitas yang diberikan.</li>
+                    </ul>
+                    <p className="text-xs text-muted-foreground">Baris pertama CSV harus berisi nama header. Baris dengan data wajib yang kosong atau format harga/tipe yang salah akan dilewati.</p>
+                    <InfoDialogFooter>
+                      <DialogClose asChild>
+                        <Button type="button" variant="secondary">Tutup</Button>
+                      </DialogClose>
+                    </InfoDialogFooter>
+                  </InfoDialogContent>
+                </Dialog>
+                <Button onClick={triggerFileInput} disabled={isImporting}>
+                  {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
+                  Import CSV
+                </Button>
                 <Button asChild>
                   <Link href="/services/new">
                     <PlusCircle className="mr-2 h-4 w-4" /> Tambah Item Baru
@@ -184,7 +357,7 @@ export default function ServicesPage() {
                   ))}
                 </TableBody>
               </Table>
-               {filteredItems.length === 0 && (
+               {filteredItems.length === 0 && !loading && (
                 <div className="text-center py-10 text-muted-foreground">
                    {items.length > 0 ? 'Tidak ada item yang cocok dengan pencarian Anda.' : 'Tidak ada layanan atau produk yang ditemukan.'}
                    {items.length === 0 && <Link href="/services/new" className="text-primary hover:underline ml-1">Tambah item baru</Link>}
