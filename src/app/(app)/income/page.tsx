@@ -5,7 +5,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Edit3, Trash2, Search, Loader2, DollarSign } from 'lucide-react';
+import { PlusCircle, Edit3, Trash2, Search, Loader2, DollarSign, CreditCard } from 'lucide-react';
 import Link from 'next/link';
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
@@ -27,6 +27,7 @@ import { DatePickerWithRange } from '@/components/ui/date-picker-range';
 import type { DateRange } from "react-day-picker";
 import { format as formatDateFns } from 'date-fns';
 import { id as indonesiaLocale } from 'date-fns/locale';
+import { Badge } from '@/components/ui/badge';
 
 export default function IncomePage() {
   const [incomeEntries, setIncomeEntries] = useState<IncomeEntry[]>([]);
@@ -73,7 +74,7 @@ export default function IncomePage() {
     } finally {
       setLoading(false);
     }
-  }, [dateRange, toast]);
+  }, [dateRange]);
 
   useEffect(() => {
     fetchIncomeEntries();
@@ -103,6 +104,7 @@ export default function IncomePage() {
   const filteredEntries = incomeEntries.filter(entry =>
     entry.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
     entry.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (entry.paymentMethod && entry.paymentMethod.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (entry.notes && entry.notes.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
@@ -163,6 +165,7 @@ export default function IncomePage() {
                     <TableHead>Kategori</TableHead>
                     <TableHead>Deskripsi</TableHead>
                     <TableHead className="text-right">Jumlah (Rp)</TableHead>
+                    <TableHead className="text-center">Metode Terima</TableHead>
                     <TableHead>Catatan</TableHead>
                     <TableHead className="text-right w-[100px]">Aksi</TableHead>
                   </TableRow>
@@ -172,9 +175,16 @@ export default function IncomePage() {
                     <TableRow key={entry.id}>
                       <TableCell>{formatTimestampToDateString(entry.date)}</TableCell>
                       <TableCell>{entry.category}</TableCell>
-                      <TableCell className="font-medium max-w-[300px] truncate">{entry.description}</TableCell>
+                      <TableCell className="font-medium max-w-[250px] truncate">{entry.description}</TableCell>
                       <TableCell className="text-right">{entry.amount.toLocaleString('id-ID')}</TableCell>
-                      <TableCell className="text-xs max-w-[200px] truncate">{entry.notes || '-'}</TableCell>
+                       <TableCell className="text-center">
+                        {entry.paymentMethod ? (
+                          <Badge variant={entry.paymentMethod === "Tunai" ? "secondary" : "outline"} className="text-xs">
+                            <CreditCard className="mr-1 h-3 w-3"/>{entry.paymentMethod}
+                          </Badge>
+                        ) : '-'}
+                      </TableCell>
+                      <TableCell className="text-xs max-w-[150px] truncate">{entry.notes || '-'}</TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="icon" asChild className="hover:text-primary">
                           <Link href={`/income/${entry.id}/edit`}>
@@ -228,3 +238,4 @@ export default function IncomePage() {
     </div>
   );
 }
+

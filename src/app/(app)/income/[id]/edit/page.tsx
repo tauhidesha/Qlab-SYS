@@ -13,12 +13,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Save, Loader2, ArrowLeft, DollarSign, CalendarDays, Tag, StickyNote, Link as LinkIcon } from 'lucide-react';
+import { Save, Loader2, ArrowLeft, DollarSign, CalendarDays, Tag, StickyNote, Link as LinkIcon, CreditCard } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { type IncomeEntry, type IncomeFormData, INCOME_CATEGORIES } from '@/types/income';
+import { type IncomeEntry, type IncomeFormData, INCOME_CATEGORIES, INCOME_PAYMENT_METHODS, type IncomePaymentMethod } from '@/types/income';
 import { DatePickerSingle } from '@/components/ui/date-picker-single';
 
 const incomeFormSchema = z.object({
@@ -34,6 +34,7 @@ const incomeFormSchema = z.object({
     z.number({ required_error: "Jumlah pemasukan diperlukan", invalid_type_error: "Jumlah harus berupa angka" })
      .positive("Jumlah pemasukan harus angka positif")
   ),
+  paymentMethod: z.enum(INCOME_PAYMENT_METHODS).optional(),
   receiptUrl: z.string().url("URL bukti tidak valid. Pastikan menyertakan http:// atau https://").optional().or(z.literal('')),
   notes: z.string().max(500, "Catatan maksimal 500 karakter").optional(),
 });
@@ -57,6 +58,7 @@ export default function EditIncomePage() {
       category: undefined,
       description: '',
       amount: undefined,
+      paymentMethod: "Tunai",
       receiptUrl: '',
       notes: '',
     },
@@ -84,6 +86,7 @@ export default function EditIncomePage() {
             category: incomeData.category,
             description: incomeData.description,
             amount: incomeData.amount,
+            paymentMethod: incomeData.paymentMethod || "Tunai",
             receiptUrl: incomeData.receiptUrl || '',
             notes: incomeData.notes || '',
           });
@@ -242,6 +245,28 @@ export default function EditIncomePage() {
                     </FormItem>
                   )}
                 />
+                <FormField
+                  control={form.control}
+                  name="paymentMethod"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center"><CreditCard className="mr-2 h-4 w-4 text-muted-foreground"/>Metode Penerimaan</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Pilih metode penerimaan" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {INCOME_PAYMENT_METHODS.map(method => (
+                            <SelectItem key={method} value={method}>{method}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                  <FormField
                   control={form.control}
                   name="receiptUrl"
@@ -291,3 +316,4 @@ export default function EditIncomePage() {
     </div>
   );
 }
+

@@ -12,12 +12,16 @@ export const INCOME_CATEGORIES = [
 
 export type IncomeCategory = typeof INCOME_CATEGORIES[number];
 
+export const INCOME_PAYMENT_METHODS = ["Tunai", "Transfer Bank"] as const;
+export type IncomePaymentMethod = typeof INCOME_PAYMENT_METHODS[number];
+
 export interface IncomeEntry {
   id: string; // Firestore document ID
   date: Timestamp; // Tanggal pemasukan
   category: IncomeCategory;
   description: string; // Deskripsi pemasukan
   amount: number; // Jumlah pemasukan
+  paymentMethod?: IncomePaymentMethod; // Metode penerimaan
   receiptUrl?: string; // Opsional, URL ke bukti pemasukan
   notes?: string; // Catatan tambahan
   createdAt: Timestamp;
@@ -30,6 +34,8 @@ export interface IncomeFormData {
   category: IncomeCategory;
   description: string;
   amount: number;
+  paymentMethod?: IncomePaymentMethod;
   receiptUrl?: string;
   notes?: string;
 }
+

@@ -1,6 +1,6 @@
 
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, BarChartBig, Settings, Clipboard, Banknote, CalendarDays, ClipboardList, Percent, ReceiptText, Landmark, DollarSign, TrendingUp, History, ArrowRightLeft } from 'lucide-react'; // Added ArrowRightLeft for Cash Deposit
+import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, BarChartBig, Settings, Clipboard, Banknote, CalendarDays, ClipboardList, Percent, ReceiptText, Landmark, DollarSign, TrendingUp, History, ArrowRightLeft, FileText } from 'lucide-react'; // Added FileText for Laporan Arus Kas
 
 export interface NavItem {
   title: string;
@@ -65,9 +65,9 @@ export const mainNavItems: NavItem[] = [
         description: 'Catat dan kelola pengeluaran bengkel.',
       },
       {
-        title: 'Setoran Kas', // Menu baru untuk setoran kas
+        title: 'Setoran Kas', 
         href: '/finance/cash-deposit',
-        icon: ArrowRightLeft, // Ikon baru untuk transfer/setoran
+        icon: ArrowRightLeft, 
         description: 'Catat setoran uang tunai ke bank.',
       },
       {
@@ -88,7 +88,13 @@ export const mainNavItems: NavItem[] = [
             href: '/reports/profit-loss', 
             icon: TrendingUp, 
             description: 'Analisis laba rugi per bulan.'
-          }
+          },
+          {
+            title: 'Arus Kas',
+            href: '/reports/cash-flow',
+            icon: FileText, // Menggunakan FileText untuk laporan arus kas
+            description: 'Analisis arus kas masuk dan keluar.',
+          },
         ]
       },
     ],
