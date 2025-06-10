@@ -48,6 +48,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
 const MINIMUM_POINTS_TO_REDEEM = 100; 
@@ -65,8 +66,9 @@ export default function PosPage() {
   const [availableItems, setAvailableItems] = useState<ServiceProduct[]>([]);
   const [loadingCatalogItems, setLoadingCatalogItems] = useState(true);
   const [selectedCatalogItemId, setSelectedCatalogItemId] = useState<string>('');
-  // ItemName, itemPrice, itemType, itemPointsAwarded states are implicitly handled by selectedCatalogItemId and availableItems lookup
   const [itemQuantity, setItemQuantity] = useState<number | string>(1);
+  const [itemCategories, setItemCategories] = useState<string[]>([]);
+  const [selectedItemCategoryTab, setSelectedItemCategoryTab] = useState<string>("Semua");
 
 
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
@@ -129,6 +131,11 @@ export default function PosPage() {
             const querySnapshot = await getDocs(q);
             const itemsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceProduct));
             setAvailableItems(itemsData);
+            
+            // Extract unique categories
+            const uniqueCategories = Array.from(new Set(itemsData.map(item => item.category).filter(Boolean)));
+            setItemCategories(["Semua", ...uniqueCategories]);
+
         } catch (error) {
             console.error("Error fetching available items: ", error);
             toast({
@@ -142,6 +149,19 @@ export default function PosPage() {
     };
     fetchAvailableItems();
   }, [toast]);
+
+  const filteredGalleryItems = useMemo(() => {
+    if (selectedItemCategoryTab === "Semua") {
+      return availableItems;
+    }
+    return availableItems.filter(item => item.category === selectedItemCategoryTab);
+  }, [availableItems, selectedItemCategoryTab]);
+
+  const handleCategoryTabChange = (category: string) => {
+    setSelectedItemCategoryTab(category);
+    setSelectedCatalogItemId(''); // Reset selected item when category changes
+    setItemQuantity(1);
+  };
 
   useEffect(() => {
     const fetchClients = async () => {
@@ -191,12 +211,11 @@ export default function PosPage() {
   const resetAddItemForm = () => {
     setSelectedCatalogItemId('');
     setItemQuantity(1);
+    setSelectedItemCategoryTab("Semua"); // Reset tab on close/success
   };
   
   const handleSelectGalleryItem = (item: ServiceProduct) => {
     setSelectedCatalogItemId(item.id);
-    // The item's name, price, type, points are implicitly selected via its ID.
-    // Quantity input can be focused here if desired.
   };
 
   const handleAddItemToTransaction = async () => {
@@ -659,7 +678,6 @@ export default function PosPage() {
         setSelectedClientDetails(null);
       }
       setTransactionToDelete(null);
-      // onSnapshot will update the list
     } catch (error) {
       console.error("Error deleting transaction: ", error);
       toast({
@@ -982,7 +1000,7 @@ export default function PosPage() {
             setIsAddItemDialogOpen(isOpen);
             if (!isOpen) resetAddItemForm();
         }}>
-          <DialogContent className="sm:max-w-2xl md:max-w-3xl"> {/* Dialog lebih lebar */}
+          <DialogContent className="sm:max-w-2xl md:max-w-3xl">
             <DialogHeader>
               <DialogTitle>Tambah Item ke Transaksi</DialogTitle>
               <DialogDescription>Untuk {selectedTransaction.customerName}. Pilih item dari galeri di bawah.</DialogDescription>
@@ -996,38 +1014,50 @@ export default function PosPage() {
               ) : availableItems.length === 0 ? (
                  <p className="text-center text-muted-foreground">Tidak ada item di katalog.</p>
               ) : (
-                <ScrollArea className="h-72 pr-3"> {/* ScrollArea untuk galeri */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {availableItems.map(item => (
-                      <Card
-                        key={item.id}
-                        onClick={() => handleSelectGalleryItem(item)}
-                        className={cn(
-                          "cursor-pointer hover:shadow-lg transition-shadow duration-150 flex flex-col",
-                          selectedCatalogItemId === item.id && "ring-2 ring-primary shadow-lg"
-                        )}
-                      >
-                        <CardHeader className="p-3 flex-grow">
-                          <CardTitle className="text-sm md:text-base line-clamp-2">{item.name}</CardTitle>
-                          <CardDescription className="text-xs md:text-sm">Rp {item.price.toLocaleString('id-ID')}</CardDescription>
-                        </CardHeader>
-                        <CardContent className="p-3 pt-0 text-xs">
-                          <Badge 
-                            variant={item.type === 'Layanan' ? 'default' : 'secondary'} 
-                            className="mb-1 capitalize text-xs px-1.5 py-0.5 h-auto"
-                          >
-                            {item.type}
-                          </Badge>
-                          {item.pointsAwarded && item.pointsAwarded > 0 && (
-                            <div className="flex items-center text-muted-foreground">
-                              <Gift className="mr-1 h-3 w-3 text-yellow-500" /> {item.pointsAwarded} pts
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
+                <Tabs value={selectedItemCategoryTab} onValueChange={handleCategoryTabChange}>
+                  <TabsList className="mb-4">
+                    {itemCategories.map(category => (
+                      <TabsTrigger key={category} value={category}>{category}</TabsTrigger>
                     ))}
-                  </div>
-                </ScrollArea>
+                  </TabsList>
+                  <ScrollArea className="h-72 pr-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {filteredGalleryItems.map(item => (
+                        <Card
+                          key={item.id}
+                          onClick={() => handleSelectGalleryItem(item)}
+                          className={cn(
+                            "cursor-pointer hover:shadow-lg transition-shadow duration-150 flex flex-col",
+                            selectedCatalogItemId === item.id && "ring-2 ring-primary shadow-lg"
+                          )}
+                        >
+                          <CardHeader className="p-3 flex-grow">
+                            <CardTitle className="text-sm md:text-base line-clamp-2">{item.name}</CardTitle>
+                            <CardDescription className="text-xs md:text-sm">Rp {item.price.toLocaleString('id-ID')}</CardDescription>
+                          </CardHeader>
+                          <CardContent className="p-3 pt-0 text-xs">
+                            <Badge 
+                              variant={item.type === 'Layanan' ? 'default' : 'secondary'} 
+                              className="mb-1 capitalize text-xs px-1.5 py-0.5 h-auto"
+                            >
+                              {item.type}
+                            </Badge>
+                            {item.pointsAwarded && item.pointsAwarded > 0 && (
+                              <div className="flex items-center text-muted-foreground">
+                                <Gift className="mr-1 h-3 w-3 text-yellow-500" /> {item.pointsAwarded} pts
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
+                      {filteredGalleryItems.length === 0 && selectedItemCategoryTab !== "Semua" && (
+                        <p className="col-span-full text-center text-muted-foreground py-4">
+                          Tidak ada item dalam kategori "{selectedItemCategoryTab}".
+                        </p>
+                      )}
+                    </div>
+                  </ScrollArea>
+                </Tabs>
               )}
               
               {selectedCatalogItemId && availableItems.find(i => i.id === selectedCatalogItemId) && (
@@ -1217,5 +1247,7 @@ export default function PosPage() {
     </div>
   );
 }
+
+    
 
     
