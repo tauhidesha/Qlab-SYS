@@ -12,14 +12,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Save, Loader2, ArrowLeft, Phone, DollarSign, Percent, Image as ImageIcon, UploadCloud, Trash2 } from 'lucide-react';
-import { db, app } from '@/lib/firebase'; // Pastikan 'app' diekspor dari firebase.ts
+import { Save, Loader2, ArrowLeft, Phone, DollarSign, Percent, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { db, app } from '@/lib/firebase'; 
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { STAFF_ROLES, type StaffRole, type StaffMember } from '@/types/staff';
-import { v4 as uuidv4 } from 'uuid'; // Untuk nama file unik
+import { STAFF_ROLES, type StaffMember } from '@/types/staff';
+import { v4 as uuidv4 } from 'uuid'; 
 
 const staffFormSchema = z.object({
   name: z.string().min(2, "Nama staf minimal 2 karakter").max(50, "Nama staf maksimal 50 karakter"),
@@ -118,30 +118,18 @@ export default function EditStaffPage() {
         setImagePreview(reader.result as string);
       };
       reader.readAsDataURL(file);
-      form.setValue('photoUrl', ''); // Kosongkan field photoUrl di form jika ada file baru
+      form.setValue('photoUrl', ''); 
     }
   };
 
   const handleRemoveImage = async () => {
     setSelectedFile(null);
     setImagePreview(null);
-    form.setValue('photoUrl', ''); // Hapus URL dari form juga
-
-    // Jika ada existingPhotoUrl dan ingin menghapusnya dari storage (opsional)
-    // if (existingPhotoUrl) {
-    //   try {
-    //     const storage = getStorage(app);
-    //     const imageRef = storageRef(storage, existingPhotoUrl); // Perlu cara untuk mendapatkan path dari URL
-    //     await deleteObject(imageRef);
-    //     toast({ title: "Info", description: "Foto lama dihapus dari storage." });
-    //   } catch (error) {
-    //     console.warn("Gagal menghapus foto lama dari storage:", error);
-    //   }
-    // }
-    setExistingPhotoUrl(null); // Hapus dari state
+    form.setValue('photoUrl', ''); 
+    setExistingPhotoUrl(null); 
     const fileInput = document.getElementById('photo-upload') as HTMLInputElement;
     if (fileInput) {
-        fileInput.value = ""; // Reset file input
+        fileInput.value = ""; 
     }
   };
 
@@ -149,12 +137,12 @@ export default function EditStaffPage() {
   const onSubmit = async (data: StaffFormValues) => {
     if (!staffId) return;
     setIsSubmitting(true);
-    let finalPhotoUrl = data.photoUrl || ''; // Ambil dari form jika tidak ada file baru
+    let finalPhotoUrl = data.photoUrl || ''; 
 
     try {
       const staffDocRef = doc(db, 'staffMembers', staffId);
 
-      if (selectedFile) { // Jika ada file baru yang dipilih untuk diupload
+      if (selectedFile) { 
         const storage = getStorage(app);
         const uniqueFileName = `${uuidv4()}-${selectedFile.name}`;
         const imagePath = `staff_photos/${staffId}/${uniqueFileName}`;
@@ -165,23 +153,8 @@ export default function EditStaffPage() {
         finalPhotoUrl = await getDownloadURL(imageStorageRef);
         toast({ title: "Upload Berhasil", description: "Gambar staf berhasil diupload." });
 
-        // Hapus foto lama dari storage jika ada dan foto baru diupload
-        // if (existingPhotoUrl && existingPhotoUrl !== finalPhotoUrl) {
-        //   try {
-        //     const oldImageRef = storageRef(storage, existingPhotoUrl); // Perlu cara konversi URL ke ref yg benar
-        //     await deleteObject(oldImageRef);
-        //     toast({ title: "Info", description: "Foto lama telah dihapus dari storage." });
-        //   } catch (err) {
-        //     console.warn("Gagal menghapus foto lama dari storage:", err);
-        //   }
-        // }
-
       } else if (data.photoUrl === '' && existingPhotoUrl) {
-        // Kasus dimana gambar dihapus (form.setValue('photoUrl', '') dipanggil oleh handleRemoveImage)
-        // dan tidak ada file baru yang dipilih
-        finalPhotoUrl = ''; // Pastikan photoUrl dikosongkan di Firestore
-        // Penghapusan file dari storage bisa ditambahkan di sini jika diinginkan,
-        // tapi untuk sekarang kita hanya mengosongkan URL di Firestore.
+        finalPhotoUrl = ''; 
       }
 
 
@@ -191,7 +164,7 @@ export default function EditStaffPage() {
         phone: data.phone || undefined,
         baseSalary: data.baseSalary,
         profitSharePercentage: data.profitSharePercentage,
-        photoUrl: finalPhotoUrl || undefined, // Simpan URL baru atau kosongkan
+        photoUrl: finalPhotoUrl || undefined, 
         updatedAt: serverTimestamp(),
       };
       
@@ -202,9 +175,8 @@ export default function EditStaffPage() {
         }
       });
        if (updateData.photoUrl === undefined) {
-         updateData.photoUrl = ''; // Pastikan dikirim sebagai string kosong jika undefined
+         updateData.photoUrl = ''; 
        }
-
 
       await updateDoc(staffDocRef, updateData);
       toast({
@@ -373,17 +345,16 @@ export default function EditStaffPage() {
                           type="file" 
                           accept="image/*" 
                           onChange={handleFileChange} 
-                          className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                          className="block flex-grow text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
                         />
                     </FormControl>
-                     {(imagePreview || selectedFile) && ( // Tampilkan tombol hapus jika ada preview atau file dipilih
-                      <Button type="button" variant="ghost" size="icon" onClick={handleRemoveImage} title="Hapus gambar">
+                     {(imagePreview || selectedFile) && ( 
+                      <Button type="button" variant="ghost" size="icon" onClick={handleRemoveImage} title="Hapus gambar" className="flex-shrink-0">
                         <Trash2 className="h-5 w-5 text-destructive" />
                       </Button>
                     )}
                   </div>
                    <p className="text-xs text-muted-foreground mt-1">Upload file gambar baru (JPG, PNG, GIF). Maks 2MB. Jika tidak ada file baru dipilih, foto lama akan dipertahankan kecuali dihapus.</p>
-                  {/* Field photoUrl di form tidak lagi ditampilkan langsung, dikelola oleh state */}
                   <FormMessage>{form.formState.errors.photoUrl?.message}</FormMessage>
                 </FormItem>
 
@@ -410,4 +381,3 @@ export default function EditStaffPage() {
     </div>
   );
 }
-

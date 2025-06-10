@@ -12,14 +12,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Save, Loader2, ArrowLeft, Phone, DollarSign, Percent, Image as ImageIcon, UploadCloud, Trash2 } from 'lucide-react';
-import { db, app } from '@/lib/firebase'; // Pastikan 'app' diekspor dari firebase.ts
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
-import { collection, addDoc, serverTimestamp, doc } from 'firebase/firestore'; // Import 'doc'
+import { Save, Loader2, ArrowLeft, Phone, DollarSign, Percent, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { db, app } from '@/lib/firebase';
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+import { collection, addDoc, serverTimestamp, doc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { STAFF_ROLES, type NewStaffMemberData, type StaffRole } from '@/types/staff';
-import { v4 as uuidv4 } from 'uuid'; // Untuk nama file unik
+import { STAFF_ROLES, type NewStaffMemberData } from '@/types/staff';
+import { v4 as uuidv4 } from 'uuid';
 
 const staffFormSchema = z.object({
   name: z.string().min(2, "Nama staf minimal 2 karakter").max(50, "Nama staf maksimal 50 karakter"),
@@ -33,7 +33,7 @@ const staffFormSchema = z.object({
     (val) => (val === "" || val === undefined || val === null) ? undefined : parseInt(String(val), 10),
     z.number({ invalid_type_error: "Persentase harus angka" }).min(0, "Minimal 0%").max(100, "Maksimal 100%").optional()
   ),
-  photoUrl: z.string().url("URL foto tidak valid").optional().or(z.literal('')), // Tetap string untuk URL hasil upload
+  photoUrl: z.string().url("URL foto tidak valid").optional().or(z.literal('')),
 });
 
 type StaffFormValues = z.infer<typeof staffFormSchema>;
@@ -66,17 +66,17 @@ export default function NewStaffPage() {
         setImagePreview(reader.result as string);
       };
       reader.readAsDataURL(file);
-      form.setValue('photoUrl', ''); // Kosongkan photoUrl jika ada file baru, nanti diisi URL dari storage
+      form.setValue('photoUrl', ''); 
     }
   };
 
   const handleRemoveImage = () => {
     setSelectedFile(null);
     setImagePreview(null);
-    form.setValue('photoUrl', ''); // Hapus juga URL yang mungkin sudah ada
+    form.setValue('photoUrl', ''); 
     const fileInput = document.getElementById('photo-upload') as HTMLInputElement;
     if (fileInput) {
-        fileInput.value = ""; // Reset file input
+        fileInput.value = ""; 
     }
   };
 
@@ -85,7 +85,6 @@ export default function NewStaffPage() {
     let finalPhotoUrl = '';
 
     try {
-      // Generate a new ID for the staff member document first
       const newStaffDocRef = doc(collection(db, 'staffMembers'));
       const staffId = newStaffDocRef.id;
 
@@ -112,11 +111,11 @@ export default function NewStaffPage() {
       }
       if (data.phone && data.phone.trim() !== '') newStaffEntry.phone = data.phone;
       if (typeof data.baseSalary === 'number' && !isNaN(data.baseSalary)) newStaffEntry.baseSalary = data.baseSalary;
-      if (typeof data.profitSharePercentage === 'number' && !isNaN(data.profitSharePercentage)) newStaffEntry.profitSharePercentage = data.profitSharePercentage;
+      if (typeof data.profitSharePercentage === 'number' && !isNaN(data.profitSharePercentage)) {
+        newStaffEntry.profitSharePercentage = data.profitSharePercentage;
+      }
       
-      // Use setDoc with the generated ref to ensure the ID is what we used for the photo path
       await addDoc(collection(db, 'staffMembers'), newStaffEntry);
-
 
       toast({
         title: "Sukses!",
@@ -258,11 +257,11 @@ export default function NewStaffPage() {
                           type="file" 
                           accept="image/*" 
                           onChange={handleFileChange} 
-                          className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                          className="block flex-grow text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
                         />
                     </FormControl>
                     {(imagePreview || selectedFile) && (
-                      <Button type="button" variant="ghost" size="icon" onClick={handleRemoveImage} title="Hapus gambar">
+                      <Button type="button" variant="ghost" size="icon" onClick={handleRemoveImage} title="Hapus gambar" className="flex-shrink-0">
                         <Trash2 className="h-5 w-5 text-destructive" />
                       </Button>
                     )}
