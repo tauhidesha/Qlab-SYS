@@ -8,7 +8,7 @@ import { Banknote, FileText, Download, Loader2, Eye, CheckCircle, Save, UserPlus
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, orderBy, doc, updateDoc, addDoc, serverTimestamp, Timestamp, writeBatch, getDoc, limit, DocumentData } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy, doc, updateDoc, addDoc, serverTimestamp, Timestamp, writeBatch, getDoc, limit, DocumentData, deleteField } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -506,7 +506,7 @@ export default function PayrollPage() {
 
   const calculateDeductionsAndNetPay = async (staff: StaffMember, period: string, manualDeductionsInput: number = 0): Promise<Partial<PayrollEntry>> => {
     const periodDates = parsePeriodToDateRange(period);
-    if (!periodDates) return { baseSalary: staff.baseSalary || 0, totalDeductions: manualDeductionsInput, netPay: (staff.baseSalary || 0) - manualDeductionsInput, calculationDetails: "Periode tidak valid." };
+    if (!periodDates) return { baseSalary: staff.baseSalary || 0, totalDeductions: manualDeductionsInput, netPay: (staff.baseSalary || 0) - manualDeductionsInput, calculationDetails: "Periode tidak valid.", profitShareReceivedThisPeriod: 0 };
 
     const { startDate, endDate } = periodDates;
     let latenessDeduction = 0;
@@ -515,7 +515,6 @@ export default function PayrollPage() {
     let profitShareReceivedThisPeriod = 0;
     let calculationDetails = "";
 
-    // Fetch Daily Profit Shares for this period
     const profitShareQuery = query(
       collection(db, 'dailyProfitShares'),
       where("staffId", "==", staff.id),
@@ -647,7 +646,7 @@ export default function PayrollPage() {
         latenessDeduction,
         absenceDeduction,
         telatBukaDeduction: telatBukaDeductionTotalForStaff,
-        profitShareReceivedThisPeriod: profitShareReceivedThisPeriod > 0 ? profitShareReceivedThisPeriod : undefined,
+        profitShareReceivedThisPeriod: profitShareReceivedThisPeriod,
         manualDeductions: manualDeductionsInput || 0,
         totalDeductions,
         netPay,
@@ -676,40 +675,60 @@ export default function PayrollPage() {
           const existingEntry = data.find(p => p.staffId === staff.id);
           const calculatedData = await calculateDeductionsAndNetPay(staff, period, existingEntry?.manualDeductions || 0);
           
-          const updatePayload: Partial<PayrollEntry> & {updatedAt?: any} = { ...calculatedData };
-          if (existingEntry?.status === 'Dibayar') {
-            updatePayload.status = 'Dibayar'; // Preserve 'Dibayar' status
-          } else {
-            updatePayload.status = 'Tertunda';
+          const corePayrollValues: any = { // Use any for temp flexibility, or define a more precise intermediate type
+            baseSalary: calculatedData.baseSalary ?? 0,
+            latenessDeduction: calculatedData.latenessDeduction ?? 0,
+            absenceDeduction: calculatedData.absenceDeduction ?? 0,
+            telatBukaDeduction: calculatedData.telatBukaDeduction ?? 0,
+            profitShareReceivedThisPeriod: calculatedData.profitShareReceivedThisPeriod ?? 0,
+            manualDeductions: calculatedData.manualDeductions ?? 0,
+            totalDeductions: calculatedData.totalDeductions ?? 0,
+            netPay: calculatedData.netPay ?? 0,
+            calculationDetails: calculatedData.calculationDetails ?? "Tidak ada detail.",
+          };
+          if (calculatedData.totalHours !== undefined) {
+            corePayrollValues.totalHours = calculatedData.totalHours;
           }
-          updatePayload.updatedAt = serverTimestamp();
 
 
           if (existingEntry) {
             if (existingEntry.status !== 'Dibayar' || 
-                existingEntry.latenessDeduction !== calculatedData.latenessDeduction ||
-                existingEntry.absenceDeduction !== calculatedData.absenceDeduction ||
-                existingEntry.telatBukaDeduction !== calculatedData.telatBukaDeduction ||
-                existingEntry.totalDeductions !== calculatedData.totalDeductions ||
-                existingEntry.netPay !== calculatedData.netPay ||
-                existingEntry.profitShareReceivedThisPeriod !== calculatedData.profitShareReceivedThisPeriod
+                existingEntry.latenessDeduction !== corePayrollValues.latenessDeduction ||
+                existingEntry.absenceDeduction !== corePayrollValues.absenceDeduction ||
+                existingEntry.telatBukaDeduction !== corePayrollValues.telatBukaDeduction ||
+                (existingEntry.profitShareReceivedThisPeriod ?? 0) !== corePayrollValues.profitShareReceivedThisPeriod ||
+                existingEntry.totalDeductions !== corePayrollValues.totalDeductions ||
+                existingEntry.netPay !== corePayrollValues.netPay
             ) {
               const entryDocRef = doc(db, 'payrollData', existingEntry.id);
-              batch.update(entryDocRef, updatePayload);
+              const updateDataForFirestore: any = {
+                ...corePayrollValues,
+                staffId: staff.id, 
+                staffName: staff.name,
+                period: period,
+                status: (existingEntry.status === 'Dibayar' ? 'Dibayar' : 'Tertunda') as PayrollEntry['status'],
+                updatedAt: serverTimestamp()
+              };
+               if (updateDataForFirestore.totalHours === undefined) delete updateDataForFirestore.totalHours;
+
+              batch.update(entryDocRef, updateDataForFirestore);
               entriesModified = true;
             }
           } else {
             const newDocRef = doc(collection(db, 'payrollData'));
-            batch.set(newDocRef, {
-              staffId: staff.id,
-              staffName: staff.name,
-              period: period,
-              totalHours: 0, 
-              ...calculatedData,
-              status: 'Tertunda', 
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp(),
-            });
+            const newEntryData: any = {
+                ...corePayrollValues,
+                staffId: staff.id,
+                staffName: staff.name,
+                period: period,
+                status: 'Tertunda' as PayrollEntry['status'],
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+            };
+            if (newEntryData.totalHours === undefined) {
+                delete newEntryData.totalHours;
+            }
+            batch.set(newDocRef, newEntryData);
             entriesModified = true;
           }
         }
@@ -762,15 +781,20 @@ export default function PayrollPage() {
         baseSalary: data.baseSalary,
         totalHours: data.totalHours,
         manualDeductions: data.manualDeductions,
-        latenessDeduction: calculatedData.latenessDeduction,
-        absenceDeduction: calculatedData.absenceDeduction,
-        telatBukaDeduction: calculatedData.telatBukaDeduction,
-        profitShareReceivedThisPeriod: calculatedData.profitShareReceivedThisPeriod,
-        totalDeductions: calculatedData.totalDeductions as number,
-        netPay: calculatedData.netPay as number,
+        latenessDeduction: calculatedData.latenessDeduction ?? 0,
+        absenceDeduction: calculatedData.absenceDeduction ?? 0,
+        telatBukaDeduction: calculatedData.telatBukaDeduction ?? 0,
+        profitShareReceivedThisPeriod: calculatedData.profitShareReceivedThisPeriod ?? 0,
+        totalDeductions: calculatedData.totalDeductions ?? 0,
+        netPay: calculatedData.netPay ?? 0,
         status: 'Tertunda', 
         calculationDetails: calculatedData.calculationDetails,
       };
+      
+      const finalDataForFirestore: any = {...finalData};
+      if (finalDataForFirestore.totalHours === undefined) delete finalDataForFirestore.totalHours;
+      if (finalDataForFirestore.profitShareReceivedThisPeriod === undefined) finalDataForFirestore.profitShareReceivedThisPeriod = 0;
+
 
       const payrollCollectionRef = collection(db, 'payrollData');
       const q = query(payrollCollectionRef, where("staffId", "==", data.staffId), where("period", "==", data.period), limit(1));
@@ -778,11 +802,11 @@ export default function PayrollPage() {
 
       if (!existingSnapshot.empty) {
         const existingDocRef = existingSnapshot.docs[0].ref;
-        await updateDoc(existingDocRef, { ...finalData, updatedAt: serverTimestamp()});
+        await updateDoc(existingDocRef, { ...finalDataForFirestore, updatedAt: serverTimestamp()});
         toast({ title: "Sukses", description: `Entri penggajian untuk ${data.staffName} berhasil diperbarui.` });
       } else {
         await addDoc(collection(db, 'payrollData'), {
-          ...finalData,
+          ...finalDataForFirestore,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
@@ -820,18 +844,36 @@ export default function PayrollPage() {
       
       const finalCalculatedData = await calculateDeductionsAndNetPay(staffMember, entryToPay.period, entryToPay.manualDeductions || 0);
 
-      await updateDoc(entryDocRef, {
-        ...finalCalculatedData, 
+      const dataForUpdate: any = {
+        baseSalary: finalCalculatedData.baseSalary ?? 0,
+        latenessDeduction: finalCalculatedData.latenessDeduction ?? 0,
+        absenceDeduction: finalCalculatedData.absenceDeduction ?? 0,
+        telatBukaDeduction: finalCalculatedData.telatBukaDeduction ?? 0,
+        profitShareReceivedThisPeriod: finalCalculatedData.profitShareReceivedThisPeriod ?? 0,
+        manualDeductions: finalCalculatedData.manualDeductions ?? 0,
+        totalDeductions: finalCalculatedData.totalDeductions ?? 0,
+        netPay: finalCalculatedData.netPay ?? 0,
+        calculationDetails: finalCalculatedData.calculationDetails ?? "Tidak ada detail.",
         status: 'Dibayar',
         paidAt: paidTimestamp,
         updatedAt: serverTimestamp(),
-      });
+      };
+      if (finalCalculatedData.totalHours !== undefined) {
+        dataForUpdate.totalHours = finalCalculatedData.totalHours;
+      } else {
+        // If totalHours was not in finalCalculatedData (meaning it was undefined)
+        // and you want to ensure it's removed from Firestore if it existed before:
+        dataForUpdate.totalHours = deleteField();
+      }
+
+
+      await updateDoc(entryDocRef, dataForUpdate);
 
       const expenseData: Omit<ExpenseFormData, 'date' | 'category'> & { date: Timestamp, category: ExpenseCategory, paymentSource: PaymentSource, createdAt: any, updatedAt: any } = {
         date: paidTimestamp,
         category: "Gaji & Komisi Staf",
         description: `Pembayaran Gaji ${entryToPay.staffName} - Periode ${entryToPay.period}`,
-        amount: finalCalculatedData.netPay as number, 
+        amount: finalCalculatedData.netPay ?? 0, 
         paymentSource: "Transfer Bank", 
         notes: `Pembayaran gaji otomatis dari modul penggajian. Detail: ${finalCalculatedData.calculationDetails || ''}`,
         createdAt: serverTimestamp(),
@@ -1022,5 +1064,3 @@ export default function PayrollPage() {
     </div>
   );
 }
-
-    
