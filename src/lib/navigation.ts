@@ -1,6 +1,6 @@
 
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, BarChartBig, Settings, Clipboard, Banknote, CalendarDays, ClipboardList, Percent, ReceiptText, Landmark, DollarSign, TrendingUp, History, ArrowRightLeft, FileText } from 'lucide-react'; // Added FileText for Laporan Arus Kas
+import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, BarChartBig, Settings, Clipboard, Banknote, CalendarDays, ClipboardList, Percent, ReceiptText, Landmark, DollarSign, TrendingUp, History, ArrowRightLeft, FileText, Wallet } from 'lucide-react';
 
 export interface NavItem {
   title: string;
@@ -90,10 +90,16 @@ export const mainNavItems: NavItem[] = [
             description: 'Analisis laba rugi per bulan.'
           },
           {
-            title: 'Arus Kas',
+            title: 'Arus Kas Bank',
             href: '/reports/cash-flow',
-            icon: FileText, // Menggunakan FileText untuk laporan arus kas
-            description: 'Analisis arus kas masuk dan keluar.',
+            icon: FileText,
+            description: 'Analisis arus kas masuk dan keluar rekening bank.',
+          },
+          {
+            title: 'Arus Kas Fisik',
+            href: '/reports/physical-cash-flow',
+            icon: Wallet, 
+            description: 'Analisis arus kas fisik (tunai).',
           },
         ]
       },
@@ -121,3 +127,4 @@ export const settingsNavItem: NavItem = {
   description: 'Konfigurasi pengaturan aplikasi.',
 };
 
+    
