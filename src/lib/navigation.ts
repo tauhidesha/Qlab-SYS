@@ -146,25 +146,7 @@ export const settingsNavItem: NavItem = {
   href: '/settings', 
   icon: Settings, 
   description: 'Konfigurasi pengaturan aplikasi.',
-  collapsible: true,
-  items: [ 
-    { title: 'Umum', href: '/settings?tab=general', icon: SlidersHorizontal, description: 'Pengaturan umum bengkel.'}, 
-    { 
-      title: 'Program Loyalitas', 
-      href: '/settings?tab=loyalty', // Default tab for loyalty section
-      icon: Gift, 
-      description: 'Pengaturan program loyalitas.',
-      collapsible: true,
-      items: [
-        { title: 'Dasar Loyalitas', href: '/settings?tab=loyalty', icon: Gift, description: 'Pengaturan dasar program loyalitas.'},
-        { title: 'Daftar Reward Poin', href: '/settings?tab=loyalty_rewards', icon: Award, description: 'Kelola reward untuk poin loyalitas.'},
-        { title: 'Reward Langsung', href: '/settings?tab=direct_rewards', icon: Zap, description: 'Atur reward otomatis (Beli X Dapat Y).'},
-      ]
-    },
-    { title: 'Tampilan', href: '/settings?tab=appearance', icon: Palette, description: 'Sesuaikan tampilan aplikasi.'},
-    { title: 'Notifikasi', href: '/settings?tab=notifications', icon: Bell, description: 'Kelola preferensi notifikasi.'},
-    { title: 'Peran Pengguna', href: '/settings?tab=users', icon: Users, description: 'Kelola akun staf dan akses.'}, 
-    { title: 'Tagihan', href: '/settings?tab=billing', icon: CreditCardIcon, description: 'Kelola langganan dan pembayaran.'},
-  ]
+  // collapsible: false, // Dihapus atau set ke false
+  // items: undefined // Dihapus
 };
     
