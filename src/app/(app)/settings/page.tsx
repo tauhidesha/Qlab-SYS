@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Palette, Bell, Users, CreditCard as CreditCardIcon, Gift, DollarSign, Loader2, Wallet, Award, PlusCircle, Edit3, Trash2, Database, SlidersHorizontal, Settings2 } from 'lucide-react'; // Added Database
+import { Palette, Bell, Users, CreditCard as CreditCardIcon, Gift, DollarSign, Loader2, Wallet, Award, PlusCircle, Edit3, Trash2, SlidersHorizontal } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, serverTimestamp, collection, addDoc, updateDoc, deleteDoc, query, orderBy, getDocs as getFirestoreDocs } from 'firebase/firestore'; 
@@ -41,7 +41,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { seedAllMockData } from '@/lib/seedFirestore'; // Import the seeding function
 
 const loyaltyRewardFormSchema = z.object({
   name: z.string().min(3, "Nama reward minimal 3 karakter").max(100, "Nama reward maksimal 100 karakter"),
@@ -90,7 +89,6 @@ export default function SettingsPage() {
   const [editingReward, setEditingReward] = useState<LoyaltyReward | null>(null);
   const [rewardToDelete, setRewardToDelete] = useState<LoyaltyReward | null>(null);
   const [isSubmittingReward, setIsSubmittingReward] = useState(false);
-  const [isSeedingData, setIsSeedingData] = useState(false);
 
 
   const rewardForm = useForm<LoyaltyRewardFormValues>({
@@ -268,28 +266,6 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSeedData = async () => {
-    setIsSeedingData(true);
-    try {
-      const result = await seedAllMockData();
-      if (result.success) {
-        toast({ title: "Sukses", description: result.message });
-      } else {
-        toast({ title: "Error Seeding", description: result.message, variant: "destructive" });
-      }
-    } catch (error: any) {
-      console.error("Error during seeding: ", error);
-      toast({
-        title: "Error Seeding",
-        description: `Terjadi kesalahan: ${error.message || "Silakan cek konsol."}`,
-        variant: "destructive",
-      });
-    } finally {
-      setIsSeedingData(false);
-    }
-  };
-
-
   return (
     <div className="flex flex-col h-full">
       <AppHeader title="Pengaturan" />
@@ -383,29 +359,6 @@ export default function SettingsPage() {
                   ) : null}
                   Simpan Pengaturan Keuangan
                 </Button>
-              </CardFooter>
-            </Card>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Database className="mr-2 h-5 w-5 text-primary" />
-                  Tindakan Pengembang (Developer Actions)
-                </CardTitle>
-                <CardDescription>Aksi ini untuk keperluan development dan testing.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <p className="text-sm">Klik tombol di bawah untuk mengisi database Firestore dengan data mockup dari <code>src/lib/seedFirestore.ts</code>.</p>
-                  <p className="text-xs text-destructive font-medium">PERHATIAN: Tindakan ini akan menimpa data yang ada di koleksi `clients`, `services`, `queueItems`, `attendanceRecords`, dan `payrollData` jika ID-nya sama, atau menambahkan data baru jika ID belum ada.</p>
-                </div>
-                <Button onClick={handleSeedData} disabled={isSeedingData} variant="destructive" className="bg-orange-600 hover:bg-orange-700 text-white">
-                  {isSeedingData ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
-                  Seed Mock Data ke Firestore
-                </Button>
-              </CardContent>
-               <CardFooter>
-                  <p className="text-xs text-muted-foreground">Hapus tombol ini sebelum aplikasi masuk ke mode produksi.</p>
               </CardFooter>
             </Card>
           </TabsContent>
@@ -715,3 +668,4 @@ export default function SettingsPage() {
   );
 }
     
+
