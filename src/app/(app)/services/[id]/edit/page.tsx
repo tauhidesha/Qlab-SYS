@@ -41,15 +41,37 @@ const serviceProductFormSchema = z.object({
   type: z.enum(['Layanan', 'Produk'], { required_error: "Jenis item diperlukan" }),
   category: z.string().min(2, "Kategori minimal 2 karakter").max(50, "Kategori maksimal 50 karakter"),
   price: z.preprocess(
-    (val) => (val === '' || val === undefined || val === null) ? undefined : parseFloat(String(val)),
-    z.number({ required_error: "Harga dasar diperlukan", invalid_type_error: "Harga dasar harus berupa angka" }).positive("Harga dasar harus angka positif")
+    (val) => {
+        if (val === "" || val === null || val === undefined) return undefined;
+        const num = parseFloat(String(val));
+        return isNaN(num) ? undefined : num;
+    },
+    z.number({invalid_type_error: "Harga dasar harus berupa angka."})
+     .nonnegative("Harga dasar tidak boleh negatif.")
+     .optional()
   ),
   pointsAwarded: z.preprocess(
-    (val) => (val === '' || val === undefined || val === null) ? undefined : parseInt(String(val), 10),
-    z.number({ invalid_type_error: "Poin dasar harus berupa angka" }).nonnegative("Poin dasar tidak boleh negatif").optional()
+    (val) => {
+        if (val === "" || val === null || val === undefined) return undefined;
+        const num = parseInt(String(val), 10);
+        return isNaN(num) ? undefined : num;
+    },
+    z.number({ invalid_type_error: "Poin dasar harus berupa angka." })
+     .int("Poin dasar harus bilangan bulat.")
+     .nonnegative("Poin dasar tidak boleh negatif.").optional()
   ),
   description: z.string().max(500, "Deskripsi maksimal 500 karakter").optional(),
   variants: z.array(variantSchema).optional(),
+}).refine(data => {
+  if ((!data.variants || data.variants.length === 0)) { 
+    if (data.price === undefined || data.price <= 0) { 
+      return false;
+    }
+  }
+  return true;
+}, {
+  message: "Harga dasar wajib diisi (lebih dari 0) jika tidak ada varian.",
+  path: ["price"],
 });
 
 type ServiceProductFormValues = z.infer<typeof serviceProductFormSchema>;
@@ -70,7 +92,7 @@ export default function EditServiceProductPage() {
       name: '',
       type: undefined,
       category: '',
-      price: '' as any,
+      price: undefined,
       pointsAwarded: undefined,
       description: '',
       variants: [],
@@ -106,8 +128,8 @@ export default function EditServiceProductPage() {
             price: itemData.price,
             pointsAwarded: itemData.pointsAwarded || undefined,
             description: itemData.description || '',
-            variants: itemData.variants?.map(v => ({ // Ensure variants have IDs for useFieldArray
-                id: v.id || uuidv4(), // Use existing ID or generate if missing (shouldn't happen for fetched data ideally)
+            variants: itemData.variants?.map(v => ({ 
+                id: v.id || uuidv4(), 
                 name: v.name,
                 price: v.price,
                 pointsAwarded: v.pointsAwarded
@@ -139,11 +161,11 @@ export default function EditServiceProductPage() {
         name: data.name,
         type: data.type,
         category: data.category,
-        price: data.price,
+        price: (data.variants && data.variants.length > 0) ? (data.price || 0) : (data.price as number),
         pointsAwarded: data.pointsAwarded || 0,
         description: data.description || '',
         variants: data.variants?.map(v => ({
-            id: v.id || uuidv4(), // Ensure ID for new variants added during edit
+            id: v.id || uuidv4(), 
             name: v.name,
             price: v.price,
             pointsAwarded: v.pointsAwarded || 0,
@@ -266,12 +288,12 @@ export default function EditServiceProductPage() {
                         <FormControl>
                           <Input
                             type="number"
-                            placeholder="mis. 75000"
+                            placeholder="mis. 75000 (0 jika harga dari varian)"
                             {...field}
                             value={field.value === undefined ? '' : field.value}
                             onChange={e => {
                               const val = e.target.value;
-                              field.onChange(val === '' ? '' : parseFloat(val));
+                              field.onChange(val === '' ? undefined : parseFloat(val));
                             }}
                           />
                         </FormControl>
@@ -427,5 +449,4 @@ export default function EditServiceProductPage() {
     </div>
   );
 }
-
     

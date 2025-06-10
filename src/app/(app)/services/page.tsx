@@ -35,7 +35,7 @@ import {
 } from '@/components/ui/dialog';
 import { buttonVariants } from '@/components/ui/button';
 import Papa from 'papaparse';
-import { v4 as uuidv4 } from 'uuid'; // Import uuid
+import { v4 as uuidv4 } from 'uuid'; 
 
 export interface ServiceProductVariant {
   id: string; 
@@ -127,13 +127,13 @@ export default function ServicesPage() {
             return;
           }
 
-          const expectedHeaders = ['name', 'type', 'category', 'price'];
-          const actualHeaders = Object.keys(parsedData[0]);
-          const missingHeaders = expectedHeaders.filter(h => !actualHeaders.includes(h));
+          const requiredHeaders = ['name', 'type', 'category', 'price'];
+          const actualHeaders = Object.keys(parsedData[0] || {});
+          const missingHeaders = requiredHeaders.filter(h => !actualHeaders.includes(h));
           if (missingHeaders.length > 0) {
             toast({
               title: "Format CSV Salah",
-              description: `Header kolom wajib yang hilang: ${missingHeaders.join(', ')}. Lihat info format CSV untuk detail.`,
+              description: `Header kolom wajib yang hilang: ${missingHeaders.join(', ')}. Lihat info format CSV.`,
               variant: "destructive",
               duration: 10000,
             });
@@ -153,8 +153,8 @@ export default function ServicesPage() {
             const description = row.description?.trim() || '';
             const pointsAwardedString = row.pointsAwarded?.trim();
 
-            if (!name || !type || !category || !priceString) {
-              console.warn(`Baris ${index + 2} dilewati: field wajib (name, type, category, price) tidak lengkap.`);
+            if (!name || !type || !category) { // Price string check will be done later based on variants
+              console.warn(`Baris ${index + 2} dilewati: field wajib (name, type, category) tidak lengkap.`);
               itemsFailedCount++;
               return;
             }
@@ -165,12 +165,7 @@ export default function ServicesPage() {
               return;
             }
             
-            const price = parseFloat(priceString);
-            if (isNaN(price) || price <= 0) {
-              console.warn(`Baris ${index + 2} dilewati: 'price' tidak valid ('${priceString}').`);
-              itemsFailedCount++;
-              return;
-            }
+            let basePrice = parseFloat(priceString); // Might be NaN
             
             let pointsAwarded = 0;
             if (pointsAwardedString) {
@@ -210,9 +205,20 @@ export default function ServicesPage() {
                   pointsAwarded: variantPoints,
                 });
               } else if (variantName || variantPriceString) {
-                // If one is provided but not the other (name & price are a pair)
                 console.warn(`Baris ${index + 2}, Varian ${i}: Nama dan Harga varian harus diisi bersamaan. Varian ini dilewati.`);
               }
+            }
+
+            // Validate basePrice based on variants
+            if (variants.length > 0) {
+                if (isNaN(basePrice)) basePrice = 0; // Default to 0 if variants exist and base price is empty/invalid
+            } else {
+                // No variants, base price is mandatory and must be positive
+                if (isNaN(basePrice) || basePrice <= 0) {
+                    console.warn(`Baris ${index + 2} dilewati: 'price' (harga dasar) wajib dan harus positif jika tidak ada varian. Diterima: '${priceString}'.`);
+                    itemsFailedCount++;
+                    return; // Skip this row
+                }
             }
 
             const newItemRef = doc(collection(db, 'services'));
@@ -220,9 +226,9 @@ export default function ServicesPage() {
               name,
               type,
               category,
-              price, // Base price
+              price: basePrice,
               description,
-              pointsAwarded, // Base points
+              pointsAwarded,
               variants,
               createdAt: serverTimestamp(),
             });
@@ -324,16 +330,16 @@ export default function ServicesPage() {
                       <li><code className="bg-muted px-1 rounded-sm">name</code> (Teks, Wajib) - Nama layanan/produk.</li>
                       <li><code className="bg-muted px-1 rounded-sm">type</code> (Teks, Wajib) - Harus 'Layanan' atau 'Produk'.</li>
                       <li><code className="bg-muted px-1 rounded-sm">category</code> (Teks, Wajib) - Kategori item.</li>
-                      <li><code className="bg-muted px-1 rounded-sm">price</code> (Angka, Wajib) - Harga dasar item (contoh: 50000).</li>
+                      <li><code className="bg-muted px-1 rounded-sm">price</code> (Angka, Wajib jika tidak ada varian, bisa 0 jika ada varian) - Harga dasar.</li>
                       <li><code className="bg-muted px-1 rounded-sm">description</code> (Teks, Opsional) - Deskripsi item.</li>
                       <li><code className="bg-muted px-1 rounded-sm">pointsAwarded</code> (Angka, Opsional) - Poin loyalitas dasar.</li>
                       <li className="font-semibold mt-2">Untuk Varian (Opsional, maksimal 5 varian):</li>
-                      <li><code className="bg-muted px-1 rounded-sm">variant1_name</code> (Teks) - Nama varian ke-1.</li>
-                      <li><code className="bg-muted px-1 rounded-sm">variant1_price</code> (Angka) - Harga varian ke-1.</li>
-                      <li><code className="bg-muted px-1 rounded-sm">variant1_pointsAwarded</code> (Angka, Opsional) - Poin varian ke-1.</li>
-                      <li>... (ulangi untuk `variant2`, `variant3`, `variant4`, `variant5`)</li>
+                      <li><code className="bg-muted px-1 rounded-sm">variantN_name</code> (Teks, Wajib jika variantN_price diisi)</li>
+                      <li><code className="bg-muted px-1 rounded-sm">variantN_price</code> (Angka, Wajib jika variantN_name diisi)</li>
+                      <li><code className="bg-muted px-1 rounded-sm">variantN_pointsAwarded</code> (Angka, Opsional)</li>
+                      <li>Ganti 'N' dengan angka 1 sampai 5 (mis. variant1_name, variant2_price).</li>
                     </ul>
-                    <p className="text-xs text-muted-foreground">Baris pertama CSV harus berisi nama header. Jika nama dan harga varian diisi, varian akan dibuat. Harga dasar tetap wajib diisi.</p>
+                    <p className="text-xs text-muted-foreground">Baris pertama CSV harus berisi nama header. Jika produk tidak memiliki varian, harga dasar (`price`) wajib diisi dan harus > 0. Jika produk memiliki varian, harga dasar bisa 0 atau kosong.</p>
                     <InfoDialogFooter>
                       <DialogClose asChild>
                         <Button type="button" variant="secondary">Tutup</Button>
@@ -376,7 +382,7 @@ export default function ServicesPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>{item.category}</TableCell>
-                      <TableCell className="text-right">Rp {item.price.toLocaleString('id-ID')}</TableCell>
+                      <TableCell className="text-right">Rp {(item.price || 0).toLocaleString('id-ID')}</TableCell>
                       <TableCell className="text-center">
                         {item.pointsAwarded && item.pointsAwarded > 0 ? (
                            <div className="flex items-center justify-center">
