@@ -512,15 +512,15 @@ export default function QueuePage() {
             id: doc.id, 
             ...data,
             createdAt: data.createdAt || Timestamp.now(),
-            completedAt: data.completedAt, // Pastikan completedAt diambil
-            serviceStartTime: data.serviceStartTime, // Pastikan serviceStartTime diambil
+            completedAt: data.completedAt, 
+            serviceStartTime: data.serviceStartTime, 
           } as QueueItem;
         })
         .filter(item => {
           if (item.status === 'Selesai' && item.completedAt) {
             const completedTime = item.completedAt.toDate().getTime();
             if (now - completedTime > AUTO_HIDE_DELAY_MS) {
-              return false; // Sembunyikan jika sudah selesai lebih dari 5 menit
+              return false; 
             }
           }
           return true;
@@ -539,7 +539,6 @@ export default function QueuePage() {
 
   useEffect(() => {
     fetchQueueItems();
-    // Setup interval to re-filter items for auto-hide (optional, if not using onSnapshot)
     const intervalId = setInterval(() => {
        const now = Date.now();
        const AUTO_HIDE_DELAY_MS = 5 * 60 * 1000;
@@ -552,10 +551,10 @@ export default function QueuePage() {
            return true;
          })
        );
-    }, 60000); // Check every minute
+    }, 60000); 
 
     return () => clearInterval(intervalId);
-  }, [fetchQueueItems]); // fetchQueueItems dependency already handles fetching
+  }, [fetchQueueItems]); 
 
   const defaultQueueItemValues: QueueItemFormData = {
     customerName: '',
@@ -598,15 +597,16 @@ export default function QueuePage() {
 
       if (currentEditingItem) { 
         const itemDocRef = doc(db, 'queueItems', currentEditingItem.id);
-        // Saat edit, jangan ubah serviceStartTime atau completedAt kecuali status berubah signifikan
         const updatePayload: any = {...firestoreData};
+        
         if (formData.status !== currentEditingItem.status) {
           if (formData.status === 'Selesai') {
             updatePayload.completedAt = serverTimestamp();
-            updatePayload.serviceStartTime = currentEditingItem.serviceStartTime || deleteField(); // Hapus jika pindah ke Selesai dari Menunggu
+            // Keep serviceStartTime if it exists, otherwise remove it if moving from Menunggu
+            updatePayload.serviceStartTime = currentEditingItem.serviceStartTime || deleteField(); 
           } else if (formData.status === 'Dalam Layanan' && currentEditingItem.status !== 'Dalam Layanan') {
             updatePayload.serviceStartTime = serverTimestamp();
-            updatePayload.completedAt = deleteField(); // Hapus jika pindah dari Selesai
+            updatePayload.completedAt = deleteField(); // Remove completedAt if moving from Selesai
           } else if (formData.status === 'Menunggu') {
             updatePayload.serviceStartTime = deleteField();
             updatePayload.completedAt = deleteField();
@@ -617,7 +617,9 @@ export default function QueuePage() {
       } else { 
         await addDoc(collection(db, 'queueItems'), { 
           ...firestoreData, 
-          createdAt: serverTimestamp() 
+          createdAt: serverTimestamp(),
+          ...(formData.status === 'Selesai' && { completedAt: serverTimestamp() }),
+          ...(formData.status === 'Dalam Layanan' && { serviceStartTime: serverTimestamp() }),
         });
         toast({ title: "Sukses", description: "Item baru berhasil ditambahkan ke antrian." });
       }
@@ -639,12 +641,16 @@ export default function QueuePage() {
     } else if (newStatus === 'Selesai') {
       try {
         const itemDocRef = doc(db, 'queueItems', item.id);
-        await updateDoc(itemDocRef, { 
+        const updateData: any = { 
             status: newStatus, 
             staff: item.staff || 'Tidak Ditugaskan',
-            completedAt: serverTimestamp(), // Set completedAt timestamp
-            // serviceStartTime tidak diubah saat pindah ke Selesai
-        });
+            completedAt: serverTimestamp(),
+        };
+        // if item didn't have a serviceStartTime (e.g., skipped 'Dalam Layanan'), set it now or remove if appropriate
+        if (!item.serviceStartTime) {
+          updateData.serviceStartTime = item.serviceStartTime || serverTimestamp(); // If no start time, consider "now" as start or keep if already set
+        }
+        await updateDoc(itemDocRef, updateData);
         toast({ title: "Status Diperbarui", description: `Status untuk ${item.customerName} diubah menjadi ${newStatus}.` });
         fetchQueueItems(); 
       } catch (error) {
@@ -663,8 +669,8 @@ export default function QueuePage() {
       batch.update(itemDocRef, { 
         status: 'Dalam Layanan',
         staff: staffName,
-        serviceStartTime: serverTimestamp(), // Set serviceStartTime here
-        completedAt: deleteField() // Hapus completedAt jika ada (misal dari Selesai -> Dalam Layanan lagi)
+        serviceStartTime: serverTimestamp(), 
+        completedAt: deleteField() 
       });
 
       const serviceDetails = servicesList.find(s => s.name === itemBeingAssigned.service || s.id === itemBeingAssigned.serviceId);
@@ -771,7 +777,7 @@ export default function QueuePage() {
 
   const handleDeleteItem = async () => {
     if (!itemToDelete) return;
-    setIsSubmittingForm(true); // Reuse form submission state for delete
+    setIsSubmittingForm(true); 
     try {
       await deleteDoc(doc(db, 'queueItems', itemToDelete.id));
       toast({
@@ -806,7 +812,7 @@ export default function QueuePage() {
 
   const isLoading = loadingQueue || loadingClients || loadingServices || loadingStaff;
 
-  if (isLoading && queueItems.length === 0) { // Show main loader only if everything is loading initially
+  if (isLoading && queueItems.length === 0) { 
     return (
       <div className="flex flex-col h-full">
         <AppHeader title="Manajemen Antrian" />
