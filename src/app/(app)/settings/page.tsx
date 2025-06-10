@@ -8,10 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building, Palette, Bell, Users, CreditCard as CreditCardIcon, Gift, DollarSign, Loader2, Wallet, Award, PlusCircle, Edit3, Trash2 } from 'lucide-react';
+import { Palette, Bell, Users, CreditCard as CreditCardIcon, Gift, DollarSign, Loader2, Wallet, Award, PlusCircle, Edit3, Trash2, Database, SlidersHorizontal, Settings2 } from 'lucide-react'; // Added Database
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc, serverTimestamp, collection, addDoc, updateDoc, deleteDoc, query, orderBy, getDocs as getFirestoreDocs } from 'firebase/firestore'; // Renamed getDocs to avoid conflict
+import { doc, getDoc, setDoc, serverTimestamp, collection, addDoc, updateDoc, deleteDoc, query, orderBy, getDocs as getFirestoreDocs } from 'firebase/firestore'; 
 import { useToast } from '@/hooks/use-toast';
 import type { LoyaltyReward } from '@/types/loyalty';
 import {
@@ -41,6 +41,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { seedAllMockData } from '@/lib/seedFirestore'; // Import the seeding function
 
 const loyaltyRewardFormSchema = z.object({
   name: z.string().min(3, "Nama reward minimal 3 karakter").max(100, "Nama reward maksimal 100 karakter"),
@@ -51,8 +52,8 @@ const loyaltyRewardFormSchema = z.object({
   ),
   type: z.enum(['merchandise', 'discount_transaction'], { required_error: "Tipe reward diperlukan" }),
   rewardValue: z.union([
-    z.string().min(1, "Nilai reward (merch) diperlukan"), // For merchandise name
-    z.preprocess( // For discount amount
+    z.string().min(1, "Nilai reward (merch) diperlukan"), 
+    z.preprocess( 
       (val) => parseFloat(String(val)),
       z.number({ required_error: "Nilai reward (diskon) diperlukan"}).positive("Nilai diskon harus positif")
     )
@@ -83,13 +84,14 @@ export default function SettingsPage() {
   const [isLoadingFinancialSettings, setIsLoadingFinancialSettings] = useState(true);
   const [isSavingFinancialSettings, setIsSavingFinancialSettings] = useState(false);
 
-  // Loyalty Rewards State
   const [loyaltyRewards, setLoyaltyRewards] = useState<LoyaltyReward[]>([]);
   const [isLoadingRewards, setIsLoadingRewards] = useState(true);
   const [isRewardFormDialogOpen, setIsRewardFormDialogOpen] = useState(false);
   const [editingReward, setEditingReward] = useState<LoyaltyReward | null>(null);
   const [rewardToDelete, setRewardToDelete] = useState<LoyaltyReward | null>(null);
   const [isSubmittingReward, setIsSubmittingReward] = useState(false);
+  const [isSeedingData, setIsSeedingData] = useState(false);
+
 
   const rewardForm = useForm<LoyaltyRewardFormValues>({
     resolver: zodResolver(loyaltyRewardFormSchema),
@@ -252,7 +254,7 @@ export default function SettingsPage() {
 
   const handleDeleteReward = async () => {
     if (!rewardToDelete) return;
-    setIsSubmittingReward(true); // Use same state for loading indicator on delete button
+    setIsSubmittingReward(true); 
     try {
       await deleteDoc(doc(db, 'loyaltyRewards', rewardToDelete.id));
       toast({ title: "Sukses", description: `Reward "${rewardToDelete.name}" berhasil dihapus.` });
@@ -266,6 +268,27 @@ export default function SettingsPage() {
     }
   };
 
+  const handleSeedData = async () => {
+    setIsSeedingData(true);
+    try {
+      const result = await seedAllMockData();
+      if (result.success) {
+        toast({ title: "Sukses", description: result.message });
+      } else {
+        toast({ title: "Error Seeding", description: result.message, variant: "destructive" });
+      }
+    } catch (error: any) {
+      console.error("Error during seeding: ", error);
+      toast({
+        title: "Error Seeding",
+        description: `Terjadi kesalahan: ${error.message || "Silakan cek konsol."}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSeedingData(false);
+    }
+  };
+
 
   return (
     <div className="flex flex-col h-full">
@@ -273,7 +296,7 @@ export default function SettingsPage() {
       <main className="flex-1 overflow-y-auto p-6">
         <Tabs defaultValue="general" className="w-full">
           <TabsList className="grid w-full grid-cols-4 md:grid-cols-7 mb-6">
-            <TabsTrigger value="general"><Award className="mr-2 h-4 w-4 hidden md:inline" />Umum</TabsTrigger>
+            <TabsTrigger value="general"><SlidersHorizontal className="mr-2 h-4 w-4 hidden md:inline" />Umum</TabsTrigger>
             <TabsTrigger value="loyalty"><Gift className="mr-2 h-4 w-4 hidden md:inline" />Loyalitas Dasar</TabsTrigger>
             <TabsTrigger value="loyalty_rewards"><Award className="mr-2 h-4 w-4 hidden md:inline" />Daftar Reward</TabsTrigger>
             <TabsTrigger value="appearance"><Palette className="mr-2 h-4 w-4 hidden md:inline" />Tampilan</TabsTrigger>
@@ -360,6 +383,29 @@ export default function SettingsPage() {
                   ) : null}
                   Simpan Pengaturan Keuangan
                 </Button>
+              </CardFooter>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Database className="mr-2 h-5 w-5 text-primary" />
+                  Tindakan Pengembang (Developer Actions)
+                </CardTitle>
+                <CardDescription>Aksi ini untuk keperluan development dan testing.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <p className="text-sm">Klik tombol di bawah untuk mengisi database Firestore dengan data mockup dari <code>src/lib/seedFirestore.ts</code>.</p>
+                  <p className="text-xs text-destructive font-medium">PERHATIAN: Tindakan ini akan menimpa data yang ada di koleksi `clients`, `services`, `queueItems`, `attendanceRecords`, dan `payrollData` jika ID-nya sama, atau menambahkan data baru jika ID belum ada.</p>
+                </div>
+                <Button onClick={handleSeedData} disabled={isSeedingData} variant="destructive" className="bg-orange-600 hover:bg-orange-700 text-white">
+                  {isSeedingData ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Database className="mr-2 h-4 w-4" />}
+                  Seed Mock Data ke Firestore
+                </Button>
+              </CardContent>
+               <CardFooter>
+                  <p className="text-xs text-muted-foreground">Hapus tombol ini sebelum aplikasi masuk ke mode produksi.</p>
               </CardFooter>
             </Card>
           </TabsContent>
@@ -580,7 +626,7 @@ export default function SettingsPage() {
                       <FormLabel>Tipe Reward</FormLabel>
                       <Select onValueChange={(value) => {
                           field.onChange(value as 'merchandise' | 'discount_transaction');
-                          rewardForm.setValue('rewardValue', ''); // Reset rewardValue when type changes
+                          rewardForm.setValue('rewardValue', ''); 
                         }} value={field.value}>
                         <FormControl><SelectTrigger><SelectValue placeholder="Pilih tipe reward" /></SelectTrigger></FormControl>
                         <SelectContent>
