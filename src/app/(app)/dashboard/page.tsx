@@ -7,7 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { BarChartBig, Users, ShoppingCart, ListOrdered, CreditCard, Star as StarIcon, Loader2 } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, Timestamp, startOfDay, endOfDay, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, getDocs, Timestamp, onSnapshot } from 'firebase/firestore';
+import { startOfDay, endOfDay } from 'date-fns'; // Corrected import
 import { useToast } from '@/hooks/use-toast';
 import type { Transaction } from '@/types/transaction';
 
