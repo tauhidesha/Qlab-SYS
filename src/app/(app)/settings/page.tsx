@@ -82,7 +82,7 @@ export default function SettingsPage() {
   const [isLoadingGeneralSettings, setIsLoadingGeneralSettings] = useState(true);
   const [isSavingGeneralSettings, setIsSavingGeneralSettings] = useState(false);
 
-  const [minPointsToRedeemGeneral, setMinPointsToRedeemGeneral] = React.useState('100');
+  const [minPointsToRedeemGeneral, setMinPointsToRedeemGeneral] = React.useState('');
   const [initialBankBalance, setInitialBankBalance] = React.useState('');
   const [initialPhysicalCashBalance, setInitialPhysicalCashBalance] = React.useState('');
   const [isLoadingFinancialSettings, setIsLoadingFinancialSettings] = useState(true);
@@ -165,13 +165,23 @@ export default function SettingsPage() {
           const data = docSnap.data();
           if (data.initialBankBalance !== undefined) {
             setInitialBankBalance(String(data.initialBankBalance));
+          } else {
+            setInitialBankBalance('');
           }
           if (data.initialPhysicalCashBalance !== undefined) {
             setInitialPhysicalCashBalance(String(data.initialPhysicalCashBalance));
+          } else {
+            setInitialPhysicalCashBalance('');
           }
-           if (data.minPointsToRedeemGeneral !== undefined) {
+          if (data.minPointsToRedeemGeneral !== undefined) {
             setMinPointsToRedeemGeneral(String(data.minPointsToRedeemGeneral));
+          } else {
+            setMinPointsToRedeemGeneral('');
           }
+        } else {
+          setInitialBankBalance('');
+          setInitialPhysicalCashBalance('');
+          setMinPointsToRedeemGeneral('');
         }
       } catch (error) {
         console.error("Error fetching financial/loyalty settings: ", error);
@@ -211,20 +221,24 @@ export default function SettingsPage() {
   const handleSaveFinancialSettings = async () => {
     setIsSavingFinancialSettings(true);
     try {
-      const bankBalance = parseFloat(initialBankBalance);
-      const physicalCashBalance = parseFloat(initialPhysicalCashBalance);
-      const minPoints = parseInt(minPointsToRedeemGeneral, 10);
+      const bankBalanceStr = initialBankBalance.trim();
+      const physicalCashStr = initialPhysicalCashBalance.trim();
+      const minPointsStr = minPointsToRedeemGeneral.trim();
+
+      const bankBalance = bankBalanceStr === '' ? 0 : parseFloat(bankBalanceStr);
+      const physicalCashBalance = physicalCashStr === '' ? 0 : parseFloat(physicalCashStr);
+      const minPoints = minPointsStr === '' ? 0 : parseInt(minPointsStr, 10);
 
       if (isNaN(bankBalance) || bankBalance < 0) {
-        toast({ title: "Input Tidak Valid", description: "Saldo awal bank harus berupa angka positif.", variant: "destructive"});
+        toast({ title: "Input Tidak Valid", description: "Saldo awal bank harus berupa angka positif atau 0.", variant: "destructive"});
         setIsSavingFinancialSettings(false); return;
       }
       if (isNaN(physicalCashBalance) || physicalCashBalance < 0) {
-        toast({ title: "Input Tidak Valid", description: "Saldo awal kas fisik harus berupa angka positif.", variant: "destructive"});
+        toast({ title: "Input Tidak Valid", description: "Saldo awal kas fisik harus berupa angka positif atau 0.", variant: "destructive"});
         setIsSavingFinancialSettings(false); return;
       }
        if (isNaN(minPoints) || minPoints < 0) {
-        toast({ title: "Input Tidak Valid", description: "Minimum poin umum untuk redeem harus angka positif.", variant: "destructive"});
+        toast({ title: "Input Tidak Valid", description: "Minimum poin umum untuk redeem harus angka positif atau 0.", variant: "destructive"});
         setIsSavingFinancialSettings(false); return;
       }
 
@@ -432,25 +446,34 @@ export default function SettingsPage() {
                 <CardDescription>Konfigurasi umum bagaimana program loyalitas berjalan.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="flex items-center justify-between rounded-lg border p-4">
-                  <div>
-                    <Label htmlFor="loyalty-program-active" className="font-medium">Aktifkan Program Loyalitas</Label>
-                    <p className="text-sm text-muted-foreground">Izinkan pelanggan mendapatkan dan menukarkan poin.</p>
+                 {isLoadingFinancialSettings ? (
+                  <div className="flex items-center space-x-2">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>Memuat pengaturan...</span>
                   </div>
-                  <Switch id="loyalty-program-active" defaultChecked />
-                </div>
-                 <div className="space-y-2">
-                  <Label htmlFor="min-points-redeem-general">Minimum Poin Umum untuk Tukar Reward</Label>
-                  <Input 
-                    id="min-points-redeem-general" 
-                    type="number" 
-                    value={minPointsToRedeemGeneral}
-                    onChange={(e) => setMinPointsToRedeemGeneral(e.target.value)}
-                    placeholder="mis. 100"
-                    disabled={isSavingFinancialSettings || isLoadingFinancialSettings}
-                  />
-                    <p className="text-xs text-muted-foreground">Klien harus memiliki setidaknya poin ini untuk bisa menukarkan reward apapun.</p>
-                </div>
+                ) : (
+                <>
+                  <div className="flex items-center justify-between rounded-lg border p-4">
+                    <div>
+                      <Label htmlFor="loyalty-program-active" className="font-medium">Aktifkan Program Loyalitas</Label>
+                      <p className="text-sm text-muted-foreground">Izinkan pelanggan mendapatkan dan menukarkan poin.</p>
+                    </div>
+                    <Switch id="loyalty-program-active" defaultChecked />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="min-points-redeem-general">Minimum Poin Umum untuk Tukar Reward</Label>
+                    <Input 
+                      id="min-points-redeem-general" 
+                      type="number" 
+                      value={minPointsToRedeemGeneral}
+                      onChange={(e) => setMinPointsToRedeemGeneral(e.target.value)}
+                      placeholder="mis. 100"
+                      disabled={isSavingFinancialSettings}
+                    />
+                      <p className="text-xs text-muted-foreground">Klien harus memiliki setidaknya poin ini untuk bisa menukarkan reward apapun.</p>
+                  </div>
+                </>
+                )}
                 <p className="text-sm text-muted-foreground">
                   Pengaturan detail poin yang diberikan per layanan/produk dapat diatur di halaman "Layanan & Produk".
                   Pengaturan reward spesifik (item merchandise, diskon, dll.) ada di tab "Daftar Reward".
