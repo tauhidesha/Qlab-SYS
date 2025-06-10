@@ -1,4 +1,6 @@
 
+"use client"; // Ditambahkan untuk memperbolehkan penggunaan hook sisi klien
+
 import AppHeader from '@/components/layout/AppHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
