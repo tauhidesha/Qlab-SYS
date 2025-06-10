@@ -1,6 +1,6 @@
 
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, BarChartBig, Settings, Clipboard, Banknote, CalendarDays, ClipboardList, Percent, ReceiptText, Landmark } from 'lucide-react';
+import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, BarChartBig, Settings, Clipboard, Banknote, CalendarDays, ClipboardList, Percent, ReceiptText, Landmark, DollarSign, TrendingUp } from 'lucide-react';
 
 export interface NavItem {
   title: string;
@@ -28,6 +28,12 @@ export const mainNavItems: NavItem[] = [
     description: 'Kelola antrian pelanggan.',
   },
   {
+    title: 'Penjualan (POS)', // Kembali jadi menu utama
+    href: '/pos',
+    icon: ShoppingCart,
+    description: 'Kelola penjualan dan transaksi.',
+  },
+  {
     title: 'Klien',
     href: '/clients',
     icon: Users,
@@ -40,28 +46,28 @@ export const mainNavItems: NavItem[] = [
     description: 'Kelola katalog layanan dan produk.',
   },
   {
-    title: 'Keuangan', // Menu Utama Baru
-    href: '/finance', // Base href, bisa juga tidak ada jika hanya grup
-    icon: Landmark, // Ikon untuk menu Keuangan
+    title: 'Keuangan',
+    href: '/finance', // Base href tidak diperlukan jika hanya grup
+    icon: Landmark,
     description: 'Kelola pemasukan, pengeluaran, dan laporan keuangan.',
     collapsible: true,
     items: [
       {
-        title: 'Pemasukan (POS)',
-        href: '/pos',
-        icon: ShoppingCart, // Ikon yang sama dengan Penjualan sebelumnya
-        description: 'Kelola penjualan dan transaksi.',
+        title: 'Pemasukan Lain', // Untuk pemasukan di luar POS
+        href: '/income', // Halaman baru akan diperlukan di sini
+        icon: DollarSign, // Ikon baru untuk pemasukan umum
+        description: 'Catat pemasukan di luar penjualan POS.',
       },
       {
         title: 'Pengeluaran',
         href: '/expenses',
-        icon: ReceiptText, // Ikon yang sama dengan Pengeluaran sebelumnya
+        icon: ReceiptText,
         description: 'Catat dan kelola pengeluaran bengkel.',
       },
       {
         title: 'Laporan Keuangan',
         href: '/reports',
-        icon: BarChartBig, // Ikon yang sama dengan Laporan sebelumnya
+        icon: BarChartBig,
         description: 'Lihat laporan pendapatan dan pengeluaran.',
       },
     ],
