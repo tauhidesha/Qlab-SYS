@@ -50,6 +50,8 @@ export default function EditStaffPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [existingPhotoUrl, setExistingPhotoUrl] = useState<string | null>(null);
+  const [deleteExistingPhotoOnSave, setDeleteExistingPhotoOnSave] = useState(false);
+
 
   const form = useForm<StaffFormValues>({
     resolver: zodResolver(staffFormSchema),
@@ -112,7 +114,17 @@ export default function EditStaffPage() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      if (file.size > 2 * 1024 * 1024) { // 2MB limit
+        toast({
+          title: "Ukuran File Terlalu Besar",
+          description: "Ukuran file foto maksimal adalah 2MB.",
+          variant: "destructive",
+        });
+        event.target.value = ""; // Reset file input
+        return;
+      }
       setSelectedFile(file);
+      setDeleteExistingPhotoOnSave(!!existingPhotoUrl); // Mark existing photo for deletion if a new one is selected
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result as string);
@@ -123,10 +135,13 @@ export default function EditStaffPage() {
   };
 
   const handleRemoveImage = async () => {
+    if (existingPhotoUrl) {
+      setDeleteExistingPhotoOnSave(true);
+    }
     setSelectedFile(null);
     setImagePreview(null);
     form.setValue('photoUrl', ''); 
-    setExistingPhotoUrl(null); 
+    // setExistingPhotoUrl(null); // Don't nullify existingPhotoUrl until save, so we know what to delete
     const fileInput = document.getElementById('photo-upload') as HTMLInputElement;
     if (fileInput) {
         fileInput.value = ""; 
@@ -137,24 +152,41 @@ export default function EditStaffPage() {
   const onSubmit = async (data: StaffFormValues) => {
     if (!staffId) return;
     setIsSubmitting(true);
-    let finalPhotoUrl = data.photoUrl || ''; 
+    let finalPhotoUrl = existingPhotoUrl || ''; 
 
     try {
       const staffDocRef = doc(db, 'staffMembers', staffId);
+      const storage = getStorage(app);
+
+      // Delete old photo if marked for deletion
+      if (deleteExistingPhotoOnSave && existingPhotoUrl && (selectedFile || !imagePreview)) { // Also delete if preview removed
+        try {
+          const oldImageRef = storageRef(storage, existingPhotoUrl);
+          await deleteObject(oldImageRef);
+          toast({ title: "Info", description: "Foto lama berhasil dihapus dari penyimpanan." });
+          finalPhotoUrl = ''; // Ensure finalPhotoUrl is cleared if old photo is deleted
+        } catch (deleteError: any) {
+          // Log error but continue, as main operation is updating staff data
+          console.error("Error deleting old photo: ", deleteError);
+          if (deleteError.code !== 'storage/object-not-found') { // Don't toast if already deleted
+             toast({ title: "Peringatan", description: "Gagal menghapus foto lama dari penyimpanan, namun data staf akan tetap diperbarui.", variant: "default" });
+          }
+        }
+      }
+
 
       if (selectedFile) { 
-        const storage = getStorage(app);
         const uniqueFileName = `${uuidv4()}-${selectedFile.name}`;
         const imagePath = `staff_photos/${staffId}/${uniqueFileName}`;
         const imageStorageRef = storageRef(storage, imagePath);
         
-        toast({ title: "Mengupload gambar baru...", description: "Mohon tunggu sebentar." });
+        toast({ title: "Mengupload gambar baru...", description: "Proses ini mungkin butuh beberapa saat." });
         await uploadBytes(imageStorageRef, selectedFile);
         finalPhotoUrl = await getDownloadURL(imageStorageRef);
         toast({ title: "Upload Berhasil", description: "Gambar staf berhasil diupload." });
 
-      } else if (data.photoUrl === '' && existingPhotoUrl) {
-        finalPhotoUrl = ''; 
+      } else if (!imagePreview && existingPhotoUrl) { // Image was removed but no new one selected
+         finalPhotoUrl = '';
       }
 
 
@@ -170,13 +202,17 @@ export default function EditStaffPage() {
       
       Object.keys(updateData).forEach(key => {
         const K = key as keyof typeof updateData;
-        if (updateData[K] === undefined && K !== 'updatedAt' && K !== 'photoUrl') {
+        if (updateData[K] === undefined && K !== 'updatedAt' && K !== 'photoUrl' && K !== 'phone' && K !== 'baseSalary' && K !== 'profitSharePercentage') {
           delete updateData[K];
         }
       });
        if (updateData.photoUrl === undefined) {
-         updateData.photoUrl = ''; 
+         updateData.photoUrl = ''; // Ensure it's an empty string if it was undefined
        }
+       if (updateData.phone === undefined) updateData.phone = '';
+       if (updateData.baseSalary === undefined) delete updateData.baseSalary; // Remove if undefined
+       if (updateData.profitSharePercentage === undefined) delete updateData.profitSharePercentage; // Remove if undefined
+
 
       await updateDoc(staffDocRef, updateData);
       toast({
@@ -185,15 +221,28 @@ export default function EditStaffPage() {
       });
       router.push('/staff/list');
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating staff: ", error);
+      let errorMessage = "Gagal memperbarui data staf. Silakan coba lagi.";
+       if (error.code && typeof error.code === 'string') {
+        if (error.code.startsWith('storage/')) {
+          errorMessage = `Error upload gambar: ${error.message || 'Tidak diketahui'}`;
+        } else if (error.code.startsWith('firestore/')) {
+          errorMessage = `Error penyimpanan data: ${error.message || 'Tidak diketahui'}`;
+        } else if (error instanceof Error) {
+          errorMessage = error.message;
+        }
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
       toast({
         title: "Error",
-        description: `Gagal memperbarui data staf: ${error instanceof Error ? error.message : 'Kesalahan tidak diketahui'}`,
+        description: errorMessage,
         variant: "destructive",
       });
+      setIsSubmitting(false); // Ensure reset on error
     } finally {
-      setIsSubmitting(false);
+      if(isSubmitting) setIsSubmitting(false);
     }
   };
   
@@ -295,7 +344,7 @@ export default function EditStaffPage() {
                             type="number" 
                             placeholder="mis. 3000000" 
                             {...field} 
-                            value={field.value === undefined ? '' : field.value}
+                            value={field.value === undefined ? '' : String(field.value)}
                             onChange={e => {
                                 const val = e.target.value;
                                 field.onChange(val === '' ? undefined : parseFloat(val));
@@ -318,7 +367,7 @@ export default function EditStaffPage() {
                             placeholder="mis. 25 (untuk 25%)" 
                             min="0" max="100" 
                             {...field}
-                            value={field.value === undefined ? '' : field.value}
+                            value={field.value === undefined ? '' : String(field.value)}
                             onChange={e => {
                                 const val = e.target.value;
                                 field.onChange(val === '' ? undefined : parseInt(val, 10));
@@ -381,3 +430,5 @@ export default function EditStaffPage() {
     </div>
   );
 }
+
+    

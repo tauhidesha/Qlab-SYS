@@ -15,7 +15,7 @@ import * as z from 'zod';
 import { Save, Loader2, ArrowLeft, Phone, DollarSign, Percent, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { db, app } from '@/lib/firebase';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
-import { collection, addDoc, serverTimestamp, doc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc } from 'firebase/firestore'; // Import doc
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { STAFF_ROLES, type NewStaffMemberData } from '@/types/staff';
@@ -33,7 +33,7 @@ const staffFormSchema = z.object({
     (val) => (val === "" || val === undefined || val === null) ? undefined : parseInt(String(val), 10),
     z.number({ invalid_type_error: "Persentase harus angka" }).min(0, "Minimal 0%").max(100, "Maksimal 100%").optional()
   ),
-  photoUrl: z.string().url("URL foto tidak valid").optional().or(z.literal('')),
+  photoUrl: z.string().url("URL foto tidak valid").optional().or(z.literal('')), // Kept for Zod schema, but UI uses file input
 });
 
 type StaffFormValues = z.infer<typeof staffFormSchema>;
@@ -60,6 +60,15 @@ export default function NewStaffPage() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      if (file.size > 2 * 1024 * 1024) { // 2MB limit
+        toast({
+          title: "Ukuran File Terlalu Besar",
+          description: "Ukuran file foto maksimal adalah 2MB.",
+          variant: "destructive",
+        });
+        event.target.value = ""; // Reset file input
+        return;
+      }
       setSelectedFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -85,6 +94,7 @@ export default function NewStaffPage() {
     let finalPhotoUrl = '';
 
     try {
+      // Create a new document reference with an auto-generated ID to get staffId first
       const newStaffDocRef = doc(collection(db, 'staffMembers'));
       const staffId = newStaffDocRef.id;
 
@@ -94,13 +104,14 @@ export default function NewStaffPage() {
         const imagePath = `staff_photos/${staffId}/${uniqueFileName}`;
         const imageStorageRef = storageRef(storage, imagePath);
         
-        toast({ title: "Mengupload gambar...", description: "Mohon tunggu sebentar." });
+        toast({ title: "Mengupload gambar...", description: "Proses ini mungkin butuh beberapa saat." });
         await uploadBytes(imageStorageRef, selectedFile);
         finalPhotoUrl = await getDownloadURL(imageStorageRef);
         toast({ title: "Upload Berhasil", description: "Gambar staf berhasil diupload." });
       }
 
-      const newStaffEntry: NewStaffMemberData & { createdAt: any; photoUrl?: string } = {
+      const newStaffEntry: NewStaffMemberData & { createdAt: any; id: string; photoUrl?: string } = {
+        id: staffId, // Store the auto-generated ID
         name: data.name,
         role: data.role,
         createdAt: serverTimestamp(),
@@ -115,7 +126,9 @@ export default function NewStaffPage() {
         newStaffEntry.profitSharePercentage = data.profitSharePercentage;
       }
       
+      // Use setDoc with the pre-generated ref instead of addDoc
       await addDoc(collection(db, 'staffMembers'), newStaffEntry);
+
 
       toast({
         title: "Sukses!",
@@ -123,15 +136,32 @@ export default function NewStaffPage() {
       });
       router.push('/staff/list');
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error adding staff member: ", error);
+      let errorMessage = "Gagal menambahkan staf baru. Silakan coba lagi.";
+      if (error.code && typeof error.code === 'string') {
+        if (error.code.startsWith('storage/')) {
+          errorMessage = `Error upload gambar: ${error.message || 'Tidak diketahui'}`;
+        } else if (error.code.startsWith('firestore/')) {
+          errorMessage = `Error penyimpanan data: ${error.message || 'Tidak diketahui'}`;
+        } else if (error instanceof Error) {
+          errorMessage = error.message;
+        }
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Error",
-        description: `Gagal menambahkan staf baru: ${error instanceof Error ? error.message : 'Kesalahan tidak diketahui'}`,
+        description: errorMessage,
         variant: "destructive",
       });
+      setIsSubmitting(false); // Ensure reset on error
     } finally {
-      setIsSubmitting(false);
+      // isSubmitting will be false if an error occurred and was caught.
+      // If successful, router.push happens, and this component might unmount.
+      // For safety, ensure it's set, though if an error is thrown and caught, it's handled above.
+      if(isSubmitting) setIsSubmitting(false);
     }
   };
 
@@ -207,7 +237,7 @@ export default function NewStaffPage() {
                             type="number" 
                             placeholder="mis. 3000000" 
                             {...field}
-                            value={field.value === undefined ? '' : field.value}
+                            value={field.value === undefined ? '' : String(field.value)} // Ensure value is string for input
                             onChange={e => {
                                 const val = e.target.value;
                                 field.onChange(val === '' ? undefined : parseFloat(val));
@@ -230,7 +260,7 @@ export default function NewStaffPage() {
                             placeholder="mis. 25 (untuk 25%)" 
                             min="0" max="100" 
                             {...field} 
-                            value={field.value === undefined ? '' : field.value}
+                            value={field.value === undefined ? '' : String(field.value)} // Ensure value is string for input
                             onChange={e => {
                                 const val = e.target.value;
                                 field.onChange(val === '' ? undefined : parseInt(val, 10));
@@ -293,3 +323,5 @@ export default function NewStaffPage() {
     </div>
   );
 }
+
+    
