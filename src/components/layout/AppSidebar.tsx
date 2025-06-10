@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -34,10 +35,42 @@ interface AppSidebarProps {
   className?: string;
 }
 
+// Helper function to determine if a NavItem or any of its children/grandchildren are active
+const isNavItemActive = (navItem: NavItem, currentPathname: string): boolean => {
+  if (navItem.href && (currentPathname === navItem.href || (navItem.href !== "/" && currentPathname.startsWith(navItem.href)))) {
+    return true;
+  }
+  if (navItem.items?.length) {
+    return navItem.items.some(child => isNavItemActive(child, currentPathname));
+  }
+  return false;
+};
+
+
 export function AppSidebar({ className }: AppSidebarProps) {
   const pathname = usePathname();
   const { state, open: sidebarOpen, isMobile } = useSidebar();
-  const [openSubMenus, setOpenSubMenus] = React.useState<Record<string, boolean>>({});
+  const [openSubMenus, setOpenSubMenus] = React.useState<Record<string, boolean>>(() => {
+    // Initialize openSubMenus based on active routes
+    const initialOpenState: Record<string, boolean> = {};
+    const processItemsForInitialOpen = (items: NavItem[]) => {
+      items.forEach(item => {
+        if (item.items?.length) {
+          if (isNavItemActive(item, pathname)) {
+            initialOpenState[item.title] = true;
+          }
+          processItemsForInitialOpen(item.items); // Recursively check deeper items
+        }
+      });
+    };
+    processItemsForInitialOpen(mainNavItems);
+    if (settingsNavItem.items?.length && isNavItemActive(settingsNavItem, pathname)) {
+        initialOpenState[settingsNavItem.title] = true;
+        if(settingsNavItem.items) processItemsForInitialOpen(settingsNavItem.items);
+    }
+    return initialOpenState;
+  });
+
 
   const toggleSubMenu = (title: string) => {
     setOpenSubMenus(prev => ({ ...prev, [title]: !prev[title] }));
@@ -45,34 +78,36 @@ export function AppSidebar({ className }: AppSidebarProps) {
 
   const showText = sidebarOpen || isMobile;
 
-  const renderNavItem = (item: NavItem) => {
-    const isActive =
-      pathname === item.href ||
-      (item.href && item.href !== "/" && pathname.startsWith(item.href));
+  // Function to render a single navigation item or a group
+  const renderNavItem = (item: NavItem, isSubMenuLevel: number = 0): React.ReactNode => {
+    const itemIsActive = isNavItemActive(item, pathname);
     const Icon = item.icon;
 
-    const content = (
+    // Content for the button (icon and text)
+    const buttonContent = (
       <>
         <Icon />
         {showText && <span>{item.title}</span>}
       </>
     );
 
+    // If the item has sub-items, it's a group
     if (item.items?.length) {
+      const ButtonComponent = isSubMenuLevel > 0 ? SidebarMenuSubButton : SidebarMenuButton;
+      
       const groupButton = (
-        <SidebarMenuButton
+        <ButtonComponent
           onClick={() => toggleSubMenu(item.title)}
-          className="justify-between w-full"
-          isActive={isActive && !openSubMenus[item.title]}
+          className={cn("justify-between w-full", isSubMenuLevel > 0 && "font-normal text-sm")} 
+          isActive={itemIsActive && !openSubMenus[item.title]}
           aria-expanded={openSubMenus[item.title]}
         >
           <div className="flex items-center gap-2">
-            <Icon />
-            {showText && <span>{item.title}</span>}
+            {buttonContent}
           </div>
           {showText &&
             (openSubMenus[item.title] ? <ChevronUp size={16} /> : <ChevronDown size={16} />)}
-        </SidebarMenuButton>
+        </ButtonComponent>
       );
 
       let navElement = groupButton;
@@ -89,73 +124,76 @@ export function AppSidebar({ className }: AppSidebarProps) {
         );
       }
 
+      const subMenuContent = openSubMenus[item.title] && showText && (
+        <SidebarMenuSub className={cn(isSubMenuLevel > 0 && "pl-3 ml-1 border-l-slate-700")}>
+          {item.items.map(subItem => renderNavItem(subItem, isSubMenuLevel + 1))}
+        </SidebarMenuSub>
+      );
+
+      if (isSubMenuLevel > 0) {
+        return (
+          <SidebarMenuSubItem key={item.title} className="flex flex-col items-stretch">
+            {navElement}
+            {subMenuContent}
+          </SidebarMenuSubItem>
+        );
+      }
       return (
         <SidebarMenuItem key={item.title}>
           {navElement}
-          {openSubMenus[item.title] && showText && (
-            <SidebarMenuSub>
-              {item.items.map(sub => {
-                const subActive =
-                  pathname === sub.href ||
-                  (sub.href && pathname.startsWith(sub.href));
-                return (
-                  <SidebarMenuSubItem key={sub.title}>
-                    <SidebarMenuSubButton asChild isActive={subActive}>
-                      <Link href={sub.href}>{sub.title}</Link>
-                    </SidebarMenuSubButton>
-                  </SidebarMenuSubItem>
-                );
-              })}
-            </SidebarMenuSub>
-          )}
+          {subMenuContent}
         </SidebarMenuItem>
       );
     }
 
-    const singleButton = (
-      <SidebarMenuButton isActive={isActive}>
-        {content}
-      </SidebarMenuButton>
-    );
-
-    let navElement: React.ReactNode = singleButton;
+    // If the item is a simple link
+    const LinkButtonComponent = isSubMenuLevel > 0 ? SidebarMenuSubButton : SidebarMenuButton;
+    let navElement: React.ReactNode;
 
     if (item.href) {
+      const linkButton = (
+        <LinkButtonComponent asChild isActive={itemIsActive} className={cn(isSubMenuLevel > 0 && "font-normal text-sm")}>
+          <Link href={item.href}>{buttonContent}</Link>
+        </LinkButtonComponent>
+      );
       if (!sidebarOpen && !isMobile) {
         navElement = (
           <TooltipProvider delayDuration={0}>
             <Tooltip>
-              <TooltipTrigger asChild>
-                <Link href={item.href}>{singleButton}</Link>
-              </TooltipTrigger>
+              <TooltipTrigger asChild>{linkButton}</TooltipTrigger>
               <TooltipContent side="right" align="center">{item.title}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         );
       } else {
-        navElement = (
-          <SidebarMenuButton asChild isActive={isActive}>
-            <Link href={item.href}>{content}</Link>
-          </SidebarMenuButton>
-        );
+        navElement = linkButton;
       }
-    } else {
-      if (!sidebarOpen && !isMobile) {
+    } else { 
+      const simpleButton = (
+          <LinkButtonComponent isActive={itemIsActive} className={cn(isSubMenuLevel > 0 && "font-normal text-sm")}>
+            {buttonContent}
+          </LinkButtonComponent>
+      );
+       if (!sidebarOpen && !isMobile) {
         navElement = (
           <TooltipProvider delayDuration={0}>
             <Tooltip>
-              <TooltipTrigger asChild>
-                {singleButton}
-              </TooltipTrigger>
+              <TooltipTrigger asChild>{simpleButton}</TooltipTrigger>
               <TooltipContent side="right" align="center">{item.title}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         );
+      } else {
+        navElement = simpleButton;
       }
     }
-
+    
+    if (isSubMenuLevel > 0) {
+      return <SidebarMenuSubItem key={item.title}>{navElement}</SidebarMenuSubItem>;
+    }
     return <SidebarMenuItem key={item.title}>{navElement}</SidebarMenuItem>;
   };
+
 
   return (
     <Sidebar className={cn("border-r", className)} collapsible="icon">
@@ -168,12 +206,12 @@ export function AppSidebar({ className }: AppSidebarProps) {
       </SidebarHeader>
       <SidebarContent className="p-2">
         <SidebarMenu>
-          {mainNavItems.map(i => renderNavItem(i))}
+          {mainNavItems.map(i => renderNavItem(i, 0))}
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter className="p-2 border-t">
         <SidebarMenu>
-          {renderNavItem(settingsNavItem)}
+          {renderNavItem(settingsNavItem, 0)}
           <SidebarMenuItem>
             <div
               className={cn(
@@ -185,6 +223,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
                 <AvatarImage
                   src="https://placehold.co/40x40.png"
                   alt="Avatar Pengguna"
+                  data-ai-hint="user avatar"
                 />
                 <AvatarFallback>PD</AvatarFallback>
               </Avatar>
@@ -205,3 +244,4 @@ export function AppSidebar({ className }: AppSidebarProps) {
     </Sidebar>
   );
 }
+    
