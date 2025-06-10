@@ -5,24 +5,29 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Clock, LogIn, LogOut, UserCheck, UserX, PlusCircle, Loader2, MapPin } from 'lucide-react'; // Added MapPin
+import { Clock, LogIn, LogOut, UserCheck, UserX, PlusCircle, Loader2, MapPin } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy, Timestamp, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import { id as indonesiaLocale } from 'date-fns/locale';
 import { format as formatDateFns } from 'date-fns';
-import type { AttendanceRecord } from '@/types/attendance'; // Import from new types file
+import type { AttendanceRecord, GeolocationCoordinates } from '@/types/attendance';
 
 export default function AttendancePage() {
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [rowActionLoading, setRowActionLoading] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
 
   const formatDateForFirestore = (date: Date): string => {
     return formatDateFns(date, 'yyyy-MM-dd');
+  };
+
+  const getCurrentTimeHHMM = (): string => {
+    return formatDateFns(new Date(), 'HH:mm');
   };
 
   const fetchAttendance = useCallback(async (dateToFetch: Date) => {
@@ -50,6 +55,95 @@ export default function AttendancePage() {
   useEffect(() => {
     fetchAttendance(selectedDate);
   }, [selectedDate, fetchAttendance]);
+
+  const handleGeolocation = (
+    onSuccess: (coords: GeolocationCoordinates) => void,
+    onError: (errorMsg: string) => void
+  ) => {
+    if (!navigator.geolocation) {
+      onError("Geolocation tidak didukung oleh browser ini.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        onSuccess({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
+        });
+      },
+      (error) => {
+        let message = "Gagal mendapatkan lokasi.";
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            message = "Izin akses lokasi ditolak.";
+            break;
+          case error.POSITION_UNAVAILABLE:
+            message = "Informasi lokasi tidak tersedia.";
+            break;
+          case error.TIMEOUT:
+            message = "Waktu permintaan lokasi habis.";
+            break;
+        }
+        onError(message);
+      }
+    );
+  };
+
+  const updateAttendanceRecord = async (recordId: string, data: Partial<AttendanceRecord>) => {
+    setRowActionLoading(prev => ({ ...prev, [recordId]: true }));
+    try {
+      const recordDocRef = doc(db, 'attendanceRecords', recordId);
+      await updateDoc(recordDocRef, { ...data, updatedAt: serverTimestamp() });
+      toast({ title: "Sukses", description: "Data absensi berhasil diperbarui." });
+      fetchAttendance(selectedDate); // Refresh data
+    } catch (error) {
+      console.error("Error updating attendance record: ", error);
+      toast({ title: "Error", description: "Gagal memperbarui data absensi.", variant: "destructive" });
+    } finally {
+      setRowActionLoading(prev => ({ ...prev, [recordId]: false }));
+    }
+  };
+
+  const handleClockIn = (recordId: string) => {
+    handleGeolocation(
+      (coords) => {
+        updateAttendanceRecord(recordId, {
+          clockIn: getCurrentTimeHHMM(),
+          clockInLocation: coords,
+          status: 'Hadir', // Simplified status, can be enhanced later for 'Terlambat'
+        });
+      },
+      (errorMsg) => {
+        toast({ title: "Error Lokasi", description: errorMsg, variant: "destructive" });
+        // Optionally proceed without location or ask user to input manually
+        updateAttendanceRecord(recordId, { // Clock-in without location if geolocation fails but user wants to proceed
+            clockIn: getCurrentTimeHHMM(),
+            status: 'Hadir', 
+            notes: (attendanceRecords.find(r => r.id === recordId)?.notes || '') + ` [Lokasi gagal diambil: ${errorMsg}]`
+        });
+      }
+    );
+  };
+
+  const handleClockOut = (recordId: string) => {
+    handleGeolocation(
+      (coords) => {
+        updateAttendanceRecord(recordId, {
+          clockOut: getCurrentTimeHHMM(),
+          clockOutLocation: coords,
+        });
+      },
+      (errorMsg) => {
+        toast({ title: "Error Lokasi", description: errorMsg, variant: "destructive" });
+         updateAttendanceRecord(recordId, { // Clock-out without location
+            clockOut: getCurrentTimeHHMM(),
+            notes: (attendanceRecords.find(r => r.id === recordId)?.notes || '') + ` [Lokasi gagal diambil: ${errorMsg}]`
+        });
+      }
+    );
+  };
+
 
   const getStatusBadge = (status: AttendanceRecord['status']) => {
     switch(status) {
@@ -102,7 +196,18 @@ export default function AttendancePage() {
                           {record.clockInLocation ? (
                             <div className="flex items-center text-xs text-muted-foreground">
                               <MapPin className="h-3 w-3 mr-1 text-blue-500" />
-                              <span>Lat: {record.clockInLocation.latitude.toFixed(3)}, Lon: {record.clockInLocation.longitude.toFixed(3)}</span>
+                              <TooltipProvider delayDuration={100}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="truncate cursor-help">
+                                      Lat: {record.clockInLocation.latitude.toFixed(3)}, Lon: {record.clockInLocation.longitude.toFixed(3)}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Akurasi: {record.clockInLocation.accuracy?.toFixed(0) || 'N/A'} meter</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
                             </div>
                           ) : record.clockIn ? (<span className="text-muted-foreground text-xs italic">Tidak ada data</span>) : (<span className="text-muted-foreground">-</span>) }
                         </TableCell>
@@ -111,14 +216,45 @@ export default function AttendancePage() {
                           {record.clockOutLocation ? (
                              <div className="flex items-center text-xs text-muted-foreground">
                               <MapPin className="h-3 w-3 mr-1 text-red-500" />
-                              <span>Lat: {record.clockOutLocation.latitude.toFixed(3)}, Lon: {record.clockOutLocation.longitude.toFixed(3)}</span>
+                               <TooltipProvider delayDuration={100}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="truncate cursor-help">
+                                      Lat: {record.clockOutLocation.latitude.toFixed(3)}, Lon: {record.clockOutLocation.longitude.toFixed(3)}
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Akurasi: {record.clockOutLocation.accuracy?.toFixed(0) || 'N/A'} meter</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
                             </div>
                           ) : record.clockOut ? (<span className="text-muted-foreground text-xs italic">Tidak ada data</span>) : (<span className="text-muted-foreground">-</span>) }
                         </TableCell>
                         <TableCell>{getStatusBadge(record.status)}</TableCell>
                         <TableCell className="text-right space-x-1">
-                          {!record.clockIn && record.status !== 'Absen' && record.status !== 'Cuti' && <Button variant="outline" size="sm" disabled><LogIn className="mr-1 h-3 w-3"/> Masuk</Button>}
-                          {record.clockIn && !record.clockOut && record.status === 'Hadir' && <Button variant="outline" size="sm" disabled><LogOut className="mr-1 h-3 w-3"/> Pulang</Button>}
+                          {!record.clockIn && record.status !== 'Absen' && record.status !== 'Cuti' && (
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handleClockIn(record.id)}
+                              disabled={rowActionLoading[record.id]}
+                            >
+                              {rowActionLoading[record.id] ? <Loader2 className="mr-1 h-3 w-3 animate-spin"/> : <LogIn className="mr-1 h-3 w-3"/>}
+                               Masuk
+                            </Button>
+                          )}
+                          {record.clockIn && !record.clockOut && (record.status === 'Hadir' || record.status === 'Terlambat') && (
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handleClockOut(record.id)}
+                              disabled={rowActionLoading[record.id]}
+                            >
+                               {rowActionLoading[record.id] ? <Loader2 className="mr-1 h-3 w-3 animate-spin"/> : <LogOut className="mr-1 h-3 w-3"/>}
+                               Pulang
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -153,8 +289,19 @@ export default function AttendancePage() {
               />
             </CardContent>
           </Card>
+           <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>Catatan Geotagging</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground space-y-2">
+              <p>Fitur geotagging memerlukan izin akses lokasi dari browser pengguna (staf yang melakukan clock-in/out).</p>
+              <p>Jika izin ditolak atau lokasi tidak dapat diperoleh, sistem akan tetap mencatat waktu clock-in/out tanpa data lokasi, dengan catatan.</p>
+              <p>Akurasi lokasi tergantung pada perangkat dan kondisi jaringan.</p>
+            </CardContent>
+          </Card>
         </div>
       </main>
     </div>
   );
 }
+
