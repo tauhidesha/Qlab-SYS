@@ -27,6 +27,7 @@ interface QueueItem {
 }
 
 const AUTO_HIDE_DELAY_MS = 5 * 60 * 1000; // 5 minutes
+const TIME_UP_MESSAGE = "Sabar ya bro bentar lagi beres";
 
 function parseEstimatedTimeToMinutes(timeString: string): number | null {
     if (!timeString) return null;
@@ -132,7 +133,7 @@ export default function QueueDisplayPage() {
           const remainingMs = targetEndTimeMs - nowMs;
 
           if (remainingMs <= 0) {
-            setCountdownTimers(prev => ({ ...prev, [item.id]: "Sabar ya bro bentar lagi beres" }));
+            setCountdownTimers(prev => ({ ...prev, [item.id]: TIME_UP_MESSAGE }));
           } else {
             const minutes = Math.floor((remainingMs / (1000 * 60)) % 60);
             const seconds = Math.floor((remainingMs / 1000) % 60);
@@ -147,7 +148,6 @@ export default function QueueDisplayPage() {
         const intervalId = setInterval(updateTimer, 1000);
         intervalIds.push(intervalId);
       } else if (countdownTimers[item.id]) {
-        // Clear timer if item is no longer "Dalam Layanan" or serviceStartTime is missing
         setCountdownTimers(prev => {
             const newTimers = {...prev};
             delete newTimers[item.id];
@@ -159,26 +159,24 @@ export default function QueueDisplayPage() {
     return () => {
       intervalIds.forEach(clearInterval);
     };
-  }, [queueItems, countdownTimers]); // Added countdownTimers to dependency array to ensure stability
+  }, [queueItems, countdownTimers]); 
 
   useEffect(() => {
-    // This effect ensures that items are hidden even if no new data comes from Firestore
     const intervalId = setInterval(() => {
       const now = Date.now();
       setQueueItems(prevItems => 
         prevItems.filter(item => {
           if (item.status === 'Selesai' && item.completedAt) {
             const completedTime = item.completedAt.toDate().getTime();
-            // Ensure items completed more than AUTO_HIDE_DELAY_MS ago are filtered out
             return !(now - completedTime > AUTO_HIDE_DELAY_MS); 
           }
           return true;
         })
       );
-    }, 60 * 1000); // Check every minute
+    }, 60 * 1000); 
 
     return () => clearInterval(intervalId);
-  }, []); // Runs once on mount
+  }, []); 
 
 
   return (
@@ -266,8 +264,12 @@ export default function QueueDisplayPage() {
                             </div>
                           ) : item.status === 'Dalam Layanan' ? (
                              <div className="flex flex-col items-center">
-                               <span className="text-sm">Estimasi Sisa</span>
-                               <span className="text-lg font-semibold text-primary">{countdownTimers[item.id] || item.estimatedTime}</span>
+                               {countdownTimers[item.id] !== TIME_UP_MESSAGE && (
+                                 <span className="text-sm">Estimasi Sisa</span>
+                               )}
+                               <span className={`text-lg font-semibold ${countdownTimers[item.id] === TIME_UP_MESSAGE ? 'text-amber-500' : 'text-primary'}`}>
+                                {countdownTimers[item.id] || item.estimatedTime}
+                               </span>
                              </div>
                           ) : (
                             <div className="flex flex-col items-center">
@@ -291,4 +293,3 @@ export default function QueueDisplayPage() {
     </>
   );
 }
-
