@@ -56,6 +56,13 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 
 const SHOP_NAME = "QLAB Auto Detailing"; 
 
+// --- KONFIGURASI BONUS ITEM OTOMATIS ---
+// Ganti dengan ID layanan yang akan memicu bonus (misalnya, "Advance Formula")
+const TRIGGER_SERVICE_ID = 'SVC_ADVANCE_FORMULA_PLACEHOLDER'; 
+// Ganti dengan ID produk sticker reward yang sudah dibuat di katalog dengan harga 0
+const BONUS_STICKER_PRODUCT_ID = 'PROD_STICKER_REWARD_PLACEHOLDER'; 
+// --- END KONFIGURASI BONUS ITEM OTOMATIS ---
+
 
 export default function PosPage() {
   const [openTransactions, setOpenTransactions] = useState<Transaction[]>([]);
@@ -359,7 +366,7 @@ export default function PosPage() {
         }
     }
 
-    const newItem: TransactionItem = {
+    const mainTransactionItem: TransactionItem = {
       id: uuidv4(), 
       catalogItemId: catalogItem.id,
       variantId: selectedVariantId,
@@ -371,10 +378,40 @@ export default function PosPage() {
       ...(catalogItem.type === 'Layanan' && selectedStaffForNewItemToAdd && { staffName: selectedStaffForNewItemToAdd }),
     };
 
+    let itemsToActuallyAdd: TransactionItem[] = [mainTransactionItem];
+    let bonusStickerAddedMessage: string | null = null;
+
+    // --- Logika Penambahan Bonus Sticker Otomatis ---
+    if (catalogItem.id === TRIGGER_SERVICE_ID) {
+        const stickerAlreadyInTransaction = selectedTransaction.items.some(it => it.catalogItemId === BONUS_STICKER_PRODUCT_ID);
+        if (!stickerAlreadyInTransaction) {
+            const stickerProduct = availableItems.find(item => item.id === BONUS_STICKER_PRODUCT_ID);
+            if (stickerProduct) {
+                const stickerTransactionItem: TransactionItem = {
+                    id: uuidv4(),
+                    catalogItemId: stickerProduct.id,
+                    name: stickerProduct.name,
+                    price: 0, // Bonus item should be free
+                    quantity: 1,
+                    type: 'reward_merchandise', // Atau 'product' jika tidak ingin dibedakan khusus
+                    pointsAwardedPerUnit: 0, // Bonus item usually doesn't award points
+                };
+                itemsToActuallyAdd.push(stickerTransactionItem);
+                bonusStickerAddedMessage = `${stickerProduct.name} berhasil ditambahkan sebagai bonus!`;
+            } else {
+                 console.warn(`Produk bonus sticker dengan ID "${BONUS_STICKER_PRODUCT_ID}" tidak ditemukan di katalog.`);
+                 toast({ title: "Info", description: "Produk bonus sticker tidak ditemukan di katalog.", variant: "default" });
+            }
+        }
+    }
+    // --- Akhir Logika Bonus Sticker ---
+
+
     try {
       const transactionDocRef = doc(db, 'transactions', selectedTransaction.id);
       const currentItems = selectedTransaction.items || [];
-      const updatedItemsForCalc = [...currentItems, newItem];
+      
+      const updatedItemsForCalc = [...currentItems, ...itemsToActuallyAdd];
       
       const { subtotal: newSubtotal, total: newTotal } = calculateTransactionTotals(
         updatedItemsForCalc,
@@ -384,17 +421,20 @@ export default function PosPage() {
       );
 
       await updateDoc(transactionDocRef, {
-        items: arrayUnion(newItem),
+        items: arrayUnion(...itemsToActuallyAdd), // Use arrayUnion with spread for multiple items
         subtotal: newSubtotal,
         total: newTotal,
         updatedAt: serverTimestamp(),
       });
 
-      toast({ title: "Sukses", description: `${newItem.name} berhasil ditambahkan ke transaksi.` });
+      toast({ title: "Sukses", description: `${mainTransactionItem.name} berhasil ditambahkan.` });
+      if (bonusStickerAddedMessage) {
+        toast({ title: "Bonus!", description: bonusStickerAddedMessage });
+      }
       setIsAddItemDialogOpen(false);
       resetAddItemForm();
     } catch (error) {
-      console.error("Error adding item to transaction: ", error);
+      console.error("Error adding item(s) to transaction: ", error);
       toast({ title: "Error", description: "Gagal menambahkan item.", variant: "destructive" });
     } finally {
       setIsSubmittingItem(false);
@@ -503,7 +543,9 @@ export default function PosPage() {
              newRedeemedReward = undefined;
              newPointsRedeemed = 0;
              newPointsRedeemedValue = 0;
-             updatedItemsArray = updatedItemsArray.filter(item => item.type !== 'reward_merchandise');
+             // If this was a loyalty reward, also remove other reward_merchandise items if they were part of the same reward bundle (not handled yet)
+             // For now, just removes the specific item that was part of a loyalty reward.
+             // Also, if it was an auto-added bonus sticker, it's just removed like any other item.
         }
         
         const { subtotal, total, discountAmountApplied } = calculateTransactionTotals(
@@ -623,7 +665,7 @@ export default function PosPage() {
     if (selectedRewardToRedeem.type === 'merchandise') {
         const merchandiseItem: TransactionItem = {
             id: uuidv4(),
-            catalogItemId: `reward_${selectedRewardToRedeem.id}`,
+            catalogItemId: `reward_${selectedRewardToRedeem.id}`, // This might need adjustment if we want it to be a real product ID
             name: selectedRewardToRedeem.rewardValue as string, // The merchandise name is the value here
             price: 0,
             quantity: 1,
@@ -684,7 +726,7 @@ export default function PosPage() {
       
       if (selectedTransaction.clientId && (!selectedTransaction.pointsRedeemed || selectedTransaction.pointsRedeemed === 0)) {
          pointsEarnedThisTransaction = selectedTransaction.items.reduce((sum, item) => {
-            if (item.type === 'reward_merchandise') return sum;
+            if (item.type === 'reward_merchandise') return sum; // Item reward tidak menghasilkan poin
             const awardedPoints = (typeof item.pointsAwardedPerUnit === 'number' && !isNaN(item.pointsAwardedPerUnit)) ? item.pointsAwardedPerUnit : 0;
             const qty = (typeof item.quantity === 'number' && !isNaN(item.quantity) && item.quantity > 0) ? item.quantity : 1; 
             return sum + (awardedPoints * qty);
