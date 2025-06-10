@@ -1,6 +1,6 @@
 
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, BarChartBig, Settings, Clipboard, Banknote, CalendarDays, ClipboardList, Percent, ReceiptText } from 'lucide-react';
+import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, BarChartBig, Settings, Clipboard, Banknote, CalendarDays, ClipboardList, Percent, ReceiptText, Landmark } from 'lucide-react';
 
 export interface NavItem {
   title: string;
@@ -22,12 +22,6 @@ export const mainNavItems: NavItem[] = [
     description: 'Gambaran umum aktivitas bengkel.',
   },
   {
-    title: 'Penjualan',
-    href: '/pos',
-    icon: ShoppingCart,
-    description: 'Kelola penjualan dan transaksi.',
-  },
-  {
     title: 'Manajemen Antrian',
     href: '/queue',
     icon: ListOrdered,
@@ -46,14 +40,35 @@ export const mainNavItems: NavItem[] = [
     description: 'Kelola katalog layanan dan produk.',
   },
   {
-    title: 'Pengeluaran',
-    href: '/expenses',
-    icon: ReceiptText,
-    description: 'Catat dan kelola pengeluaran bengkel.',
+    title: 'Keuangan', // Menu Utama Baru
+    href: '/finance', // Base href, bisa juga tidak ada jika hanya grup
+    icon: Landmark, // Ikon untuk menu Keuangan
+    description: 'Kelola pemasukan, pengeluaran, dan laporan keuangan.',
+    collapsible: true,
+    items: [
+      {
+        title: 'Pemasukan (POS)',
+        href: '/pos',
+        icon: ShoppingCart, // Ikon yang sama dengan Penjualan sebelumnya
+        description: 'Kelola penjualan dan transaksi.',
+      },
+      {
+        title: 'Pengeluaran',
+        href: '/expenses',
+        icon: ReceiptText, // Ikon yang sama dengan Pengeluaran sebelumnya
+        description: 'Catat dan kelola pengeluaran bengkel.',
+      },
+      {
+        title: 'Laporan Keuangan',
+        href: '/reports',
+        icon: BarChartBig, // Ikon yang sama dengan Laporan sebelumnya
+        description: 'Lihat laporan pendapatan dan pengeluaran.',
+      },
+    ],
   },
   {
     title: 'Manajemen Staf',
-    href: '/staff', // Halaman utama modul staf
+    href: '/staff', 
     icon: Clipboard,
     description: 'Kelola data, absensi, penggajian, dan bagi hasil staf.',
     collapsible: true,
@@ -64,12 +79,6 @@ export const mainNavItems: NavItem[] = [
         { title: 'Bagi Hasil Harian', href: '/staff/profit-sharing', icon: Percent, description: "Kelola bagi hasil harian staf."}
     ]
   },
-  {
-    title: 'Laporan',
-    href: '/reports',
-    icon: BarChartBig,
-    description: 'Lihat laporan pendapatan dan pengeluaran.',
-  },
 ];
 
 export const settingsNavItem: NavItem = {
@@ -78,3 +87,4 @@ export const settingsNavItem: NavItem = {
   icon: Settings,
   description: 'Konfigurasi pengaturan aplikasi.',
 };
+
