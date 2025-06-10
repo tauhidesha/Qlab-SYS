@@ -14,12 +14,12 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Save, Loader2, ArrowLeft, ReceiptText, CalendarDays, Tag, StickyNote, Link as LinkIcon, Landmark } from 'lucide-react';
+import { Save, Loader2, ArrowLeft, ReceiptText, CalendarDays, Tag, StickyNote, Link as LinkIcon, Landmark, WalletCards } from 'lucide-react'; // Added WalletCards
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { type ExpenseFormData, EXPENSE_CATEGORIES, type ExpenseCategory } from '@/types/expense';
+import { type ExpenseFormData, EXPENSE_CATEGORIES, type ExpenseCategory, PAYMENT_SOURCES, type PaymentSource } from '@/types/expense';
 import { DatePickerSingle } from '@/components/ui/date-picker-single';
 
 const expenseFormSchema = z.object({
@@ -35,6 +35,7 @@ const expenseFormSchema = z.object({
     z.number({ required_error: "Jumlah pengeluaran diperlukan", invalid_type_error: "Jumlah harus berupa angka" })
      .positive("Jumlah pengeluaran harus angka positif")
   ),
+  paymentSource: z.enum(PAYMENT_SOURCES).optional(),
   receiptUrl: z.string().url("URL struk tidak valid. Pastikan menyertakan http:// atau https://").optional().or(z.literal('')),
   notes: z.string().max(500, "Catatan maksimal 500 karakter").optional(),
   bankDestination: z.string().max(100, "Nama bank maksimal 100 karakter").optional(),
@@ -51,6 +52,7 @@ export default function NewExpensePage() {
       category: undefined,
       description: '',
       amount: undefined,
+      paymentSource: "Kas Tunai", // Default ke Kas Tunai
       receiptUrl: '',
       notes: '',
       bankDestination: '',
@@ -64,8 +66,8 @@ export default function NewExpensePage() {
     try {
       const newExpenseData: Omit<ExpenseFormData, 'date'> & { date: Timestamp, createdAt: any, updatedAt: any } = {
         ...data,
-        date: Timestamp.fromDate(data.date), 
-        amount: Number(data.amount), 
+        date: Timestamp.fromDate(data.date),
+        amount: Number(data.amount),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
@@ -162,14 +164,36 @@ export default function NewExpensePage() {
                     <FormItem>
                       <FormLabel>Jumlah (Rp)</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="number" 
-                          placeholder="mis. 50000" 
-                          {...field} 
+                        <Input
+                          type="number"
+                          placeholder="mis. 50000"
+                          {...field}
                           onChange={e => field.onChange(parseFloat(e.target.value) || undefined)}
                           value={field.value === undefined ? '' : String(field.value)}
                         />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="paymentSource"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center"><WalletCards className="mr-2 h-4 w-4 text-muted-foreground"/>Sumber Pembayaran</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Pilih sumber pembayaran" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {PAYMENT_SOURCES.map(source => (
+                            <SelectItem key={source} value={source}>{source}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}

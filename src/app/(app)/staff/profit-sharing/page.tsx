@@ -25,13 +25,13 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import type { ExpenseFormData, ExpenseCategory } from '@/types/expense'; // Import Expense types
+import type { ExpenseFormData, ExpenseCategory, PaymentSource } from '@/types/expense';
 
 interface ProfitShareFormState {
   staffDailyRevenue: number;
   profitSharePercentage: number;
   profitShareAmount: number;
-  contributingItems: TransactionItem[]; 
+  contributingItems: TransactionItem[];
   existingEntryId?: string;
   status: 'Belum Dibayar' | 'Dibayar';
   paidAt?: Timestamp;
@@ -78,7 +78,7 @@ function ProfitShareDetailDialog({ isOpen, onClose, entryData }: ProfitShareDeta
               </div>
             </CardContent>
           </Card>
-          
+
           <h4 className="font-medium text-md mt-4">Rincian Transaksi Kontribusi:</h4>
           {entryData.contributingItems.length === 0 ? (
             <p className="text-sm text-muted-foreground">Tidak ada transaksi layanan yang berkontribusi pada pendapatan harian staf ini.</p>
@@ -171,7 +171,7 @@ export default function ProfitSharingPage() {
       const transactionsRef = collection(db, 'transactions');
       const dateStart = startOfDay(date);
       const dateEnd = endOfDay(date);
-      
+
       const transactionsQuery = query(
         transactionsRef,
         where('status', '==', 'paid'),
@@ -201,16 +201,16 @@ export default function ProfitSharingPage() {
             });
           }
         });
-        
+
         const existingEntryFromDb = existingDbEntries.find(e => e.staffId === staff.id);
         const staffProfileProfitSharePercentage = staff.profitSharePercentage || 0;
 
         if (existingEntryFromDb) {
           newEntriesState[staff.id] = {
-            staffDailyRevenue: existingEntryFromDb.staffDailyRevenue, 
-            profitSharePercentage: existingEntryFromDb.profitSharePercentage, 
-            profitShareAmount: existingEntryFromDb.profitShareAmount, 
-            contributingItems: contributingItems, 
+            staffDailyRevenue: existingEntryFromDb.staffDailyRevenue,
+            profitSharePercentage: existingEntryFromDb.profitSharePercentage,
+            profitShareAmount: existingEntryFromDb.profitShareAmount,
+            contributingItems: contributingItems, // Always use fresh contributing items for detail view
             existingEntryId: existingEntryFromDb.id,
             status: existingEntryFromDb.status,
             paidAt: existingEntryFromDb.paidAt,
@@ -245,14 +245,14 @@ export default function ProfitSharingPage() {
     if (technicianStaffList.length > 0) {
       calculateRevenueAndPopulateEntries(selectedDate);
     } else {
-      setProfitShareEntries({}); 
+      setProfitShareEntries({});
     }
   }, [selectedDate, technicianStaffList, calculateRevenueAndPopulateEntries]);
 
 
   const handleSaveEntry = async (staffId: string) => {
     const staff = technicianStaffList.find(s => s.id === staffId);
-    const entryFromState = profitShareEntries[staffId]; 
+    const entryFromState = profitShareEntries[staffId];
     if (!staff || !entryFromState) return;
 
     setProfitShareEntries(prev => ({ ...prev, [staffId]: { ...prev[staffId], isLoadingSave: true }}));
@@ -261,7 +261,7 @@ export default function ProfitSharingPage() {
       staffId: staff.id,
       staffName: staff.name,
       date: formatDateForFirestore(selectedDate),
-      staffDailyRevenue: entryFromState.staffDailyRevenue, 
+      staffDailyRevenue: entryFromState.staffDailyRevenue,
       profitSharePercentage: entryFromState.profitSharePercentage,
       profitShareAmount: entryFromState.profitShareAmount,
       status: entryFromState.status || 'Belum Dibayar',
@@ -314,11 +314,12 @@ export default function ProfitSharingPage() {
       });
 
       // Create expense entry
-      const expenseData: Omit<ExpenseFormData, 'date'> & { date: Timestamp, category: ExpenseCategory, createdAt: any, updatedAt: any } = {
+      const expenseData: Omit<ExpenseFormData, 'date' | 'category'> & { date: Timestamp, category: ExpenseCategory, paymentSource: PaymentSource, createdAt: any, updatedAt: any } = {
         date: paidTimestamp,
         category: "Gaji & Komisi Staf",
         description: `Pembayaran Bagi Hasil ${staff.name} - Tgl ${formatDateFns(selectedDate, 'dd MMM yyyy', { locale: indonesiaLocale })}`,
         amount: entryData.profitShareAmount,
+        paymentSource: "Transfer Bank", // Default to Transfer Bank
         notes: "Pembayaran bagi hasil otomatis dari modul bagi hasil harian.",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -336,7 +337,7 @@ export default function ProfitSharingPage() {
       setProfitShareEntries(prev => ({ ...prev, [staffId]: { ...prev[staffId], isLoadingPay: false }}));
     }
   };
-  
+
   const handleOpenDetailDialog = (staffId: string) => {
     const staffMember = technicianStaffList.find(s => s.id === staffId);
     const entry = profitShareEntries[staffId];
@@ -384,7 +385,7 @@ export default function ProfitSharingPage() {
                 onSelect={(date) => date && setSelectedDate(date)}
                 className="rounded-md border"
                 locale={indonesiaLocale}
-                disabled={(date) => date > new Date()} 
+                disabled={(date) => date > new Date()}
               />
             </CardContent>
           </Card>
@@ -418,10 +419,10 @@ export default function ProfitSharingPage() {
                   </TableHeader>
                   <TableBody>
                     {technicianStaffList.map((staff) => {
-                      const entry = profitShareEntries[staff.id] || { 
-                          staffDailyRevenue: 0, 
-                          profitSharePercentage: staff.profitSharePercentage || 0, 
-                          profitShareAmount: 0, 
+                      const entry = profitShareEntries[staff.id] || {
+                          staffDailyRevenue: 0,
+                          profitSharePercentage: staff.profitSharePercentage || 0,
+                          profitShareAmount: 0,
                           contributingItems: [],
                           status: 'Belum Dibayar',
                           isLoadingSave: false,
@@ -445,7 +446,7 @@ export default function ProfitSharingPage() {
                           </TableCell>
                           <TableCell className="text-center">
                             <span className={`px-2 py-1 text-xs rounded-full ${
-                              isPaid ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' 
+                              isPaid ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
                                      : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
                             }`}>
                               {entry.status}
@@ -457,19 +458,19 @@ export default function ProfitSharingPage() {
                             )}
                           </TableCell>
                           <TableCell className="text-right space-x-1">
-                            <Button 
-                                size="sm" 
-                                onClick={() => handleSaveEntry(staff.id)} 
+                            <Button
+                                size="sm"
+                                onClick={() => handleSaveEntry(staff.id)}
                                 disabled={disableSaveButton}
                                 variant="outline"
                                 title={entry.existingEntryId ? "Perbarui Data Tersimpan" : "Simpan Data Hari Ini"}
                             >
                               {entry.isLoadingSave ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                             </Button>
-                            <Button 
-                                size="sm" 
+                            <Button
+                                size="sm"
                                 variant={isPaid ? "secondary" : "default"}
-                                onClick={() => handleMarkAsPaid(staff.id)} 
+                                onClick={() => handleMarkAsPaid(staff.id)}
                                 disabled={disablePayButton}
                                 className={!isPaid && !disablePayButton ? "bg-green-600 hover:bg-green-700 text-white" : ""}
                                 title="Tandai Sudah Dibayar"
@@ -507,6 +508,3 @@ export default function ProfitSharingPage() {
     </div>
   );
 }
-    
-
-    

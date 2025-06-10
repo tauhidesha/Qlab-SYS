@@ -5,13 +5,13 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Edit3, Trash2, Search, Loader2, ReceiptText } from 'lucide-react';
+import { PlusCircle, Edit3, Trash2, Search, Loader2, ReceiptText, WalletCards } from 'lucide-react'; // Added WalletCards
 import Link from 'next/link';
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, orderBy, deleteDoc, doc, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, deleteDoc, doc, Timestamp, where } from 'firebase/firestore'; // Added where
 import { toast } from "@/hooks/use-toast";
-import type { Expense, ExpenseCategory } from '@/types/expense';
+import type { Expense, ExpenseCategory, PaymentSource } from '@/types/expense';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +27,7 @@ import { DatePickerWithRange } from '@/components/ui/date-picker-range';
 import type { DateRange } from "react-day-picker";
 import { format as formatDateFns } from 'date-fns';
 import { id as indonesiaLocale } from 'date-fns/locale';
+import { Badge } from '@/components/ui/badge';
 
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -44,14 +45,14 @@ export default function ExpensesPage() {
     setLoading(true);
     try {
       const expensesCollectionRef = collection(db, 'expenses');
-      let q = query(expensesCollectionRef, orderBy("date", "desc"));
+      let firestoreQuery = query(expensesCollectionRef, orderBy("date", "desc"));
 
       if (dateRange?.from) {
         const fromTimestamp = Timestamp.fromDate(dateRange.from);
         let toTimestamp = dateRange.to ? Timestamp.fromDate(new Date(dateRange.to.getTime() + 86399999)) : Timestamp.fromDate(new Date(dateRange.from.getTime() + 86399999));
-        if (!dateRange.to) dateRange.to = dateRange.from; // Ensure 'to' is set if only 'from'
+        if (!dateRange.to) dateRange.to = dateRange.from;
 
-        q = query(
+        firestoreQuery = query(
           expensesCollectionRef,
           where("date", ">=", fromTimestamp),
           where("date", "<=", toTimestamp),
@@ -59,7 +60,7 @@ export default function ExpensesPage() {
         );
       }
 
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await getDocs(firestoreQuery);
       const expensesData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
       setExpenses(expensesData);
     } catch (error) {
@@ -72,7 +73,7 @@ export default function ExpensesPage() {
     } finally {
       setLoading(false);
     }
-  }, [dateRange, toast]);
+  }, [dateRange]);
 
   useEffect(() => {
     fetchExpenses();
@@ -102,6 +103,7 @@ export default function ExpensesPage() {
   const filteredExpenses = expenses.filter(expense =>
     expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
     expense.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (expense.paymentSource && expense.paymentSource.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (expense.notes && expense.notes.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
@@ -162,6 +164,7 @@ export default function ExpensesPage() {
                     <TableHead>Kategori</TableHead>
                     <TableHead>Deskripsi</TableHead>
                     <TableHead className="text-right">Jumlah (Rp)</TableHead>
+                    <TableHead className="text-center">Sumber Bayar</TableHead>
                     <TableHead>Catatan</TableHead>
                     <TableHead className="text-right w-[100px]">Aksi</TableHead>
                   </TableRow>
@@ -171,9 +174,16 @@ export default function ExpensesPage() {
                     <TableRow key={expense.id}>
                       <TableCell>{formatTimestampToDateString(expense.date)}</TableCell>
                       <TableCell>{expense.category}</TableCell>
-                      <TableCell className="font-medium max-w-[300px] truncate">{expense.description}</TableCell>
+                      <TableCell className="font-medium max-w-[250px] truncate">{expense.description}</TableCell>
                       <TableCell className="text-right">{expense.amount.toLocaleString('id-ID')}</TableCell>
-                      <TableCell className="text-xs max-w-[200px] truncate">{expense.notes || '-'}</TableCell>
+                      <TableCell className="text-center">
+                        {expense.paymentSource ? (
+                          <Badge variant={expense.paymentSource === "Kas Tunai" ? "secondary" : "outline"} className="text-xs">
+                            <WalletCards className="mr-1 h-3 w-3"/>{expense.paymentSource}
+                          </Badge>
+                        ) : '-'}
+                      </TableCell>
+                      <TableCell className="text-xs max-w-[150px] truncate">{expense.notes || '-'}</TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="icon" asChild className="hover:text-primary">
                           <Link href={`/expenses/${expense.id}/edit`}>
@@ -207,7 +217,7 @@ export default function ExpensesPage() {
             </p>
           </CardFooter>
         </Card>
-        
+
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Konfirmasi Penghapusan</AlertDialogTitle>

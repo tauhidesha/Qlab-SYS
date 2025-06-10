@@ -37,7 +37,7 @@ import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import type { StaffMember } from '@/types/staff';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import type { ExpenseFormData, ExpenseCategory } from '@/types/expense'; // Import Expense types
+import type { ExpenseFormData, ExpenseCategory, PaymentSource } from '@/types/expense';
 
 interface PayrollEntry {
   id: string;
@@ -45,8 +45,8 @@ interface PayrollEntry {
   staffName: string;
   period: string;
   baseSalary: number;
-  totalHours?: number; 
-  deductions?: number; 
+  totalHours?: number;
+  deductions?: number;
   netPay: number;
   status: 'Tertunda' | 'Dibayar' | 'Dibuat';
   createdAt: Timestamp;
@@ -86,7 +86,7 @@ function CalculatedNetPay({ control }: { control: Control<PayrollFormData & { ne
   const baseSalary = useWatch({ control, name: 'baseSalary' });
   const deductions = useWatch({ control, name: 'deductions' });
 
-  const netPay = (baseSalary || 0) - (deductions || 0); 
+  const netPay = (baseSalary || 0) - (deductions || 0);
 
   return (
     <div className="mt-4">
@@ -99,7 +99,7 @@ function CalculatedNetPay({ control }: { control: Control<PayrollFormData & { ne
 function CreatePayrollDialog({ isOpen, onClose, onSubmit, staffList, selectedPeriod, isSubmitting, loadingStaff }: CreatePayrollDialogProps) {
   const form = useForm<PayrollFormData & { staffName: string; period: string; netPay: number; status: PayrollEntry['status'] }>({
     resolver: zodResolver(payrollFormSchema),
-    defaultValues: { 
+    defaultValues: {
       staffId: '',
       staffName: '',
       period: selectedPeriod,
@@ -144,7 +144,7 @@ function CreatePayrollDialog({ isOpen, onClose, onSubmit, staffList, selectedPer
         toast({ title: "Error", description: "Staf tidak ditemukan.", variant: "destructive"});
         return;
     }
-    const calculatedNetPay = (data.baseSalary || 0) - (data.deductions || 0); 
+    const calculatedNetPay = (data.baseSalary || 0) - (data.deductions || 0);
     await onSubmit({ ...data, staffName: selectedStaffMember.name, period: selectedPeriod, status: 'Dibuat', netPay: calculatedNetPay });
   });
 
@@ -165,15 +165,15 @@ function CreatePayrollDialog({ isOpen, onClose, onSubmit, staffList, selectedPer
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Nama Staf</FormLabel>
-                  <Select 
+                  <Select
                     onValueChange={(value) => {
                       field.onChange(value);
                       const staff = staffList.find(s => s.id === value);
                       if (staff) {
                         form.setValue('baseSalary', staff.baseSalary || 0);
                       }
-                    }} 
-                    value={field.value} 
+                    }}
+                    value={field.value}
                     disabled={loadingStaff}
                   >
                     <FormControl>
@@ -204,7 +204,7 @@ function CreatePayrollDialog({ isOpen, onClose, onSubmit, staffList, selectedPer
                 <FormItem>
                   <FormLabel>Gaji Pokok (Rp)</FormLabel>
                   <FormControl>
-                    <Input type="number" placeholder="mis. 3000000" {...field} 
+                    <Input type="number" placeholder="mis. 3000000" {...field}
                            onChange={e => field.onChange(parseFloat(e.target.value) || 0)} />
                   </FormControl>
                   <FormMessage />
@@ -218,7 +218,7 @@ function CreatePayrollDialog({ isOpen, onClose, onSubmit, staffList, selectedPer
                 <FormItem>
                   <FormLabel>Total Jam Kerja (Opsional)</FormLabel>
                   <FormControl>
-                    <Input type="number" placeholder="mis. 160" {...field} 
+                    <Input type="number" placeholder="mis. 160" {...field}
                            onChange={e => field.onChange(parseFloat(e.target.value) || undefined)} />
                   </FormControl>
                   <FormMessage />
@@ -232,7 +232,7 @@ function CreatePayrollDialog({ isOpen, onClose, onSubmit, staffList, selectedPer
                 <FormItem>
                   <FormLabel>Potongan (Rp, Opsional)</FormLabel>
                   <FormControl>
-                    <Input type="number" placeholder="mis. 100000" {...field} 
+                    <Input type="number" placeholder="mis. 100000" {...field}
                            onChange={e => field.onChange(parseFloat(e.target.value) || undefined)} />
                   </FormControl>
                   <FormMessage />
@@ -297,17 +297,17 @@ export default function PayrollPage() {
   const [loadingPayroll, setLoadingPayroll] = useState(true);
   const availablePeriods = ['Agustus 2024', 'Juli 2024', 'Juni 2024', 'Mei 2024', 'April 2024', 'Maret 2024'];
   const [selectedPeriod, setSelectedPeriod] = useState<string>(availablePeriods[0] || 'Periode Tidak Tersedia');
-  
+
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isSubmittingCreate, setIsSubmittingCreate] = useState(false);
-  
+
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
   const [selectedEntryForDetail, setSelectedEntryForDetail] = useState<PayrollEntry | null>(null);
 
   const [isConfirmPaidOpen, setIsConfirmPaidOpen] = useState(false);
   const [entryToPay, setEntryToPay] = useState<PayrollEntry | null>(null);
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
-  
+
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [loadingStaff, setLoadingStaff] = useState(true);
 
@@ -319,7 +319,7 @@ export default function PayrollPage() {
     const today = new Date();
     const currentDayOfMonth = today.getDate();
     setIsPayButtonEnabled(currentDayOfMonth >= 1); // Selalu true untuk sekarang, atau sesuaikan tanggal
-  }, []); 
+  }, []);
 
   const fetchStaffList = useCallback(async () => {
     setLoadingStaff(true);
@@ -352,11 +352,11 @@ export default function PayrollPage() {
       const payrollCollectionRef = collection(db, 'payrollData');
       const q = query(payrollCollectionRef, where("period", "==", period), orderBy("staffName"));
       const querySnapshot = await getDocs(q);
-      const data = querySnapshot.docs.map(docSnap => ({ 
-          id: docSnap.id, 
-          ...docSnap.data(), 
-          createdAt: docSnap.data().createdAt || Timestamp.now(), 
-          updatedAt: docSnap.data().updatedAt || Timestamp.now() 
+      const data = querySnapshot.docs.map(docSnap => ({
+          id: docSnap.id,
+          ...docSnap.data(),
+          createdAt: docSnap.data().createdAt || Timestamp.now(),
+          updatedAt: docSnap.data().updatedAt || Timestamp.now()
         } as PayrollEntry));
       setPayrollData(data);
     } catch (error) {
@@ -374,10 +374,10 @@ export default function PayrollPage() {
   useEffect(() => {
     if (selectedPeriod && selectedPeriod !== 'Periode Tidak Tersedia' && !loadingStaff && staffList.length > 0) {
       const autoCreatePayrollEntries = async () => {
-        setLoadingPayroll(true); 
+        setLoadingPayroll(true);
         const batch = writeBatch(db);
         let entriesCreatedCount = 0;
-        
+
         const currentPayrollCollectionRef = collection(db, 'payrollData');
         const q = query(currentPayrollCollectionRef, where("period", "==", selectedPeriod));
         const currentPeriodPayrollSnapshot = await getDocs(q);
@@ -387,7 +387,7 @@ export default function PayrollPage() {
           const existingEntry = existingEntriesForPeriod.find(p => p.staffId === staff.id && p.period === selectedPeriod);
           if (!existingEntry) {
             const baseSalary = staff.baseSalary || 0;
-            const netPay = baseSalary; 
+            const netPay = baseSalary;
 
             const newEntryData: Omit<PayrollEntry, 'id' | 'createdAt' | 'updatedAt' | 'paidAt'> = {
               staffId: staff.id,
@@ -414,13 +414,13 @@ export default function PayrollPage() {
             toast({ title: "Error", description: "Gagal membuat entri penggajian otomatis.", variant: "destructive" });
           }
         }
-        fetchPayrollData(selectedPeriod); 
+        fetchPayrollData(selectedPeriod);
       };
       autoCreatePayrollEntries();
     } else if (selectedPeriod && selectedPeriod !== 'Periode Tidak Tersedia') {
-        fetchPayrollData(selectedPeriod); 
+        fetchPayrollData(selectedPeriod);
     } else {
-      setPayrollData([]); 
+      setPayrollData([]);
       setLoadingPayroll(false);
     }
   }, [selectedPeriod, staffList, loadingStaff, fetchPayrollData, toast]);
@@ -478,17 +478,18 @@ export default function PayrollPage() {
       });
 
       // Create expense entry
-      const expenseData: Omit<ExpenseFormData, 'date'> & { date: Timestamp, category: ExpenseCategory, createdAt: any, updatedAt: any } = {
+      const expenseData: Omit<ExpenseFormData, 'date' | 'category'> & { date: Timestamp, category: ExpenseCategory, paymentSource: PaymentSource, createdAt: any, updatedAt: any } = {
         date: paidTimestamp,
         category: "Gaji & Komisi Staf",
         description: `Pembayaran Gaji ${entryToPay.staffName} - Periode ${entryToPay.period}`,
         amount: entryToPay.netPay,
+        paymentSource: "Transfer Bank", // Default to Transfer Bank
         notes: "Pembayaran gaji otomatis dari modul penggajian.",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
       await addDoc(collection(db, 'expenses'), expenseData);
-      
+
       toast({ title: "Sukses", description: `Penggajian untuk ${entryToPay.staffName} telah ditandai Dibayar dan dicatat sebagai pengeluaran.` });
       setIsConfirmPaidOpen(false);
       fetchPayrollData(selectedPeriod);
@@ -502,7 +503,7 @@ export default function PayrollPage() {
   };
 
   if (loadingPayroll && payrollData.length === 0 && selectedPeriod === 'Periode Tidak Tersedia') {
-  } else if ((loadingPayroll || loadingStaff) && (selectedPeriod !== 'Periode Tidak Tersedia')) { 
+  } else if ((loadingPayroll || loadingStaff) && (selectedPeriod !== 'Periode Tidak Tersedia')) {
     return (
       <div className="flex flex-col h-full">
         <AppHeader title="Penggajian Staf" />
@@ -536,11 +537,11 @@ export default function PayrollPage() {
                    {availablePeriods.length === 0 && <SelectItem value="no-period" disabled>Tidak ada periode</SelectItem>}
                 </SelectContent>
               </Select>
-              <Button 
-                onClick={() => setIsCreateDialogOpen(true)} 
+              <Button
+                onClick={() => setIsCreateDialogOpen(true)}
                 disabled={selectedPeriod === 'Periode Tidak Tersedia' || loadingStaff}
               >
-                {(loadingStaff && isCreateDialogOpen) || (loadingStaff && !isCreateDialogOpen && selectedPeriod !== 'Periode Tidak Tersedia' && staffList.length === 0) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />} 
+                {(loadingStaff && isCreateDialogOpen) || (loadingStaff && !isCreateDialogOpen && selectedPeriod !== 'Periode Tidak Tersedia' && staffList.length === 0) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />}
                 Buat Manual
               </Button>
             </div>
@@ -585,10 +586,10 @@ export default function PayrollPage() {
                           <TooltipProvider delayDuration={100}>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  onClick={() => handleConfirmPay(entry)} 
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleConfirmPay(entry)}
                                   disabled={!isPayButtonEnabled}
                                   className={isPayButtonEnabled ? "text-green-600 hover:text-green-700" : "text-muted-foreground cursor-not-allowed"}
                                 >
@@ -633,7 +634,7 @@ export default function PayrollPage() {
         onClose={() => setIsDetailDialogOpen(false)}
         entry={selectedEntryForDetail}
       />
-      
+
       <AlertDialog open={isConfirmPaidOpen} onOpenChange={(open) => {if(!open) {setIsConfirmPaidOpen(false); setEntryToPay(null);}}}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -656,5 +657,3 @@ export default function PayrollPage() {
     </div>
   );
 }
-
-    
