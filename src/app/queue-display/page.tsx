@@ -23,7 +23,7 @@ interface QueueItem {
   staff?: string;
   createdAt: Timestamp;
   completedAt?: Timestamp;
-  serviceStartTime?: Timestamp; // Ditambahkan untuk countdown
+  serviceStartTime?: Timestamp;
 }
 
 const AUTO_HIDE_DELAY_MS = 5 * 60 * 1000; // 5 minutes
@@ -119,7 +119,7 @@ export default function QueueDisplayPage() {
       if (item.status === 'Dalam Layanan' && item.serviceStartTime) {
         const estimatedDurationMinutes = parseEstimatedTimeToMinutes(item.estimatedTime);
         if (estimatedDurationMinutes === null) {
-          setCountdownTimers(prev => ({ ...prev, [item.id]: item.estimatedTime })); // Show original if unparsable
+          setCountdownTimers(prev => ({ ...prev, [item.id]: item.estimatedTime })); 
           return;
         }
 
@@ -131,7 +131,7 @@ export default function QueueDisplayPage() {
           const remainingMs = targetEndTimeMs - nowMs;
 
           if (remainingMs <= 0) {
-            setCountdownTimers(prev => ({ ...prev, [item.id]: "Waktu Habis" }));
+            setCountdownTimers(prev => ({ ...prev, [item.id]: "Sabar ya bro bentar lagi beres" }));
           } else {
             const minutes = Math.floor((remainingMs / (1000 * 60)) % 60);
             const seconds = Math.floor((remainingMs / 1000) % 60);
@@ -142,11 +142,10 @@ export default function QueueDisplayPage() {
           }
         };
         
-        updateTimer(); // Initial call
+        updateTimer(); 
         const intervalId = setInterval(updateTimer, 1000);
         intervalIds.push(intervalId);
       } else if (countdownTimers[item.id]) {
-        // Clear timer if status is no longer 'Dalam Layanan' but timer exists
         setCountdownTimers(prev => {
             const newTimers = {...prev};
             delete newTimers[item.id];
@@ -158,10 +157,9 @@ export default function QueueDisplayPage() {
     return () => {
       intervalIds.forEach(clearInterval);
     };
-  }, [queueItems]); // Re-run when queueItems change
+  }, [queueItems, countdownTimers]); 
 
   useEffect(() => {
-    // Auto-hide logic based on interval
     const intervalId = setInterval(() => {
       const now = Date.now();
       setQueueItems(prevItems => 
@@ -264,13 +262,13 @@ export default function QueueDisplayPage() {
                             </div>
                           ) : item.status === 'Dalam Layanan' ? (
                              <div className="flex flex-col items-center">
-                               <span>Sisa Waktu</span>
+                               <span className="text-sm">Estimasi Sisa</span>
                                <span className="text-lg font-semibold text-primary">{countdownTimers[item.id] || item.estimatedTime}</span>
                              </div>
                           ) : (
                             <div className="flex flex-col items-center">
-                              <span>Estimasi</span>
-                              <span className="text-sm text-muted-foreground">{item.estimatedTime}</span>
+                              <span className="text-sm">Estimasi</span>
+                              <span className="text-lg text-muted-foreground">{item.estimatedTime}</span>
                             </div>
                           )}
                         </TableCell>
