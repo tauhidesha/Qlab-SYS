@@ -4,7 +4,7 @@ import AppHeader from '@/components/layout/AppHeader';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Banknote, FileText, Download, Loader2, Eye, CheckCircle, Save, UserPlus } from 'lucide-react';
+import { Banknote, FileText, Download, Loader2, Eye, CheckCircle, Save, UserPlus, Percent } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
@@ -39,6 +39,7 @@ import type { StaffMember } from '@/types/staff';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ExpenseFormData, ExpenseCategory, PaymentSource } from '@/types/expense';
 import type { PayrollEntry } from '@/types/payroll';
+import type { DailyProfitShareEntry } from '@/types/profitSharing';
 import { id as indonesiaLocale } from 'date-fns/locale';
 import { format as formatDateFns, getDaysInMonth, getDate, getDay, parseISO, startOfDay, endOfDay, subMonths } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
@@ -316,12 +317,18 @@ function DetailPayrollDialog({ isOpen, onClose, entry }: DetailPayrollDialogProp
             <span>Gaji Pokok:</span>
             <span className="font-semibold">Rp {entry.baseSalary.toLocaleString('id-ID')}</span>
           </div>
+           {typeof entry.profitShareReceivedThisPeriod === 'number' && entry.profitShareReceivedThisPeriod > 0 && (
+             <div className="flex justify-between items-center text-blue-600 dark:text-blue-400">
+                <span>Bagi Hasil Harian Diterima:</span>
+                <span className="font-semibold">Rp {entry.profitShareReceivedThisPeriod.toLocaleString('id-ID')}</span>
+            </div>
+           )}
            <div className="flex justify-between items-center">
             <span>Total Semua Potongan:</span>
             <span className="font-semibold text-red-600">Rp {(entry.totalDeductions || 0).toLocaleString('id-ID')}</span>
           </div>
           <div className="flex justify-between items-center font-bold text-xl mt-1 border-t pt-2">
-            <span>GAJI BERSIH:</span>
+            <span>GAJI BERSIH (DITRANSFER):</span>
             <span className="text-primary">Rp {entry.netPay.toLocaleString('id-ID')}</span>
           </div>
           
@@ -505,7 +512,22 @@ export default function PayrollPage() {
     let latenessDeduction = 0;
     let absenceDeduction = 0;
     let telatBukaDeductionTotalForStaff = 0;
+    let profitShareReceivedThisPeriod = 0;
     let calculationDetails = "";
+
+    // Fetch Daily Profit Shares for this period
+    const profitShareQuery = query(
+      collection(db, 'dailyProfitShares'),
+      where("staffId", "==", staff.id),
+      where("date", ">=", formatDateFns(startDate, 'yyyy-MM-dd')),
+      where("date", "<=", formatDateFns(endDate, 'yyyy-MM-dd')),
+      where("status", "==", "Dibayar")
+    );
+    const profitShareSnapshot = await getDocs(profitShareQuery);
+    profitShareSnapshot.forEach(doc => {
+      profitShareReceivedThisPeriod += (doc.data() as DailyProfitShareEntry).profitShareAmount;
+    });
+
 
     const attendanceRecords: Record<string, AttendanceRecord> = {};
     const attendanceCollectionRef = collection(db, 'attendanceRecords');
@@ -521,23 +543,22 @@ export default function PayrollPage() {
     });
 
     const shopLateOpeningDays = new Set<string>();
-    if (staffList.length > 0) { // Make sure staffList is populated before this loop
+    if (staffList.length > 0) { 
         for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
             const dateStr = formatDateFns(d, 'yyyy-MM-dd');
-            const dayOfWeek = getDay(d); // 0 for Sunday, ..., 6 for Saturday
+            const dayOfWeek = getDay(d); 
             
-            let allStaffPresentAndLate = true; // Assume all are late until proven otherwise
-            let anyStaffScheduledAndPresent = false; // Tracks if any staff were supposed to be there and were present
+            let allStaffPresentAndLate = true; 
+            let anyStaffScheduledAndPresent = false; 
 
             const dailyAttendancePromises = staffList.map(async (sMember) => {
-                const staffMemberDaysOff = sMember.daysOff || []; // Default to empty array if undefined
-                if (staffMemberDaysOff.includes(dayOfWeek)) return null; // Skip if it's their day off
+                const staffMemberDaysOff = sMember.daysOff || []; 
+                if (staffMemberDaysOff.includes(dayOfWeek)) return null; 
                 
-                // Fetch attendance for this specific staff member on this day
                 const attQuery = query(collection(db, 'attendanceRecords'), 
                                         where("staffId", "==", sMember.id), 
                                         where("date", "==", dateStr),
-                                        limit(1)); // We only need one record per staff per day
+                                        limit(1)); 
                 const attSnap = await getDocs(attQuery);
                 return attSnap.empty ? null : attSnap.docs[0].data() as AttendanceRecord;
             });
@@ -546,19 +567,15 @@ export default function PayrollPage() {
             if (dailyAttendances.length > 0) {
                 anyStaffScheduledAndPresent = true;
                 for (const att of dailyAttendances) {
-                    // If any staff member (who isn't on Cuti/Absen) clocked in on time or early
                     if (att.status === 'Cuti' || att.status === 'Absen') {
-                        // If a staff is on Cuti/Absen, they don't count towards 'allStaffPresentAndLate'
-                        // but they also don't break the 'allStaffPresentAndLate' condition if others are late
                         continue; 
                     }
                     if (!att.clockIn || att.clockIn < "09:05") {
-                        allStaffPresentAndLate = false; // Someone was on time
+                        allStaffPresentAndLate = false; 
                         break;
                     }
                 }
             } else { 
-                // No staff (who were scheduled) were present, so cannot be 'allStaffPresentAndLate'
                 allStaffPresentAndLate = false; 
             }
             
@@ -568,10 +585,9 @@ export default function PayrollPage() {
         }
     }
 
-    // Calculate deductions for the specific staff member
     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
         const dateStr = formatDateFns(d, 'yyyy-MM-dd');
-        const dayOfWeek = getDay(d); // 0 for Sunday, ..., 6 for Saturday
+        const dayOfWeek = getDay(d); 
         const staffDaysOff = staff.daysOff || [];
         let dailyLatenessDeduction = 0;
         let alreadyDeductedForTelatBukaThisDay = false;
@@ -591,50 +607,34 @@ export default function PayrollPage() {
             if (attendance.status === 'Absen') {
                 absenceDeduction += 50000;
                 calculationDetails += `${dateStr}: Absen (-Rp 50.000).\\n`;
-            } else if (attendance.clockIn) { // Only process if there's a clock-in time and not Absen/Cuti
+            } else if (attendance.clockIn) { 
                 let isTelatParah = false;
-                // Cek Telat Parah (>= 10:00)
                 if (attendance.clockIn >= "10:00") {
                     dailyLatenessDeduction = 50000;
                     calculationDetails += `${dateStr}: Telat >=10:00 (-Rp 50.000).\\n`;
                     isTelatParah = true;
-                } else if (attendance.clockIn >= "09:05") {
-                    // Potensi telat normal, akan dicek setelah Telat Buka Toko
                 }
                 
-                // Cek Telat Buka Toko hanya jika tidak telat parah
                 if (!isTelatParah && shopLateOpeningDays.has(dateStr) && (attendance.status !== 'Cuti' && attendance.status !== 'Absen')) {
                     telatBukaDeductionTotalForStaff += 25000;
                     calculationDetails += `${dateStr}: Potongan Telat Buka Toko (-Rp 25.000).\\n`;
                     alreadyDeductedForTelatBukaThisDay = true;
                 }
 
-                // Jika tidak telat parah dan tidak kena potongan telat buka, cek potongan telat normal
                 if (!isTelatParah && !alreadyDeductedForTelatBukaThisDay && attendance.clockIn >= "09:05") {
                     dailyLatenessDeduction = 15000;
                     calculationDetails += `${dateStr}: Telat >=09:05 (-Rp 15.000).\\n`;
                 } else if (!isTelatParah && alreadyDeductedForTelatBukaThisDay && attendance.clockIn >= "09:05") {
-                    // If telat buka applied, and they were also late normally, log it but don't double deduct normal lateness
                     calculationDetails += `${dateStr}: Telat >=09:05 (digugurkan oleh Telat Buka Toko).\\n`;
                 }
-
                 latenessDeduction += dailyLatenessDeduction;
-
-            } else { // No clockIn time, but status is not Absen/Cuti (e.g. status 'Hadir' but forgot to clock in)
-                absenceDeduction += 50000; // Treat as absence
+            } else { 
+                absenceDeduction += 50000; 
                 calculationDetails += `${dateStr}: ${attendance.status} tanpa clockIn, dianggap Absen (-Rp 50.000).\\n`;
             }
-        } else { // No attendance record at all for a working day
+        } else { 
             absenceDeduction += 50000;
             calculationDetails += `${dateStr}: Tidak ada catatan absensi (-Rp 50.000).\\n`;
-            // Check if this non-attendance contributed to shop late opening, if no other staff were on time.
-            if (shopLateOpeningDays.has(dateStr)) {
-                 // This staff's absence could have been the reason all *other present* staff were considered "late" for shop opening.
-                 // However, the shopLateOpeningDays check already considers who was present.
-                 // If this staff was *the only one* scheduled and didn't show, shopLateOpeningDays wouldn't be set for this day by this staff.
-                 // The telatBukaDeduction should apply to those who *were* present and late.
-                 // Re-evaluating: If staff is absent, they don't get telat buka deduction.
-            }
         }
     }
     
@@ -647,6 +647,7 @@ export default function PayrollPage() {
         latenessDeduction,
         absenceDeduction,
         telatBukaDeduction: telatBukaDeductionTotalForStaff,
+        profitShareReceivedThisPeriod: profitShareReceivedThisPeriod > 0 ? profitShareReceivedThisPeriod : undefined,
         manualDeductions: manualDeductionsInput || 0,
         totalDeductions,
         netPay,
@@ -663,11 +664,10 @@ export default function PayrollPage() {
       let data = querySnapshot.docs.map(docSnap => ({
           id: docSnap.id,
           ...docSnap.data(),
-          createdAt: docSnap.data().createdAt || Timestamp.now(), // Provide fallback if missing
-          updatedAt: docSnap.data().updatedAt || Timestamp.now()  // Provide fallback if missing
+          createdAt: docSnap.data().createdAt || Timestamp.now(),
+          updatedAt: docSnap.data().updatedAt || Timestamp.now()
         } as PayrollEntry));
 
-      // Ensure staffList is loaded before attempting to create/update payroll entries
       if (staffList.length > 0) {
         const batch = writeBatch(db);
         let entriesModified = false;
@@ -676,33 +676,37 @@ export default function PayrollPage() {
           const existingEntry = data.find(p => p.staffId === staff.id);
           const calculatedData = await calculateDeductionsAndNetPay(staff, period, existingEntry?.manualDeductions || 0);
           
+          const updatePayload: Partial<PayrollEntry> & {updatedAt?: any} = { ...calculatedData };
+          if (existingEntry?.status === 'Dibayar') {
+            updatePayload.status = 'Dibayar'; // Preserve 'Dibayar' status
+          } else {
+            updatePayload.status = 'Tertunda';
+          }
+          updatePayload.updatedAt = serverTimestamp();
+
+
           if (existingEntry) {
-            // Update if status is not 'Dibayar' or if calculated values differ
             if (existingEntry.status !== 'Dibayar' || 
                 existingEntry.latenessDeduction !== calculatedData.latenessDeduction ||
                 existingEntry.absenceDeduction !== calculatedData.absenceDeduction ||
                 existingEntry.telatBukaDeduction !== calculatedData.telatBukaDeduction ||
                 existingEntry.totalDeductions !== calculatedData.totalDeductions ||
-                existingEntry.netPay !== calculatedData.netPay
+                existingEntry.netPay !== calculatedData.netPay ||
+                existingEntry.profitShareReceivedThisPeriod !== calculatedData.profitShareReceivedThisPeriod
             ) {
               const entryDocRef = doc(db, 'payrollData', existingEntry.id);
-              batch.update(entryDocRef, { 
-                ...calculatedData, 
-                status: existingEntry.status === 'Dibayar' ? 'Dibayar' : 'Tertunda', // Preserve 'Dibayar' status
-                updatedAt: serverTimestamp() 
-              });
+              batch.update(entryDocRef, updatePayload);
               entriesModified = true;
             }
           } else {
-            // Create new entry if it doesn't exist
             const newDocRef = doc(collection(db, 'payrollData'));
             batch.set(newDocRef, {
               staffId: staff.id,
               staffName: staff.name,
               period: period,
-              totalHours: 0, // Default or calculate if needed later
+              totalHours: 0, 
               ...calculatedData,
-              status: 'Tertunda', // New entries are 'Tertunda'
+              status: 'Tertunda', 
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
             });
@@ -711,7 +715,6 @@ export default function PayrollPage() {
         }
         if (entriesModified) {
           await batch.commit();
-          // Re-fetch data to get the latest state including new/updated entries
           const updatedSnapshot = await getDocs(q);
           data = updatedSnapshot.docs.map(docSnap => ({
             id: docSnap.id,
@@ -729,10 +732,10 @@ export default function PayrollPage() {
     } finally {
       setLoadingPayroll(false);
     }
-  }, [toast, staffList]); // Added staffList to dependencies
+  }, [toast, staffList]); 
 
   useEffect(() => {
-    if (selectedPeriod && selectedPeriod !== 'Periode Tidak Tersedia' && !loadingStaff) { // Ensure staff is loaded
+    if (selectedPeriod && selectedPeriod !== 'Periode Tidak Tersedia' && !loadingStaff) { 
         fetchPayrollData(selectedPeriod);
     } else {
       setPayrollData([]);
@@ -762,24 +765,22 @@ export default function PayrollPage() {
         latenessDeduction: calculatedData.latenessDeduction,
         absenceDeduction: calculatedData.absenceDeduction,
         telatBukaDeduction: calculatedData.telatBukaDeduction,
+        profitShareReceivedThisPeriod: calculatedData.profitShareReceivedThisPeriod,
         totalDeductions: calculatedData.totalDeductions as number,
         netPay: calculatedData.netPay as number,
-        status: 'Tertunda', // Always set to Tertunda on manual create/edit
+        status: 'Tertunda', 
         calculationDetails: calculatedData.calculationDetails,
       };
 
       const payrollCollectionRef = collection(db, 'payrollData');
-      // Check if an entry already exists for this staff and period
       const q = query(payrollCollectionRef, where("staffId", "==", data.staffId), where("period", "==", data.period), limit(1));
       const existingSnapshot = await getDocs(q);
 
       if (!existingSnapshot.empty) {
-        // Update existing record
         const existingDocRef = existingSnapshot.docs[0].ref;
         await updateDoc(existingDocRef, { ...finalData, updatedAt: serverTimestamp()});
         toast({ title: "Sukses", description: `Entri penggajian untuk ${data.staffName} berhasil diperbarui.` });
       } else {
-        // Create new record
         await addDoc(collection(db, 'payrollData'), {
           ...finalData,
           createdAt: serverTimestamp(),
@@ -788,7 +789,7 @@ export default function PayrollPage() {
         toast({ title: "Sukses", description: `Entri penggajian untuk ${data.staffName} berhasil dibuat.` });
       }
       setIsCreateDialogOpen(false);
-      fetchPayrollData(selectedPeriod); // Refresh data
+      fetchPayrollData(selectedPeriod); 
     } catch (error) {
       console.error("Error creating/updating payroll entry: ", error);
       toast({ title: "Error", description: "Gagal memproses entri penggajian.", variant: "destructive" });
@@ -814,26 +815,24 @@ export default function PayrollPage() {
       const paidTimestamp = Timestamp.now();
       const entryDocRef = doc(db, 'payrollData', entryToPay.id);
       
-      // Recalculate final deductions and netPay before marking as paid
       const staffMember = staffList.find(s => s.id === entryToPay.staffId);
       if (!staffMember) throw new Error("Staf tidak ditemukan untuk kalkulasi final.");
       
       const finalCalculatedData = await calculateDeductionsAndNetPay(staffMember, entryToPay.period, entryToPay.manualDeductions || 0);
 
       await updateDoc(entryDocRef, {
-        ...finalCalculatedData, // Update with latest calculations
+        ...finalCalculatedData, 
         status: 'Dibayar',
         paidAt: paidTimestamp,
         updatedAt: serverTimestamp(),
       });
 
-      // Create expense entry
       const expenseData: Omit<ExpenseFormData, 'date' | 'category'> & { date: Timestamp, category: ExpenseCategory, paymentSource: PaymentSource, createdAt: any, updatedAt: any } = {
         date: paidTimestamp,
         category: "Gaji & Komisi Staf",
         description: `Pembayaran Gaji ${entryToPay.staffName} - Periode ${entryToPay.period}`,
-        amount: finalCalculatedData.netPay as number, // Use the finally calculated netPay
-        paymentSource: "Transfer Bank", // Default to Transfer Bank, can be made configurable later
+        amount: finalCalculatedData.netPay as number, 
+        paymentSource: "Transfer Bank", 
         notes: `Pembayaran gaji otomatis dari modul penggajian. Detail: ${finalCalculatedData.calculationDetails || ''}`,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -842,7 +841,7 @@ export default function PayrollPage() {
 
       toast({ title: "Sukses", description: `Penggajian untuk ${entryToPay.staffName} telah ditandai Dibayar dan dicatat sebagai pengeluaran.` });
       setIsConfirmPaidOpen(false);
-      fetchPayrollData(selectedPeriod); // Refresh data
+      fetchPayrollData(selectedPeriod); 
     } catch (error) {
       console.error("Error marking as paid or creating expense: ", error);
       toast({ title: "Error", description: "Gagal memperbarui status penggajian atau mencatat pengeluaran.", variant: "destructive" });
@@ -852,7 +851,6 @@ export default function PayrollPage() {
     }
   };
 
-  // Determine if the page is still loading initial data
   if ((loadingStaff || loadingPayroll) && selectedPeriod !== 'Periode Tidak Tersedia') {
     return (
       <div className="flex flex-col h-full">
@@ -914,6 +912,7 @@ export default function PayrollPage() {
                   <TableRow>
                     <TableHead>Nama Staf</TableHead>
                     <TableHead className="text-right">Gaji Pokok</TableHead>
+                     <TableHead className="text-right">Bagi Hasil Diterima</TableHead>
                     <TableHead className="text-right">Total Potongan</TableHead>
                     <TableHead className="text-right">Gaji Bersih</TableHead>
                     <TableHead className="text-center">Status</TableHead>
@@ -925,6 +924,9 @@ export default function PayrollPage() {
                     <TableRow key={entry.id}>
                       <TableCell className="font-medium">{entry.staffName}</TableCell>
                       <TableCell className="text-right">Rp {entry.baseSalary.toLocaleString('id-ID')}</TableCell>
+                      <TableCell className="text-right text-blue-600 dark:text-blue-400">
+                        Rp {(entry.profitShareReceivedThisPeriod || 0).toLocaleString('id-ID')}
+                      </TableCell>
                       <TableCell className="text-right text-red-600">Rp {(entry.totalDeductions || 0).toLocaleString('id-ID')}</TableCell>
                       <TableCell className="text-right font-semibold">Rp {entry.netPay.toLocaleString('id-ID')}</TableCell>
                       <TableCell className="text-center">
@@ -944,7 +946,7 @@ export default function PayrollPage() {
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => handleConfirmPay(entry)}
-                                  disabled={!isPayButtonEnabled} // Controlled by state
+                                  disabled={!isPayButtonEnabled} 
                                   className={isPayButtonEnabled ? "text-green-600 hover:text-green-700" : "text-muted-foreground cursor-not-allowed"}
                                 >
                                   <CheckCircle className="h-4 w-4" />

@@ -15,6 +15,8 @@ export interface PayrollEntry {
   telatBukaDeduction?: number; // Potongan jika semua staf telat buka (dihitung)
   totalDeductions: number;    // Jumlah dari manualDeductions + semua potongan terhitung
 
+  profitShareReceivedThisPeriod?: number; // Total bagi hasil harian yang sudah dibayar dalam periode ini
+
   netPay: number; // baseSalary - totalDeductions
   status: 'Tertunda' | 'Dibayar' | 'Dibuat'; // 'Dibuat': auto-created, 'Tertunda': reviewed/ready, 'Dibayar': paid
   createdAt: Timestamp;
