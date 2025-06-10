@@ -3,7 +3,7 @@ import AppHeader from '@/components/layout/AppHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { CalendarDays, Banknote, ClipboardList } from 'lucide-react'; // Mengganti Users dengan ClipboardList
+import { CalendarDays, Banknote, ClipboardList, Percent } from 'lucide-react';
 
 export default function StaffPage() {
   return (
@@ -15,7 +15,7 @@ export default function StaffPage() {
             <CardTitle>Dasbor Staf</CardTitle>
             <CardDescription>Gambaran umum dan akses cepat ke modul terkait staf.</CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6"> {/* Mengubah menjadi 3 kolom */}
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"> {/* Adjusted for 4 cards */}
             <Card className="hover:shadow-lg transition-shadow">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-lg font-semibold">Daftar Staf</CardTitle>
@@ -50,17 +50,33 @@ export default function StaffPage() {
             </Card>
             <Card className="hover:shadow-lg transition-shadow">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-lg font-semibold">Penggajian</CardTitle>
+                <CardTitle className="text-lg font-semibold">Penggajian Bulanan</CardTitle>
                 <Banknote className="h-6 w-6 text-primary" />
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  Kelola penggajian staf, termasuk perhitungan bagi hasil.
+                  Kelola penggajian staf bulanan.
                 </p>
               </CardContent>
               <CardFooter>
                 <Button asChild className="w-full">
                   <Link href="/staff/payroll">Buka Penggajian</Link>
+                </Button>
+              </CardFooter>
+            </Card>
+             <Card className="hover:shadow-lg transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-lg font-semibold">Bagi Hasil Harian</CardTitle>
+                <Percent className="h-6 w-6 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Kelola dan catat pembayaran bagi hasil harian untuk staf.
+                </p>
+              </CardContent>
+              <CardFooter>
+                <Button asChild className="w-full">
+                  <Link href="/staff/profit-sharing">Buka Bagi Hasil</Link>
                 </Button>
               </CardFooter>
             </Card>
