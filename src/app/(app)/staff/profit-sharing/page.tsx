@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, Save, CheckCircle, Eye, X } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { collection, doc, query, where, getDocs, setDoc, updateDoc, serverTimestamp, Timestamp, orderBy } from 'firebase/firestore';
+import { collection, doc, query, where, getDocs, setDoc, updateDoc, serverTimestamp, Timestamp, orderBy, addDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import type { StaffMember } from '@/types/staff';
 import type { DailyProfitShareEntry } from '@/types/profitSharing';
@@ -25,6 +25,7 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import type { ExpenseFormData, ExpenseCategory } from '@/types/expense'; // Import Expense types
 
 interface ProfitShareFormState {
   staffDailyRevenue: number;
@@ -304,20 +305,34 @@ export default function ProfitSharingPage() {
 
     setProfitShareEntries(prev => ({ ...prev, [staffId]: { ...prev[staffId], isLoadingPay: true }}));
     try {
+      const paidTimestamp = Timestamp.now();
       const docRef = doc(db, 'dailyProfitShares', entryData.existingEntryId);
       await updateDoc(docRef, {
         status: 'Dibayar',
-        paidAt: serverTimestamp(),
+        paidAt: paidTimestamp,
         updatedAt: serverTimestamp(),
       });
-      toast({ title: "Sukses", description: `Bagi hasil untuk ${staff.name} ditandai sudah dibayar.` });
+
+      // Create expense entry
+      const expenseData: Omit<ExpenseFormData, 'date'> & { date: Timestamp, category: ExpenseCategory, createdAt: any, updatedAt: any } = {
+        date: paidTimestamp,
+        category: "Gaji & Komisi Staf",
+        description: `Pembayaran Bagi Hasil ${staff.name} - Tgl ${formatDateFns(selectedDate, 'dd MMM yyyy', { locale: indonesiaLocale })}`,
+        amount: entryData.profitShareAmount,
+        notes: "Pembayaran bagi hasil otomatis dari modul bagi hasil harian.",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+      await addDoc(collection(db, 'expenses'), expenseData);
+
+      toast({ title: "Sukses", description: `Bagi hasil untuk ${staff.name} ditandai sudah dibayar dan dicatat sebagai pengeluaran.` });
       setProfitShareEntries(prev => ({
         ...prev,
-        [staffId]: { ...prev[staffId], status: 'Dibayar', paidAt: Timestamp.now(), isLoadingPay: false }
+        [staffId]: { ...prev[staffId], status: 'Dibayar', paidAt: paidTimestamp, isLoadingPay: false }
       }));
     } catch (error) {
-      console.error("Error marking as paid: ", error);
-      toast({ title: "Error", description: "Gagal menandai sebagai dibayar.", variant: "destructive" });
+      console.error("Error marking as paid or creating expense: ", error);
+      toast({ title: "Error", description: "Gagal menandai sebagai dibayar atau mencatat pengeluaran.", variant: "destructive" });
       setProfitShareEntries(prev => ({ ...prev, [staffId]: { ...prev[staffId], isLoadingPay: false }}));
     }
   };
@@ -492,4 +507,6 @@ export default function ProfitSharingPage() {
     </div>
   );
 }
+    
+
     

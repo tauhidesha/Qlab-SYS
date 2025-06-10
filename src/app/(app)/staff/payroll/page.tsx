@@ -37,6 +37,7 @@ import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import type { StaffMember } from '@/types/staff';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import type { ExpenseFormData, ExpenseCategory } from '@/types/expense'; // Import Expense types
 
 interface PayrollEntry {
   id: string;
@@ -44,7 +45,6 @@ interface PayrollEntry {
   staffName: string;
   period: string;
   baseSalary: number;
-  // profitShare: number; // Dihapus
   totalHours?: number; 
   deductions?: number; 
   netPay: number;
@@ -60,10 +60,6 @@ const payrollFormSchema = z.object({
     (val) => parseFloat(String(val)),
     z.number({ invalid_type_error: "Gaji pokok harus angka" }).nonnegative("Gaji pokok tidak boleh negatif")
   ),
-  // profitShare: z.preprocess( // Dihapus
-  //   (val) => parseFloat(String(val)),
-  //   z.number({ invalid_type_error: "Bagi hasil harus angka" }).nonnegative("Bagi hasil tidak boleh negatif")
-  // ),
   totalHours: z.preprocess(
     (val) => val ? parseFloat(String(val)) : undefined,
     z.number({ invalid_type_error: "Total jam harus angka" }).nonnegative("Total jam tidak boleh negatif").optional()
@@ -88,10 +84,9 @@ interface CreatePayrollDialogProps {
 
 function CalculatedNetPay({ control }: { control: Control<PayrollFormData & { netPay?: number }> }) {
   const baseSalary = useWatch({ control, name: 'baseSalary' });
-  // const profitShare = useWatch({ control, name: 'profitShare' }); // Dihapus
   const deductions = useWatch({ control, name: 'deductions' });
 
-  const netPay = (baseSalary || 0) - (deductions || 0); // Dihapus profitShare dari perhitungan
+  const netPay = (baseSalary || 0) - (deductions || 0); 
 
   return (
     <div className="mt-4">
@@ -109,7 +104,6 @@ function CreatePayrollDialog({ isOpen, onClose, onSubmit, staffList, selectedPer
       staffName: '',
       period: selectedPeriod,
       baseSalary: 0,
-      // profitShare: 0, // Dihapus
       totalHours: 0,
       deductions: 0,
       netPay: 0,
@@ -124,7 +118,6 @@ function CreatePayrollDialog({ isOpen, onClose, onSubmit, staffList, selectedPer
       const staff = staffList.find(s => s.id === selectedStaffId);
       if (staff) {
         form.setValue('baseSalary', staff.baseSalary || 0);
-        // Perhitungan profitShare dihapus dari sini
       }
     }
   }, [selectedStaffId, staffList, form]);
@@ -137,7 +130,6 @@ function CreatePayrollDialog({ isOpen, onClose, onSubmit, staffList, selectedPer
         staffName: '',
         period: selectedPeriod,
         baseSalary: 0,
-        // profitShare: 0, // Dihapus
         totalHours: 0,
         deductions: 0,
         netPay: 0,
@@ -152,7 +144,7 @@ function CreatePayrollDialog({ isOpen, onClose, onSubmit, staffList, selectedPer
         toast({ title: "Error", description: "Staf tidak ditemukan.", variant: "destructive"});
         return;
     }
-    const calculatedNetPay = (data.baseSalary || 0) - (data.deductions || 0); // Dihapus profitShare
+    const calculatedNetPay = (data.baseSalary || 0) - (data.deductions || 0); 
     await onSubmit({ ...data, staffName: selectedStaffMember.name, period: selectedPeriod, status: 'Dibuat', netPay: calculatedNetPay });
   });
 
@@ -179,7 +171,6 @@ function CreatePayrollDialog({ isOpen, onClose, onSubmit, staffList, selectedPer
                       const staff = staffList.find(s => s.id === value);
                       if (staff) {
                         form.setValue('baseSalary', staff.baseSalary || 0);
-                        // Perhitungan profitShare dihapus
                       }
                     }} 
                     value={field.value} 
@@ -220,7 +211,6 @@ function CreatePayrollDialog({ isOpen, onClose, onSubmit, staffList, selectedPer
                 </FormItem>
               )}
             />
-            {/* FormField untuk profitShare dihapus */}
             <FormField
               control={form.control}
               name="totalHours"
@@ -282,7 +272,6 @@ function DetailPayrollDialog({ isOpen, onClose, entry }: DetailPayrollDialogProp
         </DialogHeader>
         <div className="space-y-3 py-2 text-sm">
           <div className="flex justify-between"><span>Gaji Pokok:</span> <span>Rp {entry.baseSalary.toLocaleString('id-ID')}</span></div>
-          {/* Tampilan Bagi Hasil dihapus */}
           <div className="flex justify-between"><span>Total Jam:</span> <span>{entry.totalHours ? `${entry.totalHours} jam` : 'N/A'}</span></div>
           <div className="flex justify-between"><span>Potongan:</span> <span>Rp {(entry.deductions || 0).toLocaleString('id-ID')}</span></div>
           <hr/>
@@ -329,7 +318,7 @@ export default function PayrollPage() {
   useEffect(() => {
     const today = new Date();
     const currentDayOfMonth = today.getDate();
-    setIsPayButtonEnabled(currentDayOfMonth >= 28);
+    setIsPayButtonEnabled(currentDayOfMonth >= 1); // Selalu true untuk sekarang, atau sesuaikan tanggal
   }, []); 
 
   const fetchStaffList = useCallback(async () => {
@@ -398,15 +387,13 @@ export default function PayrollPage() {
           const existingEntry = existingEntriesForPeriod.find(p => p.staffId === staff.id && p.period === selectedPeriod);
           if (!existingEntry) {
             const baseSalary = staff.baseSalary || 0;
-            // profitShare tidak lagi dihitung di sini
-            const netPay = baseSalary; // Awalnya netPay = baseSalary, deductions dan hours 0
+            const netPay = baseSalary; 
 
             const newEntryData: Omit<PayrollEntry, 'id' | 'createdAt' | 'updatedAt' | 'paidAt'> = {
               staffId: staff.id,
               staffName: staff.name,
               period: selectedPeriod,
               baseSalary: baseSalary,
-              // profitShare: 0, // Dihapus
               totalHours: 0,
               deductions: 0,
               netPay: netPay,
@@ -447,7 +434,6 @@ export default function PayrollPage() {
         staffName: data.staffName,
         period: data.period,
         baseSalary: data.baseSalary,
-        // profitShare: 0, // Dihapus
         totalHours: data.totalHours,
         deductions: data.deductions,
         netPay: data.netPay,
@@ -483,18 +469,32 @@ export default function PayrollPage() {
     if (!entryToPay) return;
     setIsSubmittingPayment(true);
     try {
+      const paidTimestamp = Timestamp.now();
       const entryDocRef = doc(db, 'payrollData', entryToPay.id);
       await updateDoc(entryDocRef, {
         status: 'Dibayar',
-        paidAt: serverTimestamp(),
+        paidAt: paidTimestamp,
         updatedAt: serverTimestamp(),
       });
-      toast({ title: "Sukses", description: `Penggajian untuk ${entryToPay.staffName} telah ditandai sebagai Dibayar.` });
+
+      // Create expense entry
+      const expenseData: Omit<ExpenseFormData, 'date'> & { date: Timestamp, category: ExpenseCategory, createdAt: any, updatedAt: any } = {
+        date: paidTimestamp,
+        category: "Gaji & Komisi Staf",
+        description: `Pembayaran Gaji ${entryToPay.staffName} - Periode ${entryToPay.period}`,
+        amount: entryToPay.netPay,
+        notes: "Pembayaran gaji otomatis dari modul penggajian.",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+      await addDoc(collection(db, 'expenses'), expenseData);
+      
+      toast({ title: "Sukses", description: `Penggajian untuk ${entryToPay.staffName} telah ditandai Dibayar dan dicatat sebagai pengeluaran.` });
       setIsConfirmPaidOpen(false);
       fetchPayrollData(selectedPeriod);
     } catch (error) {
-      console.error("Error marking as paid: ", error);
-      toast({ title: "Error", description: "Gagal memperbarui status penggajian.", variant: "destructive" });
+      console.error("Error marking as paid or creating expense: ", error);
+      toast({ title: "Error", description: "Gagal memperbarui status penggajian atau mencatat pengeluaran.", variant: "destructive" });
     } finally {
       setIsSubmittingPayment(false);
       setEntryToPay(null);
@@ -502,7 +502,6 @@ export default function PayrollPage() {
   };
 
   if (loadingPayroll && payrollData.length === 0 && selectedPeriod === 'Periode Tidak Tersedia') {
-    // Initial state, don't show main loader
   } else if ((loadingPayroll || loadingStaff) && (selectedPeriod !== 'Periode Tidak Tersedia')) { 
     return (
       <div className="flex flex-col h-full">
@@ -562,7 +561,6 @@ export default function PayrollPage() {
                   <TableRow>
                     <TableHead>Nama Staf</TableHead>
                     <TableHead className="text-right">Gaji Pokok</TableHead>
-                    {/* Kolom Bagi Hasil dihapus */}
                     <TableHead className="text-right">Gaji Bersih</TableHead>
                     <TableHead className="text-center">Status</TableHead>
                     <TableHead className="text-right">Aksi</TableHead>
@@ -573,7 +571,6 @@ export default function PayrollPage() {
                     <TableRow key={entry.id}>
                       <TableCell className="font-medium">{entry.staffName}</TableCell>
                       <TableCell className="text-right">Rp {entry.baseSalary.toLocaleString('id-ID')}</TableCell>
-                      {/* Sel Bagi Hasil dihapus */}
                       <TableCell className="text-right font-semibold">Rp {entry.netPay.toLocaleString('id-ID')}</TableCell>
                       <TableCell className="text-center">
                         <span className={`px-2 py-1 text-xs rounded-full ${entry.status === 'Dibayar' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' : entry.status === 'Tertunda' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'}`}>
@@ -600,7 +597,7 @@ export default function PayrollPage() {
                               </TooltipTrigger>
                               {!isPayButtonEnabled && (
                                 <TooltipContent>
-                                  <p>Pembayaran dapat dilakukan mulai tanggal 28.</p>
+                                  <p>Pembayaran dapat dilakukan mulai tanggal tertentu.</p>
                                 </TooltipContent>
                               )}
                             </Tooltip>
@@ -643,7 +640,7 @@ export default function PayrollPage() {
             <AlertDialogTitle>Konfirmasi Pembayaran</AlertDialogTitle>
             <AlertDialogDescription>
               Apakah Anda yakin ingin menandai penggajian untuk "{entryToPay?.staffName}" periode "{entryToPay?.period}" sebagai Dibayar?
-              Tindakan ini akan mencatat tanggal pembayaran.
+              Tindakan ini akan mencatat tanggal pembayaran dan membuat entri pengeluaran otomatis.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -659,3 +656,5 @@ export default function PayrollPage() {
     </div>
   );
 }
+
+    
