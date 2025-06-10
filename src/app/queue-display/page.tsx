@@ -92,13 +92,14 @@ export default function QueueDisplayPage() {
           } as QueueItem;
         })
         .filter(item => {
+          // Filter for auto-hiding completed items
           if (item.status === 'Selesai' && item.completedAt) {
             const completedTime = item.completedAt.toDate().getTime();
             if (now - completedTime > AUTO_HIDE_DELAY_MS) {
-              return false; 
+              return false; // Hide if completed more than 5 minutes ago
             }
           }
-          return true;
+          return true; // Show all other items or recently completed ones
         });
         
       setQueueItems(itemsData);
@@ -158,7 +159,7 @@ export default function QueueDisplayPage() {
     return () => {
       intervalIds.forEach(clearInterval);
     };
-  }, [queueItems]); // Re-run when queueItems change to setup/clear intervals
+  }, [queueItems, countdownTimers]); // Added countdownTimers to dependency array to ensure stability
 
   useEffect(() => {
     // This effect ensures that items are hidden even if no new data comes from Firestore
@@ -168,7 +169,8 @@ export default function QueueDisplayPage() {
         prevItems.filter(item => {
           if (item.status === 'Selesai' && item.completedAt) {
             const completedTime = item.completedAt.toDate().getTime();
-            return !(now - completedTime > AUTO_HIDE_DELAY_MS);
+            // Ensure items completed more than AUTO_HIDE_DELAY_MS ago are filtered out
+            return !(now - completedTime > AUTO_HIDE_DELAY_MS); 
           }
           return true;
         })
