@@ -2,27 +2,108 @@
 "use client"; 
 
 import AppHeader from '@/components/layout/AppHeader';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building, Palette, Bell, Users, CreditCard as CreditCardIcon, Gift, DollarSign, Loader2, Wallet, Award } from 'lucide-react'; // Added Award
-import React, { useState, useEffect } from 'react';
+import { Building, Palette, Bell, Users, CreditCard as CreditCardIcon, Gift, DollarSign, Loader2, Wallet, Award, PlusCircle, Edit3, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, collection, addDoc, updateDoc, deleteDoc, query, orderBy, getDocs as getFirestoreDocs } from 'firebase/firestore'; // Renamed getDocs to avoid conflict
 import { useToast } from '@/hooks/use-toast';
+import type { LoyaltyReward } from '@/types/loyalty';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
+const loyaltyRewardFormSchema = z.object({
+  name: z.string().min(3, "Nama reward minimal 3 karakter").max(100, "Nama reward maksimal 100 karakter"),
+  description: z.string().max(250, "Deskripsi maksimal 250 karakter").optional(),
+  pointsRequired: z.preprocess(
+    (val) => parseInt(String(val), 10),
+    z.number({ required_error: "Poin diperlukan"}).int().positive("Poin harus angka positif")
+  ),
+  type: z.enum(['merchandise', 'discount_transaction'], { required_error: "Tipe reward diperlukan" }),
+  rewardValue: z.union([
+    z.string().min(1, "Nilai reward (merch) diperlukan"), // For merchandise name
+    z.preprocess( // For discount amount
+      (val) => parseFloat(String(val)),
+      z.number({ required_error: "Nilai reward (diskon) diperlukan"}).positive("Nilai diskon harus positif")
+    )
+  ]),
+  isActive: z.boolean().default(true),
+}).refine(data => {
+  if (data.type === 'merchandise' && typeof data.rewardValue !== 'string') {
+    return false;
+  }
+  if (data.type === 'discount_transaction' && typeof data.rewardValue !== 'number') {
+    return false;
+  }
+  return true;
+}, {
+  message: "Nilai reward tidak sesuai dengan tipe reward.",
+  path: ["rewardValue"],
+});
+
+type LoyaltyRewardFormValues = z.infer<typeof loyaltyRewardFormSchema>;
+
 
 export default function SettingsPage() {
   const { toast } = useToast();
-  // const [pointToRupiahRate, setPointToRupiahRate] = React.useState('10'); // No longer direct conversion
-  const [minPointsToRedeemGeneral, setMinPointsToRedeemGeneral] = React.useState('100'); // General minimum for eligibility
+  const [minPointsToRedeemGeneral, setMinPointsToRedeemGeneral] = React.useState('100');
   
   const [initialBankBalance, setInitialBankBalance] = React.useState('');
   const [initialPhysicalCashBalance, setInitialPhysicalCashBalance] = React.useState('');
   const [isLoadingFinancialSettings, setIsLoadingFinancialSettings] = useState(true);
   const [isSavingFinancialSettings, setIsSavingFinancialSettings] = useState(false);
+
+  // Loyalty Rewards State
+  const [loyaltyRewards, setLoyaltyRewards] = useState<LoyaltyReward[]>([]);
+  const [isLoadingRewards, setIsLoadingRewards] = useState(true);
+  const [isRewardFormDialogOpen, setIsRewardFormDialogOpen] = useState(false);
+  const [editingReward, setEditingReward] = useState<LoyaltyReward | null>(null);
+  const [rewardToDelete, setRewardToDelete] = useState<LoyaltyReward | null>(null);
+  const [isSubmittingReward, setIsSubmittingReward] = useState(false);
+
+  const rewardForm = useForm<LoyaltyRewardFormValues>({
+    resolver: zodResolver(loyaltyRewardFormSchema),
+    defaultValues: {
+      name: '',
+      description: '',
+      pointsRequired: 0,
+      type: undefined,
+      rewardValue: '',
+      isActive: true,
+    },
+  });
+  const watchedRewardType = rewardForm.watch('type');
+
 
   useEffect(() => {
     const fetchFinancialSettings = async () => {
@@ -38,7 +119,7 @@ export default function SettingsPage() {
           if (data.initialPhysicalCashBalance !== undefined) {
             setInitialPhysicalCashBalance(String(data.initialPhysicalCashBalance));
           }
-           if (data.minPointsToRedeemGeneral !== undefined) { // Load general min points
+           if (data.minPointsToRedeemGeneral !== undefined) {
             setMinPointsToRedeemGeneral(String(data.minPointsToRedeemGeneral));
           }
         }
@@ -53,9 +134,29 @@ export default function SettingsPage() {
         setIsLoadingFinancialSettings(false);
       }
     };
-
     fetchFinancialSettings();
   }, [toast]);
+
+  const fetchLoyaltyRewards = useCallback(async () => {
+    setIsLoadingRewards(true);
+    try {
+      const rewardsCollectionRef = collection(db, 'loyaltyRewards');
+      const q = query(rewardsCollectionRef, orderBy("name"));
+      const querySnapshot = await getFirestoreDocs(q);
+      const rewardsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LoyaltyReward));
+      setLoyaltyRewards(rewardsData);
+    } catch (error) {
+      console.error("Error fetching loyalty rewards: ", error);
+      toast({ title: "Error", description: "Tidak dapat mengambil data reward loyalitas.", variant: "destructive" });
+    } finally {
+      setIsLoadingRewards(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchLoyaltyRewards();
+  }, [fetchLoyaltyRewards]);
+
 
   const handleSaveFinancialSettings = async () => {
     setIsSavingFinancialSettings(true);
@@ -63,7 +164,6 @@ export default function SettingsPage() {
       const bankBalance = parseFloat(initialBankBalance);
       const physicalCashBalance = parseFloat(initialPhysicalCashBalance);
       const minPoints = parseInt(minPointsToRedeemGeneral, 10);
-
 
       if (isNaN(bankBalance) || bankBalance < 0) {
         toast({ title: "Input Tidak Valid", description: "Saldo awal bank harus berupa angka positif.", variant: "destructive"});
@@ -78,28 +178,91 @@ export default function SettingsPage() {
         setIsSavingFinancialSettings(false); return;
       }
 
-
-      const settingsDocRef = doc(db, 'appSettings', 'financial'); // Re-using 'financial' doc for simplicity
+      const settingsDocRef = doc(db, 'appSettings', 'financial');
       await setDoc(settingsDocRef, { 
         initialBankBalance: bankBalance,
         initialPhysicalCashBalance: physicalCashBalance,
-        minPointsToRedeemGeneral: minPoints, // Save general min points
+        minPointsToRedeemGeneral: minPoints,
         updatedAt: serverTimestamp() 
       }, { merge: true });
 
-      toast({
-        title: "Sukses",
-        description: "Pengaturan finansial & loyalitas dasar berhasil disimpan.",
-      });
+      toast({ title: "Sukses", description: "Pengaturan finansial & loyalitas dasar berhasil disimpan." });
     } catch (error) {
       console.error("Error saving settings: ", error);
-      toast({
-        title: "Error",
-        description: "Gagal menyimpan pengaturan.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Gagal menyimpan pengaturan.", variant: "destructive" });
     } finally {
       setIsSavingFinancialSettings(false);
+    }
+  };
+
+  const handleOpenRewardForm = (reward: LoyaltyReward | null = null) => {
+    setEditingReward(reward);
+    if (reward) {
+      rewardForm.reset({
+        name: reward.name,
+        description: reward.description || '',
+        pointsRequired: reward.pointsRequired,
+        type: reward.type,
+        rewardValue: reward.rewardValue,
+        isActive: reward.isActive,
+      });
+    } else {
+      rewardForm.reset({
+        name: '',
+        description: '',
+        pointsRequired: 0,
+        type: undefined,
+        rewardValue: '',
+        isActive: true,
+      });
+    }
+    setIsRewardFormDialogOpen(true);
+  };
+
+  const handleRewardFormSubmit = async (values: LoyaltyRewardFormValues) => {
+    setIsSubmittingReward(true);
+    const rewardData: Omit<LoyaltyReward, 'id'> = {
+      name: values.name,
+      description: values.description,
+      pointsRequired: values.pointsRequired,
+      type: values.type,
+      rewardValue: values.type === 'discount_transaction' ? Number(values.rewardValue) : String(values.rewardValue),
+      isActive: values.isActive,
+    };
+
+    try {
+      if (editingReward) {
+        const rewardDocRef = doc(db, 'loyaltyRewards', editingReward.id);
+        await updateDoc(rewardDocRef, rewardData);
+        toast({ title: "Sukses", description: "Reward berhasil diperbarui." });
+      } else {
+        await addDoc(collection(db, 'loyaltyRewards'), rewardData);
+        toast({ title: "Sukses", description: "Reward baru berhasil ditambahkan." });
+      }
+      fetchLoyaltyRewards();
+      setIsRewardFormDialogOpen(false);
+      setEditingReward(null);
+    } catch (error) {
+      console.error("Error saving reward: ", error);
+      toast({ title: "Error", description: "Gagal menyimpan reward.", variant: "destructive" });
+    } finally {
+      setIsSubmittingReward(false);
+    }
+  };
+
+  const handleDeleteReward = async () => {
+    if (!rewardToDelete) return;
+    setIsSubmittingReward(true); // Use same state for loading indicator on delete button
+    try {
+      await deleteDoc(doc(db, 'loyaltyRewards', rewardToDelete.id));
+      toast({ title: "Sukses", description: `Reward "${rewardToDelete.name}" berhasil dihapus.` });
+      fetchLoyaltyRewards();
+      setRewardToDelete(null);
+    } catch (error) {
+      console.error("Error deleting reward: ", error);
+      toast({ title: "Error", description: "Gagal menghapus reward.", variant: "destructive" });
+    } finally {
+      setIsSubmittingReward(false);
     }
   };
 
@@ -109,10 +272,10 @@ export default function SettingsPage() {
       <AppHeader title="Pengaturan" />
       <main className="flex-1 overflow-y-auto p-6">
         <Tabs defaultValue="general" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 md:grid-cols-7 mb-6"> {/* Adjusted for 7 tabs */}
-            <TabsTrigger value="general"><Building className="mr-2 h-4 w-4 hidden md:inline" />Umum</TabsTrigger>
-            <TabsTrigger value="loyalty"><Gift className="mr-2 h-4 w-4 hidden md:inline" />Loyalitas</TabsTrigger>
-            <TabsTrigger value="loyalty_rewards"><Award className="mr-2 h-4 w-4 hidden md:inline" />Reward</TabsTrigger> {/* New Tab */}
+          <TabsList className="grid w-full grid-cols-4 md:grid-cols-7 mb-6">
+            <TabsTrigger value="general"><Award className="mr-2 h-4 w-4 hidden md:inline" />Umum</TabsTrigger>
+            <TabsTrigger value="loyalty"><Gift className="mr-2 h-4 w-4 hidden md:inline" />Loyalitas Dasar</TabsTrigger>
+            <TabsTrigger value="loyalty_rewards"><Award className="mr-2 h-4 w-4 hidden md:inline" />Daftar Reward</TabsTrigger>
             <TabsTrigger value="appearance"><Palette className="mr-2 h-4 w-4 hidden md:inline" />Tampilan</TabsTrigger>
             <TabsTrigger value="notifications"><Bell className="mr-2 h-4 w-4 hidden md:inline" />Notifikasi</TabsTrigger>
             <TabsTrigger value="users"><Users className="mr-2 h-4 w-4 hidden md:inline" />Peran</TabsTrigger>
@@ -143,14 +306,13 @@ export default function SettingsPage() {
                 <Button disabled>Simpan Perubahan Umum (Segera)</Button>
               </CardFooter>
             </Card>
-
-            <Card>
+             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <DollarSign className="mr-2 h-5 w-5 text-primary" />
-                  Pengaturan Finansial & Loyalitas Dasar
+                  Pengaturan Keuangan Dasar
                 </CardTitle>
-                <CardDescription>Pengaturan terkait keuangan dasar dan minimal poin untuk menukar reward.</CardDescription>
+                <CardDescription>Pengaturan terkait saldo awal untuk laporan keuangan.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 {isLoadingFinancialSettings ? (
@@ -188,18 +350,6 @@ export default function SettingsPage() {
                         Saldo awal kas fisik (tunai) di tangan. Digunakan untuk Laporan Arus Kas Fisik.
                       </p>
                     </div>
-                     <div className="space-y-2">
-                      <Label htmlFor="min-points-redeem-general">Minimum Poin Umum untuk Tukar Reward</Label>
-                      <Input 
-                        id="min-points-redeem-general" 
-                        type="number" 
-                        value={minPointsToRedeemGeneral}
-                        onChange={(e) => setMinPointsToRedeemGeneral(e.target.value)}
-                        placeholder="mis. 100"
-                        disabled={isSavingFinancialSettings}
-                      />
-                       <p className="text-xs text-muted-foreground">Klien harus memiliki setidaknya poin ini untuk bisa menukarkan reward apapun.</p>
-                    </div>
                   </>
                 )}
               </CardContent>
@@ -208,7 +358,7 @@ export default function SettingsPage() {
                   {isSavingFinancialSettings ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : null}
-                  Simpan Pengaturan Finansial & Loyalitas
+                  Simpan Pengaturan Keuangan
                 </Button>
               </CardFooter>
             </Card>
@@ -228,33 +378,96 @@ export default function SettingsPage() {
                   </div>
                   <Switch id="loyalty-program-active" defaultChecked />
                 </div>
+                 <div className="space-y-2">
+                  <Label htmlFor="min-points-redeem-general">Minimum Poin Umum untuk Tukar Reward</Label>
+                  <Input 
+                    id="min-points-redeem-general" 
+                    type="number" 
+                    value={minPointsToRedeemGeneral}
+                    onChange={(e) => setMinPointsToRedeemGeneral(e.target.value)}
+                    placeholder="mis. 100"
+                    disabled={isSavingFinancialSettings || isLoadingFinancialSettings}
+                  />
+                    <p className="text-xs text-muted-foreground">Klien harus memiliki setidaknya poin ini untuk bisa menukarkan reward apapun.</p>
+                </div>
                 <p className="text-sm text-muted-foreground">
                   Pengaturan detail poin yang diberikan per layanan/produk dapat diatur di halaman "Layanan & Produk".
-                  Pengaturan reward spesifik (item merchandise, diskon, dll.) ada di tab "Reward".
+                  Pengaturan reward spesifik (item merchandise, diskon, dll.) ada di tab "Daftar Reward".
                 </p>
               </CardContent>
               <CardFooter>
-                <Button disabled>Simpan Pengaturan Loyalitas (Segera)</Button>
+                <Button onClick={handleSaveFinancialSettings} disabled={isSavingFinancialSettings || isLoadingFinancialSettings}>
+                  {isSavingFinancialSettings ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : null}
+                  Simpan Pengaturan Loyalitas Dasar
+                </Button>
               </CardFooter>
             </Card>
           </TabsContent>
 
-          <TabsContent value="loyalty_rewards"> {/* New Tab Content */}
+          <TabsContent value="loyalty_rewards">
             <Card>
-              <CardHeader>
-                <CardTitle>Manajemen Reward Loyalitas</CardTitle>
-                <CardDescription>Kelola item atau diskon yang dapat ditukar dengan poin loyalitas.</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Manajemen Reward Loyalitas</CardTitle>
+                  <CardDescription>Kelola item atau diskon yang dapat ditukar dengan poin loyalitas.</CardDescription>
+                </div>
+                <Button onClick={() => handleOpenRewardForm(null)}>
+                  <PlusCircle className="mr-2 h-4 w-4" /> Tambah Reward Baru
+                </Button>
               </CardHeader>
               <CardContent>
-                <p className="text-center text-muted-foreground py-8">
-                  Fitur untuk menambah, mengubah, dan menghapus reward akan segera tersedia di sini.
-                  Untuk saat ini, reward masih didefinisikan secara manual dalam kode.
-                </p>
-                {/* Placeholder for future CRUD UI for rewards */}
+                {isLoadingRewards ? (
+                  <div className="flex items-center justify-center py-10">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : loyaltyRewards.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">Belum ada reward yang dikonfigurasi.</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nama Reward</TableHead>
+                        <TableHead className="text-center">Poin</TableHead>
+                        <TableHead>Tipe</TableHead>
+                        <TableHead>Nilai</TableHead>
+                        <TableHead className="text-center">Status</TableHead>
+                        <TableHead className="text-right">Aksi</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {loyaltyRewards.map((reward) => (
+                        <TableRow key={reward.id}>
+                          <TableCell className="font-medium">{reward.name}</TableCell>
+                          <TableCell className="text-center">{reward.pointsRequired}</TableCell>
+                          <TableCell className="capitalize">{reward.type === 'merchandise' ? 'Merchandise' : 'Diskon Transaksi'}</TableCell>
+                          <TableCell>
+                            {reward.type === 'discount_transaction' 
+                              ? `Rp ${(reward.rewardValue as number).toLocaleString('id-ID')}`
+                              : reward.rewardValue}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant={reward.isActive ? "default" : "outline"}>
+                              {reward.isActive ? "Aktif" : "Nonaktif"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="icon" onClick={() => handleOpenRewardForm(reward)} className="hover:text-primary">
+                              <Edit3 className="h-4 w-4" />
+                            </Button>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" onClick={() => setRewardToDelete(reward)} className="text-destructive hover:text-destructive">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </CardContent>
-              <CardFooter>
-                <Button disabled>Simpan Reward (Segera)</Button>
-              </CardFooter>
             </Card>
           </TabsContent>
 
@@ -311,11 +524,148 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
           </TabsContent>
-
         </Tabs>
+
+        <Dialog open={isRewardFormDialogOpen} onOpenChange={(isOpen) => {
+          setIsRewardFormDialogOpen(isOpen);
+          if (!isOpen) setEditingReward(null);
+        }}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{editingReward ? "Edit Reward" : "Tambah Reward Baru"}</DialogTitle>
+              <DialogDescription>
+                {editingReward ? "Ubah detail reward di bawah ini." : "Isi detail untuk reward loyalitas baru."}
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...rewardForm}>
+              <form onSubmit={rewardForm.handleSubmit(handleRewardFormSubmit)} className="space-y-4 py-2 pb-4">
+                <FormField
+                  control={rewardForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nama Reward</FormLabel>
+                      <FormControl><Input placeholder="mis. Gantungan Kunci Keren" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={rewardForm.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Deskripsi (Opsional)</FormLabel>
+                      <FormControl><Textarea placeholder="Deskripsi singkat tentang reward" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={rewardForm.control}
+                  name="pointsRequired"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Poin Dibutuhkan</FormLabel>
+                      <FormControl><Input type="number" placeholder="mis. 100" {...field} onChange={e => field.onChange(parseInt(e.target.value,10) || 0)} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={rewardForm.control}
+                  name="type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tipe Reward</FormLabel>
+                      <Select onValueChange={(value) => {
+                          field.onChange(value as 'merchandise' | 'discount_transaction');
+                          rewardForm.setValue('rewardValue', ''); // Reset rewardValue when type changes
+                        }} value={field.value}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Pilih tipe reward" /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          <SelectItem value="merchandise">Merchandise</SelectItem>
+                          <SelectItem value="discount_transaction">Diskon Transaksi</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={rewardForm.control}
+                  name="rewardValue"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        {watchedRewardType === 'merchandise' ? "Nama Item Merchandise" : 
+                         watchedRewardType === 'discount_transaction' ? "Jumlah Diskon (Rp)" : 
+                         "Nilai Reward"}
+                      </FormLabel>
+                      <FormControl>
+                        <Input 
+                          type={watchedRewardType === 'discount_transaction' ? "number" : "text"}
+                          placeholder={watchedRewardType === 'merchandise' ? "mis. Topi QLAB" : 
+                                         watchedRewardType === 'discount_transaction' ? "mis. 25000" : 
+                                         "Isi nilai reward"}
+                          {...field}
+                          onChange={e => {
+                            if (watchedRewardType === 'discount_transaction') {
+                              field.onChange(parseFloat(e.target.value) || '');
+                            } else {
+                              field.onChange(e.target.value);
+                            }
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={rewardForm.control}
+                  name="isActive"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                      <div className="space-y-0.5">
+                        <FormLabel>Aktifkan Reward</FormLabel>
+                        <FormDescription>Reward ini akan tampil dan bisa ditukarkan jika aktif.</FormDescription>
+                      </div>
+                      <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                    </FormItem>
+                  )}
+                />
+                <DialogFooter>
+                  <DialogClose asChild><Button type="button" variant="outline" disabled={isSubmittingReward}>Batal</Button></DialogClose>
+                  <Button type="submit" disabled={isSubmittingReward} className="bg-accent text-accent-foreground hover:bg-accent/90">
+                    {isSubmittingReward && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Simpan Reward
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+
+        <AlertDialog open={!!rewardToDelete} onOpenChange={(open) => !open && setRewardToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Konfirmasi Penghapusan</AlertDialogTitle>
+              <AlertDialogDescription>
+                Apakah Anda yakin ingin menghapus reward "{rewardToDelete?.name}"? Tindakan ini tidak dapat diurungkan.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setRewardToDelete(null)} disabled={isSubmittingReward}>Batal</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteReward} disabled={isSubmittingReward} className={buttonVariants({variant: "destructive"})}>
+                {isSubmittingReward ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Hapus
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </div>
   );
 }
-
     

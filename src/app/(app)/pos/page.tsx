@@ -10,12 +10,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { PlusCircle, Trash2, CreditCard, Loader2, ShoppingBag, UserPlus, Star, Tags, MessageSquareText, Send, Gift, UserCog } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, arrayUnion, serverTimestamp, addDoc, type Timestamp, getDocs, getDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, arrayUnion, serverTimestamp, addDoc, type Timestamp, getDocs, getDoc, deleteDoc, deleteField as firestoreDeleteField } from 'firebase/firestore';
 import type { Transaction, TransactionItem } from '@/types/transaction';
 import type { ServiceProduct } from '@/app/(app)/services/page'; 
 import type { Client } from '@/types/client';
 import type { StaffMember } from '@/types/staff';
-import type { LoyaltyReward } from '@/types/loyalty'; // Import LoyaltyReward
+import type { LoyaltyReward } from '@/types/loyalty';
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -53,17 +53,8 @@ import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
-const MINIMUM_POINTS_TO_REDEEM = 100; // Kept for general eligibility, actual rewards define their own point costs
-// const POINT_TO_RUPIAH_RATE = 10; // No longer used for direct conversion for discount
 const SHOP_NAME = "QLAB Auto Detailing"; 
 
-// Mock Loyalty Rewards (until settings page CRUD is ready)
-const mockLoyaltyRewards: LoyaltyReward[] = [
-  { id: 'reward_keychain', name: "Gantungan Kunci QLAB Eksklusif", description: "Tukarkan poinmu dengan gantungan kunci keren!", pointsRequired: 200, type: 'merchandise', rewardValue: "Gantungan Kunci QLAB", isActive: true },
-  { id: 'reward_sticker', name: "Sticker Pack QLAB", description: "Dapatkan sticker pack edisi terbatas.", pointsRequired: 150, type: 'merchandise', rewardValue: "Sticker Pack QLAB", isActive: true },
-  { id: 'reward_discount_25k', name: "Voucher Diskon Rp 25.000", description: "Potongan langsung untuk total transaksimu.", pointsRequired: 250, type: 'discount_transaction', rewardValue: 25000, isActive: true },
-  { id: 'reward_discount_50k', name: "Voucher Diskon Rp 50.000", description: "Potongan lebih besar untuk pelanggan setia.", pointsRequired: 450, type: 'discount_transaction', rewardValue: 50000, isActive: true },
-];
 
 export default function PosPage() {
   const [openTransactions, setOpenTransactions] = useState<Transaction[]>([]);
@@ -98,8 +89,11 @@ export default function PosPage() {
 
   const [selectedClientDetails, setSelectedClientDetails] = useState<Client | null>(null);
   const [isRedeemPointsDialogOpen, setIsRedeemPointsDialogOpen] = useState(false);
-  // const [pointsToRedeemInput, setPointsToRedeemInput] = useState<string>(''); // Replaced by reward selection
   const [isSubmittingRedemption, setIsSubmittingRedemption] = useState(false);
+  
+  const [availableLoyaltyRewards, setAvailableLoyaltyRewards] = useState<LoyaltyReward[]>([]);
+  const [loadingLoyaltyRewards, setLoadingLoyaltyRewards] = useState(true);
+  const [minPointsToRedeemConfig, setMinPointsToRedeemConfig] = useState(100); // Default, will be fetched
   const [availableRewardsForClient, setAvailableRewardsForClient] = useState<LoyaltyReward[]>([]);
   const [selectedRewardToRedeem, setSelectedRewardToRedeem] = useState<LoyaltyReward | null>(null);
 
@@ -224,6 +218,32 @@ export default function PosPage() {
     fetchClients();
   }, [toast]);
 
+  useEffect(() => {
+    const fetchLoyaltyRewards = async () => {
+      setLoadingLoyaltyRewards(true);
+      try {
+        const rewardsCollectionRef = collection(db, 'loyaltyRewards');
+        const q = query(rewardsCollectionRef, where("isActive", "==", true), orderBy("pointsRequired"));
+        const querySnapshot = await getDocs(q);
+        const rewardsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LoyaltyReward));
+        setAvailableLoyaltyRewards(rewardsData);
+
+        const settingsDocRef = doc(db, 'appSettings', 'financial');
+        const settingsSnap = await getDoc(settingsDocRef);
+        if (settingsSnap.exists() && settingsSnap.data()?.minPointsToRedeemGeneral) {
+            setMinPointsToRedeemConfig(settingsSnap.data()?.minPointsToRedeemGeneral);
+        }
+
+      } catch (error) {
+        console.error("Error fetching loyalty rewards: ", error);
+        toast({ title: "Error", description: "Tidak dapat mengambil daftar reward loyalitas.", variant: "destructive" });
+      } finally {
+        setLoadingLoyaltyRewards(false);
+      }
+    };
+    fetchLoyaltyRewards();
+  }, [toast]);
+
   const selectedTransaction = useMemo(() => {
     if (!selectedTransactionId) return null;
     return openTransactions.find(t => t.id === selectedTransactionId) || null;
@@ -301,9 +321,9 @@ export default function PosPage() {
       
       const { subtotal: newSubtotal, total: newTotal } = calculateTransactionTotals(
         updatedItemsForCalc,
-        selectedTransaction.discountAmount, // discountAmount might be from a reward
-        selectedTransaction.discountPercentage, // percentage should be 0 if reward discount applied
-        selectedTransaction.pointsRedeemedValue // this is the value of the reward discount
+        selectedTransaction.discountAmount,
+        selectedTransaction.discountPercentage,
+        selectedTransaction.pointsRedeemedValue
       );
 
       await updateDoc(transactionDocRef, {
@@ -393,12 +413,12 @@ export default function PosPage() {
     items: TransactionItem[], 
     discountAmountParam: number = 0, 
     discountPercentageParam: number = 0,
-    pointsRedeemedValueParam: number = 0 // This is the actual discount value from a reward
+    pointsRedeemedValueParam: number = 0
   ) => {
     const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
     let effectiveDiscountAmount = 0;
 
-    if (pointsRedeemedValueParam > 0) { // Priority for reward discount
+    if (pointsRedeemedValueParam > 0) {
       effectiveDiscountAmount = pointsRedeemedValueParam;
     } else if (discountAmountParam > 0) {
       effectiveDiscountAmount = discountAmountParam;
@@ -407,7 +427,7 @@ export default function PosPage() {
     }
     
     const total = Math.max(0, subtotal - effectiveDiscountAmount); 
-    return { subtotal, total, discountAmountApplied: effectiveDiscountAmount }; // Renamed for clarity
+    return { subtotal, total, discountAmountApplied: effectiveDiscountAmount };
   };
   
   const handleRemoveItemFromTransaction = async (itemIdToRemove: string) => {
@@ -421,13 +441,11 @@ export default function PosPage() {
         let newPointsRedeemed = selectedTransaction.pointsRedeemed;
         let newPointsRedeemedValue = selectedTransaction.pointsRedeemedValue;
 
-        // If a reward merchandise item is removed, also clear the redeemedReward info if it matches
         const removedItem = selectedTransaction.items.find(item => item.id === itemIdToRemove);
         if (removedItem?.type === 'reward_merchandise' && newRedeemedReward && newRedeemedReward.name === removedItem.name) {
              newRedeemedReward = undefined;
              newPointsRedeemed = 0;
              newPointsRedeemedValue = 0;
-             // Remove all other reward_merchandise items as well, assuming only one reward can be active.
              updatedItemsArray = updatedItemsArray.filter(item => item.type !== 'reward_merchandise');
         }
         
@@ -442,9 +460,10 @@ export default function PosPage() {
             items: updatedItemsArray,
             subtotal: subtotal,
             total: total,
-            discountAmount: discountAmountApplied, // This will be pointsRedeemedValue if a discount reward is active
-            ...(newRedeemedReward === undefined && { redeemedReward: deleteDoc }), // Clear reward if merchandise removed
-            ...(newPointsRedeemed === 0 && { pointsRedeemed: deleteDoc, pointsRedeemedValue: deleteDoc }),
+            discountAmount: discountAmountApplied,
+            redeemedReward: newRedeemedReward === undefined ? firestoreDeleteField() : newRedeemedReward,
+            pointsRedeemed: newPointsRedeemed === 0 ? firestoreDeleteField() : newPointsRedeemed,
+            pointsRedeemedValue: newPointsRedeemedValue === 0 ? firestoreDeleteField() : newPointsRedeemedValue,
             updatedAt: serverTimestamp(),
         });
 
@@ -485,9 +504,9 @@ export default function PosPage() {
             discountAmount: appliedDiscountAmount > 0 ? appliedDiscountAmount : (appliedDiscountPercentage > 0 ? discountAmountApplied : 0),
             discountPercentage: appliedDiscountPercentage,
             total: total,
-            pointsRedeemed: deleteDoc(), // Remove points redeemed if manual discount is applied
-            pointsRedeemedValue: deleteDoc(),
-            redeemedReward: deleteDoc(),
+            pointsRedeemed: firestoreDeleteField(),
+            pointsRedeemedValue: firestoreDeleteField(),
+            redeemedReward: firestoreDeleteField(),
             updatedAt: serverTimestamp()
         });
          toast({ title: "Diskon Diperbarui", description: "Diskon manual berhasil diterapkan.", variant: "default"});
@@ -512,16 +531,15 @@ export default function PosPage() {
   };
   
   const handleOpenRedeemPointsDialog = () => {
-    if (selectedClientDetails && selectedTransaction && (selectedClientDetails.loyaltyPoints || 0) >= MINIMUM_POINTS_TO_REDEEM) {
-      // Filter rewards client can afford
-      const affordableRewards = mockLoyaltyRewards.filter(reward => 
+    if (selectedClientDetails && selectedTransaction && (selectedClientDetails.loyaltyPoints || 0) >= minPointsToRedeemConfig) {
+      const affordableRewards = availableLoyaltyRewards.filter(reward => 
         reward.isActive && (selectedClientDetails.loyaltyPoints || 0) >= reward.pointsRequired
       );
       setAvailableRewardsForClient(affordableRewards);
-      setSelectedRewardToRedeem(null); // Reset selection
+      setSelectedRewardToRedeem(null);
       setIsRedeemPointsDialogOpen(true);
     } else {
-      toast({title: "Info", description: `Klien tidak memenuhi syarat (poin < ${MINIMUM_POINTS_TO_REDEEM}) atau tidak ada reward yang aktif/terjangkau.`, variant:"default"});
+      toast({title: "Info", description: `Klien tidak memenuhi syarat (poin < ${minPointsToRedeemConfig}) atau tidak ada reward yang aktif/terjangkau.`, variant:"default"});
     }
   };
 
@@ -548,7 +566,7 @@ export default function PosPage() {
     if (selectedRewardToRedeem.type === 'merchandise') {
         const merchandiseItem: TransactionItem = {
             id: uuidv4(),
-            catalogItemId: `reward_${selectedRewardToRedeem.id}`, // Special ID for reward items
+            catalogItemId: `reward_${selectedRewardToRedeem.id}`,
             name: selectedRewardToRedeem.rewardValue as string,
             price: 0,
             quantity: 1,
@@ -556,16 +574,15 @@ export default function PosPage() {
             pointsAwardedPerUnit: 0,
         };
         updatedItems.push(merchandiseItem);
-        // No direct discount value for merchandise, but points are consumed.
     } else if (selectedRewardToRedeem.type === 'discount_transaction') {
         discountValueFromReward = selectedRewardToRedeem.rewardValue as number;
     }
 
     const { subtotal, total } = calculateTransactionTotals(
         updatedItems, 
-        0, // Manual discount amount is reset
-        0, // Manual discount percentage is reset
-        discountValueFromReward // Discount comes from the reward
+        0,
+        0,
+        discountValueFromReward
     );
     
     try {
@@ -573,11 +590,11 @@ export default function PosPage() {
         items: updatedItems,
         pointsRedeemed: selectedRewardToRedeem.pointsRequired,
         pointsRedeemedValue: discountValueFromReward,
-        discountAmount: discountValueFromReward, // Reward discount overrides manual
-        discountPercentage: 0,                   // Reset percentage discount
+        discountAmount: discountValueFromReward,
+        discountPercentage: 0,
         redeemedReward: rewardDetailsToStore,
         total: total,
-        subtotal: subtotal, // Subtotal might change if merchandise added
+        subtotal: subtotal,
         notes: `${selectedTransaction.notes || ''} [Tukar ${selectedRewardToRedeem.pointsRequired} poin: ${selectedRewardToRedeem.name}]`.trim(),
         updatedAt: serverTimestamp(),
       });
@@ -608,10 +625,9 @@ export default function PosPage() {
       
       let pointsEarnedThisTransaction = 0;
       
-      // Points are earned only if no points were redeemed in this transaction
       if (selectedTransaction.clientId && (!selectedTransaction.pointsRedeemed || selectedTransaction.pointsRedeemed === 0)) {
          pointsEarnedThisTransaction = selectedTransaction.items.reduce((sum, item) => {
-            if (item.type === 'reward_merchandise') return sum; // Don't award points for redeemed merchandise
+            if (item.type === 'reward_merchandise') return sum;
             const awardedPoints = (typeof item.pointsAwardedPerUnit === 'number' && !isNaN(item.pointsAwardedPerUnit)) ? item.pointsAwardedPerUnit : 0;
             const qty = (typeof item.quantity === 'number' && !isNaN(item.quantity) && item.quantity > 0) ? item.quantity : 1; 
             return sum + (awardedPoints * qty);
@@ -643,7 +659,7 @@ export default function PosPage() {
             const today = new Date().toLocaleDateString('en-CA'); 
 
             await updateDoc(clientDocRef, {
-                loyaltyPoints: Math.max(0, newLoyaltyPoints), // Ensure points don't go negative
+                loyaltyPoints: Math.max(0, newLoyaltyPoints),
                 lastVisit: today,
             });
             
@@ -795,16 +811,16 @@ export default function PosPage() {
   const handleClearReward = async () => {
     if (!selectedTransaction || !selectedTransaction.redeemedReward) return;
     
-    setIsSubmittingRedemption(true); // Reuse submitting state
+    setIsSubmittingRedemption(true);
     try {
         const transactionDocRef = doc(db, 'transactions', selectedTransaction.id);
         let updatedItemsArray = selectedTransaction.items.filter(item => item.type !== 'reward_merchandise');
 
         const { subtotal, total } = calculateTransactionTotals(
             updatedItemsArray, 
-            0, // Reset manual discount amount
-            0, // Reset manual discount percentage
-            0  // No points redeemed value
+            0, 
+            0,
+            0
         );
 
         await updateDoc(transactionDocRef, {
@@ -813,9 +829,9 @@ export default function PosPage() {
             total: total,
             discountAmount: 0,
             discountPercentage: 0,
-            pointsRedeemed: deleteDoc(),
-            pointsRedeemedValue: deleteDoc(),
-            redeemedReward: deleteDoc(),
+            pointsRedeemed: firestoreDeleteField(),
+            pointsRedeemedValue: firestoreDeleteField(),
+            redeemedReward: firestoreDeleteField(),
             notes: selectedTransaction.notes?.replace(/\[Tukar.*?poin.*?\]/g, '').trim() || '',
             updatedAt: serverTimestamp(),
         });
@@ -829,7 +845,7 @@ export default function PosPage() {
 };
 
 
-  if (loadingTransactions || loadingCatalogItems || loadingClients || loadingAssignableStaff) {
+  if (loadingTransactions || loadingCatalogItems || loadingClients || loadingAssignableStaff || loadingLoyaltyRewards) {
     return (
       <div className="flex flex-col h-full">
         <AppHeader title="Penjualan" />
@@ -936,14 +952,15 @@ export default function PosPage() {
                             </div>
                         )}
                     </div>
-                    {selectedClientDetails && (selectedClientDetails.loyaltyPoints || 0) >= MINIMUM_POINTS_TO_REDEEM && !selectedTransaction.redeemedReward && (
+                    {selectedClientDetails && (selectedClientDetails.loyaltyPoints || 0) >= minPointsToRedeemConfig && !selectedTransaction.redeemedReward && (
                         <Button 
                           size="sm" 
                           variant="default"
                           onClick={handleOpenRedeemPointsDialog}
                           className="bg-accent text-accent-foreground hover:bg-accent/90"
+                          disabled={loadingLoyaltyRewards}
                         >
-                            <Tags className="mr-2 h-4 w-4" /> Tukar Reward
+                            {loadingLoyaltyRewards ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Tags className="mr-2 h-4 w-4" />} Tukar Reward
                         </Button>
                     )}
                     {selectedTransaction.redeemedReward && (
@@ -1292,7 +1309,9 @@ export default function PosPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-2 pb-4">
-              {availableRewardsForClient.length === 0 ? (
+              {loadingLoyaltyRewards ? (
+                  <div className="flex items-center justify-center"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Memuat daftar reward...</div>
+              ) : availableRewardsForClient.length === 0 ? (
                 <p className="text-center text-muted-foreground">Tidak ada reward yang bisa ditukarkan dengan poin Anda saat ini.</p>
               ) : (
                 <RadioGroup 
@@ -1323,7 +1342,7 @@ export default function PosPage() {
               <Button variant="outline" onClick={() => setIsRedeemPointsDialogOpen(false)} disabled={isSubmittingRedemption}>Batal</Button>
               <Button 
                 onClick={handleRedeemReward} 
-                disabled={isSubmittingRedemption || !selectedRewardToRedeem || availableRewardsForClient.length === 0}
+                disabled={isSubmittingRedemption || !selectedRewardToRedeem || availableRewardsForClient.length === 0 || loadingLoyaltyRewards}
                 className="bg-accent text-accent-foreground hover:bg-accent/90"
               >
                 {isSubmittingRedemption && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -1434,4 +1453,3 @@ export default function PosPage() {
     </div>
   );
 }
-
