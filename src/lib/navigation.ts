@@ -1,6 +1,6 @@
 
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, BarChartBig, Settings, Clipboard, Banknote, CalendarDays, ClipboardList, Percent, ReceiptText, Landmark, DollarSign, TrendingUp, History, ArrowRightLeft, FileText, Wallet, Palette, Bell, CreditCard as CreditCardIcon, Award, Gift, SlidersHorizontal, Settings2, Package } from 'lucide-react'; // Added Package
+import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, BarChartBig, Settings, Clipboard, Banknote, CalendarDays, ClipboardList, Percent, ReceiptText, Landmark, DollarSign, TrendingUp, History, ArrowRightLeft, FileText, Wallet, Palette, Bell, CreditCard as CreditCardIcon, Award, Gift, SlidersHorizontal, Settings2, Package, MessageSquareText } from 'lucide-react'; // Added Package, MessageSquareText
 
 export interface NavItem {
   title: string;
@@ -44,6 +44,12 @@ export const mainNavItems: NavItem[] = [
     href: '/services',
     icon: Wrench,
     description: 'Kelola katalog layanan dan produk.',
+  },
+  {
+    title: 'Asisten CS AI',
+    href: '/ai-cs-assistant',
+    icon: MessageSquareText,
+    description: 'Bantuan AI untuk membalas pesan customer.',
   },
   {
     title: 'Inventaris',
