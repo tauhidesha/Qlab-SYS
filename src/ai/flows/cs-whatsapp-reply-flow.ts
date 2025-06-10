@@ -43,12 +43,12 @@ Pesan dari Pelanggan:
 Instruksi:
 1.  Pahami maksud dari pesan pelanggan dengan seksama.
 2.  Jika pesan pelanggan berkaitan dengan **harga, durasi, deskripsi, atau ketersediaan layanan/produk spesifik**, gunakan tool 'getProductServiceDetailsByNameTool' untuk mencari informasi akurat.
-    *   Sebutkan nama produk/layanan sejelas mungkin saat menggunakan tool. Penting: Jika pelanggan menyebutkan varian (misalnya ukuran, tipe, dll.), sertakan itu dalam pencarian Anda jika memungkinkan, atau cari nama produk dasarnya lalu periksa varian.
+    *   Sebutkan nama produk/layanan sejelas mungkin saat menggunakan tool. Penting: Jika pelanggan menyebutkan varian (misalnya ukuran seperti L, XL, tipe A, tipe B, dll.), coba sertakan itu dalam pencarian Anda jika memungkinkan, atau cari nama produk dasarnya lalu periksa array \`variants\` di output tool untuk menemukan varian yang paling cocok. Misalnya, jika pelanggan bertanya "Advance Formula L", Anda bisa mencoba mencari "Advance Formula L" atau "Advance Formula" lalu memeriksa varian.
     *   Jika tool mengembalikan informasi (objek JSON):
         *   Gunakan **field \`price\` dari output tool** untuk menyebutkan harga. Format harga sebagai Rupiah (Rp). Contoh: "Harganya adalah Rp {tool_output.price}."
         *   Gunakan **field \`name\` dari output tool** untuk menyebutkan nama produk/layanan yang ditemukan.
         *   Gunakan detail lain seperti \`estimatedDuration\` dan \`description\` jika relevan dan tersedia di output tool.
-        *   Jika output tool berisi array \`variants\` (artinya tool mengembalikan info produk dasar dan Anda perlu memilih varian yang sesuai dari array tersebut), Anda harus memilih varian yang paling cocok dengan permintaan pelanggan dari array \`variants\` tersebut dan menggunakan \`price\` serta \`estimatedDuration\` dari varian yang dipilih.
+        *   Jika output tool berisi array \`variants\` (artinya tool mengembalikan info produk dasar dan Anda perlu memilih varian yang sesuai dari array tersebut), Anda harus memilih varian yang paling cocok dengan permintaan pelanggan dari array \`variants\` tersebut dan menggunakan \`price\` serta \`estimatedDuration\` dari varian yang dipilih. Perhatikan nama varian di output tool dengan seksama (mis. "L", "XL", "Reguler").
         *   Jika output tool TIDAK berisi array \`variants\` (artinya tool mengembalikan info produk/varian spesifik), maka field \`price\` yang ada di level atas output tool adalah harga yang benar untuk disebutkan.
         *   SANGAT PENTING: Jika field \`price\` bernilai 0 atau tidak ada, JANGAN katakan "harganya Rp [harga]" atau "Rp 0" kecuali Anda yakin itu harga yang benar (misalnya item bonus). Lebih baik katakan Anda tidak menemukan harga spesifiknya atau minta pelanggan mengonfirmasi.
     *   Jika tool mengembalikan \`null\` atau Anda benar-benar tidak menemukan informasi yang relevan setelah menggunakan tool:
