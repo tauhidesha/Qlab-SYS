@@ -43,6 +43,7 @@ import { id as indonesiaLocale } from 'date-fns/locale';
 import { format as formatDateFns, getDaysInMonth, getDate, getDay, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 
 const payrollFormSchema = z.object({
@@ -257,12 +258,52 @@ interface DetailPayrollDialogProps {
   entry: PayrollEntry | null;
 }
 
+interface ParsedCalculationDetail {
+  date: string; // YYYY-MM-DD original for sorting
+  formattedDate: string; // dd MMM yyyy, EEEE for display
+  events: string[];
+}
+
+const parseCalculationDetails = (details?: string): ParsedCalculationDetail[] => {
+  if (!details || details.trim() === "Tidak ada potongan otomatis.") {
+    return [{ date: "N/A", formattedDate: "N/A", events: ["Tidak ada potongan otomatis."] }];
+  }
+
+  const lines = details.trim().split('\n');
+  const groupedByDate: Record<string, string[]> = {}; // Key is YYYY-MM-DD
+
+  lines.forEach(line => {
+    const match = line.match(/^(\d{4}-\d{2}-\d{2}):\s*(.*)$/);
+    if (match) {
+      const date = match[1]; // YYYY-MM-DD
+      const event = match[2];
+      if (!groupedByDate[date]) {
+        groupedByDate[date] = [];
+      }
+      groupedByDate[date].push(event);
+    }
+  });
+
+  const parsedEntries = Object.entries(groupedByDate).map(([date, events]) => ({
+    date, 
+    formattedDate: formatDateFns(parseISO(date), 'dd MMM yyyy, EEEE', { locale: indonesiaLocale }), 
+    events,
+  }));
+
+  parsedEntries.sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
+
+  return parsedEntries;
+};
+
+
 function DetailPayrollDialog({ isOpen, onClose, entry }: DetailPayrollDialogProps) {
   if (!entry) return null;
 
+  const parsedDetails = parseCalculationDetails(entry.calculationDetails);
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="sm:max-w-xl"> {/* Increased width */}
+      <DialogContent className="sm:max-w-2xl md:max-w-3xl"> {/* Lebarkan dialog */}
         <DialogHeader>
           <DialogTitle>Detail Penggajian: {entry.staffName}</DialogTitle>
           <DialogDescription>Periode: {entry.period}</DialogDescription>
@@ -316,12 +357,31 @@ function DetailPayrollDialog({ isOpen, onClose, entry }: DetailPayrollDialogProp
               </AccordionContent>
             </AccordionItem>
             {entry.calculationDetails && (
-              <AccordionItem value="item-2">
+              <AccordionItem value="calculation-log-details">
                 <AccordionTrigger className="text-base font-medium">Log Kalkulasi Potongan Otomatis</AccordionTrigger>
-                <AccordionContent>
-                  <p className="text-xs text-muted-foreground bg-muted p-3 rounded-md whitespace-pre-wrap max-h-48 overflow-y-auto">
-                    {entry.calculationDetails}
-                  </p>
+                <AccordionContent className="p-0">
+                  <ScrollArea className="h-[200px] border rounded-md">
+                    <Table className="text-xs">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[180px]">Tanggal</TableHead>
+                          <TableHead>Keterangan</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {parsedDetails.map((detailItem, index) => (
+                          <TableRow key={`${detailItem.date}-${index}`}>
+                            <TableCell className="font-medium align-top py-2">{detailItem.formattedDate}</TableCell>
+                            <TableCell className="align-top py-2">
+                              {detailItem.events.map((event, eventIndex) => (
+                                <div key={eventIndex} className={eventIndex > 0 ? "mt-1" : ""}>{event}</div>
+                              ))}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
                 </AccordionContent>
               </AccordionItem>
             )}
@@ -475,7 +535,7 @@ export default function PayrollPage() {
                 anyStaffScheduledAndPresent = true;
                 for (const att of dailyAttendances) {
                     if (att.status === 'Cuti' || att.status === 'Absen') {
-                        continue;
+                        continue; // Skip checking clockIn for Cuti/Absen
                     }
                     if (!att.clockIn || att.clockIn < "09:05") {
                         allStaffPresentAndLate = false;
@@ -526,7 +586,7 @@ export default function PayrollPage() {
                     dailyLatenessDeduction = 50000;
                     calculationDetails += `${dateStr}: Telat >=10:00 (-Rp 50.000).\n`;
                 } else if (attendance.clockIn >= "09:05") {
-                    if (!isTelatBukaHariIniUntukStaf) { // Hanya kena potongan telat normal jika tidak kena potongan telat buka
+                    if (!isTelatBukaHariIniUntukStaf) { 
                         dailyLatenessDeduction = 15000;
                         calculationDetails += `${dateStr}: Telat >=09:05 (-Rp 15.000).\n`;
                     } else {
@@ -535,13 +595,15 @@ export default function PayrollPage() {
                 }
                 latenessDeduction += dailyLatenessDeduction;
 
-            } else { 
-                absenceDeduction += 50000;
+            } else { // No clockIn but not 'Absen' or 'Cuti' (e.g., status 'Hadir' but forgot clockIn)
+                absenceDeduction += 50000; // Assume absent if no clockIn and not explicitly on leave
                 calculationDetails += `${dateStr}: ${attendance.status} tanpa clockIn, dianggap Absen (-Rp 50.000).\n`;
             }
-        } else { 
+        } else { // No attendance record at all for the day
             absenceDeduction += 50000;
             calculationDetails += `${dateStr}: Tidak ada catatan absensi (-Rp 50.000).\n`;
+            // Check for "Telat Buka Toko" even if this specific staff has no record,
+            // as the "Telat Buka" applies if *all present staff* were late.
             if (shopLateOpeningDays.has(dateStr)) {
                  telatBukaDeductionTotalForStaff += 25000;
                  calculationDetails += `${dateStr}: Potongan Telat Buka Toko (-Rp 25.000 saat tidak ada absensi).\n`;
@@ -922,16 +984,15 @@ export default function PayrollPage() {
   );
 }
 
-interface AttendanceRecord { // Ditambahkan di sini jika belum ada secara global
+interface AttendanceRecord { 
   id: string;
   staffId: string;
   staffName: string;
-  date: string; // YYYY-MM-DD
-  clockIn?: string; // HH:mm
-  clockOut?: string; // HH:mm
+  date: string; 
+  clockIn?: string; 
+  clockOut?: string; 
   status: 'Hadir' | 'Absen' | 'Terlambat' | 'Cuti';
   notes?: string;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
-
