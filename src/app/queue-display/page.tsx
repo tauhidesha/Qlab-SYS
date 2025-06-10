@@ -23,13 +23,42 @@ interface QueueItem {
   staff?: string;
   createdAt: Timestamp;
   completedAt?: Timestamp;
+  serviceStartTime?: Timestamp; // Ditambahkan untuk countdown
 }
 
 const AUTO_HIDE_DELAY_MS = 5 * 60 * 1000; // 5 minutes
 
+function parseEstimatedTimeToMinutes(timeString: string): number | null {
+    if (!timeString) return null;
+    let totalMinutes = 0;
+    const timeStr = timeString.toLowerCase().replace('sisa', '').trim();
+
+    const hourMatch = timeStr.match(/(\d+)\s*(jam|hr)/);
+    if (hourMatch) {
+        totalMinutes += parseInt(hourMatch[1], 10) * 60;
+    }
+
+    const minuteMatch = timeStr.match(/(\d+)\s*(mnt|menit|min)/);
+    if (minuteMatch) {
+        totalMinutes += parseInt(minuteMatch[1], 10);
+    }
+    
+    if (!hourMatch && !minuteMatch) {
+        const rawNumberMatch = timeStr.match(/^(\d+)$/);
+        if (rawNumberMatch) {
+            totalMinutes = parseInt(rawNumberMatch[1], 10);
+        } else {
+            return null; 
+        }
+    }
+    return totalMinutes > 0 ? totalMinutes : null;
+}
+
+
 export default function QueueDisplayPage() {
   const [queueItems, setQueueItems] = useState<QueueItem[]>([]);
   const [loadingQueue, setLoadingQueue] = useState(true);
+  const [countdownTimers, setCountdownTimers] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
   const getStatusBadgeVariant = (status: QueueItem['status']) => {
@@ -58,7 +87,8 @@ export default function QueueDisplayPage() {
             id: doc.id,
             ...data,
             createdAt: data.createdAt || Timestamp.now(),
-            completedAt: data.completedAt
+            completedAt: data.completedAt,
+            serviceStartTime: data.serviceStartTime,
           } as QueueItem;
         })
         .filter(item => {
@@ -83,6 +113,55 @@ export default function QueueDisplayPage() {
   }, [toast]);
   
   useEffect(() => {
+    const intervalIds: NodeJS.Timeout[] = [];
+
+    queueItems.forEach(item => {
+      if (item.status === 'Dalam Layanan' && item.serviceStartTime) {
+        const estimatedDurationMinutes = parseEstimatedTimeToMinutes(item.estimatedTime);
+        if (estimatedDurationMinutes === null) {
+          setCountdownTimers(prev => ({ ...prev, [item.id]: item.estimatedTime })); // Show original if unparsable
+          return;
+        }
+
+        const serviceStartTimeMs = item.serviceStartTime.toDate().getTime();
+        const targetEndTimeMs = serviceStartTimeMs + estimatedDurationMinutes * 60 * 1000;
+
+        const updateTimer = () => {
+          const nowMs = new Date().getTime();
+          const remainingMs = targetEndTimeMs - nowMs;
+
+          if (remainingMs <= 0) {
+            setCountdownTimers(prev => ({ ...prev, [item.id]: "Waktu Habis" }));
+          } else {
+            const minutes = Math.floor((remainingMs / (1000 * 60)) % 60);
+            const seconds = Math.floor((remainingMs / 1000) % 60);
+            setCountdownTimers(prev => ({
+              ...prev,
+              [item.id]: `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+            }));
+          }
+        };
+        
+        updateTimer(); // Initial call
+        const intervalId = setInterval(updateTimer, 1000);
+        intervalIds.push(intervalId);
+      } else if (countdownTimers[item.id]) {
+        // Clear timer if status is no longer 'Dalam Layanan' but timer exists
+        setCountdownTimers(prev => {
+            const newTimers = {...prev};
+            delete newTimers[item.id];
+            return newTimers;
+        });
+      }
+    });
+
+    return () => {
+      intervalIds.forEach(clearInterval);
+    };
+  }, [queueItems]); // Re-run when queueItems change
+
+  useEffect(() => {
+    // Auto-hide logic based on interval
     const intervalId = setInterval(() => {
       const now = Date.now();
       setQueueItems(prevItems => 
@@ -102,8 +181,8 @@ export default function QueueDisplayPage() {
 
   return (
     <>
-      <div className="w-full h-full"> {/* Removed max-w-7xl and mx-auto, added h-full */}
-        <Card className="shadow-2xl border-2 border-primary/20 h-full flex flex-col"> {/* Added h-full and flex flex-col */}
+      <div className="w-full h-full">
+        <Card className="shadow-2xl border-2 border-primary/20 h-full flex flex-col">
           <CardHeader className="text-center pb-6 pt-8">
             <div className="flex items-center justify-center mb-4">
               <ListOrdered className="h-12 w-12 text-primary mr-4" />
@@ -113,7 +192,7 @@ export default function QueueDisplayPage() {
               Pelanggan yang sedang menunggu dan dilayani saat ini.
             </CardDescription>
           </CardHeader>
-          <CardContent className="px-2 sm:px-4 flex-grow overflow-y-auto"> {/* Added flex-grow and overflow-y-auto */}
+          <CardContent className="px-2 sm:px-4 flex-grow overflow-y-auto">
             {loadingQueue && queueItems.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-center h-full">
                 <Loader2 className="h-16 w-16 animate-spin text-primary mb-4" />
@@ -183,6 +262,11 @@ export default function QueueDisplayPage() {
                                 Pukul {item.completedAt.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
                               </span>
                             </div>
+                          ) : item.status === 'Dalam Layanan' ? (
+                             <div className="flex flex-col items-center">
+                               <span>Sisa Waktu</span>
+                               <span className="text-lg font-semibold text-primary">{countdownTimers[item.id] || item.estimatedTime}</span>
+                             </div>
                           ) : (
                             <div className="flex flex-col items-center">
                               <span>Estimasi</span>
@@ -205,3 +289,4 @@ export default function QueueDisplayPage() {
     </>
   );
 }
+

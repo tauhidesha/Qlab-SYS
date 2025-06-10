@@ -20,7 +20,8 @@ import {
   serverTimestamp, 
   Timestamp,
   where,
-  writeBatch
+  writeBatch,
+  deleteField
 } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -67,6 +68,8 @@ interface QueueItem {
   estimatedTime: string;
   staff?: string; // Nama staf yang menangani
   createdAt: Timestamp; 
+  completedAt?: Timestamp;
+  serviceStartTime?: Timestamp; // Kapan layanan mulai dikerjakan
 }
 
 const queueItemFormSchema = z.object({
@@ -363,7 +366,7 @@ function AssignStaffDialog({ isOpen, onClose, onSubmit, staffList, isSubmitting,
 
   const handleSubmit = async () => {
     if (!selectedStaffName) {
-      toast({ title: "Error", description: "Silakan pilih staf.", variant: "destructive" });
+      toast({ title: "Error", description: "Silakan pilih staf teknisi.", variant: "destructive" });
       return;
     }
     await onSubmit(selectedStaffName);
@@ -495,19 +498,33 @@ export default function QueuePage() {
 
   const fetchQueueItems = useCallback(async () => {
     setLoadingQueue(true);
+    const AUTO_HIDE_DELAY_MS = 5 * 60 * 1000; // 5 minutes
     try {
       const queueCollectionRef = collection(db, 'queueItems');
       const q = query(queueCollectionRef, orderBy("createdAt", "asc"));
       const querySnapshot = await getDocs(q);
+      const now = Date.now();
       
-      const itemsData = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        return { 
-          id: doc.id, 
-          ...data,
-          createdAt: data.createdAt || Timestamp.now() 
-        } as QueueItem;
-      });
+      const itemsData = querySnapshot.docs
+        .map(doc => {
+          const data = doc.data();
+          return { 
+            id: doc.id, 
+            ...data,
+            createdAt: data.createdAt || Timestamp.now(),
+            completedAt: data.completedAt, // Pastikan completedAt diambil
+            serviceStartTime: data.serviceStartTime, // Pastikan serviceStartTime diambil
+          } as QueueItem;
+        })
+        .filter(item => {
+          if (item.status === 'Selesai' && item.completedAt) {
+            const completedTime = item.completedAt.toDate().getTime();
+            if (now - completedTime > AUTO_HIDE_DELAY_MS) {
+              return false; // Sembunyikan jika sudah selesai lebih dari 5 menit
+            }
+          }
+          return true;
+        });
       setQueueItems(itemsData);
 
     } catch (error) {
@@ -522,7 +539,23 @@ export default function QueuePage() {
 
   useEffect(() => {
     fetchQueueItems();
-  }, [fetchQueueItems]);
+    // Setup interval to re-filter items for auto-hide (optional, if not using onSnapshot)
+    const intervalId = setInterval(() => {
+       const now = Date.now();
+       const AUTO_HIDE_DELAY_MS = 5 * 60 * 1000;
+       setQueueItems(prevItems => 
+         prevItems.filter(item => {
+           if (item.status === 'Selesai' && item.completedAt) {
+             const completedTime = item.completedAt.toDate().getTime();
+             return !(now - completedTime > AUTO_HIDE_DELAY_MS);
+           }
+           return true;
+         })
+       );
+    }, 60000); // Check every minute
+
+    return () => clearInterval(intervalId);
+  }, [fetchQueueItems]); // fetchQueueItems dependency already handles fetching
 
   const defaultQueueItemValues: QueueItemFormData = {
     customerName: '',
@@ -550,7 +583,7 @@ export default function QueuePage() {
       const { clientId: formClientId, ...otherFormData } = formData;
       const actualClientId = formClientId === WALK_IN_CLIENT_VALUE ? undefined : formClientId;
 
-      const firestoreData: Omit<QueueItem, 'id' | 'createdAt' | 'staff' | 'serviceId'> & { clientId?: string; serviceId?: string} = {
+      const firestoreData: Omit<QueueItem, 'id' | 'createdAt' | 'staff' | 'serviceId' | 'completedAt' | 'serviceStartTime'> & { clientId?: string; serviceId?: string} = {
           customerName: otherFormData.customerName,
           vehicleInfo: otherFormData.vehicleInfo,
           service: otherFormData.service,
@@ -565,7 +598,21 @@ export default function QueuePage() {
 
       if (currentEditingItem) { 
         const itemDocRef = doc(db, 'queueItems', currentEditingItem.id);
-        await updateDoc(itemDocRef, firestoreData); 
+        // Saat edit, jangan ubah serviceStartTime atau completedAt kecuali status berubah signifikan
+        const updatePayload: any = {...firestoreData};
+        if (formData.status !== currentEditingItem.status) {
+          if (formData.status === 'Selesai') {
+            updatePayload.completedAt = serverTimestamp();
+            updatePayload.serviceStartTime = currentEditingItem.serviceStartTime || deleteField(); // Hapus jika pindah ke Selesai dari Menunggu
+          } else if (formData.status === 'Dalam Layanan' && currentEditingItem.status !== 'Dalam Layanan') {
+            updatePayload.serviceStartTime = serverTimestamp();
+            updatePayload.completedAt = deleteField(); // Hapus jika pindah dari Selesai
+          } else if (formData.status === 'Menunggu') {
+            updatePayload.serviceStartTime = deleteField();
+            updatePayload.completedAt = deleteField();
+          }
+        }
+        await updateDoc(itemDocRef, updatePayload); 
         toast({ title: "Sukses", description: "Item antrian berhasil diperbarui." });
       } else { 
         await addDoc(collection(db, 'queueItems'), { 
@@ -592,7 +639,12 @@ export default function QueuePage() {
     } else if (newStatus === 'Selesai') {
       try {
         const itemDocRef = doc(db, 'queueItems', item.id);
-        await updateDoc(itemDocRef, { status: newStatus, staff: item.staff || 'Tidak Ditugaskan' });
+        await updateDoc(itemDocRef, { 
+            status: newStatus, 
+            staff: item.staff || 'Tidak Ditugaskan',
+            completedAt: serverTimestamp(), // Set completedAt timestamp
+            // serviceStartTime tidak diubah saat pindah ke Selesai
+        });
         toast({ title: "Status Diperbarui", description: `Status untuk ${item.customerName} diubah menjadi ${newStatus}.` });
         fetchQueueItems(); 
       } catch (error) {
@@ -610,7 +662,9 @@ export default function QueuePage() {
       const itemDocRef = doc(db, 'queueItems', itemBeingAssigned.id);
       batch.update(itemDocRef, { 
         status: 'Dalam Layanan',
-        staff: staffName 
+        staff: staffName,
+        serviceStartTime: serverTimestamp(), // Set serviceStartTime here
+        completedAt: deleteField() // Hapus completedAt jika ada (misal dari Selesai -> Dalam Layanan lagi)
       });
 
       const serviceDetails = servicesList.find(s => s.name === itemBeingAssigned.service || s.id === itemBeingAssigned.serviceId);
@@ -820,6 +874,16 @@ export default function QueuePage() {
                          <div className="text-xs text-muted-foreground mt-1">
                           Masuk: {item.createdAt?.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
                         </div>
+                         {item.serviceStartTime && item.status === 'Dalam Layanan' && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                                Mulai: {item.serviceStartTime.toDate().toLocaleTimeString('id-ID', {hour: '2-digit', minute: '2-digit'})}
+                            </div>
+                         )}
+                         {item.completedAt && item.status === 'Selesai' && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                                Selesai: {item.completedAt.toDate().toLocaleTimeString('id-ID', {hour: '2-digit', minute: '2-digit'})}
+                            </div>
+                         )}
                       </CardContent>
                        <CardFooter className="flex flex-col sm:flex-row sm:justify-end gap-2 pt-4 border-t mt-auto">
                         <Button variant="outline" size="sm" onClick={() => handleEditItem(item)} className="w-full sm:w-auto order-1 sm:order-1" disabled={loadingClients || loadingServices}>
