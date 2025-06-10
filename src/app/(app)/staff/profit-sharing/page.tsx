@@ -19,8 +19,8 @@ import { id as indonesiaLocale } from 'date-fns/locale';
 import { format as formatDateFns, startOfDay, endOfDay } from 'date-fns';
 
 interface ProfitShareFormState {
-  staffDailyRevenue: number; // Changed to number
-  profitSharePercentage: number; // Changed to number
+  staffDailyRevenue: number;
+  profitSharePercentage: number;
   profitShareAmount: number;
   existingEntryId?: string;
   status: 'Belum Dibayar' | 'Dibayar';
@@ -44,7 +44,6 @@ export default function ProfitSharingPage() {
     setLoadingStaff(true);
     try {
       const staffCollectionRef = collection(db, 'staffMembers');
-      // Filter hanya untuk peran 'Teknisi'
       const q = query(staffCollectionRef, where("role", "==", "Teknisi"), orderBy("name"));
       const querySnapshot = await getDocs(q);
       const membersData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StaffMember));
@@ -72,7 +71,6 @@ export default function ProfitSharingPage() {
     const newEntriesState: Record<string, ProfitShareFormState> = {};
 
     try {
-      // Fetch paid transactions for the selected date
       const transactionsRef = collection(db, 'transactions');
       const dateStart = startOfDay(date);
       const dateEnd = endOfDay(date);
@@ -86,7 +84,6 @@ export default function ProfitSharingPage() {
       const transactionsSnapshot = await getDocs(transactionsQuery);
       const paidTransactions = transactionsSnapshot.docs.map(doc => doc.data() as Transaction);
 
-      // Fetch existing profit share entries for the date
       const entriesCollectionRef = collection(db, 'dailyProfitShares');
       const existingEntriesQuery = query(entriesCollectionRef, where("date", "==", formattedDate));
       const existingEntriesSnapshot = await getDocs(existingEntriesQuery);
@@ -95,25 +92,26 @@ export default function ProfitSharingPage() {
       for (const staff of technicianStaffList) {
         let staffDailyRevenue = 0;
         paidTransactions.forEach(transaction => {
-          transaction.items.forEach(item => {
-            if (item.type === 'service' && item.staffName === staff.name) {
-              staffDailyRevenue += item.price * item.quantity;
-            }
-          });
+          if (transaction.items && Array.isArray(transaction.items)) {
+            transaction.items.forEach(item => {
+              if (item.type === 'service' && item.staffName === staff.name) {
+                staffDailyRevenue += (item.price || 0) * (item.quantity || 1);
+              }
+            });
+          }
         });
 
         const staffProfitSharePercentage = staff.profitSharePercentage || 0;
-        const profitShareAmount = (staffDailyRevenue * staffProfitSharePercentage) / 100;
         
         const existingEntry = existingDbEntries.find(e => e.staffId === staff.id);
 
         if (existingEntry) {
-          // If entry exists, use its data but update revenue & profit amount based on current calculation for display consistency
-          // The actual stored values in DB for revenue/percentage are from the time of saving.
+          // If entry exists, use its data. The staffDailyRevenue and profitShareAmount will be from the time it was saved.
+          // The percentage used is also the one saved at that time.
           newEntriesState[staff.id] = {
-            staffDailyRevenue: staffDailyRevenue, // Calculated revenue for today
-            profitSharePercentage: existingEntry.profitSharePercentage, // Use stored percentage
-            profitShareAmount: (staffDailyRevenue * existingEntry.profitSharePercentage) / 100, // Recalculate profit based on today's revenue and stored percentage
+            staffDailyRevenue: existingEntry.staffDailyRevenue, 
+            profitSharePercentage: existingEntry.profitSharePercentage, 
+            profitShareAmount: existingEntry.profitShareAmount, 
             existingEntryId: existingEntry.id,
             status: existingEntry.status,
             paidAt: existingEntry.paidAt,
@@ -121,6 +119,8 @@ export default function ProfitSharingPage() {
             isLoadingPay: false,
           };
         } else {
+          // For new entries, calculate based on current transactions and profile percentage
+          const profitShareAmount = (staffDailyRevenue * staffProfitSharePercentage) / 100;
           newEntriesState[staff.id] = {
             staffDailyRevenue: staffDailyRevenue,
             profitSharePercentage: staffProfitSharePercentage,
@@ -153,33 +153,35 @@ export default function ProfitSharingPage() {
 
   const handleSaveEntry = async (staffId: string) => {
     const staff = technicianStaffList.find(s => s.id === staffId);
-    const entryData = profitShareEntries[staffId]; // This is the current state from UI/calculation
-    if (!staff || !entryData) return;
+    // Get the calculated/current values from state, not from a form input directly
+    const entryFromState = profitShareEntries[staffId]; 
+    if (!staff || !entryFromState) return;
 
     setProfitShareEntries(prev => ({ ...prev, [staffId]: { ...prev[staffId], isLoadingSave: true }}));
 
-    // Data to save is based on current calculation snapshot
+    // Data to save is the snapshot from the current state calculation
     const dataToSave: Omit<DailyProfitShareEntry, 'id' | 'createdAt' | 'updatedAt' | 'paidAt'> & { paidAt?: Timestamp } = {
       staffId: staff.id,
       staffName: staff.name,
       date: formatDateForFirestore(selectedDate),
-      staffDailyRevenue: entryData.staffDailyRevenue, // Calculated revenue
-      profitSharePercentage: entryData.profitSharePercentage, // Percentage from profile or overridden if we allow that later
-      profitShareAmount: entryData.profitShareAmount, // Calculated profit
-      status: entryData.status || 'Belum Dibayar',
+      staffDailyRevenue: entryFromState.staffDailyRevenue, 
+      profitSharePercentage: entryFromState.profitSharePercentage,
+      profitShareAmount: entryFromState.profitShareAmount,
+      status: entryFromState.status || 'Belum Dibayar',
     };
-    if(entryData.paidAt) dataToSave.paidAt = entryData.paidAt;
+    if(entryFromState.paidAt) dataToSave.paidAt = entryFromState.paidAt;
 
 
     try {
-      const docIdToUse = entryData.existingEntryId || doc(collection(db, 'dailyProfitShares')).id;
+      const docIdToUse = entryFromState.existingEntryId || doc(collection(db, 'dailyProfitShares')).id;
       const docRef = doc(db, 'dailyProfitShares', docIdToUse);
 
-      if (entryData.existingEntryId) {
+      if (entryFromState.existingEntryId) {
         await updateDoc(docRef, { ...dataToSave, updatedAt: serverTimestamp() });
         toast({ title: "Sukses", description: `Bagi hasil untuk ${staff.name} berhasil diperbarui.` });
       } else {
         await setDoc(docRef, { ...dataToSave, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+        // After first save, update local state with the new existingEntryId
         setProfitShareEntries(prev => ({
             ...prev,
             [staffId]: { ...prev[staffId], existingEntryId: docRef.id }
@@ -187,7 +189,8 @@ export default function ProfitSharingPage() {
         toast({ title: "Sukses", description: `Bagi hasil untuk ${staff.name} berhasil disimpan.` });
       }
       // Re-fetch to ensure consistency, especially if status or other details might change server-side
-      await calculateRevenueAndPopulateEntries(selectedDate);
+      // or if revenue calculation logic changes for saved entries
+      await calculateRevenueAndPopulateEntries(selectedDate); 
     } catch (error) {
       console.error("Error saving profit share entry: ", error);
       toast({ title: "Error", description: "Gagal menyimpan data bagi hasil.", variant: "destructive" });
@@ -217,13 +220,10 @@ export default function ProfitSharingPage() {
         updatedAt: serverTimestamp(),
       });
       toast({ title: "Sukses", description: `Bagi hasil untuk ${staff.name} ditandai sudah dibayar.` });
-      // Update local state immediately for UI responsiveness
       setProfitShareEntries(prev => ({
         ...prev,
         [staffId]: { ...prev[staffId], status: 'Dibayar', paidAt: Timestamp.now(), isLoadingPay: false }
       }));
-       // Optionally re-fetch to confirm, though local update is faster for UI
-       // await calculateRevenueAndPopulateEntries(selectedDate); 
     } catch (error) {
       console.error("Error marking as paid: ", error);
       toast({ title: "Error", description: "Gagal menandai sebagai dibayar.", variant: "destructive" });
@@ -233,7 +233,8 @@ export default function ProfitSharingPage() {
   
   const currentDay = new Date();
   const isTodaySelected = selectedDate.toDateString() === currentDay.toDateString();
-  const isPastDateSelected = !isTodaySelected && selectedDate < currentDay;
+  // Check if selectedDate is strictly before today (ignoring time part)
+  const isPastDateSelected = startOfDay(selectedDate) < startOfDay(currentDay);
 
 
   if (loadingStaff) {
@@ -276,7 +277,7 @@ export default function ProfitSharingPage() {
             <CardHeader>
               <CardTitle>Entri Bagi Hasil untuk {formatDateFns(selectedDate, 'PPP', { locale: indonesiaLocale })}</CardTitle>
               <CardDescription>
-                Pendapatan harian dihitung dari transaksi layanan yang telah dibayar. Persentase diambil dari profil.
+                Pendapatan harian dihitung dari transaksi layanan teknisi yang telah dibayar pada tanggal terpilih. Persentase dari profil staf.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -310,11 +311,15 @@ export default function ProfitSharingPage() {
                           isLoadingPay: false,
                        };
                       const isPaid = entry.status === 'Dibayar';
-                      // Disable actions if it's a past date AND the entry is NOT already paid (allow viewing paid past entries)
-                      // Or if it is paid, all actions are disabled
-                      const isDisabledForEditOrPay = isPaid || (isPastDateSelected && !isPaid) ;
-                      const isDisabledForSave = isPaid || isPastDateSelected;
+                      // Disable save if date is past AND entry not paid. Allow saving for today.
+                      // Disable pay if date is past AND entry not paid. Allow paying for today.
+                      // If paid, all actions disabled.
+                      const canEditOrPayToday = isTodaySelected && !isPaid;
+                      const canViewOnlyPastUnpaid = isPastDateSelected && !isPaid;
+                      const canViewOnlyPaid = isPaid;
 
+                      const disableSaveButton = canViewOnlyPaid || canViewOnlyPastUnpaid || entry.isLoadingSave || entry.isLoadingPay;
+                      const disablePayButton = canViewOnlyPaid || canViewOnlyPastUnpaid || entry.isLoadingSave || entry.isLoadingPay || (!entry.existingEntryId && !isPaid) ;
 
                       return (
                         <TableRow key={staff.id}>
@@ -323,7 +328,7 @@ export default function ProfitSharingPage() {
                             <div className="relative">
                                <DollarSign className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
-                                type="text" // Display as text, calculated value
+                                type="text"
                                 value={entry.staffDailyRevenue.toLocaleString('id-ID')}
                                 readOnly
                                 className="pl-8 bg-muted/50"
@@ -334,7 +339,7 @@ export default function ProfitSharingPage() {
                             <div className="relative">
                                 <PercentIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
-                                    type="text" // Display as text, from profile
+                                    type="text"
                                     value={String(entry.profitSharePercentage)}
                                     readOnly
                                     className="pl-8 bg-muted/50"
@@ -369,7 +374,7 @@ export default function ProfitSharingPage() {
                             <Button 
                                 size="sm" 
                                 onClick={() => handleSaveEntry(staff.id)} 
-                                disabled={isDisabledForSave || entry.isLoadingSave || entry.isLoadingPay}
+                                disabled={disableSaveButton}
                                 variant="outline"
                             >
                               {entry.isLoadingSave ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
@@ -378,8 +383,8 @@ export default function ProfitSharingPage() {
                                 size="sm" 
                                 variant={isPaid ? "secondary" : "default"}
                                 onClick={() => handleMarkAsPaid(staff.id)} 
-                                disabled={isDisabledForEditOrPay || entry.isLoadingSave || entry.isLoadingPay || (!entry.existingEntryId && !isPaid)} // Disable pay if not saved yet & not paid
-                                className={!isPaid && !isDisabledForEditOrPay ? "bg-green-600 hover:bg-green-700 text-white" : ""}
+                                disabled={disablePayButton}
+                                className={!isPaid && !disablePayButton ? "bg-green-600 hover:bg-green-700 text-white" : ""}
                             >
                               {entry.isLoadingPay ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
                             </Button>
@@ -387,6 +392,13 @@ export default function ProfitSharingPage() {
                         </TableRow>
                       );
                     })}
+                     {technicianStaffList.length > 0 && Object.keys(profitShareEntries).length === 0 && !loadingEntriesAndRevenue && (
+                        <TableRow>
+                            <TableCell colSpan={6} className="text-center text-muted-foreground py-4">
+                                Tidak ada transaksi layanan oleh teknisi pada tanggal ini atau data bagi hasil belum ada.
+                            </TableCell>
+                        </TableRow>
+                     )}
                   </TableBody>
                 </Table>
               )}
@@ -397,5 +409,4 @@ export default function ProfitSharingPage() {
     </div>
   );
 }
-
     
