@@ -8,7 +8,7 @@ import { Banknote, FileText, Download, Loader2, Eye, CheckCircle, Save, UserPlus
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, orderBy, doc, updateDoc, addDoc, serverTimestamp, Timestamp, getDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy, doc, updateDoc, addDoc, serverTimestamp, Timestamp, writeBatch } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -28,7 +28,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -37,13 +36,15 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import type { StaffMember } from '@/types/staff';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface PayrollEntry {
   id: string;
+  staffId: string; // Added to link to StaffMember
   staffName: string;
   period: string;
   baseSalary: number;
-  profitShare: number;
+  profitShare: number; // Nominal
   totalHours?: number; 
   deductions?: number; 
   netPay: number;
@@ -54,7 +55,7 @@ interface PayrollEntry {
 }
 
 const payrollFormSchema = z.object({
-  staffName: z.string().min(1, "Nama staf diperlukan"),
+  staffId: z.string().min(1, "Staf harus dipilih"), // Changed from staffName to staffId
   baseSalary: z.preprocess(
     (val) => parseFloat(String(val)),
     z.number({ invalid_type_error: "Gaji pokok harus angka" }).nonnegative("Gaji pokok tidak boleh negatif")
@@ -78,8 +79,8 @@ type PayrollFormData = z.infer<typeof payrollFormSchema>;
 interface CreatePayrollDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: PayrollFormData & { period: string; status: PayrollEntry['status'], netPay: number }) => Promise<void>;
-  staffList: StaffMember[]; // Updated to use StaffMember type
+  onSubmit: (data: PayrollFormData & { staffName: string; period: string; status: PayrollEntry['status'], netPay: number }) => Promise<void>;
+  staffList: StaffMember[];
   selectedPeriod: string;
   isSubmitting: boolean;
   loadingStaff: boolean;
@@ -101,10 +102,11 @@ function CalculatedNetPay({ control }: { control: Control<PayrollFormData & { ne
 }
 
 function CreatePayrollDialog({ isOpen, onClose, onSubmit, staffList, selectedPeriod, isSubmitting, loadingStaff }: CreatePayrollDialogProps) {
-  const form = useForm<PayrollFormData & { period: string; netPay: number; status: PayrollEntry['status'] }>({
+  const form = useForm<PayrollFormData & { staffName: string; period: string; netPay: number; status: PayrollEntry['status'] }>({
     resolver: zodResolver(payrollFormSchema),
     defaultValues: { 
-      staffName: '',
+      staffId: '',
+      staffName: '', // Will be set based on staffId
       period: selectedPeriod,
       baseSalary: 0,
       profitShare: 0,
@@ -115,9 +117,26 @@ function CreatePayrollDialog({ isOpen, onClose, onSubmit, staffList, selectedPer
     },
   });
 
+  const selectedStaffId = form.watch('staffId');
+
+  useEffect(() => {
+    if (selectedStaffId) {
+      const staff = staffList.find(s => s.id === selectedStaffId);
+      if (staff) {
+        form.setValue('baseSalary', staff.baseSalary || 0);
+        const calculatedProfitShare = staff.baseSalary && staff.profitSharePercentage 
+            ? staff.baseSalary * (staff.profitSharePercentage / 100)
+            : 0;
+        form.setValue('profitShare', calculatedProfitShare);
+      }
+    }
+  }, [selectedStaffId, staffList, form]);
+
+
   useEffect(() => {
     if (isOpen) {
       form.reset({
+        staffId: '',
         staffName: '',
         period: selectedPeriod,
         baseSalary: 0,
@@ -131,8 +150,13 @@ function CreatePayrollDialog({ isOpen, onClose, onSubmit, staffList, selectedPer
   }, [isOpen, selectedPeriod, form]);
 
   const internalSubmit = form.handleSubmit(async (data) => {
+    const selectedStaffMember = staffList.find(s => s.id === data.staffId);
+    if (!selectedStaffMember) {
+        toast({ title: "Error", description: "Staf tidak ditemukan.", variant: "destructive"});
+        return;
+    }
     const calculatedNetPay = (data.baseSalary || 0) + (data.profitShare || 0) - (data.deductions || 0);
-    await onSubmit({ ...data, period: selectedPeriod, status: 'Dibuat', netPay: calculatedNetPay });
+    await onSubmit({ ...data, staffName: selectedStaffMember.name, period: selectedPeriod, status: 'Dibuat', netPay: calculatedNetPay });
   });
 
   return (
@@ -148,11 +172,25 @@ function CreatePayrollDialog({ isOpen, onClose, onSubmit, staffList, selectedPer
           <form onSubmit={internalSubmit} className="space-y-4 py-2 pb-4">
             <FormField
               control={form.control}
-              name="staffName"
+              name="staffId"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Nama Staf</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value} disabled={loadingStaff}>
+                  <Select 
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      const staff = staffList.find(s => s.id === value);
+                      if (staff) {
+                        form.setValue('baseSalary', staff.baseSalary || 0);
+                        const calculatedProfitShare = staff.baseSalary && staff.profitSharePercentage 
+                            ? staff.baseSalary * (staff.profitSharePercentage / 100)
+                            : 0;
+                        form.setValue('profitShare', calculatedProfitShare);
+                      }
+                    }} 
+                    value={field.value} 
+                    disabled={loadingStaff}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder={loadingStaff ? "Memuat staf..." : "Pilih staf"} />
@@ -165,7 +203,7 @@ function CreatePayrollDialog({ isOpen, onClose, onSubmit, staffList, selectedPer
                         <SelectItem value="no-staff" disabled>Tidak ada staf terdaftar.</SelectItem>
                       ) : (
                         staffList.map(staff => (
-                          <SelectItem key={staff.id} value={staff.name}>{staff.name} ({staff.role})</SelectItem>
+                          <SelectItem key={staff.id} value={staff.id}>{staff.name} ({staff.role})</SelectItem>
                         ))
                       )}
                     </SelectContent>
@@ -271,8 +309,8 @@ function DetailPayrollDialog({ isOpen, onClose, entry }: DetailPayrollDialogProp
           <hr/>
           <div className="flex justify-between"><span>Status:</span> <span>{entry.status}</span></div>
           {entry.paidAt && <div className="flex justify-between"><span>Tgl. Bayar:</span> <span>{entry.paidAt.toDate().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}</span></div>}
-          <div className="flex justify-between text-xs text-muted-foreground"><span>Dibuat:</span> <span>{entry.createdAt.toDate().toLocaleString('id-ID')}</span></div>
-          <div className="flex justify-between text-xs text-muted-foreground"><span>Diperbarui:</span> <span>{entry.updatedAt.toDate().toLocaleString('id-ID')}</span></div>
+          <div className="flex justify-between text-xs text-muted-foreground"><span>Dibuat:</span> <span>{entry.createdAt?.toDate().toLocaleString('id-ID')}</span></div>
+          <div className="flex justify-between text-xs text-muted-foreground"><span>Diperbarui:</span> <span>{entry.updatedAt?.toDate().toLocaleString('id-ID')}</span></div>
         </div>
         <DialogFooter>
           <DialogClose asChild>
@@ -287,7 +325,7 @@ function DetailPayrollDialog({ isOpen, onClose, entry }: DetailPayrollDialogProp
 export default function PayrollPage() {
   const [payrollData, setPayrollData] = useState<PayrollEntry[]>([]);
   const [loadingPayroll, setLoadingPayroll] = useState(true);
-  const availablePeriods = ['Juli 2024', 'Juni 2024', 'Mei 2024', 'April 2024', 'Maret 2024'];
+  const availablePeriods = ['Agustus 2024', 'Juli 2024', 'Juni 2024', 'Mei 2024', 'April 2024', 'Maret 2024'];
   const [selectedPeriod, setSelectedPeriod] = useState<string>(availablePeriods[0] || 'Periode Tidak Tersedia');
   
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -305,6 +343,14 @@ export default function PayrollPage() {
 
   const { toast } = useToast();
 
+  const [isPayButtonEnabled, setIsPayButtonEnabled] = useState(false);
+
+  useEffect(() => {
+    const today = new Date();
+    const currentDayOfMonth = today.getDate();
+    setIsPayButtonEnabled(currentDayOfMonth >= 28);
+  }, []); // Runs once on mount, and date check is on client-side.
+
   const fetchStaffList = useCallback(async () => {
     setLoadingStaff(true);
     try {
@@ -320,7 +366,7 @@ export default function PayrollPage() {
         description: "Tidak dapat mengambil daftar staf.",
         variant: "destructive",
       });
-      setStaffList([]); // Set to empty array on error
+      setStaffList([]);
     } finally {
       setLoadingStaff(false);
     }
@@ -330,14 +376,19 @@ export default function PayrollPage() {
     fetchStaffList();
   }, [fetchStaffList]);
 
-
   const fetchPayrollData = useCallback(async (period: string) => {
     setLoadingPayroll(true);
     try {
       const payrollCollectionRef = collection(db, 'payrollData');
       const q = query(payrollCollectionRef, where("period", "==", period), orderBy("staffName"));
       const querySnapshot = await getDocs(q);
-      const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data(), createdAt: doc.data().createdAt || Timestamp.now(), updatedAt: doc.data().updatedAt || Timestamp.now() } as PayrollEntry));
+      const data = querySnapshot.docs.map(docSnap => ({ 
+          id: docSnap.id, 
+          ...docSnap.data(), 
+        //   Ensure Timestamps are correctly handled, default if not present
+          createdAt: docSnap.data().createdAt || Timestamp.now(), 
+          updatedAt: docSnap.data().updatedAt || Timestamp.now() 
+        } as PayrollEntry));
       setPayrollData(data);
     } catch (error) {
       console.error("Error fetching payroll data: ", error);
@@ -352,18 +403,69 @@ export default function PayrollPage() {
   }, [toast]);
 
   useEffect(() => {
-    if (selectedPeriod && selectedPeriod !== 'Periode Tidak Tersedia') {
-      fetchPayrollData(selectedPeriod);
+    if (selectedPeriod && selectedPeriod !== 'Periode Tidak Tersedia' && !loadingStaff && staffList.length > 0) {
+      const autoCreatePayrollEntries = async () => {
+        setLoadingPayroll(true); // Indicate activity
+        const batch = writeBatch(db);
+        let entriesCreatedCount = 0;
+        
+        // Fetch current payroll data for the period to avoid re-fetching inside loop and ensure accuracy
+        const currentPayrollCollectionRef = collection(db, 'payrollData');
+        const q = query(currentPayrollCollectionRef, where("period", "==", selectedPeriod));
+        const currentPeriodPayrollSnapshot = await getDocs(q);
+        const existingEntriesForPeriod = currentPeriodPayrollSnapshot.docs.map(d => d.data() as PayrollEntry);
+
+        for (const staff of staffList) {
+          const existingEntry = existingEntriesForPeriod.find(p => p.staffId === staff.id && p.period === selectedPeriod);
+          if (!existingEntry) {
+            const baseSalary = staff.baseSalary || 0;
+            const profitSharePercentage = staff.profitSharePercentage || 0;
+            const calculatedProfitShare = baseSalary * (profitSharePercentage / 100);
+            const netPay = baseSalary + calculatedProfitShare; // Deductions and hours are 0 by default
+
+            const newEntryData: Omit<PayrollEntry, 'id' | 'createdAt' | 'updatedAt' | 'paidAt'> = {
+              staffId: staff.id,
+              staffName: staff.name,
+              period: selectedPeriod,
+              baseSalary: baseSalary,
+              profitShare: calculatedProfitShare,
+              totalHours: 0,
+              deductions: 0,
+              netPay: netPay,
+              status: 'Dibuat',
+            };
+            const newDocRef = doc(collection(db, 'payrollData'));
+            batch.set(newDocRef, { ...newEntryData, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+            entriesCreatedCount++;
+          }
+        }
+
+        if (entriesCreatedCount > 0) {
+          try {
+            await batch.commit();
+            toast({ title: "Info", description: `${entriesCreatedCount} entri penggajian dasar berhasil dibuat otomatis.` });
+          } catch (error) {
+            console.error("Error auto-creating payroll entries: ", error);
+            toast({ title: "Error", description: "Gagal membuat entri penggajian otomatis.", variant: "destructive" });
+          }
+        }
+        fetchPayrollData(selectedPeriod); // Always re-fetch to display data
+      };
+      autoCreatePayrollEntries();
+    } else if (selectedPeriod && selectedPeriod !== 'Periode Tidak Tersedia') {
+        fetchPayrollData(selectedPeriod); // Fetch if staffList is empty or still loading
     } else {
       setPayrollData([]); 
       setLoadingPayroll(false);
     }
-  }, [selectedPeriod, fetchPayrollData]);
+  }, [selectedPeriod, staffList, loadingStaff, fetchPayrollData, toast]);
 
-  const handleCreatePayrollSubmit = async (data: PayrollFormData & { period: string; status: PayrollEntry['status'], netPay: number }) => {
+
+  const handleCreatePayrollSubmit = async (data: PayrollFormData & { staffName: string; period: string; status: PayrollEntry['status'], netPay: number }) => {
     setIsSubmittingCreate(true);
     try {
       const newEntry: Omit<PayrollEntry, 'id' | 'createdAt' | 'updatedAt'> = {
+        staffId: data.staffId,
         staffName: data.staffName,
         period: data.period,
         baseSalary: data.baseSalary,
@@ -423,7 +525,7 @@ export default function PayrollPage() {
 
   if (loadingPayroll && payrollData.length === 0 && selectedPeriod === 'Periode Tidak Tersedia') {
     // Initial state, don't show main loader
-  } else if (loadingPayroll || (loadingStaff && isCreateDialogOpen)) { // Show loader if payroll data is loading OR if staff list is loading for the dialog
+  } else if ((loadingPayroll || loadingStaff) && (selectedPeriod !== 'Periode Tidak Tersedia')) { 
     return (
       <div className="flex flex-col h-full">
         <AppHeader title="Penggajian Staf" />
@@ -461,8 +563,8 @@ export default function PayrollPage() {
                 onClick={() => setIsCreateDialogOpen(true)} 
                 disabled={selectedPeriod === 'Periode Tidak Tersedia' || loadingStaff}
               >
-                {loadingStaff && isCreateDialogOpen ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />} 
-                Buat Penggajian
+                {(loadingStaff && isCreateDialogOpen) || (loadingStaff && !isCreateDialogOpen && selectedPeriod !== 'Periode Tidak Tersedia' && staffList.length === 0) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />} 
+                Buat Manual
               </Button>
             </div>
           </CardHeader>
@@ -474,7 +576,7 @@ export default function PayrollPage() {
                 </div>
             ) : payrollData.length === 0 || selectedPeriod === 'Periode Tidak Tersedia' ? (
                 <div className="text-center py-10 text-muted-foreground">
-                    {selectedPeriod === 'Periode Tidak Tersedia' ? 'Silakan pilih periode untuk melihat data penggajian.' : `Tidak ada data penggajian untuk periode ${selectedPeriod}.`}
+                    {selectedPeriod === 'Periode Tidak Tersedia' ? 'Silakan pilih periode untuk melihat data penggajian.' : `Tidak ada data penggajian untuk periode ${selectedPeriod}. Entri dasar mungkin dibuat otomatis jika ada staf.`}
                 </div>
             ) : (
               <Table>
@@ -504,11 +606,28 @@ export default function PayrollPage() {
                         <Button variant="ghost" size="icon" onClick={() => handleOpenDetailDialog(entry)} className="hover:text-primary">
                           <Eye className="h-4 w-4" />
                         </Button>
-                        {(entry.status === 'Tertunda' || entry.status === 'Dibuat') && 
-                          <Button variant="ghost" size="icon" onClick={() => handleConfirmPay(entry)} className="text-green-600 hover:text-green-700">
-                            <CheckCircle className="h-4 w-4" />
-                          </Button>
-                        }
+                        {(entry.status === 'Tertunda' || entry.status === 'Dibuat') && (
+                          <TooltipProvider delayDuration={100}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  onClick={() => handleConfirmPay(entry)} 
+                                  disabled={!isPayButtonEnabled}
+                                  className={isPayButtonEnabled ? "text-green-600 hover:text-green-700" : "text-muted-foreground cursor-not-allowed"}
+                                >
+                                  <CheckCircle className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              {!isPayButtonEnabled && (
+                                <TooltipContent>
+                                  <p>Pembayaran dapat dilakukan mulai tanggal 28.</p>
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -540,7 +659,7 @@ export default function PayrollPage() {
         entry={selectedEntryForDetail}
       />
       
-      <AlertDialog open={isConfirmPaidOpen} onOpenChange={setIsConfirmPaidOpen}>
+      <AlertDialog open={isConfirmPaidOpen} onOpenChange={(open) => {if(!open) {setIsConfirmPaidOpen(false); setEntryToPay(null);}}}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Konfirmasi Pembayaran</AlertDialogTitle>
@@ -550,8 +669,8 @@ export default function PayrollPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setEntryToPay(null)} disabled={isSubmittingPayment}>Batal</AlertDialogCancel>
-            <AlertDialogAction onClick={processPayment} disabled={isSubmittingPayment} className={buttonVariants({ className: "bg-green-600 hover:bg-green-700" })}>
+            <AlertDialogCancel onClick={() => {setEntryToPay(null); setIsConfirmPaidOpen(false);}} disabled={isSubmittingPayment}>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={processPayment} disabled={isSubmittingPayment || !isPayButtonEnabled} className={buttonVariants({ className: "bg-green-600 hover:bg-green-700" })}>
               {isSubmittingPayment ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Ya, Tandai Dibayar
             </AlertDialogAction>
@@ -562,4 +681,3 @@ export default function PayrollPage() {
     </div>
   );
 }
-
