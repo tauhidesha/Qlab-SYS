@@ -3,7 +3,8 @@
 import AppHeader from '@/components/layout/AppHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { BarChartBig, Users, ShoppingCart, ListOrdered } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { BarChartBig, Users, ShoppingCart, ListOrdered, CreditCard, Star as StarIcon } from 'lucide-react'; // Added CreditCard, StarIcon
 import React from 'react';
 
 export default function DashboardPage() {
@@ -33,8 +34,8 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="lg:col-span-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card> {/* Was lg:col-span-2, now fits into md:grid-cols-2 */}
             <CardHeader>
               <CardTitle>Transaksi Terkini</CardTitle>
               <CardDescription>Gambaran umum penjualan terbaru.</CardDescription>
@@ -75,6 +76,67 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Kartu Baru: Metode Pembayaran Populer */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <CreditCard className="h-5 w-5 mr-2 text-primary" />
+                Metode Pembayaran Populer
+              </CardTitle>
+              <CardDescription>Metode pembayaran yang paling sering digunakan oleh pelanggan.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span>QRIS</span>
+                  <Badge variant="default" className="text-sm">65%</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Tunai</span>
+                  <Badge variant="secondary" className="text-sm">25%</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Kartu Debit</span>
+                  <Badge variant="outline" className="text-sm">10%</Badge>
+                </div>
+                 <p className="text-xs text-muted-foreground pt-2">*Data placeholder untuk ilustrasi.</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Kartu Baru: Layanan & Produk Terlaris */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <StarIcon className="h-5 w-5 mr-2 text-primary" />
+                Layanan & Produk Terlaris
+              </CardTitle>
+              <CardDescription>Item yang paling banyak diminati pelanggan bulan ini.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span>Cuci Motor Premium</span>
+                  <Badge variant="default" className="text-sm">120x</Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Paket Detailing Lengkap</span>
+                  <Badge variant="secondary" className="text-sm">75x</Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Sanitasi Helm</span>
+                  <Badge variant="secondary" className="text-sm">90x</Badge>
+                </div>
+                 <div className="flex items-center justify-between">
+                  <span>Pelumas Rantai (Merek X)</span>
+                  <Badge variant="outline" className="text-sm">50x</Badge>
+                </div>
+                <p className="text-xs text-muted-foreground pt-2">*Data placeholder untuk ilustrasi.</p>
+              </div>
+            </CardContent>
+          </Card>
+
         </div>
       </main>
     </div>
