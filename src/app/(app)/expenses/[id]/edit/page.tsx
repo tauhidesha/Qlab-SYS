@@ -14,7 +14,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Save, Loader2, ArrowLeft, ReceiptText, CalendarDays, Tag, StickyNote, Link as LinkIcon } from 'lucide-react';
+import { Save, Loader2, ArrowLeft, ReceiptText, CalendarDays, Tag, StickyNote, Link as LinkIcon, Landmark } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
@@ -37,6 +37,7 @@ const expenseFormSchema = z.object({
   ),
   receiptUrl: z.string().url("URL struk tidak valid. Pastikan menyertakan http:// atau https://").optional().or(z.literal('')),
   notes: z.string().max(500, "Catatan maksimal 500 karakter").optional(),
+  bankDestination: z.string().max(100, "Nama bank maksimal 100 karakter").optional(),
 });
 
 
@@ -60,8 +61,11 @@ export default function EditExpensePage() {
       amount: undefined,
       receiptUrl: '',
       notes: '',
+      bankDestination: '',
     },
   });
+  
+  const watchedCategory = form.watch('category');
 
   useEffect(() => {
     if (!expenseId) {
@@ -81,12 +85,13 @@ export default function EditExpensePage() {
         if (expenseDocSnap.exists()) {
           const expenseData = expenseDocSnap.data() as Expense;
           form.reset({
-            date: expenseData.date.toDate(), // Konversi Timestamp ke JS Date
+            date: expenseData.date.toDate(), 
             category: expenseData.category,
             description: expenseData.description,
             amount: expenseData.amount,
             receiptUrl: expenseData.receiptUrl || '',
             notes: expenseData.notes || '',
+            bankDestination: expenseData.bankDestination || '',
           });
           setCurrentExpenseDescription(expenseData.description);
         } else {
@@ -111,12 +116,20 @@ export default function EditExpensePage() {
     setIsSubmitting(true);
     try {
       const expenseDocRef = doc(db, 'expenses', expenseId);
-      const updateData = {
+      const updateData: Partial<Omit<Expense, 'id' | 'createdAt' | 'updatedAt'>> & {updatedAt?:any, date?: Timestamp} = {
         ...data,
-        date: Timestamp.fromDate(data.date), // Konversi JS Date ke Firestore Timestamp
-        amount: Number(data.amount), // Pastikan amount adalah number
+        date: Timestamp.fromDate(data.date), 
+        amount: Number(data.amount), 
         updatedAt: serverTimestamp(),
       };
+
+      if (data.category !== "Setoran Tunai ke Bank") {
+        delete updateData.bankDestination;
+      } else if (data.bankDestination === '' || data.bankDestination === undefined){
+         // Ensure bankDestination is removed if category is setoran but field is empty
+         updateData.bankDestination = ''; 
+      }
+
 
       await updateDoc(expenseDocRef, updateData);
       toast({
@@ -243,6 +256,21 @@ export default function EditExpensePage() {
                     </FormItem>
                   )}
                 />
+                {watchedCategory === "Setoran Tunai ke Bank" && (
+                  <FormField
+                    control={form.control}
+                    name="bankDestination"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center"><Landmark className="mr-2 h-4 w-4 text-muted-foreground"/>Bank Tujuan Setoran</FormLabel>
+                        <FormControl>
+                          <Input placeholder="mis. Bank BCA, Bank Mandiri" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
                  <FormField
                   control={form.control}
                   name="receiptUrl"

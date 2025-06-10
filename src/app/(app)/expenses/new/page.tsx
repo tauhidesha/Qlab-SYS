@@ -14,7 +14,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Save, Loader2, ArrowLeft, ReceiptText, CalendarDays, Tag, StickyNote, Link as LinkIcon } from 'lucide-react';
+import { Save, Loader2, ArrowLeft, ReceiptText, CalendarDays, Tag, StickyNote, Link as LinkIcon, Landmark } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { toast } from '@/hooks/use-toast';
@@ -37,6 +37,7 @@ const expenseFormSchema = z.object({
   ),
   receiptUrl: z.string().url("URL struk tidak valid. Pastikan menyertakan http:// atau https://").optional().or(z.literal('')),
   notes: z.string().max(500, "Catatan maksimal 500 karakter").optional(),
+  bankDestination: z.string().max(100, "Nama bank maksimal 100 karakter").optional(),
 });
 
 export default function NewExpensePage() {
@@ -52,19 +53,27 @@ export default function NewExpensePage() {
       amount: undefined,
       receiptUrl: '',
       notes: '',
+      bankDestination: '',
     },
   });
+
+  const watchedCategory = form.watch('category');
 
   const onSubmit = async (data: ExpenseFormData) => {
     setIsSubmitting(true);
     try {
-      const newExpenseData = {
+      const newExpenseData: Omit<ExpenseFormData, 'date'> & { date: Timestamp, createdAt: any, updatedAt: any } = {
         ...data,
-        date: Timestamp.fromDate(data.date), // Konversi JS Date ke Firestore Timestamp
-        amount: Number(data.amount), // Pastikan amount adalah number
+        date: Timestamp.fromDate(data.date), 
+        amount: Number(data.amount), 
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
+
+      if (data.category !== "Setoran Tunai ke Bank") {
+        delete newExpenseData.bankDestination;
+      }
+
 
       await addDoc(collection(db, 'expenses'), newExpenseData);
       toast({
@@ -165,6 +174,21 @@ export default function NewExpensePage() {
                     </FormItem>
                   )}
                 />
+                 {watchedCategory === "Setoran Tunai ke Bank" && (
+                  <FormField
+                    control={form.control}
+                    name="bankDestination"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center"><Landmark className="mr-2 h-4 w-4 text-muted-foreground"/>Bank Tujuan Setoran</FormLabel>
+                        <FormControl>
+                          <Input placeholder="mis. Bank BCA, Bank Mandiri" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
                  <FormField
                   control={form.control}
                   name="receiptUrl"
