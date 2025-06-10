@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Trash2, CreditCard, Loader2, ShoppingBag, UserPlus, Star, Tags, MessageSquareText, Send } from 'lucide-react';
+import { PlusCircle, Trash2, CreditCard, Loader2, ShoppingBag, UserPlus, Star, Tags, MessageSquareText, Send, Gift } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, arrayUnion, serverTimestamp, addDoc, type Timestamp, getDocs, getDoc, deleteDoc } from 'firebase/firestore';
@@ -45,6 +45,10 @@ import {
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from '@/components/ui/textarea';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+
 
 const MINIMUM_POINTS_TO_REDEEM = 100; 
 const POINT_TO_RUPIAH_RATE = 10; 
@@ -61,11 +65,8 @@ export default function PosPage() {
   const [availableItems, setAvailableItems] = useState<ServiceProduct[]>([]);
   const [loadingCatalogItems, setLoadingCatalogItems] = useState(true);
   const [selectedCatalogItemId, setSelectedCatalogItemId] = useState<string>('');
-  const [itemName, setItemName] = useState(''); 
-  const [itemPrice, setItemPrice] = useState<number | string>(''); 
+  // ItemName, itemPrice, itemType, itemPointsAwarded states are implicitly handled by selectedCatalogItemId and availableItems lookup
   const [itemQuantity, setItemQuantity] = useState<number | string>(1);
-  const [itemType, setItemType] = useState<'service' | 'product' | 'food_drink' | 'other'>('product');
-  const [itemPointsAwarded, setItemPointsAwarded] = useState<number>(0);
 
 
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
@@ -189,16 +190,18 @@ export default function PosPage() {
 
   const resetAddItemForm = () => {
     setSelectedCatalogItemId('');
-    setItemName('');
-    setItemPrice('');
     setItemQuantity(1);
-    setItemType('product');
-    setItemPointsAwarded(0);
+  };
+  
+  const handleSelectGalleryItem = (item: ServiceProduct) => {
+    setSelectedCatalogItemId(item.id);
+    // The item's name, price, type, points are implicitly selected via its ID.
+    // Quantity input can be focused here if desired.
   };
 
   const handleAddItemToTransaction = async () => {
     if (!selectedTransaction || !selectedCatalogItemId) {
-        toast({ title: "Input Tidak Lengkap", description: "Pilih item dari katalog dan pastikan jumlah diisi.", variant: "destructive" });
+        toast({ title: "Input Tidak Lengkap", description: "Pilih item dari galeri dan pastikan jumlah diisi.", variant: "destructive" });
         return;
     }
 
@@ -979,72 +982,62 @@ export default function PosPage() {
             setIsAddItemDialogOpen(isOpen);
             if (!isOpen) resetAddItemForm();
         }}>
-          <DialogContent>
+          <DialogContent className="sm:max-w-2xl md:max-w-3xl"> {/* Dialog lebih lebar */}
             <DialogHeader>
               <DialogTitle>Tambah Item ke Transaksi</DialogTitle>
-              <DialogDescription>Untuk {selectedTransaction.customerName}</DialogDescription>
+              <DialogDescription>Untuk {selectedTransaction.customerName}. Pilih item dari galeri di bawah.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-2 pb-4">
-              <div className="space-y-2">
-                <Label htmlFor="catalog-item-select">Pilih Item dari Katalog</Label>
-                <Select 
-                    value={selectedCatalogItemId}
-                    onValueChange={(value) => {
-                        setSelectedCatalogItemId(value);
-                        const foundItem = availableItems.find(item => item.id === value);
-                        if (foundItem) {
-                            setItemName(foundItem.name);
-                            setItemPrice(foundItem.price);
-                            setItemType(foundItem.type === 'Layanan' ? 'service' : 'product');
-                            setItemPointsAwarded(foundItem.pointsAwarded || 0);
-                        } else {
-                            setItemName('');
-                            setItemPrice('');
-                            setItemType('product');
-                            setItemPointsAwarded(0);
-                        }
-                    }}
-                    disabled={loadingCatalogItems}
-                >
-                    <SelectTrigger id="catalog-item-select">
-                        <SelectValue placeholder={loadingCatalogItems ? "Memuat item..." : "Pilih item"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {!loadingCatalogItems && availableItems.length === 0 && (
-                            <SelectItem value="no-items" disabled>Tidak ada item di katalog.</SelectItem>
+              {loadingCatalogItems ? (
+                <div className="flex justify-center items-center h-64">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="ml-2">Memuat item...</p>
+                </div>
+              ) : availableItems.length === 0 ? (
+                 <p className="text-center text-muted-foreground">Tidak ada item di katalog.</p>
+              ) : (
+                <ScrollArea className="h-72 pr-3"> {/* ScrollArea untuk galeri */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {availableItems.map(item => (
+                      <Card
+                        key={item.id}
+                        onClick={() => handleSelectGalleryItem(item)}
+                        className={cn(
+                          "cursor-pointer hover:shadow-lg transition-shadow duration-150 flex flex-col",
+                          selectedCatalogItemId === item.id && "ring-2 ring-primary shadow-lg"
                         )}
-                        {availableItems.map(item => (
-                            <SelectItem key={item.id} value={item.id}>
-                                {item.name} (Rp {item.price.toLocaleString('id-ID')}) - [{item.type}] {item.pointsAwarded && item.pointsAwarded > 0 ? `(${item.pointsAwarded} pts)` : ''}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-              </div>
-
-              {selectedCatalogItemId && (
-                <>
-                  <div className="space-y-2">
-                    <Label>Nama Item</Label>
-                    <Input value={itemName} readOnly className="bg-muted/50"/>
+                      >
+                        <CardHeader className="p-3 flex-grow">
+                          <CardTitle className="text-sm md:text-base line-clamp-2">{item.name}</CardTitle>
+                          <CardDescription className="text-xs md:text-sm">Rp {item.price.toLocaleString('id-ID')}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-3 pt-0 text-xs">
+                          <Badge 
+                            variant={item.type === 'Layanan' ? 'default' : 'secondary'} 
+                            className="mb-1 capitalize text-xs px-1.5 py-0.5 h-auto"
+                          >
+                            {item.type}
+                          </Badge>
+                          {item.pointsAwarded && item.pointsAwarded > 0 && (
+                            <div className="flex items-center text-muted-foreground">
+                              <Gift className="mr-1 h-3 w-3 text-yellow-500" /> {item.pointsAwarded} pts
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Harga Satuan (Rp)</Label>
-                      <Input type="number" value={itemPrice} readOnly className="bg-muted/50"/>
-                    </div>
-                     <div className="space-y-2">
-                        <Label>Jenis Item</Label>
-                        <Input value={itemType === 'service' ? 'Layanan' : 'Produk'} readOnly className="bg-muted/50 capitalize"/>
-                    </div>
-                  </div>
-                   <div className="space-y-2">
-                      <Label>Poin Diberikan per Unit</Label>
-                      <Input type="number" value={itemPointsAwarded} readOnly className="bg-muted/50"/>
-                    </div>
-                </>
+                </ScrollArea>
               )}
-               <div className="space-y-2">
+              
+              {selectedCatalogItemId && availableItems.find(i => i.id === selectedCatalogItemId) && (
+                 <div className="mt-4 p-3 border rounded-md bg-muted/30">
+                    <p className="font-medium text-sm">Item Terpilih: {availableItems.find(i => i.id === selectedCatalogItemId)?.name}</p>
+                    <p className="text-xs text-muted-foreground">Harga: Rp {availableItems.find(i => i.id === selectedCatalogItemId)?.price.toLocaleString('id-ID')}</p>
+                 </div>
+              )}
+
+               <div className="space-y-2 mt-4">
                   <Label htmlFor="item-quantity">Jumlah</Label>
                   <Input 
                     id="item-quantity" 
@@ -1053,7 +1046,8 @@ export default function PosPage() {
                     onChange={(e) => setItemQuantity(e.target.value)} 
                     placeholder="1" 
                     min="1" 
-                    disabled={!selectedCatalogItemId}
+                    disabled={!selectedCatalogItemId || loadingCatalogItems}
+                    className="w-1/2 md:w-1/3"
                   />
                 </div>
             </div>
@@ -1112,7 +1106,7 @@ export default function PosPage() {
               <Button variant="outline" onClick={() => setIsRedeemPointsDialogOpen(false)} disabled={isSubmittingRedemption}>Batal</Button>
               <Button 
                 onClick={handleApplyPointDiscount} 
-                disabled={isSubmittingRedemption || !pointsToRedeemInput || parseInt(pointsToRedeemInput, 10) <= 0}
+                disabled={isSubmittingRedemption || !pointsToRedeemInput || parseInt(pointsToRedeemInput, 10) <= 0 || parseInt(pointsToRedeemInput, 10) < MINIMUM_POINTS_TO_REDEEM}
                 className="bg-accent text-accent-foreground hover:bg-accent/90"
               >
                 {isSubmittingRedemption && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
