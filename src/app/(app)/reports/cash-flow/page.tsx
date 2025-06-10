@@ -91,7 +91,9 @@ export default function CashFlowPage() {
         incomeEntriesRef,
         where('date', '>=', startDate),
         where('date', '<=', endDate),
-        where('paymentMethod', '==', 'Transfer Bank')
+        where('paymentMethod', '==', 'Transfer Bank'),
+        orderBy('paymentMethod'), 
+        orderBy('date') 
       );
       const otherIncomeSnapshot = await getDocs(otherIncomeQuery);
       let otherIncomeBankTransfers = 0;
