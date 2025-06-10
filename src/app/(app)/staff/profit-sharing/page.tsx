@@ -8,18 +8,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Save, CheckCircle, DollarSign, Percent as PercentIcon } from 'lucide-react'; // Explicitly import PercentIcon
+import { Loader2, Save, CheckCircle, DollarSign, Percent as PercentIcon } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { collection, doc, query, where, getDocs, setDoc, updateDoc, serverTimestamp, Timestamp, orderBy } from 'firebase/firestore'; // Added orderBy
+import { collection, doc, query, where, getDocs, setDoc, updateDoc, serverTimestamp, Timestamp, orderBy, type DocumentData } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import type { StaffMember } from '@/types/staff';
 import type { DailyProfitShareEntry } from '@/types/profitSharing';
+import type { Transaction, TransactionItem } from '@/types/transaction';
 import { id as indonesiaLocale } from 'date-fns/locale';
-import { format as formatDateFns } from 'date-fns';
+import { format as formatDateFns, startOfDay, endOfDay } from 'date-fns';
 
 interface ProfitShareFormState {
-  staffDailyRevenue: string;
-  profitSharePercentage: string;
+  staffDailyRevenue: number; // Changed to number
+  profitSharePercentage: number; // Changed to number
   profitShareAmount: number;
   existingEntryId?: string;
   status: 'Belum Dibayar' | 'Dibayar';
@@ -30,57 +31,89 @@ interface ProfitShareFormState {
 
 export default function ProfitSharingPage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [staffList, setStaffList] = useState<StaffMember[]>([]);
+  const [technicianStaffList, setTechnicianStaffList] = useState<StaffMember[]>([]);
   const [profitShareEntries, setProfitShareEntries] = useState<Record<string, ProfitShareFormState>>({});
   const [loadingStaff, setLoadingStaff] = useState(true);
-  const [loadingEntries, setLoadingEntries] = useState(false);
+  const [loadingEntriesAndRevenue, setLoadingEntriesAndRevenue] = useState(false);
 
   const { toast } = useToast();
 
   const formatDateForFirestore = (date: Date): string => formatDateFns(date, 'yyyy-MM-dd');
 
-  const fetchStaffList = useCallback(async () => {
+  const fetchTechnicianStaffList = useCallback(async () => {
     setLoadingStaff(true);
     try {
       const staffCollectionRef = collection(db, 'staffMembers');
-      const q = query(staffCollectionRef, orderBy("name")); // orderBy should now be defined
+      // Filter hanya untuk peran 'Teknisi'
+      const q = query(staffCollectionRef, where("role", "==", "Teknisi"), orderBy("name"));
       const querySnapshot = await getDocs(q);
       const membersData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StaffMember));
-      setStaffList(membersData);
+      setTechnicianStaffList(membersData);
     } catch (error) {
-      console.error("Error fetching staff list: ", error);
-      toast({ title: "Error", description: "Gagal mengambil daftar staf.", variant: "destructive" });
+      console.error("Error fetching technician staff list: ", error);
+      toast({ title: "Error", description: "Gagal mengambil daftar staf teknisi.", variant: "destructive" });
     } finally {
       setLoadingStaff(false);
     }
   }, [toast]);
 
   useEffect(() => {
-    fetchStaffList();
-  }, [fetchStaffList]);
+    fetchTechnicianStaffList();
+  }, [fetchTechnicianStaffList]);
 
-  const fetchProfitSharingEntries = useCallback(async (date: Date) => {
-    if (staffList.length === 0) {
+  const calculateRevenueAndPopulateEntries = useCallback(async (date: Date) => {
+    if (technicianStaffList.length === 0) {
         setProfitShareEntries({});
-        setLoadingEntries(false);
+        setLoadingEntriesAndRevenue(false);
         return;
     }
-    setLoadingEntries(true);
+    setLoadingEntriesAndRevenue(true);
     const formattedDate = formatDateForFirestore(date);
     const newEntriesState: Record<string, ProfitShareFormState> = {};
-    try {
-      const entriesCollectionRef = collection(db, 'dailyProfitShares');
-      const q = query(entriesCollectionRef, where("date", "==", formattedDate));
-      const querySnapshot = await getDocs(q);
-      const existingDbEntries = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DailyProfitShareEntry));
 
-      staffList.forEach(staff => {
+    try {
+      // Fetch paid transactions for the selected date
+      const transactionsRef = collection(db, 'transactions');
+      const dateStart = startOfDay(date);
+      const dateEnd = endOfDay(date);
+      
+      const transactionsQuery = query(
+        transactionsRef,
+        where('status', '==', 'paid'),
+        where('paidAt', '>=', Timestamp.fromDate(dateStart)),
+        where('paidAt', '<=', Timestamp.fromDate(dateEnd))
+      );
+      const transactionsSnapshot = await getDocs(transactionsQuery);
+      const paidTransactions = transactionsSnapshot.docs.map(doc => doc.data() as Transaction);
+
+      // Fetch existing profit share entries for the date
+      const entriesCollectionRef = collection(db, 'dailyProfitShares');
+      const existingEntriesQuery = query(entriesCollectionRef, where("date", "==", formattedDate));
+      const existingEntriesSnapshot = await getDocs(existingEntriesQuery);
+      const existingDbEntries = existingEntriesSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as DailyProfitShareEntry));
+
+      for (const staff of technicianStaffList) {
+        let staffDailyRevenue = 0;
+        paidTransactions.forEach(transaction => {
+          transaction.items.forEach(item => {
+            if (item.type === 'service' && item.staffName === staff.name) {
+              staffDailyRevenue += item.price * item.quantity;
+            }
+          });
+        });
+
+        const staffProfitSharePercentage = staff.profitSharePercentage || 0;
+        const profitShareAmount = (staffDailyRevenue * staffProfitSharePercentage) / 100;
+        
         const existingEntry = existingDbEntries.find(e => e.staffId === staff.id);
+
         if (existingEntry) {
+          // If entry exists, use its data but update revenue & profit amount based on current calculation for display consistency
+          // The actual stored values in DB for revenue/percentage are from the time of saving.
           newEntriesState[staff.id] = {
-            staffDailyRevenue: String(existingEntry.staffDailyRevenue || ''),
-            profitSharePercentage: String(existingEntry.profitSharePercentage || staff.profitSharePercentage || ''),
-            profitShareAmount: existingEntry.profitShareAmount || 0,
+            staffDailyRevenue: staffDailyRevenue, // Calculated revenue for today
+            profitSharePercentage: existingEntry.profitSharePercentage, // Use stored percentage
+            profitShareAmount: (staffDailyRevenue * existingEntry.profitSharePercentage) / 100, // Recalculate profit based on today's revenue and stored percentage
             existingEntryId: existingEntry.id,
             status: existingEntry.status,
             paidAt: existingEntry.paidAt,
@@ -89,93 +122,72 @@ export default function ProfitSharingPage() {
           };
         } else {
           newEntriesState[staff.id] = {
-            staffDailyRevenue: '',
-            profitSharePercentage: String(staff.profitSharePercentage || ''), // Default to staff profile, or empty string if none
-            profitShareAmount: 0,
+            staffDailyRevenue: staffDailyRevenue,
+            profitSharePercentage: staffProfitSharePercentage,
+            profitShareAmount: profitShareAmount,
             status: 'Belum Dibayar',
             isLoadingSave: false,
             isLoadingPay: false,
           };
         }
-      });
+      }
       setProfitShareEntries(newEntriesState);
+
     } catch (error) {
-      console.error("Error fetching profit sharing entries: ", error);
-      toast({ title: "Error", description: "Gagal mengambil data bagi hasil.", variant: "destructive" });
+      console.error("Error calculating revenue or fetching entries: ", error);
+      toast({ title: "Error", description: "Gagal memproses data bagi hasil.", variant: "destructive" });
     } finally {
-      setLoadingEntries(false);
+      setLoadingEntriesAndRevenue(false);
     }
-  }, [staffList, toast]);
+  }, [technicianStaffList, toast]);
+
 
   useEffect(() => {
-    if (staffList.length > 0) {
-      fetchProfitSharingEntries(selectedDate);
+    if (technicianStaffList.length > 0) {
+      calculateRevenueAndPopulateEntries(selectedDate);
     } else {
-      setProfitShareEntries({}); // Clear entries if no staff
+      setProfitShareEntries({}); 
     }
-  }, [selectedDate, staffList, fetchProfitSharingEntries]);
+  }, [selectedDate, technicianStaffList, calculateRevenueAndPopulateEntries]);
 
-  const handleInputChange = (staffId: string, field: 'staffDailyRevenue' | 'profitSharePercentage', value: string) => {
-    setProfitShareEntries(prev => {
-      const staffEntry = { ...(prev[staffId] || { // Ensure staffEntry is initialized if not present
-        staffDailyRevenue: '', 
-        profitSharePercentage: String(staffList.find(s=>s.id===staffId)?.profitSharePercentage || ''), 
-        profitShareAmount: 0, 
-        status: 'Belum Dibayar',
-        isLoadingSave: false,
-        isLoadingPay: false,
-      }) };
-      
-      staffEntry[field] = value;
-
-      const revenue = parseFloat(staffEntry.staffDailyRevenue) || 0;
-      const percentage = parseFloat(staffEntry.profitSharePercentage) || 0;
-      staffEntry.profitShareAmount = (revenue * percentage) / 100;
-
-      return { ...prev, [staffId]: staffEntry };
-    });
-  };
 
   const handleSaveEntry = async (staffId: string) => {
-    const staff = staffList.find(s => s.id === staffId);
-    const entryData = profitShareEntries[staffId];
+    const staff = technicianStaffList.find(s => s.id === staffId);
+    const entryData = profitShareEntries[staffId]; // This is the current state from UI/calculation
     if (!staff || !entryData) return;
 
     setProfitShareEntries(prev => ({ ...prev, [staffId]: { ...prev[staffId], isLoadingSave: true }}));
 
-    const revenue = parseFloat(entryData.staffDailyRevenue) || 0;
-    // Use current input percentage, fallback to staff profile, then to 0
-    const percentage = parseFloat(entryData.profitSharePercentage) || (staff.profitSharePercentage || 0);
-    const profitAmount = (revenue * percentage) / 100;
-
+    // Data to save is based on current calculation snapshot
     const dataToSave: Omit<DailyProfitShareEntry, 'id' | 'createdAt' | 'updatedAt' | 'paidAt'> & { paidAt?: Timestamp } = {
       staffId: staff.id,
       staffName: staff.name,
       date: formatDateForFirestore(selectedDate),
-      staffDailyRevenue: revenue,
-      profitSharePercentage: percentage,
-      profitShareAmount: profitAmount,
+      staffDailyRevenue: entryData.staffDailyRevenue, // Calculated revenue
+      profitSharePercentage: entryData.profitSharePercentage, // Percentage from profile or overridden if we allow that later
+      profitShareAmount: entryData.profitShareAmount, // Calculated profit
       status: entryData.status || 'Belum Dibayar',
     };
     if(entryData.paidAt) dataToSave.paidAt = entryData.paidAt;
 
 
     try {
+      const docIdToUse = entryData.existingEntryId || doc(collection(db, 'dailyProfitShares')).id;
+      const docRef = doc(db, 'dailyProfitShares', docIdToUse);
+
       if (entryData.existingEntryId) {
-        const docRef = doc(db, 'dailyProfitShares', entryData.existingEntryId);
         await updateDoc(docRef, { ...dataToSave, updatedAt: serverTimestamp() });
         toast({ title: "Sukses", description: `Bagi hasil untuk ${staff.name} berhasil diperbarui.` });
       } else {
-        const docRef = doc(collection(db, 'dailyProfitShares'));
         await setDoc(docRef, { ...dataToSave, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
         setProfitShareEntries(prev => ({
             ...prev,
-            [staffId]: { ...prev[staffId], existingEntryId: docRef.id, profitShareAmount: profitAmount }
+            [staffId]: { ...prev[staffId], existingEntryId: docRef.id }
         }));
         toast({ title: "Sukses", description: `Bagi hasil untuk ${staff.name} berhasil disimpan.` });
       }
-       // Re-fetch after saving to ensure UI consistency with DB, especially status and timestamps
-      await fetchProfitSharingEntries(selectedDate);
+      // Re-fetch to ensure consistency, especially if status or other details might change server-side
+      await calculateRevenueAndPopulateEntries(selectedDate);
     } catch (error) {
       console.error("Error saving profit share entry: ", error);
       toast({ title: "Error", description: "Gagal menyimpan data bagi hasil.", variant: "destructive" });
@@ -185,7 +197,7 @@ export default function ProfitSharingPage() {
   };
 
   const handleMarkAsPaid = async (staffId: string) => {
-    const staff = staffList.find(s => s.id === staffId);
+    const staff = technicianStaffList.find(s => s.id === staffId);
     const entryData = profitShareEntries[staffId];
     if (!staff || !entryData || !entryData.existingEntryId) {
       toast({ title: "Error", description: "Simpan data terlebih dahulu sebelum menandai dibayar.", variant: "destructive"});
@@ -205,30 +217,32 @@ export default function ProfitSharingPage() {
         updatedAt: serverTimestamp(),
       });
       toast({ title: "Sukses", description: `Bagi hasil untuk ${staff.name} ditandai sudah dibayar.` });
+      // Update local state immediately for UI responsiveness
       setProfitShareEntries(prev => ({
         ...prev,
-        [staffId]: { ...prev[staffId], status: 'Dibayar', paidAt: Timestamp.now() }
+        [staffId]: { ...prev[staffId], status: 'Dibayar', paidAt: Timestamp.now(), isLoadingPay: false }
       }));
+       // Optionally re-fetch to confirm, though local update is faster for UI
+       // await calculateRevenueAndPopulateEntries(selectedDate); 
     } catch (error) {
       console.error("Error marking as paid: ", error);
       toast({ title: "Error", description: "Gagal menandai sebagai dibayar.", variant: "destructive" });
-    } finally {
       setProfitShareEntries(prev => ({ ...prev, [staffId]: { ...prev[staffId], isLoadingPay: false }}));
     }
   };
   
   const currentDay = new Date();
   const isTodaySelected = selectedDate.toDateString() === currentDay.toDateString();
-  const isPastDateSelected = selectedDate < currentDay && !isTodaySelected;
+  const isPastDateSelected = !isTodaySelected && selectedDate < currentDay;
 
 
   if (loadingStaff) {
     return (
       <div className="flex flex-col h-full">
-        <AppHeader title="Bagi Hasil Harian Staf" />
+        <AppHeader title="Bagi Hasil Harian Teknisi" />
         <main className="flex-1 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="ml-2">Memuat daftar staf...</p>
+          <p className="ml-2">Memuat daftar teknisi...</p>
         </main>
       </div>
     );
@@ -236,7 +250,7 @@ export default function ProfitSharingPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <AppHeader title="Bagi Hasil Harian Staf" />
+      <AppHeader title="Bagi Hasil Harian Teknisi" />
       <main className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1">
           <Card>
@@ -251,7 +265,7 @@ export default function ProfitSharingPage() {
                 onSelect={(date) => date && setSelectedDate(date)}
                 className="rounded-md border"
                 locale={indonesiaLocale}
-                disabled={(date) => date > new Date()} // Disable future dates
+                disabled={(date) => date > new Date()} 
               />
             </CardContent>
           </Card>
@@ -262,22 +276,22 @@ export default function ProfitSharingPage() {
             <CardHeader>
               <CardTitle>Entri Bagi Hasil untuk {formatDateFns(selectedDate, 'PPP', { locale: indonesiaLocale })}</CardTitle>
               <CardDescription>
-                Masukkan pendapatan harian tiap staf. Persentase bagi hasil diambil dari profil staf, namun dapat diubah.
+                Pendapatan harian dihitung dari transaksi layanan yang telah dibayar. Persentase diambil dari profil.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {loadingEntries ? (
+              {loadingEntriesAndRevenue ? (
                 <div className="flex items-center justify-center py-10">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <p className="ml-2">Memuat data bagi hasil...</p>
+                  <p className="ml-2">Menghitung pendapatan dan memuat data bagi hasil...</p>
                 </div>
-              ) : staffList.length === 0 ? (
-                <p className="text-center text-muted-foreground py-10">Tidak ada staf terdaftar.</p>
+              ) : technicianStaffList.length === 0 ? (
+                <p className="text-center text-muted-foreground py-10">Tidak ada staf teknisi terdaftar.</p>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Nama Staf</TableHead>
+                      <TableHead>Nama Teknisi</TableHead>
                       <TableHead className="w-[180px]">Pendapatan Harian (Rp)</TableHead>
                       <TableHead className="w-[150px]">Bagi Hasil (%)</TableHead>
                       <TableHead className="w-[180px]">Nominal Bagi Hasil (Rp)</TableHead>
@@ -286,17 +300,20 @@ export default function ProfitSharingPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {staffList.map((staff) => {
+                    {technicianStaffList.map((staff) => {
                       const entry = profitShareEntries[staff.id] || { 
-                          staffDailyRevenue: '', 
-                          profitSharePercentage: String(staff.profitSharePercentage || ''), 
+                          staffDailyRevenue: 0, 
+                          profitSharePercentage: staff.profitSharePercentage || 0, 
                           profitShareAmount: 0, 
                           status: 'Belum Dibayar',
                           isLoadingSave: false,
                           isLoadingPay: false,
                        };
                       const isPaid = entry.status === 'Dibayar';
-                      const isDisabled = isPaid || isPastDateSelected;
+                      // Disable actions if it's a past date AND the entry is NOT already paid (allow viewing paid past entries)
+                      // Or if it is paid, all actions are disabled
+                      const isDisabledForEditOrPay = isPaid || (isPastDateSelected && !isPaid) ;
+                      const isDisabledForSave = isPaid || isPastDateSelected;
 
 
                       return (
@@ -306,12 +323,10 @@ export default function ProfitSharingPage() {
                             <div className="relative">
                                <DollarSign className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
-                                type="number"
-                                placeholder="0"
-                                value={entry.staffDailyRevenue}
-                                onChange={(e) => handleInputChange(staff.id, 'staffDailyRevenue', e.target.value)}
-                                disabled={isDisabled}
-                                className="pl-8"
+                                type="text" // Display as text, calculated value
+                                value={entry.staffDailyRevenue.toLocaleString('id-ID')}
+                                readOnly
+                                className="pl-8 bg-muted/50"
                                 />
                             </div>
                           </TableCell>
@@ -319,12 +334,10 @@ export default function ProfitSharingPage() {
                             <div className="relative">
                                 <PercentIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
-                                    type="number"
-                                    placeholder={String(staff.profitSharePercentage || '0')}
-                                    value={entry.profitSharePercentage}
-                                    onChange={(e) => handleInputChange(staff.id, 'profitSharePercentage', e.target.value)}
-                                    disabled={isDisabled}
-                                    className="pl-8"
+                                    type="text" // Display as text, from profile
+                                    value={String(entry.profitSharePercentage)}
+                                    readOnly
+                                    className="pl-8 bg-muted/50"
                                 />
                             </div>
                           </TableCell>
@@ -335,7 +348,7 @@ export default function ProfitSharingPage() {
                                     type="text"
                                     value={entry.profitShareAmount.toLocaleString('id-ID')}
                                     readOnly
-                                    className="bg-muted pl-8"
+                                    className="bg-muted pl-8 font-semibold"
                                 />
                             </div>
                           </TableCell>
@@ -356,7 +369,7 @@ export default function ProfitSharingPage() {
                             <Button 
                                 size="sm" 
                                 onClick={() => handleSaveEntry(staff.id)} 
-                                disabled={isDisabled || entry.isLoadingSave || entry.isLoadingPay}
+                                disabled={isDisabledForSave || entry.isLoadingSave || entry.isLoadingPay}
                                 variant="outline"
                             >
                               {entry.isLoadingSave ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
@@ -365,8 +378,8 @@ export default function ProfitSharingPage() {
                                 size="sm" 
                                 variant={isPaid ? "secondary" : "default"}
                                 onClick={() => handleMarkAsPaid(staff.id)} 
-                                disabled={isPaid || entry.isLoadingSave || entry.isLoadingPay || !entry.existingEntryId || isPastDateSelected }
-                                className={!isPaid && !isPastDateSelected ? "bg-green-600 hover:bg-green-700 text-white" : ""}
+                                disabled={isDisabledForEditOrPay || entry.isLoadingSave || entry.isLoadingPay || (!entry.existingEntryId && !isPaid)} // Disable pay if not saved yet & not paid
+                                className={!isPaid && !isDisabledForEditOrPay ? "bg-green-600 hover:bg-green-700 text-white" : ""}
                             >
                               {entry.isLoadingPay ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
                             </Button>
@@ -384,6 +397,5 @@ export default function ProfitSharingPage() {
     </div>
   );
 }
-
 
     
