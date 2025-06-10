@@ -9,7 +9,7 @@ import { Clock, LogIn, LogOut, UserCheck, UserX, PlusCircle, Loader2, MapPin } f
 import { Badge } from '@/components/ui/badge';
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, orderBy, Timestamp, doc, updateDoc, serverTimestamp, addDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy, Timestamp, doc, updateDoc, serverTimestamp, addDoc, DocumentData } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import { id as indonesiaLocale } from 'date-fns/locale';
 import { format as formatDateFns } from 'date-fns';
@@ -23,7 +23,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogClose,
 } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -202,9 +201,13 @@ function ManualAttendanceDialog({ isOpen, onClose, onSubmit, staffList, selected
   );
 }
 
+interface DisplayRecord extends StaffMember {
+  attendance?: AttendanceRecord;
+}
+
 
 export default function AttendancePage() {
-  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  const [displayRecords, setDisplayRecords] = useState<DisplayRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [rowActionLoading, setRowActionLoading] = useState<Record<string, boolean>>({});
@@ -224,51 +227,60 @@ export default function AttendancePage() {
     return formatDateFns(new Date(), 'HH:mm');
   };
 
-  const fetchAttendance = useCallback(async (dateToFetch: Date) => {
+  const fetchStaffAndAttendance = useCallback(async (dateToFetch: Date) => {
     setLoading(true);
+    setLoadingAllStaff(true); // Also set this as we're refetching staff too or for the first time.
+    const formattedDate = formatDateForFirestore(dateToFetch);
+    let staffList: StaffMember[] = [];
+
     try {
+      // Fetch all staff members
+      const staffCollectionRef = collection(db, 'staffMembers');
+      const staffQuery = query(staffCollectionRef, orderBy("name"));
+      const staffSnapshot = await getDocs(staffQuery);
+      staffList = staffSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StaffMember));
+      setAllStaffMembers(staffList); // Update allStaffMembers for manual entry dialog
+      setLoadingAllStaff(false);
+
+      if (staffList.length === 0) {
+        setDisplayRecords([]);
+        setLoading(false);
+        return;
+      }
+
+      // Fetch attendance records for the selected date
       const attendanceCollectionRef = collection(db, 'attendanceRecords');
-      const formattedDate = formatDateForFirestore(dateToFetch);
-      const q = query(attendanceCollectionRef, where("date", "==", formattedDate), orderBy("staffName"));
-      const querySnapshot = await getDocs(q);
-      const recordsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AttendanceRecord));
-      setAttendanceRecords(recordsData);
+      const attendanceQuery = query(attendanceCollectionRef, where("date", "==", formattedDate));
+      const attendanceSnapshot = await getDocs(attendanceQuery);
+      const attendanceData = attendanceSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AttendanceRecord));
+
+      // Merge staff list with their attendance records
+      const mergedRecords: DisplayRecord[] = staffList.map(staff => {
+        const attendance = attendanceData.find(att => att.staffId === staff.id);
+        return {
+          ...staff, // Spread all staff member properties
+          attendance: attendance, // Attach attendance record if found
+        };
+      });
+      setDisplayRecords(mergedRecords);
+
     } catch (error) {
-      console.error("Error fetching attendance records: ", error);
+      console.error("Error fetching staff and attendance: ", error);
       toast({
         title: "Error Pengambilan Data",
-        description: "Tidak dapat mengambil data absensi dari Firestore.",
+        description: "Tidak dapat mengambil data staf atau absensi.",
         variant: "destructive",
       });
-      setAttendanceRecords([]);
+      setDisplayRecords([]); // Clear records on error
     } finally {
       setLoading(false);
     }
   }, [toast]);
 
-  useEffect(() => {
-    fetchAttendance(selectedDate);
-  }, [selectedDate, fetchAttendance]);
-
-  const fetchAllStaff = useCallback(async () => {
-    setLoadingAllStaff(true);
-    try {
-      const staffCollectionRef = collection(db, 'staffMembers');
-      const q = query(staffCollectionRef, orderBy("name"));
-      const querySnapshot = await getDocs(q);
-      const membersData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StaffMember));
-      setAllStaffMembers(membersData);
-    } catch (error) {
-      console.error("Error fetching all staff members: ", error);
-      toast({ title: "Error", description: "Gagal memuat daftar staf untuk entri manual.", variant: "destructive" });
-    } finally {
-      setLoadingAllStaff(false);
-    }
-  }, [toast]);
 
   useEffect(() => {
-    fetchAllStaff();
-  }, [fetchAllStaff]);
+    fetchStaffAndAttendance(selectedDate);
+  }, [selectedDate, fetchStaffAndAttendance]);
 
 
   const handleGeolocation = (
@@ -306,49 +318,78 @@ export default function AttendancePage() {
     );
   };
 
-  const updateAttendanceRecord = async (recordId: string, data: Partial<AttendanceRecord>) => {
-    try {
-      const recordDocRef = doc(db, 'attendanceRecords', recordId);
-      await updateDoc(recordDocRef, { ...data, updatedAt: serverTimestamp() });
-      toast({ title: "Sukses", description: "Data absensi berhasil diperbarui." });
-      fetchAttendance(selectedDate); 
-    } catch (error) {
-      console.error("Error updating attendance record: ", error);
-      toast({ title: "Error", description: "Gagal memperbarui data absensi.", variant: "destructive" });
-    } finally {
-      setRowActionLoading(prev => ({ ...prev, [recordId]: false }));
-    }
-  };
-
-  const handleClockIn = (recordId: string) => {
-    setRowActionLoading(prev => ({ ...prev, [recordId]: true }));
+  const handleClockIn = (staff: DisplayRecord) => {
+    setRowActionLoading(prev => ({ ...prev, [staff.id]: true }));
     handleGeolocation(
-      (coords) => {
-        updateAttendanceRecord(recordId, {
-          clockIn: getCurrentTimeHHMM(),
-          clockInLocation: coords,
-          status: 'Hadir', 
-        });
+      async (coords) => {
+        try {
+          const newRecordData: Omit<AttendanceRecord, 'id' | 'createdAt' | 'updatedAt'> = {
+            staffId: staff.id,
+            staffName: staff.name,
+            date: formatDateForFirestore(selectedDate),
+            clockIn: getCurrentTimeHHMM(),
+            clockInLocation: coords,
+            status: 'Hadir',
+          };
+          
+          // If attendance record already exists, update it. Otherwise, create a new one.
+          if (staff.attendance?.id) {
+            const recordDocRef = doc(db, 'attendanceRecords', staff.attendance.id);
+            await updateDoc(recordDocRef, { 
+                ...newRecordData,
+                updatedAt: serverTimestamp() 
+            });
+             toast({ title: "Sukses", description: `${staff.name} berhasil clock-in (update).` });
+          } else {
+            await addDoc(collection(db, 'attendanceRecords'), {
+              ...newRecordData,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+            });
+            toast({ title: "Sukses", description: `${staff.name} berhasil clock-in.` });
+          }
+          fetchStaffAndAttendance(selectedDate); 
+        } catch (error) {
+            console.error("Error clocking in: ", error);
+            toast({ title: "Error", description: "Gagal mencatat absensi masuk.", variant: "destructive" });
+        } finally {
+            setRowActionLoading(prev => ({ ...prev, [staff.id]: false }));
+        }
       },
       (errorMsg) => {
         toast({ title: "Absen Masuk Gagal", description: `${errorMsg} Lokasi wajib untuk absen. Absen tidak tercatat.`, variant: "destructive" });
-        setRowActionLoading(prev => ({ ...prev, [recordId]: false })); 
+        setRowActionLoading(prev => ({ ...prev, [staff.id]: false })); 
       }
     );
   };
 
-  const handleClockOut = (recordId: string) => {
-    setRowActionLoading(prev => ({ ...prev, [recordId]: true }));
+  const handleClockOut = (staff: DisplayRecord) => {
+    if (!staff.attendance?.id) {
+        toast({ title: "Error", description: "Tidak ada data clock-in untuk staf ini.", variant: "destructive" });
+        return;
+    }
+    setRowActionLoading(prev => ({ ...prev, [staff.id]: true }));
     handleGeolocation(
-      (coords) => {
-        updateAttendanceRecord(recordId, {
-          clockOut: getCurrentTimeHHMM(),
-          clockOutLocation: coords,
-        });
+      async (coords) => {
+        try {
+          const recordDocRef = doc(db, 'attendanceRecords', staff.attendance!.id);
+          await updateDoc(recordDocRef, { 
+            clockOut: getCurrentTimeHHMM(),
+            clockOutLocation: coords,
+            updatedAt: serverTimestamp()
+          });
+          toast({ title: "Sukses", description: `${staff.name} berhasil clock-out.` });
+          fetchStaffAndAttendance(selectedDate); 
+        } catch (error) {
+            console.error("Error clocking out: ", error);
+            toast({ title: "Error", description: "Gagal mencatat absensi pulang.", variant: "destructive" });
+        } finally {
+            setRowActionLoading(prev => ({ ...prev, [staff.id]: false }));
+        }
       },
       (errorMsg) => {
         toast({ title: "Absen Pulang Gagal", description: `${errorMsg} Lokasi wajib untuk absen. Absen tidak tercatat.`, variant: "destructive" });
-        setRowActionLoading(prev => ({ ...prev, [recordId]: false }));
+        setRowActionLoading(prev => ({ ...prev, [staff.id]: false }));
       }
     );
   };
@@ -363,33 +404,60 @@ export default function AttendancePage() {
     }
 
     try {
-      const newRecordData: Omit<AttendanceRecord, 'id' | 'createdAt' | 'updatedAt' | 'clockInLocation' | 'clockOutLocation'> = {
-        staffId: data.staffId,
-        staffName: selectedStaffMember.name,
-        date: formatDateForFirestore(selectedDate),
-        clockIn: data.clockIn || undefined,
-        clockOut: data.clockOut || undefined,
-        status: data.status,
-        notes: data.notes || undefined,
-      };
-      await addDoc(collection(db, 'attendanceRecords'), {
-        ...newRecordData,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-      toast({ title: "Sukses", description: `Entri absensi manual untuk ${selectedStaffMember.name} berhasil ditambahkan.` });
+        const formattedDate = formatDateForFirestore(selectedDate);
+        // Check if an attendance record already exists for this staff on this date
+        const attendanceCollectionRef = collection(db, 'attendanceRecords');
+        const q = query(attendanceCollectionRef, where("staffId", "==", data.staffId), where("date", "==", formattedDate));
+        const querySnapshot = await getDocs(q);
+
+        const updateData: Partial<AttendanceRecord> & {updatedAt: DocumentData} = {
+            clockIn: data.clockIn || undefined,
+            clockOut: data.clockOut || undefined,
+            status: data.status,
+            notes: data.notes || undefined,
+            updatedAt: serverTimestamp(),
+        };
+         // Remove location data if it exists as this is a manual entry
+        if (updateData.clockInLocation) delete updateData.clockInLocation;
+        if (updateData.clockOutLocation) delete updateData.clockOutLocation;
+
+
+        if (!querySnapshot.empty) {
+            // Update existing record
+            const existingDocRef = querySnapshot.docs[0].ref;
+            await updateDoc(existingDocRef, updateData);
+            toast({ title: "Sukses", description: `Absensi manual untuk ${selectedStaffMember.name} berhasil diperbarui.` });
+        } else {
+            // Create new record
+            const newRecordData: Omit<AttendanceRecord, 'id' | 'createdAt' | 'updatedAt' | 'clockInLocation' | 'clockOutLocation'> = {
+                staffId: data.staffId,
+                staffName: selectedStaffMember.name,
+                date: formattedDate,
+                clockIn: data.clockIn || undefined,
+                clockOut: data.clockOut || undefined,
+                status: data.status,
+                notes: data.notes || undefined,
+            };
+            await addDoc(collection(db, 'attendanceRecords'), {
+                ...newRecordData,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+            });
+            toast({ title: "Sukses", description: `Entri absensi manual untuk ${selectedStaffMember.name} berhasil ditambahkan.` });
+        }
+      
       setIsManualEntryDialogOpen(false);
-      fetchAttendance(selectedDate); // Refresh data
+      fetchStaffAndAttendance(selectedDate);
     } catch (error) {
-      console.error("Error adding manual attendance entry: ", error);
-      toast({ title: "Error", description: "Gagal menambahkan entri absensi manual.", variant: "destructive" });
+      console.error("Error adding/updating manual attendance entry: ", error);
+      toast({ title: "Error", description: "Gagal memproses entri absensi manual.", variant: "destructive" });
     } finally {
       setIsSubmittingManualEntry(false);
     }
   };
 
-
-  const getStatusBadge = (status: AttendanceRecord['status']) => {
+  const getStatusBadge = (status?: AttendanceRecord['status']) => {
+    if (!status) return <Badge variant="outline">Belum Ada Status</Badge>;
     switch(status) {
       case 'Hadir': return <Badge variant="default" className="bg-green-500 hover:bg-green-600"><UserCheck className="mr-1 h-3 w-3" />Hadir</Badge>;
       case 'Absen': return <Badge variant="destructive"><UserX className="mr-1 h-3 w-3" />Absen</Badge>;
@@ -398,6 +466,9 @@ export default function AttendancePage() {
       default: return <Badge>{status}</Badge>;
     }
   };
+  
+  const isLoadingOverall = loading || loadingAllStaff;
+
 
   return (
     <div className="flex flex-col h-full">
@@ -419,11 +490,15 @@ export default function AttendancePage() {
               </Button>
             </CardHeader>
             <CardContent>
-              {loading ? (
+              {isLoadingOverall && displayRecords.length === 0 ? (
                 <div className="flex items-center justify-center py-10">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <p className="ml-2">Memuat absensi...</p>
+                  <p className="ml-2">Memuat data staf dan absensi...</p>
                 </div>
+              ) : allStaffMembers.length === 0 && !loadingAllStaff ? (
+                  <div className="text-center py-10 text-muted-foreground">
+                      Tidak ada staf terdaftar. Silakan tambahkan staf terlebih dahulu.
+                  </div>
               ) : (
                 <Table>
                   <TableHeader>
@@ -438,80 +513,86 @@ export default function AttendancePage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {attendanceRecords.map((record) => (
-                      <TableRow key={record.id}>
-                        <TableCell className="font-medium">{record.staffName}</TableCell>
-                        <TableCell>{record.clockIn || <span className="text-muted-foreground">-</span>}</TableCell>
-                        <TableCell>
-                          {record.clockInLocation ? (
-                            <div className="flex items-center text-xs text-muted-foreground">
-                              <MapPin className="h-3 w-3 mr-1 text-blue-500" />
-                              <TooltipProvider delayDuration={100}>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <span className="truncate cursor-help">
-                                      Lat: {record.clockInLocation.latitude.toFixed(3)}, Lon: {record.clockInLocation.longitude.toFixed(3)}
-                                    </span>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Akurasi: {record.clockInLocation.accuracy?.toFixed(0) || 'N/A'} meter</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </div>
-                          ) : record.clockIn ? (<span className="text-muted-foreground text-xs italic">Tidak ada data</span>) : (<span className="text-muted-foreground">-</span>) }
-                        </TableCell>
-                        <TableCell>{record.clockOut || (record.clockIn ? <span className="text-muted-foreground italic">Belum Pulang</span> : <span className="text-muted-foreground">-</span>)}</TableCell>
-                        <TableCell>
-                          {record.clockOutLocation ? (
-                             <div className="flex items-center text-xs text-muted-foreground">
-                              <MapPin className="h-3 w-3 mr-1 text-red-500" />
-                               <TooltipProvider delayDuration={100}>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <span className="truncate cursor-help">
-                                      Lat: {record.clockOutLocation.latitude.toFixed(3)}, Lon: {record.clockOutLocation.longitude.toFixed(3)}
-                                    </span>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Akurasi: {record.clockOutLocation.accuracy?.toFixed(0) || 'N/A'} meter</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </div>
-                          ) : record.clockOut ? (<span className="text-muted-foreground text-xs italic">Tidak ada data</span>) : (<span className="text-muted-foreground">-</span>) }
-                        </TableCell>
-                        <TableCell>{getStatusBadge(record.status)}</TableCell>
-                        <TableCell className="text-right space-x-1">
-                          {!record.clockIn && record.status !== 'Absen' && record.status !== 'Cuti' && (
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={() => handleClockIn(record.id)}
-                              disabled={rowActionLoading[record.id]}
-                            >
-                              {rowActionLoading[record.id] ? <Loader2 className="mr-1 h-3 w-3 animate-spin"/> : <LogIn className="mr-1 h-3 w-3"/>}
-                               Masuk
-                            </Button>
-                          )}
-                          {record.clockIn && !record.clockOut && (record.status === 'Hadir' || record.status === 'Terlambat') && (
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={() => handleClockOut(record.id)}
-                              disabled={rowActionLoading[record.id]}
-                            >
-                               {rowActionLoading[record.id] ? <Loader2 className="mr-1 h-3 w-3 animate-spin"/> : <LogOut className="mr-1 h-3 w-3"/>}
-                               Pulang
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {attendanceRecords.length === 0 && (
+                    {displayRecords.map((record) => {
+                      const attendance = record.attendance;
+                      const canClockIn = !attendance || (!attendance.clockIn && attendance.status !== 'Absen' && attendance.status !== 'Cuti');
+                      const canClockOut = attendance?.clockIn && !attendance.clockOut && (attendance.status === 'Hadir' || attendance.status === 'Terlambat');
+                      
+                      return (
+                        <TableRow key={record.id}>
+                          <TableCell className="font-medium">{record.name}</TableCell>
+                          <TableCell>{attendance?.clockIn || <span className="text-muted-foreground">-</span>}</TableCell>
+                          <TableCell>
+                            {attendance?.clockInLocation ? (
+                              <div className="flex items-center text-xs text-muted-foreground">
+                                <MapPin className="h-3 w-3 mr-1 text-blue-500" />
+                                <TooltipProvider delayDuration={100}>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="truncate cursor-help">
+                                        Lat: {attendance.clockInLocation.latitude.toFixed(3)}, Lon: {attendance.clockInLocation.longitude.toFixed(3)}
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Akurasi: {attendance.clockInLocation.accuracy?.toFixed(0) || 'N/A'} meter</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </div>
+                            ) : attendance?.clockIn ? (<span className="text-muted-foreground text-xs italic">Tidak ada data</span>) : (<span className="text-muted-foreground">-</span>) }
+                          </TableCell>
+                          <TableCell>{attendance?.clockOut || (attendance?.clockIn ? <span className="text-muted-foreground italic">Belum Pulang</span> : <span className="text-muted-foreground">-</span>)}</TableCell>
+                          <TableCell>
+                            {attendance?.clockOutLocation ? (
+                              <div className="flex items-center text-xs text-muted-foreground">
+                                <MapPin className="h-3 w-3 mr-1 text-red-500" />
+                                <TooltipProvider delayDuration={100}>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="truncate cursor-help">
+                                        Lat: {attendance.clockOutLocation.latitude.toFixed(3)}, Lon: {attendance.clockOutLocation.longitude.toFixed(3)}
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Akurasi: {attendance.clockOutLocation.accuracy?.toFixed(0) || 'N/A'} meter</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </div>
+                            ) : attendance?.clockOut ? (<span className="text-muted-foreground text-xs italic">Tidak ada data</span>) : (<span className="text-muted-foreground">-</span>) }
+                          </TableCell>
+                          <TableCell>{getStatusBadge(attendance?.status)}</TableCell>
+                          <TableCell className="text-right space-x-1">
+                            {canClockIn && (
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => handleClockIn(record)}
+                                disabled={rowActionLoading[record.id]}
+                              >
+                                {rowActionLoading[record.id] ? <Loader2 className="mr-1 h-3 w-3 animate-spin"/> : <LogIn className="mr-1 h-3 w-3"/>}
+                                Masuk
+                              </Button>
+                            )}
+                            {canClockOut && (
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => handleClockOut(record)}
+                                disabled={rowActionLoading[record.id]}
+                              >
+                                {rowActionLoading[record.id] ? <Loader2 className="mr-1 h-3 w-3 animate-spin"/> : <LogOut className="mr-1 h-3 w-3"/>}
+                                Pulang
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                    {displayRecords.length === 0 && !isLoadingOverall && (
                        <TableRow>
                         <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
-                          Tidak ada catatan absensi untuk tanggal ini.
+                          Belum ada data absensi untuk tanggal ini.
                         </TableCell>
                       </TableRow>
                     )}
@@ -544,8 +625,7 @@ export default function AttendancePage() {
               <CardTitle>Catatan Geotagging</CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground space-y-2">
-              <p>Fitur geotagging memerlukan izin akses lokasi dari browser pengguna (staf yang melakukan clock-in/out).</p>
-              <p>Jika izin ditolak atau lokasi tidak dapat diperoleh, sistem akan <span className="font-semibold">menolak</span> proses clock-in/out.</p>
+              <p>Fitur geotagging memerlukan izin akses lokasi dari browser. Jika izin ditolak atau lokasi tidak dapat diperoleh, proses clock-in/out akan <span className="font-semibold">gagal</span> dan absensi tidak tercatat.</p>
               <p>Akurasi lokasi tergantung pada perangkat dan kondisi jaringan. Opsi `enableHighAccuracy` diaktifkan untuk hasil terbaik.</p>
             </CardContent>
           </Card>
