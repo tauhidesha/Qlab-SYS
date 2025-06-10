@@ -39,9 +39,9 @@ import type { StaffMember } from '@/types/staff';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ExpenseFormData, ExpenseCategory, PaymentSource } from '@/types/expense';
 import type { PayrollEntry } from '@/types/payroll';
-import type { AttendanceRecord } from '@/types/attendance';
 import { id as indonesiaLocale } from 'date-fns/locale';
 import { format as formatDateFns, getDaysInMonth, getDate, getDay, parseISO, startOfDay, endOfDay } from 'date-fns';
+import { Separator } from '@/components/ui/separator';
 
 
 const payrollFormSchema = z.object({
@@ -267,23 +267,76 @@ function DetailPayrollDialog({ isOpen, onClose, entry }: DetailPayrollDialogProp
           <DialogDescription>Periode: {entry.period}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3 py-2 text-sm">
-          <div className="flex justify-between"><span>Gaji Pokok:</span> <span>Rp {entry.baseSalary.toLocaleString('id-ID')}</span></div>
-          <div className="flex justify-between"><span>Total Jam:</span> <span>{entry.totalHours ? `${entry.totalHours} jam` : 'N/A'}</span></div>
-          <hr/>
-          <div className="text-muted-foreground text-xs">Rincian Potongan:</div>
-          <div className="flex justify-between pl-2"><span>- Keterlambatan:</span> <span>Rp {(entry.latenessDeduction || 0).toLocaleString('id-ID')}</span></div>
-          <div className="flex justify-between pl-2"><span>- Absensi:</span> <span>Rp {(entry.absenceDeduction || 0).toLocaleString('id-ID')}</span></div>
-          <div className="flex justify-between pl-2"><span>- Telat Buka Toko:</span> <span>Rp {(entry.telatBukaDeduction || 0).toLocaleString('id-ID')}</span></div>
-          <div className="flex justify-between pl-2"><span>- Potongan Manual:</span> <span>Rp {(entry.manualDeductions || 0).toLocaleString('id-ID')}</span></div>
-          <div className="flex justify-between font-medium border-t pt-1"><span>Total Potongan:</span> <span>Rp {(entry.totalDeductions || 0).toLocaleString('id-ID')}</span></div>
-          <hr/>
-          <div className="flex justify-between font-semibold"><span>Gaji Bersih:</span> <span>Rp {entry.netPay.toLocaleString('id-ID')}</span></div>
-          <hr/>
-          <div className="flex justify-between"><span>Status:</span> <span>{entry.status}</span></div>
-          {entry.paidAt && <div className="flex justify-between"><span>Tgl. Bayar:</span> <span>{entry.paidAt.toDate().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}</span></div>}
-          {entry.calculationDetails && <div className="text-xs text-muted-foreground italic mt-2">Catatan Kalkulasi: {entry.calculationDetails}</div>}
-          <div className="flex justify-between text-xs text-muted-foreground"><span>Dibuat:</span> <span>{entry.createdAt?.toDate().toLocaleString('id-ID')}</span></div>
-          <div className="flex justify-between text-xs text-muted-foreground"><span>Diperbarui:</span> <span>{entry.updatedAt?.toDate().toLocaleString('id-ID')}</span></div>
+          
+          <div className="font-medium text-base">Pendapatan</div>
+          <div className="flex justify-between items-center">
+            <span>Gaji Pokok:</span>
+            <span className="font-semibold">Rp {entry.baseSalary.toLocaleString('id-ID')}</span>
+          </div>
+          {typeof entry.totalHours === 'number' && (
+             <div className="flex justify-between items-center text-xs text-muted-foreground">
+                <span>Total Jam Kerja Tercatat:</span> 
+                <span>{entry.totalHours} jam</span>
+            </div>
+          )}
+          <Separator className="my-2" />
+
+          <div className="font-medium text-base">Rincian Potongan</div>
+          <div className="flex justify-between items-center">
+            <span>- Keterlambatan:</span>
+            <span className="text-red-600">Rp {(entry.latenessDeduction || 0).toLocaleString('id-ID')}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span>- Absensi:</span>
+            <span className="text-red-600">Rp {(entry.absenceDeduction || 0).toLocaleString('id-ID')}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span>- Telat Buka Toko:</span>
+            <span className="text-red-600">Rp {(entry.telatBukaDeduction || 0).toLocaleString('id-ID')}</span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span>- Potongan Manual:</span>
+            <span className="text-red-600">Rp {(entry.manualDeductions || 0).toLocaleString('id-ID')}</span>
+          </div>
+          <div className="flex justify-between items-center font-semibold mt-1 border-t pt-1">
+            <span>Total Potongan:</span>
+            <span className="text-red-600">Rp {(entry.totalDeductions || 0).toLocaleString('id-ID')}</span>
+          </div>
+          <Separator className="my-2" />
+
+          <div className="flex justify-between items-center font-bold text-lg">
+            <span>GAJI BERSIH:</span>
+            <span className="text-primary">Rp {entry.netPay.toLocaleString('id-ID')}</span>
+          </div>
+          <Separator className="my-2" />
+          
+          <div className="flex justify-between items-center">
+            <span>Status Pembayaran:</span>
+            <span className={`font-medium ${entry.status === 'Dibayar' ? 'text-green-600' : 'text-yellow-600'}`}>
+              {entry.status}
+            </span>
+          </div>
+          {entry.paidAt && (
+            <div className="flex justify-between items-center text-xs text-muted-foreground">
+              <span>Tanggal Pembayaran:</span>
+              <span>{entry.paidAt.toDate().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+            </div>
+          )}
+          
+          {entry.calculationDetails && (
+            <div className="mt-3">
+              <p className="text-xs font-medium text-muted-foreground mb-1">Detail Kalkulasi Potongan:</p>
+              <p className="text-xs text-muted-foreground bg-muted p-2 rounded-md whitespace-pre-wrap">
+                {entry.calculationDetails}
+              </p>
+            </div>
+          )}
+          
+          <div className="mt-3 pt-2 border-t text-xs text-muted-foreground space-y-0.5">
+             <div className="flex justify-between"><span>Dibuat:</span> <span>{entry.createdAt?.toDate().toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</span></div>
+             <div className="flex justify-between"><span>Diperbarui:</span> <span>{entry.updatedAt?.toDate().toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</span></div>
+          </div>
+
         </div>
         <DialogFooter>
           <DialogClose asChild>
@@ -308,7 +361,7 @@ const parsePeriodToDateRange = (period: string): { startDate: Date, endDate: Dat
     if (monthIndex === -1 || isNaN(year)) return null;
 
     const startDate = new Date(year, monthIndex, 1);
-    const endDate = endOfDay(new Date(year, monthIndex + 1, 0)); // End of day for last day of month
+    const endDate = endOfDay(new Date(year, monthIndex + 1, 0)); 
     return { startDate, endDate };
 };
 
@@ -391,11 +444,11 @@ export default function PayrollPage() {
             const dayOfWeek = getDay(d);
             
             let allStaffPresentAndLate = true;
-            let anyStaffScheduledAndPresent = false; // Tracks if anyone who was supposed to work, actually came
+            let anyStaffScheduledAndPresent = false; 
 
             const dailyAttendancePromises = staffList.map(async (sMember) => {
                 const staffMemberDaysOff = sMember.daysOff || [];
-                if (staffMemberDaysOff.includes(dayOfWeek)) return null; // Skip if day off for this staff member
+                if (staffMemberDaysOff.includes(dayOfWeek)) return null; 
                 
                 const attQuery = query(collection(db, 'attendanceRecords'), 
                                         where("staffId", "==", sMember.id), 
@@ -410,16 +463,14 @@ export default function PayrollPage() {
                 anyStaffScheduledAndPresent = true;
                 for (const att of dailyAttendances) {
                     if (att.status === 'Cuti' || att.status === 'Absen') {
-                        // If on leave/absent, they don't contribute to opening the shop or being late for it
                         continue;
                     }
-                    // If anyone present is NOT late (i.e. came before 09:05), then shop is not late
                     if (!att.clockIn || att.clockIn < "09:05") {
                         allStaffPresentAndLate = false;
                         break;
                     }
                 }
-            } else { // No attendance records for anyone scheduled (could be holiday or no one came)
+            } else { 
                 allStaffPresentAndLate = false; 
             }
             
@@ -437,7 +488,7 @@ export default function PayrollPage() {
         let isTelatBukaHariIniUntukStaf = false;
 
         if (staffDaysOff.includes(dayOfWeek)) {
-            calculationDetails += `${dateStr}: Hari Libur Staf. `;
+            calculationDetails += `${dateStr}: Hari Libur Staf.\n`;
             continue;
         }
 
@@ -445,46 +496,42 @@ export default function PayrollPage() {
 
         if (attendance) {
             if (attendance.status === 'Cuti') {
-                calculationDetails += `${dateStr}: Cuti. `;
+                calculationDetails += `${dateStr}: Cuti.\n`;
                 continue;
             }
             if (attendance.status === 'Absen') {
                 absenceDeduction += 50000;
-                calculationDetails += `${dateStr}: Absen (-50000). `;
+                calculationDetails += `${dateStr}: Absen (-Rp 50.000).\n`;
             } else if (attendance.clockIn) {
-                // Check for Telat Buka first for this staff on this day
                 if (shopLateOpeningDays.has(dateStr) && (attendance.status !== 'Cuti' && attendance.status !== 'Absen')) {
                     telatBukaDeductionTotalForStaff += 25000;
-                    calculationDetails += `Potongan Telat Buka (-25000). `;
+                    calculationDetails += `${dateStr}: Potongan Telat Buka Toko (-Rp 25.000).\n`;
                     isTelatBukaHariIniUntukStaf = true;
                 }
 
                 if (attendance.clockIn >= "10:00") {
                     dailyLatenessDeduction = 50000;
-                    calculationDetails += `${dateStr}: Telat >=10:00 (-50000). `;
+                    calculationDetails += `${dateStr}: Telat >=10:00 (-Rp 50.000).\n`;
                 } else if (attendance.clockIn >= "09:05") {
-                    // If Telat Buka is active, this Rp 15,000 is waived
                     if (!isTelatBukaHariIniUntukStaf) {
                         dailyLatenessDeduction = 15000;
-                        calculationDetails += `${dateStr}: Telat >=09:05 (-15000). `;
+                        calculationDetails += `${dateStr}: Telat >=09:05 (-Rp 15.000).\n`;
                     } else {
-                         calculationDetails += `${dateStr}: Telat >=09:05 (digugurkan oleh Telat Buka). `;
+                         calculationDetails += `${dateStr}: Telat >=09:05 (digugurkan oleh Telat Buka Toko).\n`;
                     }
                 }
                 latenessDeduction += dailyLatenessDeduction;
 
-            } else { // Status Hadir/Terlambat tapi tidak ada clockIn
+            } else { 
                 absenceDeduction += 50000;
-                calculationDetails += `${dateStr}: ${attendance.status} tanpa clockIn, dianggap Absen (-50000). `;
+                calculationDetails += `${dateStr}: ${attendance.status} tanpa clockIn, dianggap Absen (-Rp 50.000).\n`;
             }
-        } else { // No attendance record
+        } else { 
             absenceDeduction += 50000;
-            calculationDetails += `${dateStr}: Tidak ada catatan absensi (-50000). `;
-             // If no attendance record for the staff, also check if this day was a "Telat Buka" day for the shop
-            // This means if the staff was absent, they might still get "Telat Buka" if other conditions met
+            calculationDetails += `${dateStr}: Tidak ada catatan absensi (-Rp 50.000).\n`;
             if (shopLateOpeningDays.has(dateStr)) {
                  telatBukaDeductionTotalForStaff += 25000;
-                 calculationDetails += `Potongan Telat Buka (-25000 saat tidak ada absensi). `;
+                 calculationDetails += `${dateStr}: Potongan Telat Buka Toko (-Rp 25.000 saat tidak ada absensi).\n`;
             }
         }
     }
