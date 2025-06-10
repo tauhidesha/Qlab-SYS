@@ -1,6 +1,6 @@
 
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, BarChartBig, Settings, Clipboard, Banknote, CalendarDays, ClipboardList, Percent, ReceiptText, Landmark, DollarSign, TrendingUp, History, ArrowRightLeft, FileText, Wallet } from 'lucide-react';
+import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, BarChartBig, Settings, Clipboard, Banknote, CalendarDays, ClipboardList, Percent, ReceiptText, Landmark, DollarSign, TrendingUp, History, ArrowRightLeft, FileText, Wallet, Palette, Bell, CreditCard as CreditCardIcon, Award, Gift, SlidersHorizontal, Settings2 } from 'lucide-react'; // Added SlidersHorizontal, Settings2 and ensured others are present
 
 export interface NavItem {
   title: string;
@@ -47,7 +47,7 @@ export const mainNavItems: NavItem[] = [
   },
   {
     title: 'Keuangan',
-    href: '/finance', 
+    href: '#', // Parent, not a direct link
     icon: Landmark,
     description: 'Kelola pemasukan, pengeluaran, dan laporan keuangan.',
     collapsible: true,
@@ -72,7 +72,7 @@ export const mainNavItems: NavItem[] = [
       },
       {
         title: 'Laporan',
-        href: '/reports', 
+        href: '#', // Parent, not a direct link
         icon: BarChartBig,
         description: 'Lihat berbagai laporan keuangan.',
         collapsible: true,
@@ -107,7 +107,7 @@ export const mainNavItems: NavItem[] = [
   },
   {
     title: 'Manajemen Staf',
-    href: '/staff', 
+    href: '#', // Parent, not a direct link
     icon: Clipboard,
     description: 'Kelola data, absensi, penggajian, dan bagi hasil staf.',
     collapsible: true,
@@ -122,9 +122,17 @@ export const mainNavItems: NavItem[] = [
 
 export const settingsNavItem: NavItem = {
   title: 'Pengaturan',
-  href: '/settings',
-  icon: Settings,
+  href: '/settings', // Main settings link
+  icon: Settings, // Main settings icon
   description: 'Konfigurasi pengaturan aplikasi.',
+  collapsible: true,
+  items: [ 
+    { title: 'Umum', href: '/settings?tab=general', icon: SlidersHorizontal, description: 'Pengaturan umum bengkel.'}, // Changed from Building/Building2/Settings2
+    { title: 'Loyalitas', href: '/settings?tab=loyalty', icon: Gift, description: 'Pengaturan program loyalitas.'},
+    { title: 'Reward Loyalitas', href: '/settings?tab=loyalty_rewards', icon: Award, description: 'Kelola reward untuk poin loyalitas.'},
+    { title: 'Tampilan', href: '/settings?tab=appearance', icon: Palette, description: 'Sesuaikan tampilan aplikasi.'},
+    { title: 'Notifikasi', href: '/settings?tab=notifications', icon: Bell, description: 'Kelola preferensi notifikasi.'},
+    { title: 'Peran Pengguna', href: '/settings?tab=users', icon: Users, description: 'Kelola akun staf dan akses.'}, // Changed from UserCog to Users
+    { title: 'Tagihan', href: '/settings?tab=billing', icon: CreditCardIcon, description: 'Kelola langganan dan pembayaran.'},
+  ]
 };
-
-    

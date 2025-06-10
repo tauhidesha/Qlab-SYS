@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building, Palette, Bell, Users, CreditCard as CreditCardIcon, Gift, DollarSign, Loader2, Wallet } from 'lucide-react'; 
+import { Building, Palette, Bell, Users, CreditCard as CreditCardIcon, Gift, DollarSign, Loader2, Wallet, Award } from 'lucide-react'; // Added Award
 import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -16,8 +16,8 @@ import { useToast } from '@/hooks/use-toast';
 
 export default function SettingsPage() {
   const { toast } = useToast();
-  const [pointToRupiahRate, setPointToRupiahRate] = React.useState('10');
-  const [minPointsToRedeem, setMinPointsToRedeem] = React.useState('100');
+  // const [pointToRupiahRate, setPointToRupiahRate] = React.useState('10'); // No longer direct conversion
+  const [minPointsToRedeemGeneral, setMinPointsToRedeemGeneral] = React.useState('100'); // General minimum for eligibility
   
   const [initialBankBalance, setInitialBankBalance] = React.useState('');
   const [initialPhysicalCashBalance, setInitialPhysicalCashBalance] = React.useState('');
@@ -38,12 +38,15 @@ export default function SettingsPage() {
           if (data.initialPhysicalCashBalance !== undefined) {
             setInitialPhysicalCashBalance(String(data.initialPhysicalCashBalance));
           }
+           if (data.minPointsToRedeemGeneral !== undefined) { // Load general min points
+            setMinPointsToRedeemGeneral(String(data.minPointsToRedeemGeneral));
+          }
         }
       } catch (error) {
-        console.error("Error fetching financial settings: ", error);
+        console.error("Error fetching financial/loyalty settings: ", error);
         toast({
           title: "Error",
-          description: "Gagal memuat pengaturan finansial.",
+          description: "Gagal memuat pengaturan finansial/loyalitas.",
           variant: "destructive",
         });
       } finally {
@@ -59,42 +62,40 @@ export default function SettingsPage() {
     try {
       const bankBalance = parseFloat(initialBankBalance);
       const physicalCashBalance = parseFloat(initialPhysicalCashBalance);
+      const minPoints = parseInt(minPointsToRedeemGeneral, 10);
+
 
       if (isNaN(bankBalance) || bankBalance < 0) {
-        toast({
-          title: "Input Tidak Valid",
-          description: "Saldo awal bank harus berupa angka positif.",
-          variant: "destructive",
-        });
-        setIsSavingFinancialSettings(false);
-        return;
+        toast({ title: "Input Tidak Valid", description: "Saldo awal bank harus berupa angka positif.", variant: "destructive"});
+        setIsSavingFinancialSettings(false); return;
       }
       if (isNaN(physicalCashBalance) || physicalCashBalance < 0) {
-        toast({
-          title: "Input Tidak Valid",
-          description: "Saldo awal kas fisik harus berupa angka positif.",
-          variant: "destructive",
-        });
-        setIsSavingFinancialSettings(false);
-        return;
+        toast({ title: "Input Tidak Valid", description: "Saldo awal kas fisik harus berupa angka positif.", variant: "destructive"});
+        setIsSavingFinancialSettings(false); return;
+      }
+       if (isNaN(minPoints) || minPoints < 0) {
+        toast({ title: "Input Tidak Valid", description: "Minimum poin umum untuk redeem harus angka positif.", variant: "destructive"});
+        setIsSavingFinancialSettings(false); return;
       }
 
-      const settingsDocRef = doc(db, 'appSettings', 'financial');
+
+      const settingsDocRef = doc(db, 'appSettings', 'financial'); // Re-using 'financial' doc for simplicity
       await setDoc(settingsDocRef, { 
         initialBankBalance: bankBalance,
         initialPhysicalCashBalance: physicalCashBalance,
+        minPointsToRedeemGeneral: minPoints, // Save general min points
         updatedAt: serverTimestamp() 
       }, { merge: true });
 
       toast({
         title: "Sukses",
-        description: "Pengaturan finansial berhasil disimpan.",
+        description: "Pengaturan finansial & loyalitas dasar berhasil disimpan.",
       });
     } catch (error) {
-      console.error("Error saving financial settings: ", error);
+      console.error("Error saving settings: ", error);
       toast({
         title: "Error",
-        description: "Gagal menyimpan pengaturan finansial.",
+        description: "Gagal menyimpan pengaturan.",
         variant: "destructive",
       });
     } finally {
@@ -108,9 +109,10 @@ export default function SettingsPage() {
       <AppHeader title="Pengaturan" />
       <main className="flex-1 overflow-y-auto p-6">
         <Tabs defaultValue="general" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 md:grid-cols-6 mb-6">
+          <TabsList className="grid w-full grid-cols-4 md:grid-cols-7 mb-6"> {/* Adjusted for 7 tabs */}
             <TabsTrigger value="general"><Building className="mr-2 h-4 w-4 hidden md:inline" />Umum</TabsTrigger>
             <TabsTrigger value="loyalty"><Gift className="mr-2 h-4 w-4 hidden md:inline" />Loyalitas</TabsTrigger>
+            <TabsTrigger value="loyalty_rewards"><Award className="mr-2 h-4 w-4 hidden md:inline" />Reward</TabsTrigger> {/* New Tab */}
             <TabsTrigger value="appearance"><Palette className="mr-2 h-4 w-4 hidden md:inline" />Tampilan</TabsTrigger>
             <TabsTrigger value="notifications"><Bell className="mr-2 h-4 w-4 hidden md:inline" />Notifikasi</TabsTrigger>
             <TabsTrigger value="users"><Users className="mr-2 h-4 w-4 hidden md:inline" />Peran</TabsTrigger>
@@ -146,15 +148,15 @@ export default function SettingsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <DollarSign className="mr-2 h-5 w-5 text-primary" />
-                  Pengaturan Finansial Dasar
+                  Pengaturan Finansial & Loyalitas Dasar
                 </CardTitle>
-                <CardDescription>Pengaturan terkait keuangan dasar bengkel untuk pelaporan.</CardDescription>
+                <CardDescription>Pengaturan terkait keuangan dasar dan minimal poin untuk menukar reward.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 {isLoadingFinancialSettings ? (
                   <div className="flex items-center space-x-2">
                     <Loader2 className="h-5 w-5 animate-spin" />
-                    <span>Memuat pengaturan finansial...</span>
+                    <span>Memuat pengaturan...</span>
                   </div>
                 ) : (
                   <>
@@ -186,6 +188,18 @@ export default function SettingsPage() {
                         Saldo awal kas fisik (tunai) di tangan. Digunakan untuk Laporan Arus Kas Fisik.
                       </p>
                     </div>
+                     <div className="space-y-2">
+                      <Label htmlFor="min-points-redeem-general">Minimum Poin Umum untuk Tukar Reward</Label>
+                      <Input 
+                        id="min-points-redeem-general" 
+                        type="number" 
+                        value={minPointsToRedeemGeneral}
+                        onChange={(e) => setMinPointsToRedeemGeneral(e.target.value)}
+                        placeholder="mis. 100"
+                        disabled={isSavingFinancialSettings}
+                      />
+                       <p className="text-xs text-muted-foreground">Klien harus memiliki setidaknya poin ini untuk bisa menukarkan reward apapun.</p>
+                    </div>
                   </>
                 )}
               </CardContent>
@@ -194,7 +208,7 @@ export default function SettingsPage() {
                   {isSavingFinancialSettings ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : null}
-                  Simpan Pengaturan Finansial
+                  Simpan Pengaturan Finansial & Loyalitas
                 </Button>
               </CardFooter>
             </Card>
@@ -203,8 +217,8 @@ export default function SettingsPage() {
           <TabsContent value="loyalty">
             <Card>
               <CardHeader>
-                <CardTitle>Pengaturan Program Loyalitas</CardTitle>
-                <CardDescription>Konfigurasi bagaimana pelanggan mendapatkan dan menukarkan poin.</CardDescription>
+                <CardTitle>Pengaturan Dasar Program Loyalitas</CardTitle>
+                <CardDescription>Konfigurasi umum bagaimana program loyalitas berjalan.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="flex items-center justify-between rounded-lg border p-4">
@@ -214,38 +228,32 @@ export default function SettingsPage() {
                   </div>
                   <Switch id="loyalty-program-active" defaultChecked />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="point-to-rupiah">Nilai Tukar Poin (1 Poin = X Rupiah)</Label>
-                  <Input 
-                    id="point-to-rupiah" 
-                    type="number" 
-                    value={pointToRupiahRate} 
-                    onChange={(e) => setPointToRupiahRate(e.target.value)}
-                    placeholder="mis. 10"
-                  />
-                   <p className="text-xs text-muted-foreground">Contoh: Jika diisi 10, maka 1 poin bernilai Rp 10.</p>
-                </div>
-                 <div className="space-y-2">
-                  <Label htmlFor="min-points-redeem">Minimum Poin untuk Penukaran</Label>
-                  <Input 
-                    id="min-points-redeem" 
-                    type="number" 
-                    value={minPointsToRedeem}
-                    onChange={(e) => setMinPointsToRedeem(e.target.value)}
-                    placeholder="mis. 100"
-                  />
-                   <p className="text-xs text-muted-foreground">Jumlah poin minimum yang harus dimiliki klien untuk bisa menukar.</p>
-                </div>
-                <div>
-                    <h3 className="text-md font-medium mb-2">Opsi Penukaran Lanjutan</h3>
-                    <p className="text-sm text-muted-foreground">
-                        Pengelolaan opsi penukaran yang lebih detail (misalnya, item gratis, voucher khusus) akan ditambahkan di sini.
-                        Untuk saat ini, penukaran poin hanya berlaku sebagai diskon langsung pada total transaksi di POS.
-                    </p>
-                </div>
+                <p className="text-sm text-muted-foreground">
+                  Pengaturan detail poin yang diberikan per layanan/produk dapat diatur di halaman "Layanan & Produk".
+                  Pengaturan reward spesifik (item merchandise, diskon, dll.) ada di tab "Reward".
+                </p>
               </CardContent>
               <CardFooter>
                 <Button disabled>Simpan Pengaturan Loyalitas (Segera)</Button>
+              </CardFooter>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="loyalty_rewards"> {/* New Tab Content */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Manajemen Reward Loyalitas</CardTitle>
+                <CardDescription>Kelola item atau diskon yang dapat ditukar dengan poin loyalitas.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-center text-muted-foreground py-8">
+                  Fitur untuk menambah, mengubah, dan menghapus reward akan segera tersedia di sini.
+                  Untuk saat ini, reward masih didefinisikan secara manual dalam kode.
+                </p>
+                {/* Placeholder for future CRUD UI for rewards */}
+              </CardContent>
+              <CardFooter>
+                <Button disabled>Simpan Reward (Segera)</Button>
               </CardFooter>
             </Card>
           </TabsContent>

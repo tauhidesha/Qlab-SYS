@@ -15,6 +15,7 @@ import type { Transaction, TransactionItem } from '@/types/transaction';
 import type { ServiceProduct } from '@/app/(app)/services/page'; 
 import type { Client } from '@/types/client';
 import type { StaffMember } from '@/types/staff';
+import type { LoyaltyReward } from '@/types/loyalty'; // Import LoyaltyReward
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -52,9 +53,17 @@ import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
-const MINIMUM_POINTS_TO_REDEEM = 100; 
-const POINT_TO_RUPIAH_RATE = 10; 
+const MINIMUM_POINTS_TO_REDEEM = 100; // Kept for general eligibility, actual rewards define their own point costs
+// const POINT_TO_RUPIAH_RATE = 10; // No longer used for direct conversion for discount
 const SHOP_NAME = "QLAB Auto Detailing"; 
+
+// Mock Loyalty Rewards (until settings page CRUD is ready)
+const mockLoyaltyRewards: LoyaltyReward[] = [
+  { id: 'reward_keychain', name: "Gantungan Kunci QLAB Eksklusif", description: "Tukarkan poinmu dengan gantungan kunci keren!", pointsRequired: 200, type: 'merchandise', rewardValue: "Gantungan Kunci QLAB", isActive: true },
+  { id: 'reward_sticker', name: "Sticker Pack QLAB", description: "Dapatkan sticker pack edisi terbatas.", pointsRequired: 150, type: 'merchandise', rewardValue: "Sticker Pack QLAB", isActive: true },
+  { id: 'reward_discount_25k', name: "Voucher Diskon Rp 25.000", description: "Potongan langsung untuk total transaksimu.", pointsRequired: 250, type: 'discount_transaction', rewardValue: 25000, isActive: true },
+  { id: 'reward_discount_50k', name: "Voucher Diskon Rp 50.000", description: "Potongan lebih besar untuk pelanggan setia.", pointsRequired: 450, type: 'discount_transaction', rewardValue: 50000, isActive: true },
+];
 
 export default function PosPage() {
   const [openTransactions, setOpenTransactions] = useState<Transaction[]>([]);
@@ -89,8 +98,11 @@ export default function PosPage() {
 
   const [selectedClientDetails, setSelectedClientDetails] = useState<Client | null>(null);
   const [isRedeemPointsDialogOpen, setIsRedeemPointsDialogOpen] = useState(false);
-  const [pointsToRedeemInput, setPointsToRedeemInput] = useState<string>('');
+  // const [pointsToRedeemInput, setPointsToRedeemInput] = useState<string>(''); // Replaced by reward selection
   const [isSubmittingRedemption, setIsSubmittingRedemption] = useState(false);
+  const [availableRewardsForClient, setAvailableRewardsForClient] = useState<LoyaltyReward[]>([]);
+  const [selectedRewardToRedeem, setSelectedRewardToRedeem] = useState<LoyaltyReward | null>(null);
+
 
   const [isWhatsAppDialogOpen, setIsWhatsAppDialogOpen] = useState(false);
   const [whatsAppNumberInput, setWhatsAppNumberInput] = useState('');
@@ -289,9 +301,9 @@ export default function PosPage() {
       
       const { subtotal: newSubtotal, total: newTotal } = calculateTransactionTotals(
         updatedItemsForCalc,
-        selectedTransaction.discountAmount,
-        selectedTransaction.discountPercentage,
-        selectedTransaction.pointsRedeemedValue
+        selectedTransaction.discountAmount, // discountAmount might be from a reward
+        selectedTransaction.discountPercentage, // percentage should be 0 if reward discount applied
+        selectedTransaction.pointsRedeemedValue // this is the value of the reward discount
       );
 
       await updateDoc(transactionDocRef, {
@@ -381,12 +393,12 @@ export default function PosPage() {
     items: TransactionItem[], 
     discountAmountParam: number = 0, 
     discountPercentageParam: number = 0,
-    pointsRedeemedValueParam: number = 0
+    pointsRedeemedValueParam: number = 0 // This is the actual discount value from a reward
   ) => {
     const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
     let effectiveDiscountAmount = 0;
 
-    if (pointsRedeemedValueParam > 0) {
+    if (pointsRedeemedValueParam > 0) { // Priority for reward discount
       effectiveDiscountAmount = pointsRedeemedValueParam;
     } else if (discountAmountParam > 0) {
       effectiveDiscountAmount = discountAmountParam;
@@ -395,7 +407,7 @@ export default function PosPage() {
     }
     
     const total = Math.max(0, subtotal - effectiveDiscountAmount); 
-    return { subtotal, total, discountAmount: effectiveDiscountAmount };
+    return { subtotal, total, discountAmountApplied: effectiveDiscountAmount }; // Renamed for clarity
   };
   
   const handleRemoveItemFromTransaction = async (itemIdToRemove: string) => {
@@ -404,20 +416,35 @@ export default function PosPage() {
     setIsSubmittingItem(true);
     try {
         const transactionDocRef = doc(db, 'transactions', selectedTransaction.id);
-        const updatedItemsArray = selectedTransaction.items.filter(item => item.id !== itemIdToRemove);
+        let updatedItemsArray = selectedTransaction.items.filter(item => item.id !== itemIdToRemove);
+        let newRedeemedReward = selectedTransaction.redeemedReward;
+        let newPointsRedeemed = selectedTransaction.pointsRedeemed;
+        let newPointsRedeemedValue = selectedTransaction.pointsRedeemedValue;
+
+        // If a reward merchandise item is removed, also clear the redeemedReward info if it matches
+        const removedItem = selectedTransaction.items.find(item => item.id === itemIdToRemove);
+        if (removedItem?.type === 'reward_merchandise' && newRedeemedReward && newRedeemedReward.name === removedItem.name) {
+             newRedeemedReward = undefined;
+             newPointsRedeemed = 0;
+             newPointsRedeemedValue = 0;
+             // Remove all other reward_merchandise items as well, assuming only one reward can be active.
+             updatedItemsArray = updatedItemsArray.filter(item => item.type !== 'reward_merchandise');
+        }
         
-        const { subtotal, total, discountAmount } = calculateTransactionTotals(
+        const { subtotal, total, discountAmountApplied } = calculateTransactionTotals(
             updatedItemsArray, 
-            selectedTransaction.discountAmount, 
-            selectedTransaction.discountPercentage,
-            selectedTransaction.pointsRedeemedValue 
+            newRedeemedReward && newRedeemedReward.type === 'discount_transaction' ? 0 : selectedTransaction.discountAmount, 
+            newRedeemedReward && newRedeemedReward.type === 'discount_transaction' ? 0 : selectedTransaction.discountPercentage,
+            newPointsRedeemedValue 
         );
 
         await updateDoc(transactionDocRef, {
             items: updatedItemsArray,
             subtotal: subtotal,
             total: total,
-            discountAmount: discountAmount, 
+            discountAmount: discountAmountApplied, // This will be pointsRedeemedValue if a discount reward is active
+            ...(newRedeemedReward === undefined && { redeemedReward: deleteDoc }), // Clear reward if merchandise removed
+            ...(newPointsRedeemed === 0 && { pointsRedeemed: deleteDoc, pointsRedeemedValue: deleteDoc }),
             updatedAt: serverTimestamp(),
         });
 
@@ -433,8 +460,8 @@ export default function PosPage() {
   const handleDiscountChange = async (transactionId: string, items: TransactionItem[], newDiscountAmountInput: string, newDiscountPercentageInput: string) => {
     if (!selectedTransaction) return;
     
-    if (selectedTransaction.pointsRedeemed && selectedTransaction.pointsRedeemed > 0) {
-        toast({title: "Info Diskon", description: "Diskon dari poin sudah diterapkan. Hapus diskon poin untuk menerapkan diskon manual.", variant: "default"});
+    if (selectedTransaction.redeemedReward) {
+        toast({title: "Info Diskon", description: "Reward sedang aktif. Hapus reward untuk menerapkan diskon manual.", variant: "default"});
         return;
     }
 
@@ -450,16 +477,17 @@ export default function PosPage() {
         appliedDiscountPercentage = newDiscountPercentage;
     }
 
-    const { total, discountAmount: calculatedDiscountAmount } = calculateTransactionTotals(items, appliedDiscountAmount, appliedDiscountPercentage, 0);
+    const { total, discountAmountApplied } = calculateTransactionTotals(items, appliedDiscountAmount, appliedDiscountPercentage, 0);
     
     try {
         const transactionDocRef = doc(db, 'transactions', transactionId);
         await updateDoc(transactionDocRef, {
-            discountAmount: appliedDiscountAmount > 0 ? appliedDiscountAmount : (appliedDiscountPercentage > 0 ? calculatedDiscountAmount : 0),
+            discountAmount: appliedDiscountAmount > 0 ? appliedDiscountAmount : (appliedDiscountPercentage > 0 ? discountAmountApplied : 0),
             discountPercentage: appliedDiscountPercentage,
             total: total,
-            pointsRedeemed: 0, 
-            pointsRedeemedValue: 0,
+            pointsRedeemed: deleteDoc(), // Remove points redeemed if manual discount is applied
+            pointsRedeemedValue: deleteDoc(),
+            redeemedReward: deleteDoc(),
             updatedAt: serverTimestamp()
         });
          toast({ title: "Diskon Diperbarui", description: "Diskon manual berhasil diterapkan.", variant: "default"});
@@ -485,53 +513,79 @@ export default function PosPage() {
   
   const handleOpenRedeemPointsDialog = () => {
     if (selectedClientDetails && selectedTransaction && (selectedClientDetails.loyaltyPoints || 0) >= MINIMUM_POINTS_TO_REDEEM) {
-      setPointsToRedeemInput('');
+      // Filter rewards client can afford
+      const affordableRewards = mockLoyaltyRewards.filter(reward => 
+        reward.isActive && (selectedClientDetails.loyaltyPoints || 0) >= reward.pointsRequired
+      );
+      setAvailableRewardsForClient(affordableRewards);
+      setSelectedRewardToRedeem(null); // Reset selection
       setIsRedeemPointsDialogOpen(true);
     } else {
-      toast({title: "Info", description: `Klien tidak memenuhi syarat atau tidak memiliki poin minimum (${MINIMUM_POINTS_TO_REDEEM}) untuk penukaran.`, variant:"default"});
+      toast({title: "Info", description: `Klien tidak memenuhi syarat (poin < ${MINIMUM_POINTS_TO_REDEEM}) atau tidak ada reward yang aktif/terjangkau.`, variant:"default"});
     }
   };
 
-  const handleApplyPointDiscount = async () => {
-    if (!selectedTransaction || !selectedClientDetails) return;
-
-    const pointsToRedeem = parseInt(pointsToRedeemInput, 10);
-    if (isNaN(pointsToRedeem) || pointsToRedeem <= 0) {
-      toast({ title: "Input Tidak Valid", description: "Jumlah poin harus angka positif.", variant: "destructive" });
-      return;
-    }
-    if (pointsToRedeem > (selectedClientDetails.loyaltyPoints || 0)) {
-      toast({ title: "Poin Tidak Cukup", description: "Klien tidak memiliki cukup poin.", variant: "destructive" });
-      return;
-    }
-    if (pointsToRedeem < MINIMUM_POINTS_TO_REDEEM && selectedTransaction.items.length > 0) { 
-        toast({ title: "Minimum Poin", description: `Minimal ${MINIMUM_POINTS_TO_REDEEM} poin untuk penukaran.`, variant: "destructive" });
+  const handleRedeemReward = async () => {
+    if (!selectedTransaction || !selectedClientDetails || !selectedRewardToRedeem) return;
+    
+    if ((selectedClientDetails.loyaltyPoints || 0) < selectedRewardToRedeem.pointsRequired) {
+        toast({ title: "Poin Tidak Cukup", description: "Poin klien tidak cukup untuk menukarkan reward ini.", variant: "destructive" });
         return;
     }
 
     setIsSubmittingRedemption(true);
-    const discountValueFromPoints = pointsToRedeem * POINT_TO_RUPIAH_RATE;
-    const subtotal = selectedTransaction.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const effectiveDiscountValue = Math.min(discountValueFromPoints, subtotal); // Discount cannot exceed subtotal
+    const transactionDocRef = doc(db, 'transactions', selectedTransaction.id);
+    let updatedItems = [...selectedTransaction.items];
+    let discountValueFromReward = 0;
 
-    const { total } = calculateTransactionTotals(selectedTransaction.items, 0, 0, effectiveDiscountValue);
+    const rewardDetailsToStore = {
+        id: selectedRewardToRedeem.id,
+        name: selectedRewardToRedeem.name,
+        type: selectedRewardToRedeem.type,
+        value: selectedRewardToRedeem.rewardValue,
+    };
 
+    if (selectedRewardToRedeem.type === 'merchandise') {
+        const merchandiseItem: TransactionItem = {
+            id: uuidv4(),
+            catalogItemId: `reward_${selectedRewardToRedeem.id}`, // Special ID for reward items
+            name: selectedRewardToRedeem.rewardValue as string,
+            price: 0,
+            quantity: 1,
+            type: 'reward_merchandise',
+            pointsAwardedPerUnit: 0,
+        };
+        updatedItems.push(merchandiseItem);
+        // No direct discount value for merchandise, but points are consumed.
+    } else if (selectedRewardToRedeem.type === 'discount_transaction') {
+        discountValueFromReward = selectedRewardToRedeem.rewardValue as number;
+    }
+
+    const { subtotal, total } = calculateTransactionTotals(
+        updatedItems, 
+        0, // Manual discount amount is reset
+        0, // Manual discount percentage is reset
+        discountValueFromReward // Discount comes from the reward
+    );
+    
     try {
-      const transactionDocRef = doc(db, 'transactions', selectedTransaction.id);
       await updateDoc(transactionDocRef, {
-        pointsRedeemed: pointsToRedeem,
-        pointsRedeemedValue: effectiveDiscountValue, // Store the actual value of discount applied
-        discountAmount: effectiveDiscountValue, // Points discount overrides manual discount
-        discountPercentage: 0, // Reset percentage discount
+        items: updatedItems,
+        pointsRedeemed: selectedRewardToRedeem.pointsRequired,
+        pointsRedeemedValue: discountValueFromReward,
+        discountAmount: discountValueFromReward, // Reward discount overrides manual
+        discountPercentage: 0,                   // Reset percentage discount
+        redeemedReward: rewardDetailsToStore,
         total: total,
-        notes: `${selectedTransaction.notes || ''} [Tukar ${pointsToRedeem} poin senilai Rp ${effectiveDiscountValue.toLocaleString('id-ID')}]`.trim(),
+        subtotal: subtotal, // Subtotal might change if merchandise added
+        notes: `${selectedTransaction.notes || ''} [Tukar ${selectedRewardToRedeem.pointsRequired} poin: ${selectedRewardToRedeem.name}]`.trim(),
         updatedAt: serverTimestamp(),
       });
-      toast({ title: "Sukses", description: `Diskon Rp ${effectiveDiscountValue.toLocaleString('id-ID')} dari ${pointsToRedeem} poin berhasil diterapkan.` });
+      toast({ title: "Sukses", description: `Reward "${selectedRewardToRedeem.name}" berhasil diterapkan.` });
       setIsRedeemPointsDialogOpen(false);
     } catch (error) {
-      console.error("Error applying point discount: ", error);
-      toast({ title: "Error", description: "Gagal menerapkan diskon poin.", variant: "destructive" });
+      console.error("Error applying reward: ", error);
+      toast({ title: "Error", description: "Gagal menerapkan reward.", variant: "destructive" });
     } finally {
       setIsSubmittingRedemption(false);
     }
@@ -557,6 +611,7 @@ export default function PosPage() {
       // Points are earned only if no points were redeemed in this transaction
       if (selectedTransaction.clientId && (!selectedTransaction.pointsRedeemed || selectedTransaction.pointsRedeemed === 0)) {
          pointsEarnedThisTransaction = selectedTransaction.items.reduce((sum, item) => {
+            if (item.type === 'reward_merchandise') return sum; // Don't award points for redeemed merchandise
             const awardedPoints = (typeof item.pointsAwardedPerUnit === 'number' && !isNaN(item.pointsAwardedPerUnit)) ? item.pointsAwardedPerUnit : 0;
             const qty = (typeof item.quantity === 'number' && !isNaN(item.quantity) && item.quantity > 0) ? item.quantity : 1; 
             return sum + (awardedPoints * qty);
@@ -648,18 +703,23 @@ export default function PosPage() {
     transaction.items.forEach(item => {
       text += `- ${item.name} (${item.quantity} x Rp ${item.price.toLocaleString('id-ID')})`;
       if(item.staffName) text += ` (Oleh: ${item.staffName})`;
+      if(item.type === 'reward_merchandise') text += ` (REWARD)`;
       text += ` = Rp ${(item.quantity * item.price).toLocaleString('id-ID')}\n`;
     });
     text += `\nSubtotal: Rp ${transaction.subtotal.toLocaleString('id-ID')}\n`;
-    if (transaction.discountAmount > 0) {
-      text += `Diskon: - Rp ${transaction.discountAmount.toLocaleString('id-ID')}\n`;
+    
+    if (transaction.redeemedReward && transaction.redeemedReward.type === 'discount_transaction' && transaction.pointsRedeemedValue && transaction.pointsRedeemedValue > 0) {
+      text += `Diskon Reward (${transaction.redeemedReward.name}): - Rp ${transaction.pointsRedeemedValue.toLocaleString('id-ID')}\n`;
+    } else if (transaction.discountAmount > 0 && (!transaction.redeemedReward || transaction.redeemedReward.type !== 'discount_transaction')) {
+      text += `Diskon Manual: - Rp ${transaction.discountAmount.toLocaleString('id-ID')}\n`;
     }
+
     text += `*Total: Rp ${transaction.total.toLocaleString('id-ID')}*\n`;
     text += `Metode Bayar: ${transaction.paymentMethod || 'N/A'}\n`;
 
-    if (transaction.pointsRedeemed && transaction.pointsRedeemed > 0) {
-        text += `Poin Ditukar: ${transaction.pointsRedeemed.toLocaleString('id-ID')} poin\n`;
-        text += `(Tidak ada poin baru diperoleh pada transaksi ini karena penukaran poin.)\n`;
+    if (transaction.pointsRedeemed && transaction.pointsRedeemed > 0 && transaction.redeemedReward) {
+        text += `Reward Ditukar: ${transaction.redeemedReward.name} (${transaction.pointsRedeemed.toLocaleString('id-ID')} poin)\n`;
+        text += `(Tidak ada poin baru diperoleh pada transaksi ini karena penukaran reward.)\n`;
     } else if (transaction.pointsEarnedInThisTx && transaction.pointsEarnedInThisTx > 0) {
         text += `Poin Baru Diperoleh: ${transaction.pointsEarnedInThisTx.toLocaleString('id-ID')} poin\n`;
     }
@@ -731,6 +791,42 @@ export default function PosPage() {
   const selectedGalleryItemDetails = useMemo(() => {
     return availableItems.find(item => item.id === selectedCatalogItemId);
   }, [availableItems, selectedCatalogItemId]);
+
+  const handleClearReward = async () => {
+    if (!selectedTransaction || !selectedTransaction.redeemedReward) return;
+    
+    setIsSubmittingRedemption(true); // Reuse submitting state
+    try {
+        const transactionDocRef = doc(db, 'transactions', selectedTransaction.id);
+        let updatedItemsArray = selectedTransaction.items.filter(item => item.type !== 'reward_merchandise');
+
+        const { subtotal, total } = calculateTransactionTotals(
+            updatedItemsArray, 
+            0, // Reset manual discount amount
+            0, // Reset manual discount percentage
+            0  // No points redeemed value
+        );
+
+        await updateDoc(transactionDocRef, {
+            items: updatedItemsArray,
+            subtotal: subtotal,
+            total: total,
+            discountAmount: 0,
+            discountPercentage: 0,
+            pointsRedeemed: deleteDoc(),
+            pointsRedeemedValue: deleteDoc(),
+            redeemedReward: deleteDoc(),
+            notes: selectedTransaction.notes?.replace(/\[Tukar.*?poin.*?\]/g, '').trim() || '',
+            updatedAt: serverTimestamp(),
+        });
+        toast({ title: "Reward Dihapus", description: "Reward telah dihapus dari transaksi." });
+    } catch (error) {
+        console.error("Error clearing reward:", error);
+        toast({ title: "Error", description: "Gagal menghapus reward.", variant: "destructive"});
+    } finally {
+        setIsSubmittingRedemption(false);
+    }
+};
 
 
   if (loadingTransactions || loadingCatalogItems || loadingClients || loadingAssignableStaff) {
@@ -840,14 +936,24 @@ export default function PosPage() {
                             </div>
                         )}
                     </div>
-                    {selectedClientDetails && (selectedClientDetails.loyaltyPoints || 0) >= MINIMUM_POINTS_TO_REDEEM && (
+                    {selectedClientDetails && (selectedClientDetails.loyaltyPoints || 0) >= MINIMUM_POINTS_TO_REDEEM && !selectedTransaction.redeemedReward && (
                         <Button 
                           size="sm" 
                           variant="default"
                           onClick={handleOpenRedeemPointsDialog}
                           className="bg-accent text-accent-foreground hover:bg-accent/90"
                         >
-                            <Tags className="mr-2 h-4 w-4" /> Tukar Poin
+                            <Tags className="mr-2 h-4 w-4" /> Tukar Reward
+                        </Button>
+                    )}
+                    {selectedTransaction.redeemedReward && (
+                         <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            onClick={handleClearReward}
+                        >
+                            <Trash2 className="mr-2 h-4 w-4"/> Hapus Reward Aktif
                         </Button>
                     )}
                   </div>
@@ -878,6 +984,7 @@ export default function PosPage() {
                           <TableCell>
                             {item.name}
                             {item.staffName && <span className="text-xs text-muted-foreground block">Oleh: {item.staffName}</span>}
+                            {item.type === 'reward_merchandise' && <Badge variant="secondary" className="ml-2 text-xs">REWARD</Badge>}
                           </TableCell>
                           <TableCell className="text-center">{item.quantity}</TableCell>
                           <TableCell className="text-right">Rp {item.price.toLocaleString('id-ID')}</TableCell>
@@ -888,7 +995,7 @@ export default function PosPage() {
                                 size="icon" 
                                 className="text-destructive hover:text-destructive h-8 w-8"
                                 onClick={() => handleRemoveItemFromTransaction(item.id)} 
-                                disabled={isSubmittingItem}
+                                disabled={isSubmittingItem || (item.type === 'reward_merchandise' && selectedTransaction.redeemedReward?.name === item.name)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -912,10 +1019,15 @@ export default function PosPage() {
                     <span>Subtotal ({selectedTransaction.items.reduce((acc,item)=> acc + item.quantity, 0)} item)</span>
                     <span>Rp {selectedTransaction.subtotal.toLocaleString('id-ID')}</span>
                   </div>
-                  {selectedTransaction.pointsRedeemed && selectedTransaction.pointsRedeemed > 0 ? (
+                  {selectedTransaction.redeemedReward && selectedTransaction.redeemedReward.type === 'discount_transaction' && selectedTransaction.pointsRedeemedValue ? (
                      <div className="flex justify-between text-green-600">
-                        <span>Diskon dari {selectedTransaction.pointsRedeemed.toLocaleString('id-ID')} Poin</span>
-                        <span>- Rp {(selectedTransaction.pointsRedeemedValue || 0).toLocaleString('id-ID')}</span>
+                        <span>Diskon dari Reward: {selectedTransaction.redeemedReward.name}</span>
+                        <span>- Rp {(selectedTransaction.pointsRedeemedValue).toLocaleString('id-ID')}</span>
+                    </div>
+                  ) : selectedTransaction.redeemedReward && selectedTransaction.redeemedReward.type === 'merchandise' ? (
+                     <div className="flex justify-between text-green-600">
+                        <span>Reward Merchandise: {selectedTransaction.redeemedReward.name}</span>
+                        <span>(Termasuk)</span>
                     </div>
                   ) : (
                     <div className="flex justify-between items-center">
@@ -929,7 +1041,7 @@ export default function PosPage() {
                                 onBlur={(e) => {
                                     handleDiscountChange(selectedTransaction.id, selectedTransaction.items, e.target.value, '0');
                                 }}
-                                disabled={selectedTransaction.discountPercentage > 0 || (selectedTransaction.pointsRedeemed && selectedTransaction.pointsRedeemed > 0)}
+                                disabled={selectedTransaction.discountPercentage > 0 || !!selectedTransaction.redeemedReward}
                             />
                             <span className="text-sm">atau</span>
                             <Input 
@@ -940,7 +1052,7 @@ export default function PosPage() {
                                 onBlur={(e) => {
                                     handleDiscountChange(selectedTransaction.id, selectedTransaction.items, '0', e.target.value);
                                 }}
-                                disabled={selectedTransaction.discountAmount > 0 || (selectedTransaction.pointsRedeemed && selectedTransaction.pointsRedeemed > 0)}
+                                disabled={selectedTransaction.discountAmount > 0 || !!selectedTransaction.redeemedReward}
                             />
                         </div>
                     </div>
@@ -1170,47 +1282,52 @@ export default function PosPage() {
       {selectedTransaction && selectedClientDetails && (
         <Dialog open={isRedeemPointsDialogOpen} onOpenChange={(isOpen) => {
             setIsRedeemPointsDialogOpen(isOpen);
-            if (!isOpen) setPointsToRedeemInput(''); 
+            if (!isOpen) setSelectedRewardToRedeem(null);
         }}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Tukar Poin Loyalitas</DialogTitle>
+              <DialogTitle>Tukar Reward Loyalitas</DialogTitle>
               <DialogDescription>
                 Klien: {selectedClientDetails.name} | Poin Tersedia: {(selectedClientDetails.loyaltyPoints || 0).toLocaleString('id-ID')}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-2 pb-4">
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">1 Poin = Rp {POINT_TO_RUPIAH_RATE.toLocaleString('id-ID')} diskon</p>
-                <p className="text-sm text-muted-foreground">Minimum penukaran: {MINIMUM_POINTS_TO_REDEEM.toLocaleString('id-ID')} Poin</p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="points-to-redeem">Jumlah Poin Akan Ditukar</Label>
-                <Input 
-                  id="points-to-redeem"
-                  type="number"
-                  value={pointsToRedeemInput}
-                  onChange={(e) => setPointsToRedeemInput(e.target.value)}
-                  placeholder={`mis. ${MINIMUM_POINTS_TO_REDEEM}`}
-                  min="0"
-                  max={(selectedClientDetails.loyaltyPoints || 0).toString()}
-                />
-              </div>
-              {parseInt(pointsToRedeemInput, 10) > 0 && (
-                 <div className="text-sm font-medium">
-                    Potensi Diskon: Rp {(parseInt(pointsToRedeemInput, 10) * POINT_TO_RUPIAH_RATE).toLocaleString('id-ID')}
-                 </div>
+              {availableRewardsForClient.length === 0 ? (
+                <p className="text-center text-muted-foreground">Tidak ada reward yang bisa ditukarkan dengan poin Anda saat ini.</p>
+              ) : (
+                <RadioGroup 
+                    value={selectedRewardToRedeem?.id} 
+                    onValueChange={(value) => {
+                        const reward = availableRewardsForClient.find(r => r.id === value);
+                        setSelectedRewardToRedeem(reward || null);
+                    }}
+                >
+                  <Label className="mb-2 block">Pilih Reward:</Label>
+                  {availableRewardsForClient.map((reward) => (
+                    <div key={reward.id} className="flex items-center space-x-3 p-3 border rounded-md hover:bg-muted/50 cursor-pointer has-[input:checked]:bg-accent/20 has-[input:checked]:border-accent">
+                       <RadioGroupItem value={reward.id} id={`reward-${reward.id}`} className="mt-1" />
+                       <Label htmlFor={`reward-${reward.id}`} className="font-normal w-full cursor-pointer">
+                         <div className="font-medium">{reward.name} ({reward.pointsRequired} Poin)</div>
+                         <p className="text-xs text-muted-foreground">
+                           {reward.type === 'merchandise' ? `Dapatkan: ${reward.rewardValue}` :
+                            reward.type === 'discount_transaction' ? `Diskon: Rp ${(reward.rewardValue as number).toLocaleString('id-ID')}` :
+                            reward.description}
+                         </p>
+                       </Label>
+                    </div>
+                  ))}
+                </RadioGroup>
               )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsRedeemPointsDialogOpen(false)} disabled={isSubmittingRedemption}>Batal</Button>
               <Button 
-                onClick={handleApplyPointDiscount} 
-                disabled={isSubmittingRedemption || !pointsToRedeemInput || parseInt(pointsToRedeemInput, 10) <= 0 || parseInt(pointsToRedeemInput, 10) < MINIMUM_POINTS_TO_REDEEM}
+                onClick={handleRedeemReward} 
+                disabled={isSubmittingRedemption || !selectedRewardToRedeem || availableRewardsForClient.length === 0}
                 className="bg-accent text-accent-foreground hover:bg-accent/90"
               >
                 {isSubmittingRedemption && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Terapkan Diskon dari Poin
+                Tukarkan Reward
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -1317,3 +1434,4 @@ export default function PosPage() {
     </div>
   );
 }
+
