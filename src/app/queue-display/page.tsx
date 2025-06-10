@@ -63,15 +63,14 @@ export default function QueueDisplayPage() {
   const { toast } = useToast();
 
   const getStatusBadgeVariant = (status: QueueItem['status']) => {
-    // 'Dalam Layanan' and 'Selesai' will be handled by direct className for accent color
     if (status === 'Dalam Layanan' || status === 'Selesai') return undefined;
-    return 'outline'; // For 'Menunggu'
+    return 'outline'; 
   };
 
   const getStatusIcon = (status: QueueItem['status']) => {
     if (status === 'Dalam Layanan') return <Clock className="h-5 w-5 mr-1.5 text-accent-foreground" />;
     if (status === 'Selesai') return <CheckCircle className="h-5 w-5 mr-1.5 text-accent-foreground" />;
-    return <Clock className="h-5 w-5 mr-1.5 text-yellow-500" />; // Menunggu
+    return <Clock className="h-5 w-5 mr-1.5 text-yellow-500" />; 
   };
 
   useEffect(() => {
@@ -115,41 +114,6 @@ export default function QueueDisplayPage() {
   
  useEffect(() => {
     const activeIntervals: Record<string, NodeJS.Timeout> = {};
-
-    setCountdownTimers(currentTimers => {
-        const nextTimersState: Record<string, string> = {};
-        const itemsWithActiveTimers = new Set<string>();
-
-        queueItems.forEach(item => {
-            if (item.status === 'Dalam Layanan' && item.serviceStartTime) {
-                itemsWithActiveTimers.add(item.id);
-                const estimatedDurationMinutes = parseEstimatedTimeToMinutes(item.estimatedTime);
-                if (estimatedDurationMinutes === null) {
-                    nextTimersState[item.id] = item.estimatedTime; 
-                    return;
-                }
-                
-                const serviceStartTimeMs = item.serviceStartTime.toDate().getTime();
-                const targetEndTimeMs = serviceStartTimeMs + estimatedDurationMinutes * 60 * 1000;
-                const nowMs = new Date().getTime();
-                const remainingMs = targetEndTimeMs - nowMs;
-
-                if (remainingMs <= 0) {
-                    nextTimersState[item.id] = TIME_UP_MESSAGE;
-                } else {
-                    const minutes = Math.floor((remainingMs / (1000 * 60)) % 60);
-                    const seconds = Math.floor((remainingMs / 1000) % 60);
-                    nextTimersState[item.id] = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-                }
-            }
-        });
-        Object.keys(currentTimers).forEach(timerId => {
-            if (!itemsWithActiveTimers.has(timerId) && nextTimersState[timerId]) {
-                delete nextTimersState[timerId];
-            }
-        });
-        return nextTimersState;
-    });
 
     queueItems.forEach(item => {
         if (item.status === 'Dalam Layanan' && item.serviceStartTime) {
@@ -197,8 +161,37 @@ export default function QueueDisplayPage() {
             } else {
                 setCountdownTimers(prev => ({ ...prev, [item.id]: TIME_UP_MESSAGE }));
             }
+        } else {
+            // Item is not 'Dalam Layanan' or missing startTime, ensure no active interval
+            if (activeIntervals[item.id]) {
+                clearInterval(activeIntervals[item.id]);
+                delete activeIntervals[item.id];
+            }
+            // Optionally, remove from countdownTimers state if not needed
+            // setCountdownTimers(prev => {
+            //     const newState = { ...prev };
+            //     delete newState[item.id];
+            //     return newState;
+            // });
         }
     });
+    
+    // Cleanup any timers that belong to items no longer in queueItems
+    setCountdownTimers(currentTimers => {
+        const nextTimersState = { ...currentTimers };
+        const activeItemIds = new Set(queueItems.map(item => item.id));
+        Object.keys(currentTimers).forEach(timerId => {
+            if (!activeItemIds.has(timerId)) {
+                if (activeIntervals[timerId]) {
+                    clearInterval(activeIntervals[timerId]);
+                    delete activeIntervals[timerId];
+                }
+                delete nextTimersState[timerId];
+            }
+        });
+        return nextTimersState;
+    });
+
 
     return () => {
         Object.values(activeIntervals).forEach(clearInterval);
@@ -272,7 +265,7 @@ export default function QueueDisplayPage() {
                         key={item.id} 
                         className={cn(
                           "text-lg", 
-                          isDalamLayanan && 'bg-accent/10',
+                          isDalamLayanan && 'bg-primary/10', // Highlight biru muda untuk "Dalam Layanan"
                           isSelesai && 'opacity-70'
                         )}
                       >
