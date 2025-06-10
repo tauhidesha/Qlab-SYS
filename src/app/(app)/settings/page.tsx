@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Palette, Bell, Users, CreditCard as CreditCardIcon, Gift, DollarSign, Loader2, Wallet, Award, PlusCircle, Edit3, Trash2, SlidersHorizontal } from 'lucide-react';
+import { Palette, Bell, Users, CreditCard as CreditCardIcon, Gift, DollarSign, Loader2, Wallet, Award, PlusCircle, Edit3, Trash2, SlidersHorizontal, Settings2 } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, serverTimestamp, collection, addDoc, updateDoc, deleteDoc, query, orderBy, getDocs as getFirestoreDocs } from 'firebase/firestore'; 
@@ -76,8 +76,13 @@ type LoyaltyRewardFormValues = z.infer<typeof loyaltyRewardFormSchema>;
 
 export default function SettingsPage() {
   const { toast } = useToast();
+  const [workshopName, setWorkshopName] = useState('QLAB Auto Detailing');
+  const [workshopAddress, setWorkshopAddress] = useState('Jl. Sudirman No. 123, Jakarta');
+  const [workshopPhone, setWorkshopPhone] = useState('+62 21 555 0123');
+  const [isLoadingGeneralSettings, setIsLoadingGeneralSettings] = useState(true);
+  const [isSavingGeneralSettings, setIsSavingGeneralSettings] = useState(false);
+
   const [minPointsToRedeemGeneral, setMinPointsToRedeemGeneral] = React.useState('100');
-  
   const [initialBankBalance, setInitialBankBalance] = React.useState('');
   const [initialPhysicalCashBalance, setInitialPhysicalCashBalance] = React.useState('');
   const [isLoadingFinancialSettings, setIsLoadingFinancialSettings] = useState(true);
@@ -103,6 +108,51 @@ export default function SettingsPage() {
     },
   });
   const watchedRewardType = rewardForm.watch('type');
+
+  useEffect(() => {
+    const fetchGeneralSettings = async () => {
+      setIsLoadingGeneralSettings(true);
+      try {
+        const settingsDocRef = doc(db, 'appSettings', 'generalDetails');
+        const docSnap = await getDoc(settingsDocRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setWorkshopName(data.workshopName || 'QLAB Auto Detailing');
+          setWorkshopAddress(data.workshopAddress || 'Jl. Sudirman No. 123, Jakarta');
+          setWorkshopPhone(data.workshopPhone || '+62 21 555 0123');
+        }
+      } catch (error) {
+        console.error("Error fetching general settings: ", error);
+        toast({
+          title: "Error",
+          description: "Gagal memuat pengaturan umum bengkel.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingGeneralSettings(false);
+      }
+    };
+    fetchGeneralSettings();
+  }, [toast]);
+
+  const handleSaveGeneralSettings = async () => {
+    setIsSavingGeneralSettings(true);
+    try {
+      const settingsDocRef = doc(db, 'appSettings', 'generalDetails');
+      await setDoc(settingsDocRef, { 
+        workshopName,
+        workshopAddress,
+        workshopPhone,
+        updatedAt: serverTimestamp() 
+      }, { merge: true });
+      toast({ title: "Sukses", description: "Pengaturan umum bengkel berhasil disimpan." });
+    } catch (error) {
+      console.error("Error saving general settings: ", error);
+      toast({ title: "Error", description: "Gagal menyimpan pengaturan umum.", variant: "destructive" });
+    } finally {
+      setIsSavingGeneralSettings(false);
+    }
+  };
 
 
   useEffect(() => {
@@ -288,21 +338,33 @@ export default function SettingsPage() {
                 <CardDescription>Kelola informasi bengkel Anda dan pengaturan dasar.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="workshop-name">Nama Bengkel</Label>
-                  <Input id="workshop-name" defaultValue="QLAB Auto Detailing" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="workshop-address">Alamat</Label>
-                  <Input id="workshop-address" defaultValue="Jl. Sudirman No. 123, Jakarta" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="workshop-phone">Nomor Telepon</Label>
-                  <Input id="workshop-phone" type="tel" defaultValue="+62 21 555 0123" />
-                </div>
+                {isLoadingGeneralSettings ? (
+                  <div className="flex items-center space-x-2">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>Memuat pengaturan umum...</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="workshop-name">Nama Bengkel</Label>
+                      <Input id="workshop-name" value={workshopName} onChange={(e) => setWorkshopName(e.target.value)} disabled={isSavingGeneralSettings}/>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="workshop-address">Alamat</Label>
+                      <Input id="workshop-address" value={workshopAddress} onChange={(e) => setWorkshopAddress(e.target.value)} disabled={isSavingGeneralSettings}/>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="workshop-phone">Nomor Telepon</Label>
+                      <Input id="workshop-phone" type="tel" value={workshopPhone} onChange={(e) => setWorkshopPhone(e.target.value)} disabled={isSavingGeneralSettings}/>
+                    </div>
+                  </>
+                )}
               </CardContent>
               <CardFooter>
-                <Button disabled>Simpan Perubahan Umum (Segera)</Button>
+                <Button onClick={handleSaveGeneralSettings} disabled={isSavingGeneralSettings || isLoadingGeneralSettings}>
+                   {isSavingGeneralSettings ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Simpan Perubahan Umum
+                </Button>
               </CardFooter>
             </Card>
              <Card>
@@ -668,4 +730,3 @@ export default function SettingsPage() {
   );
 }
     
-
