@@ -22,7 +22,7 @@ export const mainNavItems: NavItem[] = [
     description: 'Gambaran umum aktivitas bengkel.',
   },
   {
-    title: 'Titik Penjualan',
+    title: 'Penjualan',
     href: '/pos',
     icon: ShoppingCart,
     description: 'Kelola penjualan dan transaksi.',
@@ -70,3 +70,4 @@ export const settingsNavItem: NavItem = {
   icon: Settings,
   description: 'Konfigurasi pengaturan aplikasi.',
 };
+

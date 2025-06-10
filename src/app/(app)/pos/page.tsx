@@ -673,7 +673,7 @@ export default function PosPage() {
   if (loadingTransactions || loadingCatalogItems || loadingClients) {
     return (
       <div className="flex flex-col h-full">
-        <AppHeader title="Titik Penjualan" />
+        <AppHeader title="Penjualan" />
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="ml-2">Memuat data...</p>
@@ -684,7 +684,7 @@ export default function PosPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <AppHeader title="Titik Penjualan" />
+      <AppHeader title="Penjualan" />
       <main className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1 space-y-4">
            <AlertDialog open={!!transactionToDelete} onOpenChange={(open) => !open && setTransactionToDelete(null)}>
