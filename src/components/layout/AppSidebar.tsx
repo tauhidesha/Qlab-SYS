@@ -37,12 +37,26 @@ interface AppSidebarProps {
 
 // Helper function to determine if a NavItem or any of its children/grandchildren are active
 const isNavItemActive = (navItem: NavItem, currentPathname: string): boolean => {
-  if (navItem.href && (currentPathname === navItem.href || (navItem.href !== "/" && currentPathname.startsWith(navItem.href)))) {
-    return true;
+  if (navItem.href) {
+    // Exact match always makes it active
+    if (currentPathname === navItem.href) {
+      return true;
+    }
+    // For items that are parents (have children), allow prefix matching if current path is deeper
+    if (navItem.items && navItem.items.length > 0) {
+      if (navItem.href !== "/" && currentPathname.startsWith(navItem.href) && currentPathname.length > navItem.href.length) {
+        return true;
+      }
+    }
+    // For leaf items, only exact match (handled above). So if not an exact match, it's not active by its own href.
   }
+
+  // If an item has children, it can also be considered active if one of its children is active.
+  // This part is crucial for highlighting the parent group when a child is active.
   if (navItem.items?.length) {
     return navItem.items.some(child => isNavItemActive(child, currentPathname));
   }
+
   return false;
 };
 
