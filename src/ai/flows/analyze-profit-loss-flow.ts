@@ -21,7 +21,7 @@ const ExpenseBreakdownItemSchema = z.object({
   amount: z.number().describe('Jumlah pengeluaran untuk kategori ini.'),
 });
 
-export const AnalyzeProfitLossInputSchema = z.object({
+const AnalyzeProfitLossInputSchema = z.object({
   period: z.string().describe('Periode laporan, contoh: "Juli 2024".'),
   totalRevenue: z.number().describe('Total pendapatan.'),
   revenueFromSales: z.number().describe('Pendapatan dari penjualan POS.'),
@@ -33,7 +33,7 @@ export const AnalyzeProfitLossInputSchema = z.object({
 });
 export type AnalyzeProfitLossInput = z.infer<typeof AnalyzeProfitLossInputSchema>;
 
-export const AnalyzeProfitLossOutputSchema = z.object({
+const AnalyzeProfitLossOutputSchema = z.object({
   summary: z.string().describe('Ringkasan singkat tentang performa keuangan pada periode tersebut. Sebutkan apakah secara umum baik, cukup, atau perlu perhatian, berdasarkan laba bersih dan komponen utama.'),
   keyObservations: z.array(z.string()).describe('Beberapa poin observasi kunci (2-4 poin). Fokus pada kontributor terbesar pendapatan dan biaya, atau item yang menonjol. Hindari perbandingan dengan periode sebelumnya karena data tidak tersedia.'),
   recommendations: z.array(z.string()).describe('Beberapa saran umum atau area yang mungkin perlu ditinjau lebih lanjut (1-2 poin). Jika tidak ada yang spesifik, bisa berikan saran umum untuk menjaga performa atau meningkatkan efisiensi.'),
@@ -105,3 +105,4 @@ const analyzeProfitLossFlow = ai.defineFlow(
     return output;
   }
 );
+
