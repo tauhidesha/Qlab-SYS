@@ -91,7 +91,7 @@ export default function QueueDisplayPage() {
             serviceStartTime: data.serviceStartTime,
           } as QueueItem;
         })
-        .filter(item => {
+        .filter(item => { // Filter items already completed more than AUTO_HIDE_DELAY_MS ago
           if (item.status === 'Selesai' && item.completedAt) {
             const completedTime = item.completedAt.toDate().getTime();
             if (now - completedTime > AUTO_HIDE_DELAY_MS) {
@@ -112,16 +112,66 @@ export default function QueueDisplayPage() {
     return () => unsubscribe();
   }, [toast]);
   
- useEffect(() => {
+  useEffect(() => {
     const activeIntervals: Record<string, NodeJS.Timeout> = {};
+
+    // Synchronize countdownTimers state with queueItems first
+    setCountdownTimers(prevTimers => {
+        const nextTimers: Record<string, string> = {};
+        let hasChanged = false;
+
+        queueItems.forEach(item => {
+            if (item.status === 'Dalam Layanan' && item.serviceStartTime) {
+                const estimatedDurationMinutes = parseEstimatedTimeToMinutes(item.estimatedTime);
+                if (estimatedDurationMinutes === null) {
+                    if (prevTimers[item.id] !== item.estimatedTime) {
+                        nextTimers[item.id] = item.estimatedTime; // Use original estimate if not parsable
+                        hasChanged = true;
+                    } else {
+                        nextTimers[item.id] = prevTimers[item.id];
+                    }
+                    return;
+                }
+                const serviceStartTimeMs = item.serviceStartTime.toDate().getTime();
+                const targetEndTimeMs = serviceStartTimeMs + estimatedDurationMinutes * 60 * 1000;
+                const nowMs = new Date().getTime();
+                const remainingMs = targetEndTimeMs - nowMs;
+
+                if (remainingMs <= 0) {
+                    if (prevTimers[item.id] !== TIME_UP_MESSAGE) {
+                        nextTimers[item.id] = TIME_UP_MESSAGE;
+                        hasChanged = true;
+                    } else {
+                        nextTimers[item.id] = prevTimers[item.id];
+                    }
+                } else {
+                    // Calculate initial display for new/active timers or keep existing if interval will handle it
+                     if (!prevTimers[item.id] || prevTimers[item.id] === TIME_UP_MESSAGE || prevTimers[item.id] === item.estimatedTime) {
+                        const minutes = Math.floor((remainingMs / (1000 * 60)) % 60);
+                        const seconds = Math.floor((remainingMs / 1000) % 60);
+                        nextTimers[item.id] = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                        hasChanged = true;
+                     } else {
+                        nextTimers[item.id] = prevTimers[item.id];
+                     }
+                }
+            } else if (prevTimers[item.id]) { // Item not in service or no start time, but had a timer
+                hasChanged = true; // Mark as changed to remove it
+            }
+        });
+        // Check if any timers need to be removed for items no longer in queueItems
+        for (const itemId in prevTimers) {
+            if (!queueItems.find(item => item.id === itemId)) {
+                hasChanged = true;
+            }
+        }
+        return hasChanged ? nextTimers : prevTimers;
+    });
 
     queueItems.forEach(item => {
         if (item.status === 'Dalam Layanan' && item.serviceStartTime) {
             const estimatedDurationMinutes = parseEstimatedTimeToMinutes(item.estimatedTime);
-            if (estimatedDurationMinutes === null) {
-                 setCountdownTimers(prev => ({ ...prev, [item.id]: item.estimatedTime }));
-                return; 
-            }
+            if (estimatedDurationMinutes === null) return; // Already handled by setting static text
 
             const serviceStartTimeMs = item.serviceStartTime.toDate().getTime();
             const targetEndTimeMs = serviceStartTimeMs + estimatedDurationMinutes * 60 * 1000;
@@ -151,53 +201,22 @@ export default function QueueDisplayPage() {
                 });
             };
             
-            if (activeIntervals[item.id]) {
-                clearInterval(activeIntervals[item.id]);
-            }
+            // Clear existing interval for this item before starting a new one
+            if (activeIntervals[item.id]) clearInterval(activeIntervals[item.id]);
             
-            if (targetEndTimeMs > new Date().getTime()) {
-                 updateTimerForThisItem(); 
+            if (targetEndTimeMs > new Date().getTime()) { // Only start interval if not already past due
+                 updateTimerForThisItem(); // Initial call to set time immediately
                  activeIntervals[item.id] = setInterval(updateTimerForThisItem, 1000);
-            } else {
-                setCountdownTimers(prev => ({ ...prev, [item.id]: TIME_UP_MESSAGE }));
             }
-        } else {
-            // Item is not 'Dalam Layanan' or missing startTime, ensure no active interval
-            if (activeIntervals[item.id]) {
-                clearInterval(activeIntervals[item.id]);
-                delete activeIntervals[item.id];
-            }
-            // Optionally, remove from countdownTimers state if not needed
-            // setCountdownTimers(prev => {
-            //     const newState = { ...prev };
-            //     delete newState[item.id];
-            //     return newState;
-            // });
         }
     });
-    
-    // Cleanup any timers that belong to items no longer in queueItems
-    setCountdownTimers(currentTimers => {
-        const nextTimersState = { ...currentTimers };
-        const activeItemIds = new Set(queueItems.map(item => item.id));
-        Object.keys(currentTimers).forEach(timerId => {
-            if (!activeItemIds.has(timerId)) {
-                if (activeIntervals[timerId]) {
-                    clearInterval(activeIntervals[timerId]);
-                    delete activeIntervals[timerId];
-                }
-                delete nextTimersState[timerId];
-            }
-        });
-        return nextTimersState;
-    });
-
 
     return () => {
         Object.values(activeIntervals).forEach(clearInterval);
     };
-  }, [queueItems]);
+  }, [queueItems]); // Rerun when queueItems changes
 
+  // This useEffect handles the periodic removal of "Selesai" items from the client-side display
   useEffect(() => {
     const intervalId = setInterval(() => {
       const now = Date.now();
@@ -210,7 +229,7 @@ export default function QueueDisplayPage() {
           return true;
         })
       );
-    }, 60 * 1000);
+    }, 60 * 1000); // Check every minute
 
     return () => clearInterval(intervalId);
   }, []);
@@ -265,7 +284,7 @@ export default function QueueDisplayPage() {
                         key={item.id} 
                         className={cn(
                           "text-lg", 
-                          isDalamLayanan && 'bg-primary/10', // Highlight biru muda untuk "Dalam Layanan"
+                          isDalamLayanan && 'bg-blue-800/25', // Dark blue highlight for "Dalam Layanan"
                           isSelesai && 'opacity-70'
                         )}
                       >
