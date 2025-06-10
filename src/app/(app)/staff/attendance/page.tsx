@@ -11,6 +11,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { toast } from "@/hooks/use-toast";
+import { id as indonesiaLocale } from 'date-fns/locale'; // Import Indonesian locale
 
 interface AttendanceRecord {
   id: string;
@@ -134,7 +135,7 @@ export default function AttendancePage() {
                 className="rounded-md border"
                 disabled={(date) => date > new Date() || date < new Date("2000-01-01")}
                 initialFocus
-                locale={{ code: 'id-ID' } as any} // Ensure calendar uses Indonesian locale for month/day names if supported
+                locale={indonesiaLocale} 
               />
             </CardContent>
           </Card>
