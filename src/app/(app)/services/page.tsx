@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   Dialog,
-  DialogHeader as InfoDialogHeader, // Renamed to avoid conflict
+  DialogHeader as InfoDialogHeader,
   DialogContent as InfoDialogContent,
   DialogTitle as InfoDialogTitle,
   DialogDescription as InfoDialogDescription,
@@ -36,16 +36,23 @@ import {
 import { buttonVariants } from '@/components/ui/button';
 import Papa from 'papaparse';
 
+export interface ServiceProductVariant {
+  id: string; // Client-generated UUID for new, Firestore ID for existing (though in embedded array, it's more like a key)
+  name: string;
+  price: number;
+  pointsAwarded?: number;
+}
 
 export interface ServiceProduct {
   id: string;
   name: string;
   type: 'Layanan' | 'Produk';
   category: string;
-  price: number;
+  price: number; // Base price or price if no variants
   description?: string;
-  pointsAwarded?: number; 
+  pointsAwarded?: number; // Points for base product or if no variants
   createdAt?: any; 
+  variants?: ServiceProductVariant[];
 }
 
 export default function ServicesPage() {
@@ -119,14 +126,13 @@ export default function ServicesPage() {
             return;
           }
 
-          // Validate header
           const expectedHeaders = ['name', 'type', 'category', 'price'];
           const actualHeaders = Object.keys(parsedData[0]);
           const missingHeaders = expectedHeaders.filter(h => !actualHeaders.includes(h));
           if (missingHeaders.length > 0) {
             toast({
               title: "Format CSV Salah",
-              description: `Header kolom yang hilang: ${missingHeaders.join(', ')}. Pastikan CSV memiliki kolom: name, type, category, price, description (opsional), pointsAwarded (opsional).`,
+              description: `Header kolom yang hilang: ${missingHeaders.join(', ')}. Pastikan CSV memiliki kolom: name, type, category, price, description (opsional), pointsAwarded (opsional). Varian tidak didukung via CSV saat ini.`,
               variant: "destructive",
               duration: 10000,
             });
@@ -175,7 +181,6 @@ export default function ServicesPage() {
                 }
             }
 
-
             const newItemRef = doc(collection(db, 'services'));
             batch.set(newItemRef, {
               name,
@@ -184,6 +189,7 @@ export default function ServicesPage() {
               price,
               description,
               pointsAwarded,
+              variants: [], // Variants not supported via CSV import for now
               createdAt: serverTimestamp(),
             });
             itemsAddedCount++;
@@ -195,14 +201,14 @@ export default function ServicesPage() {
               title: "Import Selesai",
               description: `${itemsAddedCount} item berhasil diimpor. ${itemsFailedCount > 0 ? `${itemsFailedCount} item gagal (cek konsol untuk detail).` : ''}`,
             });
-            fetchItems(); // Refresh list
+            fetchItems(); 
           } catch (error) {
             console.error("Error importing CSV: ", error);
             toast({ title: "Error Impor", description: "Gagal menyimpan data ke database.", variant: "destructive" });
           } finally {
             setIsImporting(false);
             if (fileInputRef.current) {
-              fileInputRef.current.value = ""; // Reset file input
+              fileInputRef.current.value = ""; 
             }
           }
         },
@@ -221,7 +227,6 @@ export default function ServicesPage() {
   const triggerFileInput = () => {
     fileInputRef.current?.click();
   };
-
 
   const filteredItems = items.filter(item =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -250,7 +255,7 @@ export default function ServicesPage() {
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>Katalog Layanan & Produk</CardTitle>
-                <CardDescription>Kelola penawaran Anda dan detailnya.</CardDescription>
+                <CardDescription>Kelola penawaran Anda dan detailnya, termasuk varian produk.</CardDescription>
               </div>
                <div className="flex gap-2 items-center">
                  <div className="relative">
@@ -289,7 +294,7 @@ export default function ServicesPage() {
                       <li><code className="bg-muted px-1 rounded-sm">description</code> (Teks, Opsional) - Deskripsi item.</li>
                       <li><code className="bg-muted px-1 rounded-sm">pointsAwarded</code> (Angka, Opsional) - Poin loyalitas yang diberikan.</li>
                     </ul>
-                    <p className="text-xs text-muted-foreground">Baris pertama CSV harus berisi nama header. Baris dengan data wajib yang kosong atau format harga/tipe yang salah akan dilewati.</p>
+                    <p className="text-xs text-muted-foreground">Baris pertama CSV harus berisi nama header. Varian produk tidak didukung melalui impor CSV saat ini. Baris dengan data wajib yang kosong atau format harga/tipe yang salah akan dilewati.</p>
                     <InfoDialogFooter>
                       <DialogClose asChild>
                         <Button type="button" variant="secondary">Tutup</Button>
@@ -315,8 +320,9 @@ export default function ServicesPage() {
                     <TableHead>Nama</TableHead>
                     <TableHead>Jenis</TableHead>
                     <TableHead>Kategori</TableHead>
-                    <TableHead className="text-right">Harga</TableHead>
-                    <TableHead className="text-center">Poin</TableHead>
+                    <TableHead className="text-right">Harga Dasar</TableHead>
+                    <TableHead className="text-center">Poin Dasar</TableHead>
+                    <TableHead className="text-center">Jml. Varian</TableHead>
                     <TableHead className="text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -341,6 +347,7 @@ export default function ServicesPage() {
                           '-'
                         )}
                       </TableCell>
+                      <TableCell className="text-center">{item.variants?.length || 0}</TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="icon" asChild className="hover:text-primary">
                            <Link href={`/services/${item.id}/edit`}>
@@ -387,3 +394,5 @@ export default function ServicesPage() {
     </div>
   );
 }
+
+    

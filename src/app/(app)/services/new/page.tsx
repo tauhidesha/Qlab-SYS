@@ -11,37 +11,45 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Save, Loader2, ArrowLeft, Gift } from 'lucide-react';
+import { Save, Loader2, ArrowLeft, Gift, PlusCircle, Trash2 } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import type { ServiceProduct } from '../page'; // Import type from parent page
+import type { ServiceProduct, ServiceProductVariant } from '../page';
+import { v4 as uuidv4 } from 'uuid';
+import { Separator } from '@/components/ui/separator';
+
+const variantSchema = z.object({
+  id: z.string(), // Will be UUID for new variants
+  name: z.string().min(1, "Nama varian diperlukan"),
+  price: z.preprocess(
+    (val) => (val === "" || val === undefined || val === null) ? undefined : parseFloat(String(val)),
+    z.number({ required_error: "Harga varian diperlukan", invalid_type_error: "Harga varian harus berupa angka" }).positive("Harga varian harus angka positif")
+  ),
+  pointsAwarded: z.preprocess(
+    (val) => (val === "" || val === undefined || val === null) ? undefined : parseInt(String(val), 10),
+    z.number({ invalid_type_error: "Poin varian harus berupa angka" }).nonnegative("Poin varian tidak boleh negatif").optional()
+  ),
+});
 
 const serviceProductFormSchema = z.object({
   name: z.string().min(2, "Nama item minimal 2 karakter").max(100, "Nama item maksimal 100 karakter"),
   type: z.enum(['Layanan', 'Produk'], { required_error: "Jenis item diperlukan" }),
   category: z.string().min(2, "Kategori minimal 2 karakter").max(50, "Kategori maksimal 50 karakter"),
   price: z.preprocess(
-    (val) => {
-      if (val === '' || val === undefined || val === null) return undefined;
-      const num = parseFloat(String(val));
-      return isNaN(num) ? undefined : num;
-    },
-    z.number({ required_error: "Harga diperlukan", invalid_type_error: "Harga harus berupa angka" }).positive("Harga harus angka positif")
+    (val) => (val === '' || val === undefined || val === null) ? undefined : parseFloat(String(val)),
+    z.number({ required_error: "Harga dasar diperlukan", invalid_type_error: "Harga dasar harus berupa angka" }).positive("Harga dasar harus angka positif")
   ),
   pointsAwarded: z.preprocess(
-    (val) => {
-      if (val === '' || val === undefined || val === null) return undefined;
-      const num = parseInt(String(val), 10);
-      return isNaN(num) ? undefined : num;
-    },
-    z.number({ invalid_type_error: "Poin harus berupa angka" }).nonnegative("Poin tidak boleh negatif").optional()
+    (val) => (val === '' || val === undefined || val === null) ? undefined : parseInt(String(val), 10),
+    z.number({ invalid_type_error: "Poin dasar harus berupa angka" }).nonnegative("Poin dasar tidak boleh negatif").optional()
   ),
   description: z.string().max(500, "Deskripsi maksimal 500 karakter").optional(),
+  variants: z.array(variantSchema).optional(),
 });
 
 type ServiceProductFormValues = z.infer<typeof serviceProductFormSchema>;
@@ -49,6 +57,7 @@ type ServiceProductFormValues = z.infer<typeof serviceProductFormSchema>;
 export default function NewServiceProductPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
 
   const form = useForm<ServiceProductFormValues>({
     resolver: zodResolver(serviceProductFormSchema),
@@ -59,7 +68,13 @@ export default function NewServiceProductPage() {
       price: '' as any, 
       pointsAwarded: undefined,
       description: '',
+      variants: [],
     },
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "variants",
   });
 
   const onSubmit = async (data: ServiceProductFormValues) => {
@@ -72,10 +87,16 @@ export default function NewServiceProductPage() {
         price: data.price,
         pointsAwarded: data.pointsAwarded || 0,
         description: data.description || '',
+        variants: data.variants?.map(v => ({
+          id: v.id || uuidv4(), // ensure ID exists
+          name: v.name,
+          price: v.price,
+          pointsAwarded: v.pointsAwarded || 0,
+        })) || [],
         createdAt: serverTimestamp(),
       };
 
-      const docRef = await addDoc(collection(db, 'services'), newServiceProductData);
+      await addDoc(collection(db, 'services'), newServiceProductData);
       toast({
         title: "Sukses!",
         description: `Item baru "${data.name}" berhasil ditambahkan.`,
@@ -88,6 +109,7 @@ export default function NewServiceProductPage() {
         description: "Gagal menambahkan item baru. Silakan coba lagi.",
         variant: "destructive",
       });
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -159,7 +181,7 @@ export default function NewServiceProductPage() {
                     name="price"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Harga (Rp)</FormLabel>
+                        <FormLabel>Harga Dasar (Rp)</FormLabel>
                         <FormControl>
                           <Input 
                             type="number" 
@@ -182,7 +204,7 @@ export default function NewServiceProductPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel className="flex items-center">
-                          <Gift className="mr-2 h-4 w-4 text-yellow-500" /> Poin Diberikan (Opsional)
+                          <Gift className="mr-2 h-4 w-4 text-yellow-500" /> Poin Dasar Diberikan (Opsional)
                         </FormLabel>
                         <FormControl>
                            <Input 
@@ -214,6 +236,92 @@ export default function NewServiceProductPage() {
                     </FormItem>
                   )}
                 />
+
+                <Separator />
+
+                <div>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-medium">Varian Produk/Layanan (Opsional)</h3>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => append({ id: uuidv4(), name: '', price: '' as any, pointsAwarded: undefined })}
+                    >
+                      <PlusCircle className="mr-2 h-4 w-4" /> Tambah Varian
+                    </Button>
+                  </div>
+                  {fields.length === 0 && <p className="text-sm text-muted-foreground mb-4">Tidak ada varian. Item akan menggunakan harga dan poin dasar.</p>}
+                  
+                  {fields.map((field, index) => (
+                    <Card key={field.id} className="mb-4 p-4 border-dashed">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
+                        <FormField
+                          control={form.control}
+                          name={`variants.${index}.name`}
+                          render={({ field: variantField }) => (
+                            <FormItem>
+                              <FormLabel>Nama Varian</FormLabel>
+                              <FormControl>
+                                <Input placeholder="mis. Merah, Ukuran XL" {...variantField} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`variants.${index}.price`}
+                          render={({ field: variantField }) => (
+                            <FormItem>
+                              <FormLabel>Harga Varian (Rp)</FormLabel>
+                              <FormControl>
+                                <Input type="number" placeholder="mis. 80000" {...variantField} 
+                                  value={variantField.value === undefined ? '' : variantField.value}
+                                  onChange={e => {
+                                    const val = e.target.value;
+                                    variantField.onChange(val === '' ? '' : parseFloat(val));
+                                  }}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`variants.${index}.pointsAwarded`}
+                          render={({ field: variantField }) => (
+                            <FormItem>
+                              <FormLabel>Poin Varian</FormLabel>
+                              <FormControl>
+                                <Input type="number" placeholder="mis. 110" {...variantField} 
+                                  value={variantField.value === undefined ? '' : variantField.value}
+                                  onChange={e => {
+                                    const val = e.target.value;
+                                    variantField.onChange(val === '' ? undefined : parseInt(val, 10));
+                                  }}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <div className="flex justify-end">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => remove(index)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" /> Hapus Varian Ini
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
               </CardContent>
               <CardFooter className="flex justify-between">
                 <Button variant="outline" asChild>
@@ -237,3 +345,5 @@ export default function NewServiceProductPage() {
     </div>
   );
 }
+
+    

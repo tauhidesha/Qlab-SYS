@@ -1,42 +1,43 @@
 
 import type { Timestamp } from 'firebase/firestore';
-import type { LoyaltyReward } from './loyalty'; // Import LoyaltyReward
+import type { LoyaltyReward } from './loyalty'; 
 
 export interface TransactionItem {
-  id: string; // Unique ID for this line item in the transaction (e.g., uuid)
-  catalogItemId: string; // ID of the service/product from the catalog
-  name: string;
-  price: number;
+  id: string; 
+  catalogItemId: string; 
+  variantId?: string; // ID of the chosen variant, if any
+  name: string; // Name of the product, potentially with variant name appended e.g., "Kaos Polos - Merah, L"
+  price: number; // Actual price paid (variant price or base price)
   quantity: number;
-  type: 'service' | 'product' | 'food_drink' | 'other' | 'reward_merchandise'; // Added 'reward_merchandise'
-  staffName?: string; // Staf yang terkait dengan item layanan spesifik jika perlu
-  pointsAwardedPerUnit: number; // Poin yang diberikan untuk satu unit item ini
+  type: 'service' | 'product' | 'food_drink' | 'other' | 'reward_merchandise';
+  staffName?: string; 
+  pointsAwardedPerUnit: number; 
 }
 
 export interface Transaction {
-  id: string; // ID dokumen Firestore
-  clientId?: string; // Opsional, jika pelanggan terdaftar
-  customerName: string; // Nama pelanggan (bisa dari klien terdaftar atau manual)
-  queueItemId?: string; // Opsional, jika transaksi berasal dari antrian
+  id: string; 
+  clientId?: string; 
+  customerName: string; 
+  queueItemId?: string; 
   status: 'open' | 'draft' | 'paid' | 'cancelled';
   items: TransactionItem[];
-  serviceStaffName?: string; // Staf utama yang menangani layanan dari antrian
-  transactionStaffName?: string; // Staf yang memproses transaksi di POS (bisa beda)
+  serviceStaffName?: string; 
+  transactionStaffName?: string; 
   subtotal: number;
-  discountAmount: number; // Nominal diskon (bisa dari manual atau reward)
-  discountPercentage: number; // Persentase diskon (0-100)
+  discountAmount: number; 
+  discountPercentage: number; 
   total: number;
   paymentMethod?: string;
   notes?: string;
-  pointsRedeemed?: number; // Jumlah poin yang ditukarkan klien untuk transaksi ini
-  pointsRedeemedValue?: number; // Nilai diskon (Rp) dari poin yang ditukarkan (bisa dari reward)
-  redeemedReward?: { // Information about the redeemed reward
+  pointsRedeemed?: number; 
+  pointsRedeemedValue?: number; 
+  redeemedReward?: { 
     id: string;
     name: string;
     type: LoyaltyReward['type'];
-    value: string | number; // Original rewardValue
+    value: string | number; 
   };
-  pointsEarnedInThisTx?: number; // Jumlah poin yang diperoleh dari transaksi ini (untuk struk)
+  pointsEarnedInThisTx?: number; 
   createdAt: Timestamp;
   updatedAt: Timestamp;
   paidAt?: Timestamp;

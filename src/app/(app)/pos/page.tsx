@@ -7,12 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Trash2, CreditCard, Loader2, ShoppingBag, UserPlus, Star, Tags, MessageSquareText, Send, Gift, UserCog } from 'lucide-react';
+import { PlusCircle, Trash2, CreditCard, Loader2, ShoppingBag, UserPlus, Star, Tags, MessageSquareText, Send, Gift, UserCog, PackageSearch } from 'lucide-react'; // Added PackageSearch
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, arrayUnion, serverTimestamp, addDoc, type Timestamp, getDocs, getDoc, deleteDoc, deleteField as firestoreDeleteField } from 'firebase/firestore';
 import type { Transaction, TransactionItem } from '@/types/transaction';
-import type { ServiceProduct } from '@/app/(app)/services/page'; 
+import type { ServiceProduct, ServiceProductVariant } from '@/app/(app)/services/page'; 
 import type { Client } from '@/types/client';
 import type { StaffMember } from '@/types/staff';
 import type { LoyaltyReward } from '@/types/loyalty';
@@ -67,6 +67,7 @@ export default function PosPage() {
   const [availableItems, setAvailableItems] = useState<ServiceProduct[]>([]);
   const [loadingCatalogItems, setLoadingCatalogItems] = useState(true);
   const [selectedCatalogItemId, setSelectedCatalogItemId] = useState<string>('');
+  const [selectedVariantId, setSelectedVariantId] = useState<string | undefined>(undefined);
   const [itemQuantity, setItemQuantity] = useState<number | string>(1);
   const [itemCategories, setItemCategories] = useState<string[]>([]);
   const [selectedItemCategoryTab, setSelectedItemCategoryTab] = useState<string>("Semua");
@@ -93,7 +94,7 @@ export default function PosPage() {
   
   const [availableLoyaltyRewards, setAvailableLoyaltyRewards] = useState<LoyaltyReward[]>([]);
   const [loadingLoyaltyRewards, setLoadingLoyaltyRewards] = useState(true);
-  const [minPointsToRedeemConfig, setMinPointsToRedeemConfig] = useState(100); // Default, will be fetched
+  const [minPointsToRedeemConfig, setMinPointsToRedeemConfig] = useState(100); 
   const [availableRewardsForClient, setAvailableRewardsForClient] = useState<LoyaltyReward[]>([]);
   const [selectedRewardToRedeem, setSelectedRewardToRedeem] = useState<LoyaltyReward | null>(null);
 
@@ -191,6 +192,7 @@ export default function PosPage() {
   const handleCategoryTabChange = (category: string) => {
     setSelectedItemCategoryTab(category);
     setSelectedCatalogItemId(''); 
+    setSelectedVariantId(undefined);
     setItemQuantity(1);
     setSelectedStaffForNewItemToAdd(undefined);
   };
@@ -268,6 +270,7 @@ export default function PosPage() {
 
   const resetAddItemForm = () => {
     setSelectedCatalogItemId('');
+    setSelectedVariantId(undefined);
     setItemQuantity(1);
     setSelectedItemCategoryTab("Semua"); 
     setSelectedStaffForNewItemToAdd(undefined);
@@ -275,8 +278,19 @@ export default function PosPage() {
   
   const handleSelectGalleryItem = (item: ServiceProduct) => {
     setSelectedCatalogItemId(item.id);
+    setSelectedVariantId(undefined); // Reset variant when new item selected
     setSelectedStaffForNewItemToAdd(undefined); 
   };
+
+  const selectedGalleryItemDetails = useMemo(() => {
+    return availableItems.find(item => item.id === selectedCatalogItemId);
+  }, [availableItems, selectedCatalogItemId]);
+  
+  const selectedVariantDetails = useMemo(() => {
+    if (!selectedGalleryItemDetails || !selectedVariantId) return null;
+    return selectedGalleryItemDetails.variants?.find(v => v.id === selectedVariantId) || null;
+  }, [selectedGalleryItemDetails, selectedVariantId]);
+
 
   const handleAddItemToTransaction = async () => {
     if (!selectedTransaction || !selectedCatalogItemId) {
@@ -287,6 +301,11 @@ export default function PosPage() {
     const catalogItem = availableItems.find(item => item.id === selectedCatalogItemId);
     if (!catalogItem) {
         toast({ title: "Error", description: "Item katalog tidak ditemukan.", variant: "destructive" });
+        return;
+    }
+    
+    if (catalogItem.variants && catalogItem.variants.length > 0 && !selectedVariantId) {
+        toast({ title: "Input Tidak Lengkap", description: "Pilih varian untuk item ini.", variant: "destructive" });
         return;
     }
 
@@ -301,16 +320,33 @@ export default function PosPage() {
       return;
     }
 
-
     setIsSubmittingItem(true);
+    let itemName = catalogItem.name;
+    let itemPrice = catalogItem.price;
+    let itemPoints = catalogItem.pointsAwarded || 0;
+    
+    if (selectedVariantId && catalogItem.variants) {
+        const variant = catalogItem.variants.find(v => v.id === selectedVariantId);
+        if (variant) {
+            itemName = `${catalogItem.name} - ${variant.name}`;
+            itemPrice = variant.price;
+            itemPoints = variant.pointsAwarded || 0;
+        } else {
+             toast({ title: "Error", description: "Varian yang dipilih tidak ditemukan.", variant: "destructive" });
+             setIsSubmittingItem(false);
+             return;
+        }
+    }
+
     const newItem: TransactionItem = {
       id: uuidv4(), 
       catalogItemId: catalogItem.id,
-      name: catalogItem.name,
-      price: catalogItem.price,
+      variantId: selectedVariantId,
+      name: itemName,
+      price: itemPrice,
       quantity: quantity,
       type: catalogItem.type === 'Layanan' ? 'service' : 'product', 
-      pointsAwardedPerUnit: catalogItem.pointsAwarded || 0,
+      pointsAwardedPerUnit: itemPoints,
       ...(catalogItem.type === 'Layanan' && selectedStaffForNewItemToAdd && { staffName: selectedStaffForNewItemToAdd }),
     };
 
@@ -567,7 +603,7 @@ export default function PosPage() {
         const merchandiseItem: TransactionItem = {
             id: uuidv4(),
             catalogItemId: `reward_${selectedRewardToRedeem.id}`,
-            name: selectedRewardToRedeem.rewardValue as string,
+            name: selectedRewardToRedeem.rewardValue as string, // The merchandise name is the value here
             price: 0,
             quantity: 1,
             type: 'reward_merchandise',
@@ -580,7 +616,7 @@ export default function PosPage() {
 
     const { subtotal, total } = calculateTransactionTotals(
         updatedItems, 
-        0,
+        0, 
         0,
         discountValueFromReward
     );
@@ -590,8 +626,8 @@ export default function PosPage() {
         items: updatedItems,
         pointsRedeemed: selectedRewardToRedeem.pointsRequired,
         pointsRedeemedValue: discountValueFromReward,
-        discountAmount: discountValueFromReward,
-        discountPercentage: 0,
+        discountAmount: discountValueFromReward, // If discount reward, this is the discount.
+        discountPercentage: 0, // Manual percentage discount cleared if reward applied
         redeemedReward: rewardDetailsToStore,
         total: total,
         subtotal: subtotal,
@@ -804,10 +840,6 @@ export default function PosPage() {
     }
   };
 
-  const selectedGalleryItemDetails = useMemo(() => {
-    return availableItems.find(item => item.id === selectedCatalogItemId);
-  }, [availableItems, selectedCatalogItemId]);
-
   const handleClearReward = async () => {
     if (!selectedTransaction || !selectedTransaction.redeemedReward) return;
     
@@ -820,7 +852,7 @@ export default function PosPage() {
             updatedItemsArray, 
             0, 
             0,
-            0
+            0 
         );
 
         await updateDoc(transactionDocRef, {
@@ -842,8 +874,7 @@ export default function PosPage() {
     } finally {
         setIsSubmittingRedemption(false);
     }
-};
-
+  };
 
   if (loadingTransactions || loadingCatalogItems || loadingClients || loadingAssignableStaff || loadingLoyaltyRewards) {
     return (
@@ -856,6 +887,10 @@ export default function PosPage() {
       </div>
     );
   }
+
+  const isAddItemButtonDisabled = isSubmittingItem || !selectedCatalogItemId || loadingCatalogItems || 
+                                (selectedGalleryItemDetails?.type === 'Layanan' && loadingAssignableStaff) ||
+                                (selectedGalleryItemDetails?.variants && selectedGalleryItemDetails.variants.length > 0 && !selectedVariantId);
 
   return (
     <div className="flex flex-col h-full">
@@ -1218,6 +1253,11 @@ export default function PosPage() {
                                 <Gift className="mr-1 h-3 w-3 text-yellow-500" /> {item.pointsAwarded} pts
                               </div>
                             )}
+                            {item.variants && item.variants.length > 0 && (
+                               <div className="flex items-center text-muted-foreground mt-1">
+                                <PackageSearch className="mr-1 h-3 w-3 text-blue-500" /> {item.variants.length} varian
+                              </div>
+                            )}
                           </CardContent>
                         </Card>
                       ))}
@@ -1232,9 +1272,27 @@ export default function PosPage() {
               )}
               
               {selectedCatalogItemId && selectedGalleryItemDetails && (
-                 <div className="mt-4 p-3 border rounded-md bg-muted/30">
+                 <div className="mt-4 p-3 border rounded-md bg-muted/30 space-y-2">
                     <p className="font-medium text-sm">Item Terpilih: {selectedGalleryItemDetails.name}</p>
-                    <p className="text-xs text-muted-foreground">Harga: Rp {selectedGalleryItemDetails.price.toLocaleString('id-ID')}</p>
+                    <p className="text-xs text-muted-foreground">Harga Dasar: Rp {selectedGalleryItemDetails.price.toLocaleString('id-ID')}</p>
+                     {selectedGalleryItemDetails.variants && selectedGalleryItemDetails.variants.length > 0 && (
+                       <div className="space-y-1">
+                         <Label htmlFor="item-variant-select">Pilih Varian</Label>
+                         <Select value={selectedVariantId} onValueChange={setSelectedVariantId}>
+                           <SelectTrigger id="item-variant-select">
+                             <SelectValue placeholder="Pilih varian produk/layanan" />
+                           </SelectTrigger>
+                           <SelectContent>
+                             {selectedGalleryItemDetails.variants.map(variant => (
+                               <SelectItem key={variant.id} value={variant.id}>
+                                 {variant.name} (Rp {variant.price.toLocaleString('id-ID')})
+                                 {variant.pointsAwarded ? ` - ${variant.pointsAwarded} Pts` : ''}
+                               </SelectItem>
+                             ))}
+                           </SelectContent>
+                         </Select>
+                       </div>
+                     )}
                  </div>
               )}
 
@@ -1284,7 +1342,7 @@ export default function PosPage() {
               <Button variant="outline" onClick={() => { setIsAddItemDialogOpen(false); resetAddItemForm(); }} disabled={isSubmittingItem}>Batal</Button>
               <Button 
                 onClick={handleAddItemToTransaction} 
-                disabled={isSubmittingItem || !selectedCatalogItemId || loadingCatalogItems || (selectedGalleryItemDetails?.type === 'Layanan' && loadingAssignableStaff)}
+                disabled={isAddItemButtonDisabled}
                 className="bg-accent text-accent-foreground hover:bg-accent/90"
               >
                 {isSubmittingItem && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -1453,3 +1511,5 @@ export default function PosPage() {
     </div>
   );
 }
+
+    
