@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Edit3, Trash2, Wrench, ShoppingBag, Search, Loader2, Gift, UploadCloud } from 'lucide-react';
+import { PlusCircle, Edit3, Trash2, Wrench, ShoppingBag, Search, Loader2, Gift, UploadCloud, DollarSign, Package } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import React, { useState, useEffect, useRef } from 'react';
 import { db } from '@/lib/firebase';
@@ -37,15 +37,17 @@ import { buttonVariants } from '@/components/ui/button';
 import Papa from 'papaparse';
 import { v4 as uuidv4 } from 'uuid'; 
 
-export interface ServiceProductVariant {
+export interface ServiceProductVariant { 
   id: string; 
   name: string;
   price: number;
   pointsAwarded?: number;
-  estimatedDuration?: string; // Tambahan baru
+  estimatedDuration?: string;
+  stockQuantity?: number; 
+  costPrice?: number; 
 }
 
-export interface ServiceProduct {
+export interface ServiceProduct { 
   id: string;
   name: string;
   type: 'Layanan' | 'Produk';
@@ -53,9 +55,11 @@ export interface ServiceProduct {
   price: number; 
   description?: string;
   pointsAwarded?: number;
-  estimatedDuration?: string; // Tambahan baru
-  createdAt?: any; 
+  estimatedDuration?: string;
   variants?: ServiceProductVariant[];
+  stockQuantity?: number; 
+  costPrice?: number; 
+  createdAt?: any; 
 }
 
 export default function ServicesPage() {
@@ -129,7 +133,7 @@ export default function ServicesPage() {
             return;
           }
 
-          const requiredHeaders = ['name', 'type', 'category']; // Price is now conditionally required
+          const requiredHeaders = ['name', 'type', 'category'];
           const actualHeaders = Object.keys(parsedData[0] || {});
           const missingHeaders = requiredHeaders.filter(h => !actualHeaders.includes(h));
           if (missingHeaders.length > 0) {
@@ -155,6 +159,9 @@ export default function ServicesPage() {
             const description = row.description?.trim() || '';
             const pointsAwardedString = row.pointsAwarded?.trim();
             const estimatedDurationString = row.estimatedDuration?.trim();
+            const stockQuantityString = row.stockQuantity?.trim();
+            const costPriceString = row.costPrice?.trim();
+
 
             if (!name || !type || !category) {
               console.warn(`Baris ${index + 2} dilewati: field wajib (name, type, category) tidak lengkap.`);
@@ -179,12 +186,27 @@ export default function ServicesPage() {
                 }
             }
 
+            let baseStockQuantity: number | undefined = undefined;
+            if (type === 'Produk' && stockQuantityString) {
+                const parsedStock = parseInt(stockQuantityString, 10);
+                if (!isNaN(parsedStock) && parsedStock >= 0) baseStockQuantity = parsedStock;
+            }
+            let baseCostPrice: number | undefined = undefined;
+            if (type === 'Produk' && costPriceString) {
+                const parsedCost = parseFloat(costPriceString);
+                if (!isNaN(parsedCost) && parsedCost >= 0) baseCostPrice = parsedCost;
+            }
+
+
             const variants: ServiceProductVariant[] = [];
             for (let i = 1; i <= 5; i++) {
               const variantName = row[`variant${i}_name`]?.trim();
               const variantPriceString = row[`variant${i}_price`]?.trim();
               const variantPointsString = row[`variant${i}_pointsAwarded`]?.trim();
               const variantDurationString = row[`variant${i}_estimatedDuration`]?.trim();
+              const variantStockString = row[`variant${i}_stockQuantity`]?.trim();
+              const variantCostString = row[`variant${i}_costPrice`]?.trim();
+
 
               if (variantName && variantPriceString) {
                 const variantPrice = parseFloat(variantPriceString);
@@ -199,12 +221,26 @@ export default function ServicesPage() {
                     variantPoints = parsedVP;
                   }
                 }
+
+                let variantStock: number | undefined = undefined;
+                if (type === 'Produk' && variantStockString) {
+                    const parsedVS = parseInt(variantStockString, 10);
+                    if (!isNaN(parsedVS) && parsedVS >= 0) variantStock = parsedVS;
+                }
+                let variantCost: number | undefined = undefined;
+                if (type === 'Produk' && variantCostString) {
+                    const parsedVC = parseFloat(variantCostString);
+                    if (!isNaN(parsedVC) && parsedVC >= 0) variantCost = parsedVC;
+                }
+
                 variants.push({
                   id: uuidv4(),
                   name: variantName,
                   price: variantPrice,
                   pointsAwarded: variantPoints,
                   estimatedDuration: variantDurationString || undefined,
+                  stockQuantity: variantStock,
+                  costPrice: variantCost,
                 });
               } else if (variantName || variantPriceString) {
                 console.warn(`Baris ${index + 2}, Varian ${i}: Nama dan Harga varian harus diisi bersamaan. Varian ini dilewati.`);
@@ -222,7 +258,7 @@ export default function ServicesPage() {
             }
 
             const newItemRef = doc(collection(db, 'services'));
-            batch.set(newItemRef, {
+            const newItemData: Omit<ServiceProduct, 'id' | 'createdAt'> = {
               name,
               type,
               category,
@@ -231,8 +267,15 @@ export default function ServicesPage() {
               pointsAwarded: basePointsAwarded,
               estimatedDuration: estimatedDurationString || undefined,
               variants,
-              createdAt: serverTimestamp(),
-            });
+              stockQuantity: baseStockQuantity,
+              costPrice: baseCostPrice,
+            };
+            if (type !== 'Produk') {
+                delete newItemData.stockQuantity;
+                delete newItemData.costPrice;
+            }
+            
+            batch.set(newItemRef, { ...newItemData, createdAt: serverTimestamp() });
             itemsAddedCount++;
           });
 
@@ -296,7 +339,7 @@ export default function ServicesPage() {
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>Katalog Layanan & Produk</CardTitle>
-                <CardDescription>Kelola penawaran Anda dan detailnya, termasuk varian produk.</CardDescription>
+                <CardDescription>Kelola penawaran Anda dan detailnya, termasuk varian produk, stok, dan harga modal.</CardDescription>
               </div>
                <div className="flex gap-2 items-center">
                  <div className="relative">
@@ -320,7 +363,7 @@ export default function ServicesPage() {
                   <InfoDialogTrigger asChild>
                     <Button variant="outline" size="sm">Info Format CSV</Button>
                   </InfoDialogTrigger>
-                  <InfoDialogContent className="sm:max-w-md">
+                  <InfoDialogContent className="sm:max-w-lg">
                     <InfoDialogHeader>
                       <InfoDialogTitle>Format CSV untuk Impor Layanan/Produk</InfoDialogTitle>
                       <InfoDialogDescription>
@@ -328,21 +371,25 @@ export default function ServicesPage() {
                       </InfoDialogDescription>
                     </InfoDialogHeader>
                     <ul className="list-disc list-inside space-y-1 text-sm my-4">
-                      <li><code className="bg-muted px-1 rounded-sm">name</code> (Teks, Wajib) - Nama layanan/produk.</li>
+                      <li><code className="bg-muted px-1 rounded-sm">name</code> (Teks, Wajib)</li>
                       <li><code className="bg-muted px-1 rounded-sm">type</code> (Teks, Wajib) - Harus 'Layanan' atau 'Produk'.</li>
-                      <li><code className="bg-muted px-1 rounded-sm">category</code> (Teks, Wajib) - Kategori item.</li>
-                      <li><code className="bg-muted px-1 rounded-sm">price</code> (Angka, Wajib jika tidak ada varian, bisa 0 jika ada varian) - Harga dasar.</li>
-                      <li><code className="bg-muted px-1 rounded-sm">description</code> (Teks, Opsional) - Deskripsi item.</li>
-                      <li><code className="bg-muted px-1 rounded-sm">pointsAwarded</code> (Angka, Opsional) - Poin loyalitas dasar.</li>
-                      <li><code className="bg-muted px-1 rounded-sm">estimatedDuration</code> (Teks, Opsional) - Mis. "30 mnt", "1 jam".</li>
+                      <li><code className="bg-muted px-1 rounded-sm">category</code> (Teks, Wajib)</li>
+                      <li><code className="bg-muted px-1 rounded-sm">price</code> (Angka, Wajib jika tidak ada varian, bisa 0 jika ada varian)</li>
+                      <li><code className="bg-muted px-1 rounded-sm">description</code> (Teks, Opsional)</li>
+                      <li><code className="bg-muted px-1 rounded-sm">pointsAwarded</code> (Angka, Opsional)</li>
+                      <li><code className="bg-muted px-1 rounded-sm">estimatedDuration</code> (Teks, Opsional) - Mis. "30 mnt".</li>
+                      <li><code className="bg-muted px-1 rounded-sm">stockQuantity</code> (Angka, Opsional) - Hanya untuk Produk.</li>
+                      <li><code className="bg-muted px-1 rounded-sm">costPrice</code> (Angka, Opsional) - Hanya untuk Produk.</li>
                       <li className="font-semibold mt-2">Untuk Varian (Opsional, maksimal 5 varian):</li>
-                      <li><code className="bg-muted px-1 rounded-sm">variantN_name</code> (Teks, Wajib jika variantN_price diisi)</li>
-                      <li><code className="bg-muted px-1 rounded-sm">variantN_price</code> (Angka, Wajib jika variantN_name diisi, harus > 0)</li>
+                      <li><code className="bg-muted px-1 rounded-sm">variantN_name</code> (Wajib jika <code className="bg-muted px-1 rounded-sm">variantN_price</code> diisi)</li>
+                      <li><code className="bg-muted px-1 rounded-sm">variantN_price</code> (Angka, Wajib jika <code className="bg-muted px-1 rounded-sm">variantN_name</code> diisi, >0)</li>
                       <li><code className="bg-muted px-1 rounded-sm">variantN_pointsAwarded</code> (Angka, Opsional)</li>
                       <li><code className="bg-muted px-1 rounded-sm">variantN_estimatedDuration</code> (Teks, Opsional)</li>
+                      <li><code className="bg-muted px-1 rounded-sm">variantN_stockQuantity</code> (Angka, Opsional) - Hanya untuk Produk.</li>
+                      <li><code className="bg-muted px-1 rounded-sm">variantN_costPrice</code> (Angka, Opsional) - Hanya untuk Produk.</li>
                       <li>Ganti 'N' dengan angka 1 sampai 5 (mis. variant1_name, variant2_price).</li>
                     </ul>
-                    <p className="text-xs text-muted-foreground">Baris pertama CSV harus berisi nama header. Jika produk tidak memiliki varian, harga dasar (`price`) wajib diisi dan harus > 0. Jika produk memiliki varian, harga dasar bisa 0 atau kosong (akan dianggap 0).</p>
+                    <p className="text-xs text-muted-foreground">Baris pertama CSV harus berisi nama header.</p>
                     <InfoDialogFooter>
                       <DialogClose asChild>
                         <Button type="button" variant="secondary">Tutup</Button>
@@ -369,8 +416,10 @@ export default function ServicesPage() {
                     <TableHead>Jenis</TableHead>
                     <TableHead>Kategori</TableHead>
                     <TableHead className="text-right">Harga Dasar</TableHead>
-                    <TableHead className="text-center">Poin Dasar</TableHead>
-                    <TableHead className="text-center">Jml. Varian</TableHead>
+                    <TableHead className="text-center">Poin</TableHead>
+                    <TableHead className="text-center">Stok</TableHead>
+                    <TableHead className="text-right">Hrg. Modal</TableHead>
+                    <TableHead className="text-center">Varian</TableHead>
                     <TableHead className="text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -394,6 +443,12 @@ export default function ServicesPage() {
                         ) : (
                           '-'
                         )}
+                      </TableCell>
+                       <TableCell className="text-center">
+                        {item.type === 'Produk' ? (item.stockQuantity !== undefined ? item.stockQuantity : '-') : '-'}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {item.type === 'Produk' ? (item.costPrice !== undefined ? `Rp ${item.costPrice.toLocaleString('id-ID')}` : '-') : '-'}
                       </TableCell>
                       <TableCell className="text-center">{item.variants?.length || 0}</TableCell>
                       <TableCell className="text-right">
@@ -445,4 +500,3 @@ export default function ServicesPage() {
     
 
     
-

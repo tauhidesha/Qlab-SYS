@@ -14,7 +14,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Save, Loader2, ArrowLeft, Gift, PlusCircle, Trash2, Clock } from 'lucide-react'; // Added Clock
+import { Save, Loader2, ArrowLeft, Gift, PlusCircle, Trash2, Clock, Package, DollarSign as DollarSignIcon } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -35,6 +35,14 @@ const variantSchema = z.object({
     z.number({ invalid_type_error: "Poin varian harus berupa angka" }).nonnegative("Poin varian tidak boleh negatif").optional()
   ),
   estimatedDuration: z.string().max(50, "Estimasi durasi varian maksimal 50 karakter").optional(),
+  stockQuantity: z.preprocess(
+    (val) => (val === "" || val === undefined || val === null) ? undefined : parseInt(String(val), 10),
+    z.number({ invalid_type_error: "Stok varian harus angka" }).nonnegative("Stok varian tidak boleh negatif").optional()
+  ),
+  costPrice: z.preprocess(
+    (val) => (val === "" || val === undefined || val === null) ? undefined : parseFloat(String(val)),
+    z.number({ invalid_type_error: "Harga modal varian harus angka" }).nonnegative("Harga modal varian tidak boleh negatif").optional()
+  ),
 });
 
 const serviceProductFormSchema = z.object({
@@ -55,6 +63,14 @@ const serviceProductFormSchema = z.object({
   ),
   estimatedDuration: z.string().max(50, "Estimasi durasi maksimal 50 karakter").optional(),
   description: z.string().max(500, "Deskripsi maksimal 500 karakter").optional(),
+  stockQuantity: z.preprocess(
+    (val) => (val === "" || val === undefined || val === null) ? undefined : parseInt(String(val), 10),
+    z.number({ invalid_type_error: "Stok harus angka" }).nonnegative("Stok tidak boleh negatif").optional()
+  ),
+  costPrice: z.preprocess(
+    (val) => (val === "" || val === undefined || val === null) ? undefined : parseFloat(String(val)),
+    z.number({ invalid_type_error: "Harga modal harus angka" }).nonnegative("Harga modal tidak boleh negatif").optional()
+  ),
   variants: z.array(variantSchema).optional(),
 }).refine(data => {
   if ((!data.variants || data.variants.length === 0)) { 
@@ -90,6 +106,8 @@ export default function EditServiceProductPage() {
       pointsAwarded: undefined,
       estimatedDuration: '',
       description: '',
+      stockQuantity: undefined,
+      costPrice: undefined,
       variants: [],
     },
   });
@@ -98,6 +116,8 @@ export default function EditServiceProductPage() {
     control: form.control,
     name: "variants",
   });
+
+  const itemType = form.watch('type');
 
   useEffect(() => {
     if (!itemId) {
@@ -124,12 +144,16 @@ export default function EditServiceProductPage() {
             pointsAwarded: itemData.pointsAwarded || undefined,
             estimatedDuration: itemData.estimatedDuration || '',
             description: itemData.description || '',
+            stockQuantity: itemData.stockQuantity,
+            costPrice: itemData.costPrice,
             variants: itemData.variants?.map(v => ({ 
                 id: v.id || uuidv4(), 
                 name: v.name,
                 price: v.price,
                 pointsAwarded: v.pointsAwarded,
                 estimatedDuration: v.estimatedDuration || '',
+                stockQuantity: v.stockQuantity,
+                costPrice: v.costPrice,
             })) || [],
           });
         } else {
@@ -162,15 +186,29 @@ export default function EditServiceProductPage() {
         pointsAwarded: data.pointsAwarded || 0,
         estimatedDuration: data.estimatedDuration || '',
         description: data.description || '',
+        stockQuantity: data.type === 'Produk' ? (data.stockQuantity || 0) : undefined,
+        costPrice: data.type === 'Produk' ? (data.costPrice || 0) : undefined,
         variants: data.variants?.map(v => ({
             id: v.id || uuidv4(), 
             name: v.name,
             price: v.price,
             pointsAwarded: v.pointsAwarded || 0,
             estimatedDuration: v.estimatedDuration || '',
+            stockQuantity: data.type === 'Produk' ? (v.stockQuantity || 0) : undefined,
+            costPrice: data.type === 'Produk' ? (v.costPrice || 0) : undefined,
         })) || [],
         updatedAt: serverTimestamp(),
       };
+
+      if (data.type !== 'Produk') {
+        delete updateData.stockQuantity;
+        delete updateData.costPrice;
+        updateData.variants?.forEach(v => {
+          delete v.stockQuantity;
+          delete v.costPrice;
+        });
+      }
+
 
       await updateDoc(itemDocRef, updateData);
       toast({
@@ -353,6 +391,53 @@ export default function EditServiceProductPage() {
                     </FormItem>
                   )}
                 />
+                
+                {itemType === 'Produk' && (
+                  <>
+                    <Separator />
+                    <h3 className="text-md font-medium pt-2">Detail Inventaris (Produk)</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <FormField
+                        control={form.control}
+                        name="stockQuantity"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center"><Package className="mr-2 h-4 w-4 text-muted-foreground"/>Jumlah Stok Dasar</FormLabel>
+                            <FormControl>
+                              <Input type="number" placeholder="mis. 50" {...field} 
+                                value={field.value === undefined ? '' : field.value}
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  field.onChange(val === '' ? undefined : parseInt(val, 10));
+                                }}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="costPrice"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center"><DollarSignIcon className="mr-2 h-4 w-4 text-muted-foreground"/>Harga Modal Dasar (Rp)</FormLabel>
+                            <FormControl>
+                              <Input type="number" placeholder="mis. 50000" {...field}
+                                value={field.value === undefined ? '' : field.value}
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  field.onChange(val === '' ? undefined : parseFloat(val));
+                                }}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </>
+                )}
 
                 <Separator />
 
@@ -363,7 +448,15 @@ export default function EditServiceProductPage() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => append({ id: uuidv4(), name: '', price: '' as any, pointsAwarded: undefined, estimatedDuration: '' })}
+                      onClick={() => append({ 
+                        id: uuidv4(), 
+                        name: '', 
+                        price: '' as any, 
+                        pointsAwarded: undefined, 
+                        estimatedDuration: '',
+                        stockQuantity: undefined,
+                        costPrice: undefined,
+                      })}
                     >
                       <PlusCircle className="mr-2 h-4 w-4" /> Tambah Varian
                     </Button>
@@ -437,6 +530,48 @@ export default function EditServiceProductPage() {
                             </FormItem>
                           )}
                         />
+                        {itemType === 'Produk' && (
+                          <>
+                            <FormField
+                              control={form.control}
+                              name={`variants.${index}.stockQuantity`}
+                              render={({ field: variantField }) => (
+                                <FormItem>
+                                  <FormLabel>Stok Varian</FormLabel>
+                                  <FormControl>
+                                    <Input type="number" placeholder="mis. 20" {...variantField} 
+                                      value={variantField.value === undefined ? '' : variantField.value}
+                                      onChange={e => {
+                                        const val = e.target.value;
+                                        variantField.onChange(val === '' ? undefined : parseInt(val, 10));
+                                      }}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name={`variants.${index}.costPrice`}
+                              render={({ field: variantField }) => (
+                                <FormItem>
+                                  <FormLabel>Harga Modal Varian (Rp)</FormLabel>
+                                  <FormControl>
+                                    <Input type="number" placeholder="mis. 55000" {...variantField} 
+                                      value={variantField.value === undefined ? '' : variantField.value}
+                                      onChange={e => {
+                                        const val = e.target.value;
+                                        variantField.onChange(val === '' ? undefined : parseFloat(val));
+                                      }}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </>
+                        )}
                       </div>
                       <div className="flex justify-end">
                         <Button
