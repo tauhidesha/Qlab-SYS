@@ -26,11 +26,19 @@ const serviceProductFormSchema = z.object({
   type: z.enum(['Layanan', 'Produk'], { required_error: "Jenis item diperlukan" }),
   category: z.string().min(2, "Kategori minimal 2 karakter").max(50, "Kategori maksimal 50 karakter"),
   price: z.preprocess(
-    (val) => (val === '' || val === undefined || val === null ? undefined : parseFloat(String(val))),
+    (val) => {
+      if (val === '' || val === undefined || val === null) return undefined;
+      const num = parseFloat(String(val));
+      return isNaN(num) ? undefined : num;
+    },
     z.number({ required_error: "Harga diperlukan", invalid_type_error: "Harga harus berupa angka" }).positive("Harga harus angka positif")
   ),
   pointsAwarded: z.preprocess(
-    (val) => (val === '' || val === undefined || val === null ? undefined : parseInt(String(val), 10)),
+    (val) => {
+      if (val === '' || val === undefined || val === null) return undefined;
+      const num = parseInt(String(val), 10);
+      return isNaN(num) ? undefined : num;
+    },
     z.number({ invalid_type_error: "Poin harus berupa angka" }).nonnegative("Poin tidak boleh negatif").optional()
   ),
   description: z.string().max(500, "Deskripsi maksimal 500 karakter").optional(),
