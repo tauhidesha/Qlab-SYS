@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { id as indonesiaLocale } from 'date-fns/locale';
 import { format as formatDateFns } from 'date-fns';
 import type { AttendanceRecord, GeolocationCoordinates } from '@/types/attendance';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function AttendancePage() {
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
@@ -86,12 +87,14 @@ export default function AttendancePage() {
             break;
         }
         onError(message);
-      }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   };
 
   const updateAttendanceRecord = async (recordId: string, data: Partial<AttendanceRecord>) => {
-    setRowActionLoading(prev => ({ ...prev, [recordId]: true }));
+    // rowActionLoading is set before calling this function.
+    // It will be reset in the finally block here.
     try {
       const recordDocRef = doc(db, 'attendanceRecords', recordId);
       await updateDoc(recordDocRef, { ...data, updatedAt: serverTimestamp() });
@@ -106,27 +109,24 @@ export default function AttendancePage() {
   };
 
   const handleClockIn = (recordId: string) => {
+    setRowActionLoading(prev => ({ ...prev, [recordId]: true }));
     handleGeolocation(
       (coords) => {
         updateAttendanceRecord(recordId, {
           clockIn: getCurrentTimeHHMM(),
           clockInLocation: coords,
-          status: 'Hadir', // Simplified status, can be enhanced later for 'Terlambat'
+          status: 'Hadir', 
         });
       },
       (errorMsg) => {
-        toast({ title: "Error Lokasi", description: errorMsg, variant: "destructive" });
-        // Optionally proceed without location or ask user to input manually
-        updateAttendanceRecord(recordId, { // Clock-in without location if geolocation fails but user wants to proceed
-            clockIn: getCurrentTimeHHMM(),
-            status: 'Hadir', 
-            notes: (attendanceRecords.find(r => r.id === recordId)?.notes || '') + ` [Lokasi gagal diambil: ${errorMsg}]`
-        });
+        toast({ title: "Absen Masuk Gagal", description: `${errorMsg} Lokasi wajib untuk absen.`, variant: "destructive" });
+        setRowActionLoading(prev => ({ ...prev, [recordId]: false })); 
       }
     );
   };
 
   const handleClockOut = (recordId: string) => {
+    setRowActionLoading(prev => ({ ...prev, [recordId]: true }));
     handleGeolocation(
       (coords) => {
         updateAttendanceRecord(recordId, {
@@ -135,11 +135,8 @@ export default function AttendancePage() {
         });
       },
       (errorMsg) => {
-        toast({ title: "Error Lokasi", description: errorMsg, variant: "destructive" });
-         updateAttendanceRecord(recordId, { // Clock-out without location
-            clockOut: getCurrentTimeHHMM(),
-            notes: (attendanceRecords.find(r => r.id === recordId)?.notes || '') + ` [Lokasi gagal diambil: ${errorMsg}]`
-        });
+        toast({ title: "Absen Pulang Gagal", description: `${errorMsg} Lokasi wajib untuk absen.`, variant: "destructive" });
+        setRowActionLoading(prev => ({ ...prev, [recordId]: false }));
       }
     );
   };
@@ -295,8 +292,8 @@ export default function AttendancePage() {
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground space-y-2">
               <p>Fitur geotagging memerlukan izin akses lokasi dari browser pengguna (staf yang melakukan clock-in/out).</p>
-              <p>Jika izin ditolak atau lokasi tidak dapat diperoleh, sistem akan tetap mencatat waktu clock-in/out tanpa data lokasi, dengan catatan.</p>
-              <p>Akurasi lokasi tergantung pada perangkat dan kondisi jaringan.</p>
+              <p>Jika izin ditolak atau lokasi tidak dapat diperoleh, sistem akan <span className="font-semibold">menolak</span> proses clock-in/out.</p>
+              <p>Akurasi lokasi tergantung pada perangkat dan kondisi jaringan. Opsi `enableHighAccuracy` diaktifkan untuk hasil terbaik.</p>
             </CardContent>
           </Card>
         </div>
@@ -305,3 +302,4 @@ export default function AttendancePage() {
   );
 }
 
+    
