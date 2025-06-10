@@ -4,24 +4,33 @@ import React, { useState, useEffect, useCallback } from 'react';
 import AppHeader from '@/components/layout/AppHeader';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, Save, CheckCircle, DollarSign, Percent as PercentIcon } from 'lucide-react';
+import { Loader2, Save, CheckCircle, Eye, X } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { collection, doc, query, where, getDocs, setDoc, updateDoc, serverTimestamp, Timestamp, orderBy, type DocumentData } from 'firebase/firestore';
+import { collection, doc, query, where, getDocs, setDoc, updateDoc, serverTimestamp, Timestamp, orderBy } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import type { StaffMember } from '@/types/staff';
 import type { DailyProfitShareEntry } from '@/types/profitSharing';
 import type { Transaction, TransactionItem } from '@/types/transaction';
 import { id as indonesiaLocale } from 'date-fns/locale';
 import { format as formatDateFns, startOfDay, endOfDay } from 'date-fns';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface ProfitShareFormState {
   staffDailyRevenue: number;
   profitSharePercentage: number;
   profitShareAmount: number;
+  contributingItems: TransactionItem[]; // Untuk dialog detail
   existingEntryId?: string;
   status: 'Belum Dibayar' | 'Dibayar';
   paidAt?: Timestamp;
@@ -29,12 +38,99 @@ interface ProfitShareFormState {
   isLoadingPay: boolean;
 }
 
+interface ProfitShareDetailDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  entryData?: ProfitShareFormState & { staffName: string; date: string };
+}
+
+function ProfitShareDetailDialog({ isOpen, onClose, entryData }: ProfitShareDetailDialogProps) {
+  if (!isOpen || !entryData) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Detail Bagi Hasil: {entryData.staffName}</DialogTitle>
+          <DialogDescription>
+            Tanggal: {formatDateFns(new Date(entryData.date), 'PPP', { locale: indonesiaLocale })}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <Card className="bg-muted/50">
+            <CardContent className="p-4 grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+              <div>
+                <p className="text-muted-foreground">Total Pendapatan Harian:</p>
+                <p className="font-semibold">Rp {entryData.staffDailyRevenue.toLocaleString('id-ID')}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Persentase Bagi Hasil:</p>
+                <p className="font-semibold">{entryData.profitSharePercentage}%</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Nominal Bagi Hasil (Total):</p>
+                <p className="font-semibold text-primary">Rp {entryData.profitShareAmount.toLocaleString('id-ID')}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Status:</p>
+                <p className={`font-semibold ${entryData.status === 'Dibayar' ? 'text-green-600' : 'text-yellow-600'}`}>{entryData.status}</p>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <h4 className="font-medium text-md mt-4">Rincian Transaksi Kontribusi:</h4>
+          {entryData.contributingItems.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Tidak ada transaksi layanan yang berkontribusi pada pendapatan harian staf ini.</p>
+          ) : (
+            <ScrollArea className="h-[250px] border rounded-md">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Layanan</TableHead>
+                    <TableHead className="text-right">Harga Satuan</TableHead>
+                    <TableHead className="text-center">Qty</TableHead>
+                    <TableHead className="text-right">Subtotal Layanan</TableHead>
+                    <TableHead className="text-right">Est. Bagi Hasil Item</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {entryData.contributingItems.map((item, index) => {
+                    const itemSubtotal = (item.price || 0) * (item.quantity || 1);
+                    const itemProfitShare = (itemSubtotal * entryData.profitSharePercentage) / 100;
+                    return (
+                      <TableRow key={`${item.id}-${index}`}>
+                        <TableCell>{item.name}</TableCell>
+                        <TableCell className="text-right">Rp {(item.price || 0).toLocaleString('id-ID')}</TableCell>
+                        <TableCell className="text-center">{item.quantity || 1}</TableCell>
+                        <TableCell className="text-right">Rp {itemSubtotal.toLocaleString('id-ID')}</TableCell>
+                        <TableCell className="text-right">Rp {itemProfitShare.toLocaleString('id-ID')}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Tutup</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
 export default function ProfitSharingPage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [technicianStaffList, setTechnicianStaffList] = useState<StaffMember[]>([]);
   const [profitShareEntries, setProfitShareEntries] = useState<Record<string, ProfitShareFormState>>({});
   const [loadingStaff, setLoadingStaff] = useState(true);
   const [loadingEntriesAndRevenue, setLoadingEntriesAndRevenue] = useState(false);
+
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const [selectedStaffEntryForDetail, setSelectedStaffEntryForDetail] = useState<ProfitShareFormState & { staffName: string; date: string } | undefined>(undefined);
+
 
   const { toast } = useToast();
 
@@ -90,41 +186,43 @@ export default function ProfitSharingPage() {
       const existingDbEntries = existingEntriesSnapshot.docs.map(d => ({ id: d.id, ...d.data() } as DailyProfitShareEntry));
 
       for (const staff of technicianStaffList) {
-        let staffDailyRevenue = 0;
+        let staffDailyRevenueFromTransactions = 0;
+        const contributingItems: TransactionItem[] = [];
+
         paidTransactions.forEach(transaction => {
           if (transaction.items && Array.isArray(transaction.items)) {
             transaction.items.forEach(item => {
               if (item.type === 'service' && item.staffName === staff.name) {
-                staffDailyRevenue += (item.price || 0) * (item.quantity || 1);
+                const itemSubtotal = (item.price || 0) * (item.quantity || 1);
+                staffDailyRevenueFromTransactions += itemSubtotal;
+                contributingItems.push(item);
               }
             });
           }
         });
-
-        const staffProfitSharePercentage = staff.profitSharePercentage || 0;
         
-        const existingEntry = existingDbEntries.find(e => e.staffId === staff.id);
+        const existingEntryFromDb = existingDbEntries.find(e => e.staffId === staff.id);
 
-        if (existingEntry) {
-          // If entry exists, use its data. The staffDailyRevenue and profitShareAmount will be from the time it was saved.
-          // The percentage used is also the one saved at that time.
+        if (existingEntryFromDb) {
           newEntriesState[staff.id] = {
-            staffDailyRevenue: existingEntry.staffDailyRevenue, 
-            profitSharePercentage: existingEntry.profitSharePercentage, 
-            profitShareAmount: existingEntry.profitShareAmount, 
-            existingEntryId: existingEntry.id,
-            status: existingEntry.status,
-            paidAt: existingEntry.paidAt,
+            staffDailyRevenue: existingEntryFromDb.staffDailyRevenue,
+            profitSharePercentage: existingEntryFromDb.profitSharePercentage,
+            profitShareAmount: existingEntryFromDb.profitShareAmount,
+            contributingItems: contributingItems, // Selalu ambil item kontribusi live untuk dialog
+            existingEntryId: existingEntryFromDb.id,
+            status: existingEntryFromDb.status,
+            paidAt: existingEntryFromDb.paidAt,
             isLoadingSave: false,
             isLoadingPay: false,
           };
         } else {
-          // For new entries, calculate based on current transactions and profile percentage
-          const profitShareAmount = (staffDailyRevenue * staffProfitSharePercentage) / 100;
+          const staffProfileProfitSharePercentage = staff.profitSharePercentage || 0;
+          const profitShareAmountCalculated = (staffDailyRevenueFromTransactions * staffProfileProfitSharePercentage) / 100;
           newEntriesState[staff.id] = {
-            staffDailyRevenue: staffDailyRevenue,
-            profitSharePercentage: staffProfitSharePercentage,
-            profitShareAmount: profitShareAmount,
+            staffDailyRevenue: staffDailyRevenueFromTransactions,
+            profitSharePercentage: staffProfileProfitSharePercentage,
+            profitShareAmount: profitShareAmountCalculated,
+            contributingItems: contributingItems,
             status: 'Belum Dibayar',
             isLoadingSave: false,
             isLoadingPay: false,
@@ -153,13 +251,11 @@ export default function ProfitSharingPage() {
 
   const handleSaveEntry = async (staffId: string) => {
     const staff = technicianStaffList.find(s => s.id === staffId);
-    // Get the calculated/current values from state, not from a form input directly
     const entryFromState = profitShareEntries[staffId]; 
     if (!staff || !entryFromState) return;
 
     setProfitShareEntries(prev => ({ ...prev, [staffId]: { ...prev[staffId], isLoadingSave: true }}));
 
-    // Data to save is the snapshot from the current state calculation
     const dataToSave: Omit<DailyProfitShareEntry, 'id' | 'createdAt' | 'updatedAt' | 'paidAt'> & { paidAt?: Timestamp } = {
       staffId: staff.id,
       staffName: staff.name,
@@ -171,7 +267,6 @@ export default function ProfitSharingPage() {
     };
     if(entryFromState.paidAt) dataToSave.paidAt = entryFromState.paidAt;
 
-
     try {
       const docIdToUse = entryFromState.existingEntryId || doc(collection(db, 'dailyProfitShares')).id;
       const docRef = doc(db, 'dailyProfitShares', docIdToUse);
@@ -181,15 +276,12 @@ export default function ProfitSharingPage() {
         toast({ title: "Sukses", description: `Bagi hasil untuk ${staff.name} berhasil diperbarui.` });
       } else {
         await setDoc(docRef, { ...dataToSave, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
-        // After first save, update local state with the new existingEntryId
         setProfitShareEntries(prev => ({
             ...prev,
             [staffId]: { ...prev[staffId], existingEntryId: docRef.id }
         }));
         toast({ title: "Sukses", description: `Bagi hasil untuk ${staff.name} berhasil disimpan.` });
       }
-      // Re-fetch to ensure consistency, especially if status or other details might change server-side
-      // or if revenue calculation logic changes for saved entries
       await calculateRevenueAndPopulateEntries(selectedDate); 
     } catch (error) {
       console.error("Error saving profit share entry: ", error);
@@ -231,11 +323,21 @@ export default function ProfitSharingPage() {
     }
   };
   
-  const currentDay = new Date();
-  const isTodaySelected = selectedDate.toDateString() === currentDay.toDateString();
-  // Check if selectedDate is strictly before today (ignoring time part)
-  const isPastDateSelected = startOfDay(selectedDate) < startOfDay(currentDay);
+  const handleOpenDetailDialog = (staffId: string) => {
+    const staffMember = technicianStaffList.find(s => s.id === staffId);
+    const entry = profitShareEntries[staffId];
+    if (staffMember && entry) {
+      setSelectedStaffEntryForDetail({
+        ...entry,
+        staffName: staffMember.name,
+        date: formatDateForFirestore(selectedDate),
+      });
+      setIsDetailDialogOpen(true);
+    }
+  };
 
+  const currentDay = new Date();
+  const isPastDateSelected = startOfDay(selectedDate) < startOfDay(currentDay);
 
   if (loadingStaff) {
     return (
@@ -277,7 +379,7 @@ export default function ProfitSharingPage() {
             <CardHeader>
               <CardTitle>Entri Bagi Hasil untuk {formatDateFns(selectedDate, 'PPP', { locale: indonesiaLocale })}</CardTitle>
               <CardDescription>
-                Pendapatan harian dihitung dari transaksi layanan teknisi yang telah dibayar pada tanggal terpilih. Persentase dari profil staf.
+                Nominal bagi hasil dihitung dari total pendapatan layanan staf pada tanggal terpilih dikali persentase bagi hasil dari profil staf.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -293,11 +395,9 @@ export default function ProfitSharingPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Nama Teknisi</TableHead>
-                      <TableHead className="w-[180px]">Pendapatan Harian (Rp)</TableHead>
-                      <TableHead className="w-[150px]">Bagi Hasil (%)</TableHead>
-                      <TableHead className="w-[180px]">Nominal Bagi Hasil (Rp)</TableHead>
-                      <TableHead className="text-center w-[120px]">Status</TableHead>
-                      <TableHead className="text-right w-[150px]">Aksi</TableHead>
+                      <TableHead className="text-right">Nominal Bagi Hasil (Rp)</TableHead>
+                      <TableHead className="text-center">Status</TableHead>
+                      <TableHead className="text-right">Aksi</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -306,56 +406,26 @@ export default function ProfitSharingPage() {
                           staffDailyRevenue: 0, 
                           profitSharePercentage: staff.profitSharePercentage || 0, 
                           profitShareAmount: 0, 
+                          contributingItems: [],
                           status: 'Belum Dibayar',
                           isLoadingSave: false,
                           isLoadingPay: false,
                        };
                       const isPaid = entry.status === 'Dibayar';
-                      // Disable save if date is past AND entry not paid. Allow saving for today.
-                      // Disable pay if date is past AND entry not paid. Allow paying for today.
-                      // If paid, all actions disabled.
-                      const canEditOrPayToday = isTodaySelected && !isPaid;
-                      const canViewOnlyPastUnpaid = isPastDateSelected && !isPaid;
-                      const canViewOnlyPaid = isPaid;
+                      const disableActions = isPaid || (isPastDateSelected && !entry.existingEntryId);
+                      const disableSaveButton = disableActions || entry.isLoadingSave || entry.isLoadingPay;
+                      const disablePayButton = disableActions || !entry.existingEntryId || entry.isLoadingSave || entry.isLoadingPay;
 
-                      const disableSaveButton = canViewOnlyPaid || canViewOnlyPastUnpaid || entry.isLoadingSave || entry.isLoadingPay;
-                      const disablePayButton = canViewOnlyPaid || canViewOnlyPastUnpaid || entry.isLoadingSave || entry.isLoadingPay || (!entry.existingEntryId && !isPaid) ;
 
                       return (
                         <TableRow key={staff.id}>
-                          <TableCell className="font-medium">{staff.name}</TableCell>
-                          <TableCell>
-                            <div className="relative">
-                               <DollarSign className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                type="text"
-                                value={entry.staffDailyRevenue.toLocaleString('id-ID')}
-                                readOnly
-                                className="pl-8 bg-muted/50"
-                                />
-                            </div>
+                          <TableCell className="font-medium">
+                            <Button variant="link" className="p-0 h-auto" onClick={() => handleOpenDetailDialog(staff.id)}>
+                              {staff.name}
+                            </Button>
                           </TableCell>
-                          <TableCell>
-                            <div className="relative">
-                                <PercentIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    type="text"
-                                    value={String(entry.profitSharePercentage)}
-                                    readOnly
-                                    className="pl-8 bg-muted/50"
-                                />
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                             <div className="relative">
-                                <DollarSign className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    type="text"
-                                    value={entry.profitShareAmount.toLocaleString('id-ID')}
-                                    readOnly
-                                    className="bg-muted pl-8 font-semibold"
-                                />
-                            </div>
+                          <TableCell className="text-right font-semibold">
+                            Rp {entry.profitShareAmount.toLocaleString('id-ID')}
                           </TableCell>
                           <TableCell className="text-center">
                             <span className={`px-2 py-1 text-xs rounded-full ${
@@ -376,6 +446,7 @@ export default function ProfitSharingPage() {
                                 onClick={() => handleSaveEntry(staff.id)} 
                                 disabled={disableSaveButton}
                                 variant="outline"
+                                title={entry.existingEntryId ? "Perbarui Data" : "Simpan Data"}
                             >
                               {entry.isLoadingSave ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                             </Button>
@@ -385,6 +456,7 @@ export default function ProfitSharingPage() {
                                 onClick={() => handleMarkAsPaid(staff.id)} 
                                 disabled={disablePayButton}
                                 className={!isPaid && !disablePayButton ? "bg-green-600 hover:bg-green-700 text-white" : ""}
+                                title="Tandai Sudah Dibayar"
                             >
                               {entry.isLoadingPay ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
                             </Button>
@@ -394,7 +466,7 @@ export default function ProfitSharingPage() {
                     })}
                      {technicianStaffList.length > 0 && Object.keys(profitShareEntries).length === 0 && !loadingEntriesAndRevenue && (
                         <TableRow>
-                            <TableCell colSpan={6} className="text-center text-muted-foreground py-4">
+                            <TableCell colSpan={4} className="text-center text-muted-foreground py-4">
                                 Tidak ada transaksi layanan oleh teknisi pada tanggal ini atau data bagi hasil belum ada.
                             </TableCell>
                         </TableRow>
@@ -403,9 +475,20 @@ export default function ProfitSharingPage() {
                 </Table>
               )}
             </CardContent>
+             <CardFooter>
+                <p className="text-xs text-muted-foreground">
+                    { isPastDateSelected ? "Data pada tanggal lampau bersifat historis. " : "" }
+                    Klik nama teknisi untuk melihat rincian transaksi kontribusi.
+                </p>
+            </CardFooter>
           </Card>
         </div>
       </main>
+      <ProfitShareDetailDialog
+        isOpen={isDetailDialogOpen}
+        onClose={() => setIsDetailDialogOpen(false)}
+        entryData={selectedStaffEntryForDetail}
+      />
     </div>
   );
 }
