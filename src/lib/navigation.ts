@@ -1,6 +1,6 @@
 
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, BarChartBig, Settings, Clipboard, Banknote, CalendarDays, ClipboardList, Percent } from 'lucide-react';
+import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, BarChartBig, Settings, Clipboard, Banknote, CalendarDays, ClipboardList, Percent, ReceiptText } from 'lucide-react';
 
 export interface NavItem {
   title: string;
@@ -44,6 +44,12 @@ export const mainNavItems: NavItem[] = [
     href: '/services',
     icon: Wrench,
     description: 'Kelola katalog layanan dan produk.',
+  },
+  {
+    title: 'Pengeluaran',
+    href: '/expenses',
+    icon: ReceiptText,
+    description: 'Catat dan kelola pengeluaran bengkel.',
   },
   {
     title: 'Manajemen Staf',
