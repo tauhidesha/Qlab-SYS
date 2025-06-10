@@ -6,12 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, TrendingUp, Download, DollarSign, TrendingDown, Sparkles } from 'lucide-react'; // Added Sparkles
+import { Loader2, TrendingUp, Download, DollarSign, TrendingDown, Sparkles } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, orderBy, getDocs, Timestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import type { Transaction } from '@/types/transaction';
+import type { Transaction, TransactionItem } from '@/types/transaction';
 import type { IncomeEntry, IncomeCategory } from '@/types/income';
 import type { Expense, ExpenseCategory } from '@/types/expense';
 import { format as formatDateFns, startOfMonth, endOfMonth, subMonths } from 'date-fns';
@@ -23,7 +23,8 @@ interface ProfitLossReportData {
   period: string; // Label periode, mis. "Juli 2024"
   periodValue: string; // Nilai periode untuk AI, mis. "2024-07"
   totalRevenue: number;
-  revenueFromSales: number;
+  revenueFromServiceSales: number; // Baru
+  revenueFromProductSales: number; // Baru
   revenueFromOtherIncome: number;
   otherIncomeBreakdown: { category: IncomeCategory; amount: number }[];
   totalExpenses: number;
@@ -83,9 +84,18 @@ export default function ProfitLossPage() {
         where('paidAt', '<=', endDate)
       );
       const salesSnapshot = await getDocs(salesQuery);
-      let revenueFromSales = 0;
+      let revenueFromServiceSales = 0;
+      let revenueFromProductSales = 0;
       salesSnapshot.forEach(doc => {
-        revenueFromSales += (doc.data() as Transaction).total;
+        const transaction = doc.data() as Transaction;
+        transaction.items.forEach(item => {
+          if (item.type === 'service') {
+            revenueFromServiceSales += item.price * item.quantity;
+          } else if (item.type === 'product') {
+            revenueFromProductSales += item.price * item.quantity;
+          }
+          // Item type 'reward_merchandise' and 'other' (like food_drink) are ignored for this P&L sales revenue
+        });
       });
 
       const incomeEntriesRef = collection(db, 'incomeEntries');
@@ -118,7 +128,6 @@ export default function ProfitLossPage() {
       const expensesBreakdownMap = new Map<ExpenseCategory, number>();
       expensesSnapshot.forEach(doc => {
         const expense = doc.data() as Expense;
-        // Exclude "Setoran Tunai ke Bank" from P&L expenses as it's a balance sheet movement
         if (expense.category !== "Setoran Tunai ke Bank") {
             totalExpenses += expense.amount;
             expensesBreakdownMap.set(
@@ -129,14 +138,15 @@ export default function ProfitLossPage() {
       });
       const expensesBreakdown = Array.from(expensesBreakdownMap).map(([category, amount]) => ({ category, amount }));
 
-      const totalRevenue = revenueFromSales + revenueFromOtherIncome;
+      const totalRevenue = revenueFromServiceSales + revenueFromProductSales + revenueFromOtherIncome;
       const netProfit = totalRevenue - totalExpenses;
       
       setReportData({
         period: periodLabel,
         periodValue: periodValue,
         totalRevenue,
-        revenueFromSales,
+        revenueFromServiceSales,
+        revenueFromProductSales,
         revenueFromOtherIncome,
         otherIncomeBreakdown,
         totalExpenses,
@@ -172,7 +182,8 @@ export default function ProfitLossPage() {
           const inputForAI: AnalyzeProfitLossInput = {
             period: reportData.period,
             totalRevenue: reportData.totalRevenue,
-            revenueFromSales: reportData.revenueFromSales,
+            revenueFromServiceSales: reportData.revenueFromServiceSales,
+            revenueFromProductSales: reportData.revenueFromProductSales,
             revenueFromOtherIncome: reportData.revenueFromOtherIncome,
             otherIncomeBreakdown: reportData.otherIncomeBreakdown,
             totalExpenses: reportData.totalExpenses,
@@ -192,7 +203,7 @@ export default function ProfitLossPage() {
       fetchAnalysis();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reportData]); // Trigger only when reportData changes
+  }, [reportData]); 
 
   return (
     <div className="flex flex-col h-full">
@@ -335,11 +346,15 @@ export default function ProfitLossPage() {
                     </TableHeader>
                     <TableBody>
                       <TableRow>
-                        <TableCell>Penjualan (POS)</TableCell>
-                        <TableCell className="text-right">{reportData.revenueFromSales.toLocaleString('id-ID')}</TableCell>
+                        <TableCell>Penjualan Layanan (POS)</TableCell>
+                        <TableCell className="text-right">{reportData.revenueFromServiceSales.toLocaleString('id-ID')}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell>Penjualan Produk (POS)</TableCell>
+                        <TableCell className="text-right">{reportData.revenueFromProductSales.toLocaleString('id-ID')}</TableCell>
                       </TableRow>
                       {reportData.otherIncomeBreakdown.length > 0 && reportData.otherIncomeBreakdown.map(item => (
-                        <TableRow key={item.category}>
+                        <TableRow key={`other-income-${item.category}`}>
                           <TableCell className="pl-6">Pemasukan Lain: {item.category}</TableCell>
                           <TableCell className="text-right">{item.amount.toLocaleString('id-ID')}</TableCell>
                         </TableRow>
@@ -368,7 +383,7 @@ export default function ProfitLossPage() {
                     </TableHeader>
                     <TableBody>
                       {reportData.expensesBreakdown.length > 0 ? reportData.expensesBreakdown.map(item => (
-                        <TableRow key={item.category}>
+                        <TableRow key={`expense-${item.category}`}>
                           <TableCell>{item.category}</TableCell>
                           <TableCell className="text-right">{item.amount.toLocaleString('id-ID')}</TableCell>
                         </TableRow>

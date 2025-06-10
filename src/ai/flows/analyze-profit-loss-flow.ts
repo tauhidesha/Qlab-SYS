@@ -24,7 +24,8 @@ const ExpenseBreakdownItemSchema = z.object({
 const AnalyzeProfitLossInputSchema = z.object({
   period: z.string().describe('Periode laporan, contoh: "Juli 2024".'),
   totalRevenue: z.number().describe('Total pendapatan.'),
-  revenueFromSales: z.number().describe('Pendapatan dari penjualan POS.'),
+  revenueFromServiceSales: z.number().describe('Pendapatan dari penjualan layanan (POS).'),
+  revenueFromProductSales: z.number().describe('Pendapatan dari penjualan produk (POS).'),
   revenueFromOtherIncome: z.number().describe('Pendapatan dari sumber lain.'),
   otherIncomeBreakdown: z.array(IncomeBreakdownItemSchema).describe('Rincian pendapatan lain per kategori.'),
   totalExpenses: z.number().describe('Total biaya/pengeluaran.'),
@@ -52,7 +53,8 @@ const analyzePrompt = ai.definePrompt({
   prompt: `Anda adalah seorang analis bisnis yang bertugas menganalisis Laporan Laba Rugi sebuah bengkel.
 Data Laporan Laba Rugi untuk periode {{{period}}}:
 - Total Pendapatan: Rp {{{totalRevenue}}}
-  - Pendapatan dari Penjualan (POS): Rp {{{revenueFromSales}}}
+  - Pendapatan dari Penjualan Layanan (POS): Rp {{{revenueFromServiceSales}}}
+  - Pendapatan dari Penjualan Produk (POS): Rp {{{revenueFromProductSales}}}
   - Pendapatan Lain-lain: Rp {{{revenueFromOtherIncome}}}
     {{#if otherIncomeBreakdown.length}}
     Rincian Pendapatan Lain:
@@ -74,9 +76,9 @@ Data Laporan Laba Rugi untuk periode {{{period}}}:
 - Laba/Rugi Bersih: Rp {{{netProfit}}}
 
 Tugas Anda:
-1.  Berikan **ringkasan** singkat (1-2 kalimat) tentang performa keuangan bengkel pada periode ini. Sebutkan apakah secara umum baik, standar, atau ada area yang perlu perhatian khusus, terutama berdasarkan laba bersih dan kontributor utama.
+1.  Berikan **ringkasan** singkat (1-2 kalimat) tentang performa keuangan bengkel pada periode ini. Sebutkan apakah secara umum baik, standar, atau ada area yang perlu perhatian khusus, terutama berdasarkan laba bersih dan kontributor utama seperti perbandingan pendapatan layanan vs produk.
 2.  Sebutkan 2-4 **observasi kunci**. Fokus pada:
-    *   Komponen pendapatan terbesar (misalnya, penjualan POS vs pendapatan lain).
+    *   Komponen pendapatan terbesar (misalnya, penjualan layanan vs. produk vs. pendapatan lain).
     *   Kategori biaya terbesar.
     *   Jika ada kategori pendapatan lain atau biaya yang nilainya signifikan atau tidak biasa (jika bisa dinilai tanpa data historis).
     *   Sebutkan nilai laba bersihnya dan apakah itu positif atau negatif.
@@ -105,4 +107,3 @@ const analyzeProfitLossFlow = ai.defineFlow(
     return output;
   }
 );
-
