@@ -17,18 +17,26 @@ import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { STAFF_ROLES, type NewStaffMemberData, type StaffRole } from '@/types/staff'; // Ensure NewStaffMemberData matches the fields
+import { STAFF_ROLES, type NewStaffMemberData, type StaffRole } from '@/types/staff';
 
 const staffFormSchema = z.object({
   name: z.string().min(2, "Nama staf minimal 2 karakter").max(50, "Nama staf maksimal 50 karakter"),
   role: z.enum(STAFF_ROLES, { required_error: "Peran staf diperlukan" }),
   phone: z.string().regex(/^(|\+?[0-9\s-]{10,15})$/, "Format nomor telepon tidak valid (min 10, maks 15 digit)").optional().or(z.literal('')),
   baseSalary: z.preprocess(
-    (val) => (val === "" || val === undefined || val === null) ? undefined : parseFloat(String(val)),
+    (val) => {
+      if (val === "" || val === undefined || val === null) return undefined;
+      const num = parseFloat(String(val));
+      return isNaN(num) ? undefined : num;
+    },
     z.number({ invalid_type_error: "Gaji harus angka" }).nonnegative("Gaji tidak boleh negatif").optional()
   ),
   profitSharePercentage: z.preprocess(
-    (val) => (val === "" || val === undefined || val === null) ? undefined : parseInt(String(val), 10),
+    (val) => {
+      if (val === "" || val === undefined || val === null) return undefined;
+      const num = parseInt(String(val), 10);
+      return isNaN(num) ? undefined : num;
+    },
     z.number({ invalid_type_error: "Persentase harus angka" }).min(0, "Minimal 0%").max(100, "Maksimal 100%").optional()
   ),
   photoUrl: z.string().url("URL foto tidak valid (mis. https://...)").optional().or(z.literal('')),
@@ -56,17 +64,29 @@ export default function NewStaffPage() {
   const onSubmit = async (data: StaffFormValues) => {
     setIsSubmitting(true);
     try {
-      const newStaffData: NewStaffMemberData & { createdAt: any } = {
+      // Start with mandatory fields and createdAt
+      const newStaffEntry: NewStaffMemberData & { createdAt: any } = {
         name: data.name,
         role: data.role,
-        phone: data.phone || undefined,
-        baseSalary: data.baseSalary || undefined,
-        profitSharePercentage: data.profitSharePercentage || undefined,
-        photoUrl: data.photoUrl || undefined,
         createdAt: serverTimestamp(),
       };
 
-      await addDoc(collection(db, 'staffMembers'), newStaffData);
+      // Conditionally add optional fields if they have a valid value
+      if (data.phone && data.phone.trim() !== '') {
+        newStaffEntry.phone = data.phone;
+      }
+      // For numbers, ensure they are actual numbers (not NaN, which Zod preprocess might return as undefined)
+      if (typeof data.baseSalary === 'number' && !isNaN(data.baseSalary)) {
+        newStaffEntry.baseSalary = data.baseSalary;
+      }
+      if (typeof data.profitSharePercentage === 'number' && !isNaN(data.profitSharePercentage)) {
+        newStaffEntry.profitSharePercentage = data.profitSharePercentage;
+      }
+      if (data.photoUrl && data.photoUrl.trim() !== '') {
+        newStaffEntry.photoUrl = data.photoUrl;
+      }
+
+      await addDoc(collection(db, 'staffMembers'), newStaffEntry);
       toast({
         title: "Sukses!",
         description: `Staf baru "${data.name}" berhasil ditambahkan.`,
@@ -227,3 +247,4 @@ export default function NewStaffPage() {
     </div>
   );
 }
+
