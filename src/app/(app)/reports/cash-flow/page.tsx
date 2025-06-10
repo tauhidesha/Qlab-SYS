@@ -8,7 +8,7 @@ import { DatePickerWithRange } from '@/components/ui/date-picker-range';
 import { Loader2, FileText, Download, TrendingUp, TrendingDown, Landmark } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, query, where, orderBy, getDocs, Timestamp, doc } from 'firebase/firestore';
+import { collection, query, where, orderBy, getDocs, Timestamp, doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import type { Transaction } from '@/types/transaction';
 import type { IncomeEntry } from '@/types/income';
@@ -341,3 +341,5 @@ export default function CashFlowPage() {
     </div>
   );
 }
+
+    
