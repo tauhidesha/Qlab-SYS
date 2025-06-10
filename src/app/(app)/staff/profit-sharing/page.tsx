@@ -206,10 +206,10 @@ export default function ProfitSharingPage() {
 
         if (existingEntryFromDb) {
           newEntriesState[staff.id] = {
-            staffDailyRevenue: existingEntryFromDb.staffDailyRevenue, // Gunakan revenue tersimpan
-            profitSharePercentage: existingEntryFromDb.profitSharePercentage, // Gunakan persentase tersimpan
-            profitShareAmount: existingEntryFromDb.profitShareAmount, // Gunakan nominal tersimpan
-            contributingItems: contributingItems, // Selalu ambil item kontribusi live untuk dialog
+            staffDailyRevenue: existingEntryFromDb.staffDailyRevenue, 
+            profitSharePercentage: existingEntryFromDb.profitSharePercentage, 
+            profitShareAmount: existingEntryFromDb.profitShareAmount, 
+            contributingItems: contributingItems, 
             existingEntryId: existingEntryFromDb.id,
             status: existingEntryFromDb.status,
             paidAt: existingEntryFromDb.paidAt,
@@ -217,7 +217,6 @@ export default function ProfitSharingPage() {
             isLoadingPay: false,
           };
         } else {
-          // Jika tidak ada entri tersimpan, hitung berdasarkan transaksi hari ini dan profil staf
           const profitShareAmountCalculated = (staffDailyRevenueFromTransactions * staffProfileProfitSharePercentage) / 100;
           newEntriesState[staff.id] = {
             staffDailyRevenue: staffDailyRevenueFromTransactions,
@@ -283,8 +282,6 @@ export default function ProfitSharingPage() {
         }));
         toast({ title: "Sukses", description: `Bagi hasil untuk ${staff.name} berhasil disimpan.` });
       }
-      // Tidak perlu memanggil calculateRevenueAndPopulateEntries lagi di sini karena data yang disimpan
-      // adalah snapshot dari state saat ini. Cukup update state lokal jika perlu (seperti existingEntryId).
     } catch (error) {
       console.error("Error saving profit share entry: ", error);
       toast({ title: "Error", description: "Gagal menyimpan data bagi hasil.", variant: "destructive" });
@@ -332,7 +329,7 @@ export default function ProfitSharingPage() {
       setSelectedStaffEntryForDetail({
         ...entry,
         staffName: staffMember.name,
-        date: formatDateForFirestore(selectedDate), // Kirim tanggal yang dipilih ke dialog
+        date: formatDateForFirestore(selectedDate),
       });
       setIsDetailDialogOpen(true);
     } else {
@@ -381,10 +378,9 @@ export default function ProfitSharingPage() {
         <div className="lg:col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle>Entri Bagi Hasil untuk {formatDateFns(selectedDate, 'PPP', { locale: indonesiaLocale })}</CardTitle>
+              <CardTitle>Rekap Bagi Hasil Harian Teknisi</CardTitle>
               <CardDescription>
-                Nominal bagi hasil dihitung dari total pendapatan layanan staf pada tanggal terpilih dikali persentase bagi hasil dari profil staf.
-                Klik nama teknisi untuk melihat rincian transaksi kontribusi.
+                Lihat rekapitulasi bagi hasil harian untuk setiap teknisi berdasarkan transaksi layanan. Simpan atau tandai sebagai terbayar.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -425,7 +421,7 @@ export default function ProfitSharingPage() {
                       return (
                         <TableRow key={staff.id}>
                           <TableCell className="font-medium">
-                            <Button variant="link" className="p-0 h-auto text-left" onClick={() => handleOpenDetailDialog(staff.id)}>
+                            <Button variant="link" className="p-0 h-auto text-left text-base" onClick={() => handleOpenDetailDialog(staff.id)}>
                               {staff.name}
                             </Button>
                           </TableCell>
