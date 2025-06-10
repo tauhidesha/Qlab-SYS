@@ -5,7 +5,7 @@ import { db } from '@/lib/firebase';
 import { collection, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Clock, CheckCircle, ListOrdered, UserCircle } from 'lucide-react'; // Added UserCircle
+import { Loader2, Clock, CheckCircle, ListOrdered } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -102,8 +102,8 @@ export default function QueueDisplayPage() {
 
   return (
     <>
-      <div className="w-full max-w-7xl mx-auto"> {/* Wider max-width for table */}
-        <Card className="shadow-2xl border-2 border-primary/20">
+      <div className="w-full h-full"> {/* Removed max-w-7xl and mx-auto, added h-full */}
+        <Card className="shadow-2xl border-2 border-primary/20 h-full flex flex-col"> {/* Added h-full and flex flex-col */}
           <CardHeader className="text-center pb-6 pt-8">
             <div className="flex items-center justify-center mb-4">
               <ListOrdered className="h-12 w-12 text-primary mr-4" />
@@ -113,9 +113,9 @@ export default function QueueDisplayPage() {
               Pelanggan yang sedang menunggu dan dilayani saat ini.
             </CardDescription>
           </CardHeader>
-          <CardContent className="px-2 sm:px-4">
+          <CardContent className="px-2 sm:px-4 flex-grow overflow-y-auto"> {/* Added flex-grow and overflow-y-auto */}
             {loadingQueue && queueItems.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-center">
+              <div className="flex flex-col items-center justify-center py-20 text-center h-full">
                 <Loader2 className="h-16 w-16 animate-spin text-primary mb-4" />
                 <p className="text-2xl text-muted-foreground">Memuat data antrian...</p>
               </div>
