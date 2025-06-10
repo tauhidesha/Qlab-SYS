@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Loader2, Save, CheckCircle, DollarSign, Percent as PercentIcon } from 'lucide-react'; // Explicitly import PercentIcon
 import { db } from '@/lib/firebase';
-import { collection, doc, query, where, getDocs, setDoc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { collection, doc, query, where, getDocs, setDoc, updateDoc, serverTimestamp, Timestamp, orderBy } from 'firebase/firestore'; // Added orderBy
 import { useToast } from '@/hooks/use-toast';
 import type { StaffMember } from '@/types/staff';
 import type { DailyProfitShareEntry } from '@/types/profitSharing';
@@ -43,7 +43,7 @@ export default function ProfitSharingPage() {
     setLoadingStaff(true);
     try {
       const staffCollectionRef = collection(db, 'staffMembers');
-      const q = query(staffCollectionRef, orderBy("name"));
+      const q = query(staffCollectionRef, orderBy("name")); // orderBy should now be defined
       const querySnapshot = await getDocs(q);
       const membersData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StaffMember));
       setStaffList(membersData);
@@ -384,3 +384,6 @@ export default function ProfitSharingPage() {
     </div>
   );
 }
+
+
+    
