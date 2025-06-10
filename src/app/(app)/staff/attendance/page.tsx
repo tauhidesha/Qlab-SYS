@@ -9,18 +9,211 @@ import { Clock, LogIn, LogOut, UserCheck, UserX, PlusCircle, Loader2, MapPin } f
 import { Badge } from '@/components/ui/badge';
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, orderBy, Timestamp, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy, Timestamp, doc, updateDoc, serverTimestamp, addDoc } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import { id as indonesiaLocale } from 'date-fns/locale';
 import { format as formatDateFns } from 'date-fns';
 import type { AttendanceRecord, GeolocationCoordinates } from '@/types/attendance';
+import type { StaffMember } from '@/types/staff';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+
+const manualAttendanceFormSchema = z.object({
+  staffId: z.string().min(1, "Staf harus dipilih"),
+  clockIn: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$|^$/, "Format Jam Masuk tidak valid (JJ:MM atau kosong)").optional().or(z.literal('')),
+  clockOut: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$|^$/, "Format Jam Pulang tidak valid (JJ:MM atau kosong)").optional().or(z.literal('')),
+  status: z.enum(['Hadir', 'Absen', 'Terlambat', 'Cuti'], { required_error: "Status kehadiran diperlukan" }),
+  notes: z.string().max(200, "Catatan maksimal 200 karakter").optional(),
+});
+
+type ManualAttendanceFormData = z.infer<typeof manualAttendanceFormSchema>;
+
+interface ManualAttendanceDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (data: ManualAttendanceFormData) => Promise<void>;
+  staffList: StaffMember[];
+  selectedDate: Date;
+  isSubmitting: boolean;
+  loadingStaff: boolean;
+}
+
+function ManualAttendanceDialog({ isOpen, onClose, onSubmit, staffList, selectedDate, isSubmitting, loadingStaff }: ManualAttendanceDialogProps) {
+  const form = useForm<ManualAttendanceFormData>({
+    resolver: zodResolver(manualAttendanceFormSchema),
+    defaultValues: {
+      staffId: '',
+      clockIn: '',
+      clockOut: '',
+      status: 'Hadir',
+      notes: '',
+    },
+  });
+
+  useEffect(() => {
+    if (isOpen) {
+      form.reset({
+        staffId: '',
+        clockIn: '',
+        clockOut: '',
+        status: 'Hadir',
+        notes: '',
+      });
+    }
+  }, [isOpen, form]);
+
+  const internalSubmit = form.handleSubmit(async (data) => {
+    await onSubmit(data);
+  });
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Entri Absensi Manual</DialogTitle>
+          <DialogDescription>
+            Tanggal: {formatDateFns(selectedDate, 'PPP', { locale: indonesiaLocale })}.
+            Data lokasi tidak akan dicatat untuk entri manual.
+          </DialogDescription>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={internalSubmit} className="space-y-4 py-2 pb-4">
+            <FormField
+              control={form.control}
+              name="staffId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Staf</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value}
+                    disabled={loadingStaff}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder={loadingStaff ? "Memuat staf..." : "Pilih staf"} />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {loadingStaff ? (
+                        <SelectItem value="loading" disabled>Memuat...</SelectItem>
+                      ) : staffList.length === 0 ? (
+                        <SelectItem value="no-staff" disabled>Tidak ada staf.</SelectItem>
+                      ) : (
+                        staffList.map(staff => (
+                          <SelectItem key={staff.id} value={staff.id}>{staff.name} ({staff.role})</SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="clockIn"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Jam Masuk (JJ:MM)</FormLabel>
+                    <FormControl>
+                      <Input type="text" placeholder="mis. 09:00" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="clockOut"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Jam Pulang (JJ:MM)</FormLabel>
+                    <FormControl>
+                      <Input type="text" placeholder="mis. 17:00" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <FormField
+              control={form.control}
+              name="status"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Status Kehadiran</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Pilih status" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {['Hadir', 'Absen', 'Terlambat', 'Cuti'].map(s => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Catatan (Opsional)</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="mis. Izin sakit, Dinas luar" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>Batal</Button>
+              <Button type="submit" disabled={isSubmitting || loadingStaff || staffList.length === 0}>
+                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Simpan Entri Manual
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 export default function AttendancePage() {
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [rowActionLoading, setRowActionLoading] = useState<Record<string, boolean>>({});
+  
+  const [isManualEntryDialogOpen, setIsManualEntryDialogOpen] = useState(false);
+  const [allStaffMembers, setAllStaffMembers] = useState<StaffMember[]>([]);
+  const [loadingAllStaff, setLoadingAllStaff] = useState(true);
+  const [isSubmittingManualEntry, setIsSubmittingManualEntry] = useState(false);
+
   const { toast } = useToast();
 
   const formatDateForFirestore = (date: Date): string => {
@@ -56,6 +249,27 @@ export default function AttendancePage() {
   useEffect(() => {
     fetchAttendance(selectedDate);
   }, [selectedDate, fetchAttendance]);
+
+  const fetchAllStaff = useCallback(async () => {
+    setLoadingAllStaff(true);
+    try {
+      const staffCollectionRef = collection(db, 'staffMembers');
+      const q = query(staffCollectionRef, orderBy("name"));
+      const querySnapshot = await getDocs(q);
+      const membersData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StaffMember));
+      setAllStaffMembers(membersData);
+    } catch (error) {
+      console.error("Error fetching all staff members: ", error);
+      toast({ title: "Error", description: "Gagal memuat daftar staf untuk entri manual.", variant: "destructive" });
+    } finally {
+      setLoadingAllStaff(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchAllStaff();
+  }, [fetchAllStaff]);
+
 
   const handleGeolocation = (
     onSuccess: (coords: GeolocationCoordinates) => void,
@@ -93,13 +307,11 @@ export default function AttendancePage() {
   };
 
   const updateAttendanceRecord = async (recordId: string, data: Partial<AttendanceRecord>) => {
-    // rowActionLoading is set before calling this function.
-    // It will be reset in the finally block here.
     try {
       const recordDocRef = doc(db, 'attendanceRecords', recordId);
       await updateDoc(recordDocRef, { ...data, updatedAt: serverTimestamp() });
       toast({ title: "Sukses", description: "Data absensi berhasil diperbarui." });
-      fetchAttendance(selectedDate); // Refresh data
+      fetchAttendance(selectedDate); 
     } catch (error) {
       console.error("Error updating attendance record: ", error);
       toast({ title: "Error", description: "Gagal memperbarui data absensi.", variant: "destructive" });
@@ -119,7 +331,7 @@ export default function AttendancePage() {
         });
       },
       (errorMsg) => {
-        toast({ title: "Absen Masuk Gagal", description: `${errorMsg} Lokasi wajib untuk absen.`, variant: "destructive" });
+        toast({ title: "Absen Masuk Gagal", description: `${errorMsg} Lokasi wajib untuk absen. Absen tidak tercatat.`, variant: "destructive" });
         setRowActionLoading(prev => ({ ...prev, [recordId]: false })); 
       }
     );
@@ -135,10 +347,45 @@ export default function AttendancePage() {
         });
       },
       (errorMsg) => {
-        toast({ title: "Absen Pulang Gagal", description: `${errorMsg} Lokasi wajib untuk absen.`, variant: "destructive" });
+        toast({ title: "Absen Pulang Gagal", description: `${errorMsg} Lokasi wajib untuk absen. Absen tidak tercatat.`, variant: "destructive" });
         setRowActionLoading(prev => ({ ...prev, [recordId]: false }));
       }
     );
+  };
+
+  const handleManualSubmit = async (data: ManualAttendanceFormData) => {
+    setIsSubmittingManualEntry(true);
+    const selectedStaffMember = allStaffMembers.find(s => s.id === data.staffId);
+    if (!selectedStaffMember) {
+      toast({ title: "Error", description: "Staf yang dipilih tidak valid.", variant: "destructive" });
+      setIsSubmittingManualEntry(false);
+      return;
+    }
+
+    try {
+      const newRecordData: Omit<AttendanceRecord, 'id' | 'createdAt' | 'updatedAt' | 'clockInLocation' | 'clockOutLocation'> = {
+        staffId: data.staffId,
+        staffName: selectedStaffMember.name,
+        date: formatDateForFirestore(selectedDate),
+        clockIn: data.clockIn || undefined,
+        clockOut: data.clockOut || undefined,
+        status: data.status,
+        notes: data.notes || undefined,
+      };
+      await addDoc(collection(db, 'attendanceRecords'), {
+        ...newRecordData,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      toast({ title: "Sukses", description: `Entri absensi manual untuk ${selectedStaffMember.name} berhasil ditambahkan.` });
+      setIsManualEntryDialogOpen(false);
+      fetchAttendance(selectedDate); // Refresh data
+    } catch (error) {
+      console.error("Error adding manual attendance entry: ", error);
+      toast({ title: "Error", description: "Gagal menambahkan entri absensi manual.", variant: "destructive" });
+    } finally {
+      setIsSubmittingManualEntry(false);
+    }
   };
 
 
@@ -163,7 +410,13 @@ export default function AttendancePage() {
                 <CardTitle>Log Absensi</CardTitle>
                 <CardDescription>Catatan absensi staf harian untuk {formatDateFns(selectedDate, 'PPP', { locale: indonesiaLocale })}.</CardDescription>
               </div>
-              <Button disabled><PlusCircle className="mr-2 h-4 w-4" /> Entri Manual (Segera)</Button>
+              <Button 
+                onClick={() => setIsManualEntryDialogOpen(true)}
+                disabled={loadingAllStaff}
+              >
+                {loadingAllStaff ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />} 
+                Entri Manual
+              </Button>
             </CardHeader>
             <CardContent>
               {loading ? (
@@ -298,8 +551,15 @@ export default function AttendancePage() {
           </Card>
         </div>
       </main>
+      <ManualAttendanceDialog
+        isOpen={isManualEntryDialogOpen}
+        onClose={() => setIsManualEntryDialogOpen(false)}
+        onSubmit={handleManualSubmit}
+        staffList={allStaffMembers}
+        selectedDate={selectedDate}
+        isSubmitting={isSubmittingManualEntry}
+        loadingStaff={loadingAllStaff}
+      />
     </div>
   );
 }
-
-    
