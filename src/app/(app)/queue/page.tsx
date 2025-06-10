@@ -53,6 +53,7 @@ import type { Client, Motorcycle } from '@/types/client';
 import type { ServiceProduct } from '@/app/(app)/services/page';
 import type { Transaction, TransactionItem } from '@/types/transaction';
 import { v4 as uuidv4 } from 'uuid';
+import type { StaffMember, StaffRole } from '@/types/staff';
 
 
 interface QueueItem {
@@ -128,7 +129,7 @@ function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting, client
       }
     } else {
       setSelectedClientMotorcycles([]);
-      form.setValue('vehicleInfo', defaultValues.vehicleInfo || ''); // Ensure vehicleInfo is string
+      form.setValue('vehicleInfo', defaultValues.vehicleInfo || ''); 
     }
   }, [defaultValues, form, clientsList]);
 
@@ -146,7 +147,6 @@ function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting, client
     } else { 
       setSelectedClientMotorcycles([]);
       if (selectedClientId === WALK_IN_CLIENT_VALUE) {
-        // For walk-in, vehicleInfo could be manually entered, retain its current value or default from form
         form.setValue('vehicleInfo', form.getValues('vehicleInfo') || '');
       } else {
         form.setValue('vehicleInfo', '');
@@ -353,27 +353,28 @@ interface AssignStaffDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (staffName: string) => Promise<void>;
-  staffList: string[]; 
+  staffList: StaffMember[]; 
   isSubmitting: boolean;
+  loadingStaff: boolean;
 }
 
-function AssignStaffDialog({ isOpen, onClose, onSubmit, staffList, isSubmitting }: AssignStaffDialogProps) {
-  const [selectedStaff, setSelectedStaff] = useState<string>('');
+function AssignStaffDialog({ isOpen, onClose, onSubmit, staffList, isSubmitting, loadingStaff }: AssignStaffDialogProps) {
+  const [selectedStaffName, setSelectedStaffName] = useState<string>('');
 
   const handleSubmit = async () => {
-    if (!selectedStaff) {
+    if (!selectedStaffName) {
       toast({ title: "Error", description: "Silakan pilih staf.", variant: "destructive" });
       return;
     }
-    await onSubmit(selectedStaff);
-    setSelectedStaff(''); 
+    await onSubmit(selectedStaffName);
+    setSelectedStaffName(''); 
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
       if (!open) {
         onClose();
-        setSelectedStaff(''); 
+        setSelectedStaffName(''); 
       }
     }}>
       <DialogContent>
@@ -383,22 +384,28 @@ function AssignStaffDialog({ isOpen, onClose, onSubmit, staffList, isSubmitting 
         </DialogHeader>
         <div className="space-y-4 py-4">
           <Label htmlFor="staff-select">Staf yang Bertugas</Label>
-          <Select value={selectedStaff} onValueChange={setSelectedStaff}>
+          <Select value={selectedStaffName} onValueChange={setSelectedStaffName} disabled={loadingStaff}>
             <SelectTrigger id="staff-select">
-              <SelectValue placeholder="Pilih staf" />
+              <SelectValue placeholder={loadingStaff ? "Memuat staf..." : "Pilih staf"} />
             </SelectTrigger>
             <SelectContent>
-              {staffList.map(staffName => (
-                <SelectItem key={staffName} value={staffName}>
-                  {staffName}
-                </SelectItem>
-              ))}
+              {loadingStaff ? (
+                <SelectItem value="loading" disabled>Memuat...</SelectItem>
+              ) : staffList.length === 0 ? (
+                 <SelectItem value="no-staff" disabled>Tidak ada staf tersedia.</SelectItem>
+              ) : (
+                staffList.map(staff => (
+                  <SelectItem key={staff.id} value={staff.name}>
+                    {staff.name} ({staff.role})
+                  </SelectItem>
+                ))
+              )}
             </SelectContent>
           </Select>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => { onClose(); setSelectedStaff('');}} disabled={isSubmitting}>Batal</Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting || !selectedStaff}>
+          <Button variant="outline" onClick={() => { onClose(); setSelectedStaffName('');}} disabled={isSubmitting}>Batal</Button>
+          <Button onClick={handleSubmit} disabled={isSubmitting || !selectedStaffName || loadingStaff || staffList.length === 0}>
             {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
             Konfirmasi Staf
           </Button>
@@ -411,22 +418,28 @@ function AssignStaffDialog({ isOpen, onClose, onSubmit, staffList, isSubmitting 
 
 export default function QueuePage() {
   const [queueItems, setQueueItems] = useState<QueueItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingQueue, setLoadingQueue] = useState(true);
   const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [currentEditingItem, setCurrentEditingItem] = useState<QueueItem | null>(null);
   const [itemToDelete, setItemToDelete] = useState<QueueItem | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmittingForm, setIsSubmittingForm] = useState(false);
   
   const [clientsList, setClientsList] = useState<ClientForSelect[]>([]);
+  const [loadingClients, setLoadingClients] = useState(true);
   const [servicesList, setServicesList] = useState<ServiceForSelect[]>([]);
-  const staffList = ['Andi P.', 'Budi S.', 'Rian S.', 'Siti K.', 'Eko W.', 'Lainnya']; 
+  const [loadingServices, setLoadingServices] = useState(true);
+  
+  const [assignableStaffList, setAssignableStaffList] = useState<StaffMember[]>([]);
+  const [loadingStaff, setLoadingStaff] = useState(true);
 
   const [isAssignStaffDialogOpen, setIsAssignStaffDialogOpen] = useState(false);
   const [itemBeingAssigned, setItemBeingAssigned] = useState<QueueItem | null>(null);
+  const [isSubmittingStaffAssignment, setIsSubmittingStaffAssignment] = useState(false);
 
   const { toast } = useToast();
   
   const fetchClients = useCallback(async () => {
+    setLoadingClients(true);
     try {
       const clientsCollectionRef = collection(db, 'clients');
       const q = query(clientsCollectionRef, orderBy("name"));
@@ -435,15 +448,14 @@ export default function QueuePage() {
       setClientsList(clientsData);
     } catch (error) {
       console.error("Error fetching clients for dropdown: ", error);
-      toast({
-        title: "Error",
-        description: "Tidak dapat mengambil data klien untuk dropdown.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Tidak dapat mengambil data klien.", variant: "destructive" });
+    } finally {
+      setLoadingClients(false);
     }
   }, [toast]);
 
   const fetchServices = useCallback(async () => {
+    setLoadingServices(true);
     try {
       const servicesCollectionRef = collection(db, 'services');
       const q = query(servicesCollectionRef, orderBy("name"));
@@ -452,21 +464,38 @@ export default function QueuePage() {
       setServicesList(servicesData);
     } catch (error) {
       console.error("Error fetching services for dropdown: ", error);
-      toast({
-        title: "Error",
-        description: "Tidak dapat mengambil data layanan untuk dropdown.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Tidak dapat mengambil data layanan.", variant: "destructive" });
+    } finally {
+      setLoadingServices(false);
     }
   }, [toast]);
+
+  const fetchAssignableStaff = useCallback(async () => {
+    setLoadingStaff(true);
+    try {
+      const staffCollectionRef = collection(db, 'staffMembers');
+      // Anda bisa filter berdasarkan peran di sini jika perlu, e.g., where("role", "==", "Teknisi")
+      const q = query(staffCollectionRef, orderBy("name"));
+      const querySnapshot = await getDocs(q);
+      const staffData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StaffMember));
+      setAssignableStaffList(staffData);
+    } catch (error) {
+      console.error("Error fetching assignable staff: ", error);
+      toast({ title: "Error", description: "Tidak dapat mengambil daftar staf untuk penugasan.", variant: "destructive" });
+    } finally {
+      setLoadingStaff(false);
+    }
+  }, [toast]);
+
 
   useEffect(() => {
     fetchClients();
     fetchServices();
-  }, [fetchClients, fetchServices]);
+    fetchAssignableStaff();
+  }, [fetchClients, fetchServices, fetchAssignableStaff]);
 
   const fetchQueueItems = useCallback(async () => {
-    setLoading(true);
+    setLoadingQueue(true);
     try {
       const queueCollectionRef = collection(db, 'queueItems');
       const q = query(queueCollectionRef, orderBy("createdAt", "asc"));
@@ -485,16 +514,10 @@ export default function QueuePage() {
     } catch (error) {
       console.error("Error fetching queue items: ", error);
       let description = "Tidak dapat mengambil data antrian.";
-      if (error instanceof Error) {
-          description = `Error: ${error.message}.`;
-      }
-      toast({
-        title: "Error Pengambilan",
-        description: description,
-        variant: "destructive",
-      });
+      if (error instanceof Error) { description = `Error: ${error.message}.`; }
+      toast({ title: "Error Pengambilan", description: description, variant: "destructive" });
     } finally {
-      setLoading(false);
+      setLoadingQueue(false);
     }
   }, [toast]);
 
@@ -513,10 +536,8 @@ export default function QueuePage() {
   };
 
   const handleOpenAddDialog = () => {
-    console.log('[QueuePage] handleOpenAddDialog called');
     setCurrentEditingItem(null); 
     setIsFormDialogOpen(true);
-    console.log('[QueuePage] isFormDialogOpen changed to:', true);
   };
 
   const handleEditItem = (item: QueueItem) => {
@@ -525,12 +546,11 @@ export default function QueuePage() {
   };
 
   const handleFormSubmit = async (formData: QueueItemFormData) => {
-    setIsSubmitting(true);
+    setIsSubmittingForm(true);
     try {
       const { clientId: formClientId, ...otherFormData } = formData;
       const actualClientId = formClientId === WALK_IN_CLIENT_VALUE ? undefined : formClientId;
 
-      // Explicitly define the structure for Firestore, excluding 'staff'
       const firestoreData: Omit<QueueItem, 'id' | 'createdAt' | 'staff' | 'serviceId'> & { clientId?: string; serviceId?: string} = {
           customerName: otherFormData.customerName,
           vehicleInfo: otherFormData.vehicleInfo,
@@ -541,13 +561,8 @@ export default function QueuePage() {
           ...(otherFormData.serviceId && { serviceId: otherFormData.serviceId})
       };
       
-      if (!actualClientId) {
-          delete (firestoreData as any).clientId;
-      }
-      if (!otherFormData.serviceId) {
-          delete (firestoreData as any).serviceId;
-      }
-
+      if (!actualClientId) { delete (firestoreData as any).clientId; }
+      if (!otherFormData.serviceId) { delete (firestoreData as any).serviceId; }
 
       if (currentEditingItem) { 
         const itemDocRef = doc(db, 'queueItems', currentEditingItem.id);
@@ -567,7 +582,7 @@ export default function QueuePage() {
       console.error("Error submitting form: ", error);
       toast({ title: "Error", description: "Gagal menyimpan item antrian.", variant: "destructive" });
     } finally {
-      setIsSubmitting(false);
+      setIsSubmittingForm(false);
     }
   };
 
@@ -590,7 +605,7 @@ export default function QueuePage() {
 
   const handleConfirmAssignStaff = async (staffName: string) => {
     if (!itemBeingAssigned) return;
-    setIsSubmitting(true);
+    setIsSubmittingStaffAssignment(true);
     try {
       const batch = writeBatch(db);
       const itemDocRef = doc(db, 'queueItems', itemBeingAssigned.id);
@@ -602,7 +617,7 @@ export default function QueuePage() {
       const serviceDetails = servicesList.find(s => s.name === itemBeingAssigned.service || s.id === itemBeingAssigned.serviceId);
       if (!serviceDetails) {
         toast({ title: "Error", description: "Detail layanan tidak ditemukan untuk membuat transaksi.", variant: "destructive" });
-        setIsSubmitting(false);
+        setIsSubmittingStaffAssignment(false);
         return;
       }
 
@@ -666,10 +681,10 @@ export default function QueuePage() {
           serviceStaffName: staffName,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
-          subtotal: newTransactionItem.price, // Subtotal for single item transaction
+          subtotal: newTransactionItem.price, 
           discountAmount: 0,
           discountPercentage: 0,
-          total: newTransactionItem.price, // Total for single item transaction
+          total: newTransactionItem.price, 
         } as Omit<Transaction, 'id'>);
       }
 
@@ -683,7 +698,7 @@ export default function QueuePage() {
       console.error("Error assigning staff and creating/updating transaction: ", error);
       toast({ title: "Error", description: "Gagal menugaskan staf atau memproses transaksi.", variant: "destructive" });
     } finally {
-      setIsSubmitting(false);
+      setIsSubmittingStaffAssignment(false);
     }
   };
 
@@ -692,7 +707,6 @@ export default function QueuePage() {
     let currentDiscountAmount = discountAmount;
     if (discountPercentage > 0 && discountAmount === 0) { 
         currentDiscountAmount = subtotal * (discountPercentage / 100);
-    } else if (discountAmount > 0) { 
     }
     const total = subtotal - currentDiscountAmount;
     return { subtotal, total, discountAmount: currentDiscountAmount };
@@ -704,7 +718,7 @@ export default function QueuePage() {
 
   const handleDeleteItem = async () => {
     if (!itemToDelete) return;
-    setIsSubmitting(true);
+    setIsSubmittingForm(true); // Reuse form submission state for delete
     try {
       await deleteDoc(doc(db, 'queueItems', itemToDelete.id));
       toast({
@@ -721,7 +735,7 @@ export default function QueuePage() {
         variant: "destructive",
       });
     } finally {
-      setIsSubmitting(false);
+      setIsSubmittingForm(false);
     }
   };
 
@@ -737,7 +751,9 @@ export default function QueuePage() {
     return <Clock className="h-4 w-4 text-yellow-500" />;
   };
 
-  if (loading && (clientsList.length === 0 || servicesList.length === 0)) {
+  const isLoading = loadingQueue || loadingClients || loadingServices || loadingStaff;
+
+  if (isLoading && queueItems.length === 0) { // Show main loader only if everything is loading initially
     return (
       <div className="flex flex-col h-full">
         <AppHeader title="Manajemen Antrian" />
@@ -760,17 +776,18 @@ export default function QueuePage() {
                 <CardTitle>Antrian Pelanggan</CardTitle>
                 <CardDescription>Kelola pelanggan yang menunggu dan sedang dilayani.</CardDescription>
               </div>
-              <Button onClick={handleOpenAddDialog}>
-                <PlusCircle className="mr-2 h-4 w-4" /> Tambah ke Antrian
+              <Button onClick={handleOpenAddDialog} disabled={loadingClients || loadingServices}>
+                { (loadingClients || loadingServices) && !isFormDialogOpen ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <PlusCircle className="mr-2 h-4 w-4" /> }
+                 Tambah ke Antrian
               </Button>
             </CardHeader>
             <CardContent>
-              {loading && queueItems.length === 0 ? (
+              {loadingQueue && queueItems.length === 0 ? (
                  <div className="flex items-center justify-center py-10">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   <p className="ml-2">Memuat antrian...</p>
                 </div>
-              ) : queueItems.length === 0 && !loading ? (
+              ) : queueItems.length === 0 && !loadingQueue ? (
                 <div className="text-center py-10 text-muted-foreground">
                   Antrian saat ini kosong. Klik "Tambah ke Antrian" untuk memulai.
                 </div>
@@ -806,12 +823,14 @@ export default function QueuePage() {
                         </div>
                       </CardContent>
                        <CardFooter className="flex flex-col sm:flex-row sm:justify-end gap-2 pt-4 border-t mt-auto">
-                        <Button variant="outline" size="sm" onClick={() => handleEditItem(item)} className="w-full sm:w-auto order-1 sm:order-1">
-                          <Edit3 className="mr-2 h-4 w-4" /> Ubah
+                        <Button variant="outline" size="sm" onClick={() => handleEditItem(item)} className="w-full sm:w-auto order-1 sm:order-1" disabled={loadingClients || loadingServices}>
+                          { (loadingClients || loadingServices) && currentEditingItem?.id === item.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Edit3 className="mr-2 h-4 w-4" /> }
+                          Ubah
                         </Button>
                         
                         {item.status === 'Menunggu' && (
-                          <Button size="sm" onClick={() => handleStatusChange(item, 'Dalam Layanan')} className="w-full sm:w-auto order-2 sm:order-2">
+                          <Button size="sm" onClick={() => handleStatusChange(item, 'Dalam Layanan')} className="w-full sm:w-auto order-2 sm:order-2" disabled={loadingStaff}>
+                             { loadingStaff && itemBeingAssigned?.id === item.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null }
                             Mulai Layanan
                           </Button>
                         )}
@@ -843,8 +862,8 @@ export default function QueuePage() {
               </AlertDialogHeader>
               <AlertDialogFooter>
               <AlertDialogCancel onClick={() => setItemToDelete(null)}>Batal</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteItem} disabled={isSubmitting} className={buttonVariants({variant: "destructive"})}>
-                  {isSubmitting && itemToDelete ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              <AlertDialogAction onClick={handleDeleteItem} disabled={isSubmittingForm} className={buttonVariants({variant: "destructive"})}>
+                  {isSubmittingForm && itemToDelete ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   Hapus
               </AlertDialogAction>
               </AlertDialogFooter>
@@ -852,11 +871,8 @@ export default function QueuePage() {
         </AlertDialog>
 
         <Dialog open={isFormDialogOpen} onOpenChange={(openState) => {
-            console.log('[QueuePage] Dialog open state changed:', openState);
             setIsFormDialogOpen(openState);
-            if (!openState) { 
-                setCurrentEditingItem(null); 
-            }
+            if (!openState) { setCurrentEditingItem(null); }
         }}>
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
@@ -865,22 +881,29 @@ export default function QueuePage() {
                 {currentEditingItem ? 'Ubah detail item antrian di bawah ini.' : 'Isi detail item antrian baru.'}
               </DialogDescription>
             </DialogHeader>
-            <QueueItemForm
-              onSubmit={handleFormSubmit}
-              defaultValues={currentEditingItem ? {
-                customerName: currentEditingItem.customerName,
-                clientId: currentEditingItem.clientId || WALK_IN_CLIENT_VALUE, 
-                vehicleInfo: currentEditingItem.vehicleInfo || '',
-                service: currentEditingItem.service,
-                serviceId: currentEditingItem.serviceId,
-                estimatedTime: currentEditingItem.estimatedTime || '',
-                status: currentEditingItem.status,
-              } : defaultQueueItemValues}
-              onCancel={() => { setIsFormDialogOpen(false); setCurrentEditingItem(null);}}
-              isSubmitting={isSubmitting}
-              clientsList={clientsList}
-              servicesList={servicesList}
-            />
+            {(loadingClients || loadingServices) ? (
+                <div className="flex items-center justify-center py-10">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="ml-2">Memuat data pendukung form...</p>
+                </div>
+            ) : (
+              <QueueItemForm
+                onSubmit={handleFormSubmit}
+                defaultValues={currentEditingItem ? {
+                  customerName: currentEditingItem.customerName,
+                  clientId: currentEditingItem.clientId || WALK_IN_CLIENT_VALUE, 
+                  vehicleInfo: currentEditingItem.vehicleInfo || '',
+                  service: currentEditingItem.service,
+                  serviceId: currentEditingItem.serviceId,
+                  estimatedTime: currentEditingItem.estimatedTime || '',
+                  status: currentEditingItem.status,
+                } : defaultQueueItemValues}
+                onCancel={() => { setIsFormDialogOpen(false); setCurrentEditingItem(null);}}
+                isSubmitting={isSubmittingForm}
+                clientsList={clientsList}
+                servicesList={servicesList}
+              />
+            )}
           </DialogContent>
         </Dialog>
 
@@ -891,8 +914,9 @@ export default function QueuePage() {
             setItemBeingAssigned(null);
           }}
           onSubmit={handleConfirmAssignStaff}
-          staffList={staffList} 
-          isSubmitting={isSubmitting}
+          staffList={assignableStaffList} 
+          isSubmitting={isSubmittingStaffAssignment}
+          loadingStaff={loadingStaff}
         />
       </main>
     </div>
