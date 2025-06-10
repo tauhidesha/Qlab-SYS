@@ -42,6 +42,7 @@ import type { PayrollEntry } from '@/types/payroll';
 import { id as indonesiaLocale } from 'date-fns/locale';
 import { format as formatDateFns, getDaysInMonth, getDate, getDay, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 
 const payrollFormSchema = z.object({
@@ -261,76 +262,87 @@ function DetailPayrollDialog({ isOpen, onClose, entry }: DetailPayrollDialogProp
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-xl"> {/* Increased width */}
         <DialogHeader>
           <DialogTitle>Detail Penggajian: {entry.staffName}</DialogTitle>
           <DialogDescription>Periode: {entry.period}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3 py-2 text-sm">
           
-          <div className="font-medium text-base">Pendapatan</div>
+          <div className="font-medium text-lg">Ringkasan Gaji</div>
           <div className="flex justify-between items-center">
             <span>Gaji Pokok:</span>
             <span className="font-semibold">Rp {entry.baseSalary.toLocaleString('id-ID')}</span>
           </div>
+           <div className="flex justify-between items-center">
+            <span>Total Semua Potongan:</span>
+            <span className="font-semibold text-red-600">Rp {(entry.totalDeductions || 0).toLocaleString('id-ID')}</span>
+          </div>
+          <div className="flex justify-between items-center font-bold text-xl mt-1 border-t pt-2">
+            <span>GAJI BERSIH:</span>
+            <span className="text-primary">Rp {entry.netPay.toLocaleString('id-ID')}</span>
+          </div>
+          
           {typeof entry.totalHours === 'number' && (
-             <div className="flex justify-between items-center text-xs text-muted-foreground">
+             <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
                 <span>Total Jam Kerja Tercatat:</span> 
                 <span>{entry.totalHours} jam</span>
             </div>
           )}
-          <Separator className="my-2" />
+          <Separator className="my-3" />
 
-          <div className="font-medium text-base">Rincian Potongan</div>
-          <div className="flex justify-between items-center">
-            <span>- Keterlambatan:</span>
-            <span className="text-red-600">Rp {(entry.latenessDeduction || 0).toLocaleString('id-ID')}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span>- Absensi:</span>
-            <span className="text-red-600">Rp {(entry.absenceDeduction || 0).toLocaleString('id-ID')}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span>- Telat Buka Toko:</span>
-            <span className="text-red-600">Rp {(entry.telatBukaDeduction || 0).toLocaleString('id-ID')}</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span>- Potongan Manual:</span>
-            <span className="text-red-600">Rp {(entry.manualDeductions || 0).toLocaleString('id-ID')}</span>
-          </div>
-          <div className="flex justify-between items-center font-semibold mt-1 border-t pt-1">
-            <span>Total Potongan:</span>
-            <span className="text-red-600">Rp {(entry.totalDeductions || 0).toLocaleString('id-ID')}</span>
-          </div>
-          <Separator className="my-2" />
+          <Accordion type="single" collapsible className="w-full" defaultValue="item-1">
+            <AccordionItem value="item-1">
+              <AccordionTrigger className="text-base font-medium">
+                Rincian Nilai Potongan (Total: Rp {(entry.totalDeductions || 0).toLocaleString('id-ID')})
+              </AccordionTrigger>
+              <AccordionContent className="space-y-1 pl-2">
+                <div className="flex justify-between items-center">
+                  <span>- Potongan Keterlambatan:</span>
+                  <span className="text-red-600">Rp {(entry.latenessDeduction || 0).toLocaleString('id-ID')}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>- Potongan Absensi:</span>
+                  <span className="text-red-600">Rp {(entry.absenceDeduction || 0).toLocaleString('id-ID')}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>- Potongan Telat Buka Toko:</span>
+                  <span className="text-red-600">Rp {(entry.telatBukaDeduction || 0).toLocaleString('id-ID')}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>- Potongan Manual Lainnya:</span>
+                  <span className="text-red-600">Rp {(entry.manualDeductions || 0).toLocaleString('id-ID')}</span>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+            {entry.calculationDetails && (
+              <AccordionItem value="item-2">
+                <AccordionTrigger className="text-base font-medium">Log Kalkulasi Potongan Otomatis</AccordionTrigger>
+                <AccordionContent>
+                  <p className="text-xs text-muted-foreground bg-muted p-3 rounded-md whitespace-pre-wrap max-h-48 overflow-y-auto">
+                    {entry.calculationDetails}
+                  </p>
+                </AccordionContent>
+              </AccordionItem>
+            )}
+          </Accordion>
+          
+          <Separator className="my-3" />
 
-          <div className="flex justify-between items-center font-bold text-lg">
-            <span>GAJI BERSIH:</span>
-            <span className="text-primary">Rp {entry.netPay.toLocaleString('id-ID')}</span>
-          </div>
-          <Separator className="my-2" />
-          
-          <div className="flex justify-between items-center">
-            <span>Status Pembayaran:</span>
-            <span className={`font-medium ${entry.status === 'Dibayar' ? 'text-green-600' : 'text-yellow-600'}`}>
-              {entry.status}
-            </span>
-          </div>
-          {entry.paidAt && (
-            <div className="flex justify-between items-center text-xs text-muted-foreground">
-              <span>Tanggal Pembayaran:</span>
-              <span>{entry.paidAt.toDate().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+          <div className="space-y-1">
+            <div className="flex justify-between items-center">
+              <span>Status Pembayaran:</span>
+              <span className={`font-medium ${entry.status === 'Dibayar' ? 'text-green-600' : 'text-yellow-600'}`}>
+                {entry.status}
+              </span>
             </div>
-          )}
-          
-          {entry.calculationDetails && (
-            <div className="mt-3">
-              <p className="text-xs font-medium text-muted-foreground mb-1">Detail Kalkulasi Potongan:</p>
-              <p className="text-xs text-muted-foreground bg-muted p-2 rounded-md whitespace-pre-wrap">
-                {entry.calculationDetails}
-              </p>
-            </div>
-          )}
+            {entry.paidAt && (
+              <div className="flex justify-between items-center text-xs text-muted-foreground">
+                <span>Tanggal Pembayaran:</span>
+                <span>{entry.paidAt.toDate().toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+              </div>
+            )}
+          </div>
           
           <div className="mt-3 pt-2 border-t text-xs text-muted-foreground space-y-0.5">
              <div className="flex justify-between"><span>Dibuat:</span> <span>{entry.createdAt?.toDate().toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</span></div>
@@ -503,6 +515,7 @@ export default function PayrollPage() {
                 absenceDeduction += 50000;
                 calculationDetails += `${dateStr}: Absen (-Rp 50.000).\n`;
             } else if (attendance.clockIn) {
+                
                 if (shopLateOpeningDays.has(dateStr) && (attendance.status !== 'Cuti' && attendance.status !== 'Absen')) {
                     telatBukaDeductionTotalForStaff += 25000;
                     calculationDetails += `${dateStr}: Potongan Telat Buka Toko (-Rp 25.000).\n`;
@@ -513,7 +526,7 @@ export default function PayrollPage() {
                     dailyLatenessDeduction = 50000;
                     calculationDetails += `${dateStr}: Telat >=10:00 (-Rp 50.000).\n`;
                 } else if (attendance.clockIn >= "09:05") {
-                    if (!isTelatBukaHariIniUntukStaf) {
+                    if (!isTelatBukaHariIniUntukStaf) { // Hanya kena potongan telat normal jika tidak kena potongan telat buka
                         dailyLatenessDeduction = 15000;
                         calculationDetails += `${dateStr}: Telat >=09:05 (-Rp 15.000).\n`;
                     } else {
@@ -907,5 +920,18 @@ export default function PayrollPage() {
 
     </div>
   );
+}
+
+interface AttendanceRecord { // Ditambahkan di sini jika belum ada secara global
+  id: string;
+  staffId: string;
+  staffName: string;
+  date: string; // YYYY-MM-DD
+  clockIn?: string; // HH:mm
+  clockOut?: string; // HH:mm
+  status: 'Hadir' | 'Absen' | 'Terlambat' | 'Cuti';
+  notes?: string;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
 }
 
