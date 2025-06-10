@@ -4,7 +4,7 @@ import AppHeader from '@/components/layout/AppHeader';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, Edit3, CheckCircle, Clock, Loader2, Trash2, UserPlus, PackageSearch } from 'lucide-react';
+import { PlusCircle, Edit3, CheckCircle, Clock, Loader2, Trash2, UserPlus, PackageSearch, FileText } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
@@ -56,6 +56,7 @@ import type { ServiceProduct, ServiceProductVariant } from '@/app/(app)/services
 import type { Transaction, TransactionItem } from '@/types/transaction';
 import { v4 as uuidv4 } from 'uuid';
 import type { StaffMember, StaffRole } from '@/types/staff';
+import Link from 'next/link';
 
 
 export interface QueueItem { // Exporting for Dashboard
@@ -222,7 +223,10 @@ function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting, client
           if (variant) {
             form.setValue('estimatedTime', variant.estimatedDuration || service.estimatedDuration || '');
           } else {
-            form.setValue('estimatedTime', ''); 
+             // If variantId is cleared (e.g. user deselects a variant or no variant is chosen yet for a service that has variants)
+             // We should probably set estimatedTime to empty or base service's time if a variant selection is expected.
+             // For now, let's set to empty if a variant is expected but not chosen, or base service time if no variant chosen for a service with variants
+            form.setValue('estimatedTime', ''); // Or service.estimatedDuration if that's preferred when no variant selected for a service with variants
           }
         } else {
           // No variants for this service, use service's estimated duration
@@ -842,6 +846,7 @@ export default function QueuePage() {
         batch.update(transactionDocRef, {
           items: updatedItems,
           serviceStaffName: staffName, 
+          queueItemId: itemBeingAssigned.id, // Ensure queueItemId is set/updated
           updatedAt: serverTimestamp(),
           subtotal: subtotal,
           total: total,
@@ -1015,11 +1020,19 @@ export default function QueuePage() {
                           Ubah
                         </Button>
                         
+                        {(item.status === 'Dalam Layanan' || item.status === 'Selesai') && (
+                             <Button asChild size="sm" variant="outline" className="w-full sm:w-auto order-2 sm:order-2">
+                                <Link href={`/pos?qid=${item.id}`}>
+                                    <FileText className="mr-2 h-4 w-4" /> Lihat Transaksi
+                                </Link>
+                            </Button>
+                        )}
+
                         {item.status === 'Menunggu' && (
                           <Button 
                             size="sm" 
                             onClick={() => handleStatusChange(item, 'Dalam Layanan')} 
-                            className="w-full sm:w-auto order-2 sm:order-2" 
+                            className="w-full sm:w-auto order-3 sm:order-3" 
                             disabled={loadingStaff}
                           >
                              { loadingStaff && itemBeingAssigned?.id === item.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null }
@@ -1031,7 +1044,7 @@ export default function QueuePage() {
                             size="sm" 
                             variant="secondary" 
                             onClick={() => handleStatusChange(item, 'Selesai')} 
-                            className="w-full sm:w-auto order-2 sm:order-2"
+                            className="w-full sm:w-auto order-3 sm:order-3"
                           >
                             Tandai Selesai
                           </Button>
@@ -1042,7 +1055,7 @@ export default function QueuePage() {
                              variant="destructive" 
                              size="sm" 
                              onClick={() => handleDeleteConfirmation(item)} 
-                             className="w-full sm:w-auto order-3 sm:order-3"
+                             className="w-full sm:w-auto order-4 sm:order-4"
                            >
                             <Trash2 className="mr-2 h-4 w-4" /> Hapus
                           </Button>
@@ -1126,3 +1139,4 @@ export default function QueuePage() {
 }
 
 export type { QueueItem as QueueItemType }; // Export for dashboard
+

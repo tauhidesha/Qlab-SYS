@@ -51,6 +51,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 
 
 const SHOP_NAME = "QLAB Auto Detailing"; 
@@ -111,6 +112,10 @@ export default function PosPage() {
 
 
   const { toast } = useToast();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
 
   useEffect(() => {
     setLoadingTransactions(true);
@@ -133,6 +138,22 @@ export default function PosPage() {
 
     return () => unsubscribe();
   }, [toast]);
+
+  useEffect(() => {
+    const qid = searchParams.get('qid');
+    if (qid && openTransactions.length > 0 && !loadingTransactions && !selectedTransactionId) {
+      const matchedTransaction = openTransactions.find(t => t.queueItemId === qid);
+      if (matchedTransaction) {
+        setSelectedTransactionId(matchedTransaction.id);
+        
+        // Clean the URL by removing the qid query parameter
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.delete('qid');
+        router.replace(newUrl.pathname + newUrl.search, { shallow: true });
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openTransactions, searchParams, router, pathname, loadingTransactions]); // Do not add selectedTransactionId or setSelectedTransactionId to avoid loops
 
   useEffect(() => {
     const fetchAvailableItems = async () => {
