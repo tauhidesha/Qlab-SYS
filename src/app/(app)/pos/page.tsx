@@ -7,13 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Trash2, CreditCard, Loader2, ShoppingBag, UserPlus, Star, Tags, MessageSquareText, Send, Gift } from 'lucide-react';
+import { PlusCircle, Trash2, CreditCard, Loader2, ShoppingBag, UserPlus, Star, Tags, MessageSquareText, Send, Gift, UserCog } from 'lucide-react'; // Added UserCog
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, arrayUnion, serverTimestamp, addDoc, type Timestamp, getDocs, getDoc, deleteDoc } from 'firebase/firestore';
 import type { Transaction, TransactionItem } from '@/types/transaction';
 import type { ServiceProduct } from '@/app/(app)/services/page'; 
 import type { Client } from '@/types/client';
+import type { StaffMember } from '@/types/staff'; // Added StaffMember
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -69,6 +70,7 @@ export default function PosPage() {
   const [itemQuantity, setItemQuantity] = useState<number | string>(1);
   const [itemCategories, setItemCategories] = useState<string[]>([]);
   const [selectedItemCategoryTab, setSelectedItemCategoryTab] = useState<string>("Semua");
+  const [selectedStaffForNewItemToAdd, setSelectedStaffForNewItemToAdd] = useState<string | undefined>(undefined);
 
 
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
@@ -96,6 +98,9 @@ export default function PosPage() {
 
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
   const [isDeletingTransaction, setIsDeletingTransaction] = useState<boolean>(false);
+  
+  const [assignableStaffList, setAssignableStaffList] = useState<StaffMember[]>([]);
+  const [loadingAssignableStaff, setLoadingAssignableStaff] = useState(true);
 
 
   const { toast } = useToast();
@@ -132,7 +137,6 @@ export default function PosPage() {
             const itemsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceProduct));
             setAvailableItems(itemsData);
             
-            // Extract unique categories
             const uniqueCategories = Array.from(new Set(itemsData.map(item => item.category).filter(Boolean)));
             setItemCategories(["Semua", ...uniqueCategories]);
 
@@ -150,6 +154,27 @@ export default function PosPage() {
     fetchAvailableItems();
   }, [toast]);
 
+  const fetchAssignableStaff = useCallback(async () => {
+    setLoadingAssignableStaff(true);
+    try {
+      const staffCollectionRef = collection(db, 'staffMembers');
+      const q = query(staffCollectionRef, where("role", "==", "Teknisi"), orderBy("name"));
+      const querySnapshot = await getDocs(q);
+      const staffData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StaffMember));
+      setAssignableStaffList(staffData);
+    } catch (error) {
+      console.error("Error fetching assignable staff: ", error);
+      toast({ title: "Error", description: "Tidak dapat mengambil daftar staf teknisi.", variant: "destructive" });
+    } finally {
+      setLoadingAssignableStaff(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchAssignableStaff();
+  }, [fetchAssignableStaff]);
+
+
   const filteredGalleryItems = useMemo(() => {
     if (selectedItemCategoryTab === "Semua") {
       return availableItems;
@@ -159,8 +184,9 @@ export default function PosPage() {
 
   const handleCategoryTabChange = (category: string) => {
     setSelectedItemCategoryTab(category);
-    setSelectedCatalogItemId(''); // Reset selected item when category changes
+    setSelectedCatalogItemId(''); 
     setItemQuantity(1);
+    setSelectedStaffForNewItemToAdd(undefined);
   };
 
   useEffect(() => {
@@ -211,11 +237,13 @@ export default function PosPage() {
   const resetAddItemForm = () => {
     setSelectedCatalogItemId('');
     setItemQuantity(1);
-    setSelectedItemCategoryTab("Semua"); // Reset tab on close/success
+    setSelectedItemCategoryTab("Semua"); 
+    setSelectedStaffForNewItemToAdd(undefined);
   };
   
   const handleSelectGalleryItem = (item: ServiceProduct) => {
     setSelectedCatalogItemId(item.id);
+    setSelectedStaffForNewItemToAdd(undefined); // Reset staff selection when item changes
   };
 
   const handleAddItemToTransaction = async () => {
@@ -235,6 +263,12 @@ export default function PosPage() {
         toast({ title: "Input Tidak Valid", description: "Jumlah harus angka positif.", variant: "destructive" });
         return;
     }
+    
+    if (catalogItem.type === 'Layanan' && !selectedStaffForNewItemToAdd) {
+      toast({ title: "Input Tidak Lengkap", description: "Pilih staf teknisi untuk layanan ini.", variant: "destructive" });
+      return;
+    }
+
 
     setIsSubmittingItem(true);
     const newItem: TransactionItem = {
@@ -245,6 +279,7 @@ export default function PosPage() {
       quantity: quantity,
       type: catalogItem.type === 'Layanan' ? 'service' : 'product', 
       pointsAwardedPerUnit: catalogItem.pointsAwarded || 0,
+      ...(catalogItem.type === 'Layanan' && selectedStaffForNewItemToAdd && { staffName: selectedStaffForNewItemToAdd }),
     };
 
     try {
@@ -610,7 +645,9 @@ export default function PosPage() {
     
     text += `Item:\n`;
     transaction.items.forEach(item => {
-      text += `- ${item.name} (${item.quantity} x Rp ${item.price.toLocaleString('id-ID')}) = Rp ${(item.quantity * item.price).toLocaleString('id-ID')}\n`;
+      text += `- ${item.name} (${item.quantity} x Rp ${item.price.toLocaleString('id-ID')})`;
+      if(item.staffName) text += ` (Oleh: ${item.staffName})`;
+      text += ` = Rp ${(item.quantity * item.price).toLocaleString('id-ID')}\n`;
     });
     text += `\nSubtotal: Rp ${transaction.subtotal.toLocaleString('id-ID')}\n`;
     if (transaction.discountAmount > 0) {
@@ -690,8 +727,12 @@ export default function PosPage() {
     }
   };
 
+  const selectedGalleryItemDetails = useMemo(() => {
+    return availableItems.find(item => item.id === selectedCatalogItemId);
+  }, [availableItems, selectedCatalogItemId]);
 
-  if (loadingTransactions || loadingCatalogItems || loadingClients) {
+
+  if (loadingTransactions || loadingCatalogItems || loadingClients || loadingAssignableStaff) {
     return (
       <div className="flex flex-col h-full">
         <AppHeader title="Penjualan" />
@@ -789,7 +830,7 @@ export default function PosPage() {
                     <div>
                         <CardTitle>Detail Pesanan: {selectedTransaction.customerName}</CardTitle>
                         <CardDescription>
-                            Transaksi ID: {selectedTransaction.id} | Staf Layanan: {selectedTransaction.serviceStaffName || "Belum Ditugaskan"}
+                            Transaksi ID: {selectedTransaction.id} | Staf Layanan Utama: {selectedTransaction.serviceStaffName || "Belum Ditugaskan"}
                         </CardDescription>
                          {selectedClientDetails && (
                             <div className="mt-1 text-sm text-primary flex items-center">
@@ -835,7 +876,7 @@ export default function PosPage() {
                         <TableRow key={item.id}>
                           <TableCell>
                             {item.name}
-                            {item.type === 'service' && item.staffName && <span className="text-xs text-muted-foreground block">Oleh: {item.staffName}</span>}
+                            {item.staffName && <span className="text-xs text-muted-foreground block">Oleh: {item.staffName}</span>}
                           </TableCell>
                           <TableCell className="text-center">{item.quantity}</TableCell>
                           <TableCell className="text-right">Rp {item.price.toLocaleString('id-ID')}</TableCell>
@@ -1060,32 +1101,60 @@ export default function PosPage() {
                 </Tabs>
               )}
               
-              {selectedCatalogItemId && availableItems.find(i => i.id === selectedCatalogItemId) && (
+              {selectedCatalogItemId && selectedGalleryItemDetails && (
                  <div className="mt-4 p-3 border rounded-md bg-muted/30">
-                    <p className="font-medium text-sm">Item Terpilih: {availableItems.find(i => i.id === selectedCatalogItemId)?.name}</p>
-                    <p className="text-xs text-muted-foreground">Harga: Rp {availableItems.find(i => i.id === selectedCatalogItemId)?.price.toLocaleString('id-ID')}</p>
+                    <p className="font-medium text-sm">Item Terpilih: {selectedGalleryItemDetails.name}</p>
+                    <p className="text-xs text-muted-foreground">Harga: Rp {selectedGalleryItemDetails.price.toLocaleString('id-ID')}</p>
                  </div>
               )}
 
-               <div className="space-y-2 mt-4">
-                  <Label htmlFor="item-quantity">Jumlah</Label>
-                  <Input 
-                    id="item-quantity" 
-                    type="number" 
-                    value={itemQuantity} 
-                    onChange={(e) => setItemQuantity(e.target.value)} 
-                    placeholder="1" 
-                    min="1" 
-                    disabled={!selectedCatalogItemId || loadingCatalogItems}
-                    className="w-1/2 md:w-1/3"
-                  />
-                </div>
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="item-quantity">Jumlah</Label>
+                    <Input 
+                        id="item-quantity" 
+                        type="number" 
+                        value={itemQuantity} 
+                        onChange={(e) => setItemQuantity(e.target.value)} 
+                        placeholder="1" 
+                        min="1" 
+                        disabled={!selectedCatalogItemId || loadingCatalogItems}
+                        className="w-full"
+                    />
+                  </div>
+                  {selectedGalleryItemDetails?.type === 'Layanan' && (
+                    <div className="space-y-2">
+                        <Label htmlFor="staff-assign-select" className="flex items-center">
+                            <UserCog className="mr-2 h-4 w-4 text-muted-foreground" />Staf Pelaksana
+                        </Label>
+                        <Select 
+                            value={selectedStaffForNewItemToAdd}
+                            onValueChange={setSelectedStaffForNewItemToAdd}
+                            disabled={loadingAssignableStaff || !selectedCatalogItemId}
+                        >
+                            <SelectTrigger id="staff-assign-select" className="w-full">
+                                <SelectValue placeholder={loadingAssignableStaff ? "Memuat staf..." : "Pilih staf"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                            {!loadingAssignableStaff && assignableStaffList.length === 0 && (
+                                <SelectItem value="no-staff" disabled>Tidak ada teknisi tersedia.</SelectItem>
+                            )}
+                            {assignableStaffList.map(staff => (
+                                <SelectItem key={staff.id} value={staff.name}>
+                                {staff.name} ({staff.role})
+                                </SelectItem>
+                            ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                  )}
+               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => { setIsAddItemDialogOpen(false); resetAddItemForm(); }} disabled={isSubmittingItem}>Batal</Button>
               <Button 
                 onClick={handleAddItemToTransaction} 
-                disabled={isSubmittingItem || !selectedCatalogItemId || loadingCatalogItems}
+                disabled={isSubmittingItem || !selectedCatalogItemId || loadingCatalogItems || (selectedGalleryItemDetails?.type === 'Layanan' && loadingAssignableStaff)}
                 className="bg-accent text-accent-foreground hover:bg-accent/90"
               >
                 {isSubmittingItem && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -1247,7 +1316,3 @@ export default function PosPage() {
     </div>
   );
 }
-
-    
-
-    
