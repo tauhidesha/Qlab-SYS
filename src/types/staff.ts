@@ -8,7 +8,10 @@ export interface StaffMember {
   id: string; // Firestore document ID
   name: string;
   role: StaffRole;
-  // status: 'Aktif' | 'Tidak Aktif'; // Bisa ditambahkan nanti
+  phone?: string;
+  baseSalary?: number;
+  profitSharePercentage?: number; // 0-100
+  photoUrl?: string;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
@@ -17,4 +20,8 @@ export interface StaffMember {
 export interface NewStaffMemberData {
   name: string;
   role: StaffRole;
+  phone?: string;
+  baseSalary?: number;
+  profitSharePercentage?: number;
+  photoUrl?: string;
 }

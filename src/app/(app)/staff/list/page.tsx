@@ -5,7 +5,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Edit3, Trash2, Search, Loader2, ClipboardList } from 'lucide-react';
+import { PlusCircle, Edit3, Trash2, Search, Loader2, ClipboardList, Image as ImageIcon } from 'lucide-react';
 import Link from 'next/link';
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
@@ -24,6 +24,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export default function StaffListPage() {
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
@@ -79,7 +80,8 @@ export default function StaffListPage() {
 
   const filteredMembers = staffMembers.filter(member =>
     member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    member.role.toLowerCase().includes(searchTerm.toLowerCase())
+    member.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (member.phone && member.phone.includes(searchTerm))
   );
 
   if (loading) {
@@ -103,14 +105,14 @@ export default function StaffListPage() {
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle>Kelola Daftar Staf</CardTitle>
-              <CardDescription>Lihat, tambah, ubah, atau hapus data staf Anda.</CardDescription>
+              <CardDescription>Lihat, tambah, ubah, atau hapus data staf Anda, termasuk detail kontak dan gaji.</CardDescription>
             </div>
             <div className="flex gap-2 items-center">
                <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
-                  placeholder="Cari staf..."
+                  placeholder="Cari staf (nama, peran, no.hp)..."
                   className="pl-8 sm:w-[300px] md:w-[200px] lg:w-[300px]"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -127,20 +129,40 @@ export default function StaffListPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[50px]">Foto</TableHead>
                   <TableHead>Nama Staf</TableHead>
                   <TableHead>Peran</TableHead>
-                  {/* <TableHead>Status</TableHead> */}
+                  <TableHead>No. HP</TableHead>
+                  <TableHead className="text-right">Gaji Pokok</TableHead>
+                  <TableHead className="text-center">Bagi Hasil (%)</TableHead>
                   <TableHead className="text-right">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredMembers.map((member) => (
                   <TableRow key={member.id}>
+                    <TableCell>
+                      <Avatar className="h-9 w-9">
+                        {member.photoUrl ? (
+                          <AvatarImage src={member.photoUrl} alt={member.name} data-ai-hint="foto staf"/>
+                        ) : (
+                          <AvatarFallback>
+                            <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                          </AvatarFallback>
+                        )}
+                      </Avatar>
+                    </TableCell>
                     <TableCell className="font-medium">{member.name}</TableCell>
                     <TableCell>
                       <Badge variant="secondary">{member.role}</Badge>
                     </TableCell>
-                    {/* <TableCell>{member.status}</TableCell> */}
+                    <TableCell>{member.phone || '-'}</TableCell>
+                    <TableCell className="text-right">
+                      {member.baseSalary ? `Rp ${member.baseSalary.toLocaleString('id-ID')}` : '-'}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {typeof member.profitSharePercentage === 'number' ? `${member.profitSharePercentage}%` : '-'}
+                    </TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="icon" asChild className="hover:text-primary">
                         <Link href={`/staff/list/${member.id}/edit`}>

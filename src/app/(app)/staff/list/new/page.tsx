@@ -12,16 +12,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Save, Loader2, ArrowLeft } from 'lucide-react';
+import { Save, Loader2, ArrowLeft, Phone, DollarSign, Percent, Image as ImageIcon } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { STAFF_ROLES, type StaffRole, type NewStaffMemberData } from '@/types/staff';
+import { STAFF_ROLES, type NewStaffMemberData, type StaffRole } from '@/types/staff'; // Ensure NewStaffMemberData matches the fields
 
 const staffFormSchema = z.object({
   name: z.string().min(2, "Nama staf minimal 2 karakter").max(50, "Nama staf maksimal 50 karakter"),
   role: z.enum(STAFF_ROLES, { required_error: "Peran staf diperlukan" }),
+  phone: z.string().regex(/^(|\+?[0-9\s-]{10,15})$/, "Format nomor telepon tidak valid (min 10, maks 15 digit)").optional().or(z.literal('')),
+  baseSalary: z.preprocess(
+    (val) => (val === "" || val === undefined || val === null) ? undefined : parseFloat(String(val)),
+    z.number({ invalid_type_error: "Gaji harus angka" }).nonnegative("Gaji tidak boleh negatif").optional()
+  ),
+  profitSharePercentage: z.preprocess(
+    (val) => (val === "" || val === undefined || val === null) ? undefined : parseInt(String(val), 10),
+    z.number({ invalid_type_error: "Persentase harus angka" }).min(0, "Minimal 0%").max(100, "Maksimal 100%").optional()
+  ),
+  photoUrl: z.string().url("URL foto tidak valid (mis. https://...)").optional().or(z.literal('')),
 });
 
 type StaffFormValues = z.infer<typeof staffFormSchema>;
@@ -36,6 +46,10 @@ export default function NewStaffPage() {
     defaultValues: {
       name: '',
       role: undefined,
+      phone: '',
+      baseSalary: undefined,
+      profitSharePercentage: undefined,
+      photoUrl: '',
     },
   });
 
@@ -45,6 +59,10 @@ export default function NewStaffPage() {
       const newStaffData: NewStaffMemberData & { createdAt: any } = {
         name: data.name,
         role: data.role,
+        phone: data.phone || undefined,
+        baseSalary: data.baseSalary || undefined,
+        profitSharePercentage: data.profitSharePercentage || undefined,
+        photoUrl: data.photoUrl || undefined,
         createdAt: serverTimestamp(),
       };
 
@@ -61,7 +79,8 @@ export default function NewStaffPage() {
         description: "Gagal menambahkan staf baru. Silakan coba lagi.",
         variant: "destructive",
       });
-      setIsSubmitting(false);
+    } finally {
+        setIsSubmitting(false);
     }
   };
 
@@ -74,7 +93,7 @@ export default function NewStaffPage() {
             <Card className="max-w-2xl mx-auto">
               <CardHeader>
                 <CardTitle>Informasi Staf</CardTitle>
-                <CardDescription>Isi detail staf baru di bawah ini.</CardDescription>
+                <CardDescription>Isi detail staf baru di bawah ini, termasuk informasi kontak dan kompensasi.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <FormField
@@ -112,11 +131,84 @@ export default function NewStaffPage() {
                     </FormItem>
                   )}
                 />
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center"><Phone className="mr-2 h-4 w-4 text-muted-foreground"/>Nomor HP (Opsional)</FormLabel>
+                      <FormControl>
+                        <Input type="tel" placeholder="mis. 081234567890" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <FormField
+                    control={form.control}
+                    name="baseSalary"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4 text-muted-foreground"/>Gaji Pokok (Rp, Opsional)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            placeholder="mis. 3000000" 
+                            {...field}
+                            value={field.value === undefined ? '' : field.value}
+                            onChange={e => {
+                                const val = e.target.value;
+                                field.onChange(val === '' ? undefined : parseFloat(val));
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="profitSharePercentage"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center"><Percent className="mr-2 h-4 w-4 text-muted-foreground"/>Bagi Hasil (%, Opsional)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            placeholder="mis. 25 (untuk 25%)" 
+                            min="0" max="100" 
+                            {...field} 
+                            value={field.value === undefined ? '' : field.value}
+                            onChange={e => {
+                                const val = e.target.value;
+                                field.onChange(val === '' ? undefined : parseInt(val, 10));
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <FormField
+                  control={form.control}
+                  name="photoUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center"><ImageIcon className="mr-2 h-4 w-4 text-muted-foreground"/>URL Foto (Opsional)</FormLabel>
+                      <FormControl>
+                        <Input type="url" placeholder="mis. https://example.com/foto.jpg" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </CardContent>
               <CardFooter className="flex justify-between">
                 <Button variant="outline" asChild>
                   <Link href="/staff/list">
-                    <ArrowLeft className="mr-2 h-4 w-4" /> Kembali ke Daftar Staf
+                    <ArrowLeft className="mr-2 h-4 w-4" /> Kembali
                   </Link>
                 </Button>
                 <Button type="submit" disabled={isSubmitting}>
