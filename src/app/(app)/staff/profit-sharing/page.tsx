@@ -30,7 +30,7 @@ interface ProfitShareFormState {
   staffDailyRevenue: number;
   profitSharePercentage: number;
   profitShareAmount: number;
-  contributingItems: TransactionItem[]; // Untuk dialog detail
+  contributingItems: TransactionItem[]; 
   existingEntryId?: string;
   status: 'Belum Dibayar' | 'Dibayar';
   paidAt?: Timestamp;
@@ -202,12 +202,13 @@ export default function ProfitSharingPage() {
         });
         
         const existingEntryFromDb = existingDbEntries.find(e => e.staffId === staff.id);
+        const staffProfileProfitSharePercentage = staff.profitSharePercentage || 0;
 
         if (existingEntryFromDb) {
           newEntriesState[staff.id] = {
-            staffDailyRevenue: existingEntryFromDb.staffDailyRevenue,
-            profitSharePercentage: existingEntryFromDb.profitSharePercentage,
-            profitShareAmount: existingEntryFromDb.profitShareAmount,
+            staffDailyRevenue: existingEntryFromDb.staffDailyRevenue, // Gunakan revenue tersimpan
+            profitSharePercentage: existingEntryFromDb.profitSharePercentage, // Gunakan persentase tersimpan
+            profitShareAmount: existingEntryFromDb.profitShareAmount, // Gunakan nominal tersimpan
             contributingItems: contributingItems, // Selalu ambil item kontribusi live untuk dialog
             existingEntryId: existingEntryFromDb.id,
             status: existingEntryFromDb.status,
@@ -216,7 +217,7 @@ export default function ProfitSharingPage() {
             isLoadingPay: false,
           };
         } else {
-          const staffProfileProfitSharePercentage = staff.profitSharePercentage || 0;
+          // Jika tidak ada entri tersimpan, hitung berdasarkan transaksi hari ini dan profil staf
           const profitShareAmountCalculated = (staffDailyRevenueFromTransactions * staffProfileProfitSharePercentage) / 100;
           newEntriesState[staff.id] = {
             staffDailyRevenue: staffDailyRevenueFromTransactions,
@@ -282,7 +283,8 @@ export default function ProfitSharingPage() {
         }));
         toast({ title: "Sukses", description: `Bagi hasil untuk ${staff.name} berhasil disimpan.` });
       }
-      await calculateRevenueAndPopulateEntries(selectedDate); 
+      // Tidak perlu memanggil calculateRevenueAndPopulateEntries lagi di sini karena data yang disimpan
+      // adalah snapshot dari state saat ini. Cukup update state lokal jika perlu (seperti existingEntryId).
     } catch (error) {
       console.error("Error saving profit share entry: ", error);
       toast({ title: "Error", description: "Gagal menyimpan data bagi hasil.", variant: "destructive" });
@@ -330,9 +332,11 @@ export default function ProfitSharingPage() {
       setSelectedStaffEntryForDetail({
         ...entry,
         staffName: staffMember.name,
-        date: formatDateForFirestore(selectedDate),
+        date: formatDateForFirestore(selectedDate), // Kirim tanggal yang dipilih ke dialog
       });
       setIsDetailDialogOpen(true);
+    } else {
+        toast({title: "Info", description: "Data detail untuk staf ini belum siap atau tidak ditemukan.", variant:"default"});
     }
   };
 
@@ -380,6 +384,7 @@ export default function ProfitSharingPage() {
               <CardTitle>Entri Bagi Hasil untuk {formatDateFns(selectedDate, 'PPP', { locale: indonesiaLocale })}</CardTitle>
               <CardDescription>
                 Nominal bagi hasil dihitung dari total pendapatan layanan staf pada tanggal terpilih dikali persentase bagi hasil dari profil staf.
+                Klik nama teknisi untuk melihat rincian transaksi kontribusi.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -420,7 +425,7 @@ export default function ProfitSharingPage() {
                       return (
                         <TableRow key={staff.id}>
                           <TableCell className="font-medium">
-                            <Button variant="link" className="p-0 h-auto" onClick={() => handleOpenDetailDialog(staff.id)}>
+                            <Button variant="link" className="p-0 h-auto text-left" onClick={() => handleOpenDetailDialog(staff.id)}>
                               {staff.name}
                             </Button>
                           </TableCell>
@@ -436,7 +441,7 @@ export default function ProfitSharingPage() {
                             </span>
                             {isPaid && entry.paidAt && (
                                 <p className="text-xs text-muted-foreground mt-1">
-                                    {formatDateFns(entry.paidAt.toDate(), 'dd MMM yy', {locale: indonesiaLocale})}
+                                    {formatDateFns(entry.paidAt.toDate(), 'dd MMM yy, HH:mm', {locale: indonesiaLocale})}
                                 </p>
                             )}
                           </TableCell>
@@ -446,7 +451,7 @@ export default function ProfitSharingPage() {
                                 onClick={() => handleSaveEntry(staff.id)} 
                                 disabled={disableSaveButton}
                                 variant="outline"
-                                title={entry.existingEntryId ? "Perbarui Data" : "Simpan Data"}
+                                title={entry.existingEntryId ? "Perbarui Data Tersimpan" : "Simpan Data Hari Ini"}
                             >
                               {entry.isLoadingSave ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                             </Button>
@@ -458,7 +463,7 @@ export default function ProfitSharingPage() {
                                 className={!isPaid && !disablePayButton ? "bg-green-600 hover:bg-green-700 text-white" : ""}
                                 title="Tandai Sudah Dibayar"
                             >
-                              {entry.isLoadingPay ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                              {entry.isLoadingPay ? <Loader2 className="h-4 w-4 animate-spin" /> : (isPaid ? <CheckCircle className="h-4 w-4 text-green-700" /> : <CheckCircle className="h-4 w-4" />)}
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -478,7 +483,6 @@ export default function ProfitSharingPage() {
              <CardFooter>
                 <p className="text-xs text-muted-foreground">
                     { isPastDateSelected ? "Data pada tanggal lampau bersifat historis. " : "" }
-                    Klik nama teknisi untuk melihat rincian transaksi kontribusi.
                 </p>
             </CardFooter>
           </Card>
