@@ -40,7 +40,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import type { ExpenseFormData, ExpenseCategory, PaymentSource } from '@/types/expense';
 import type { PayrollEntry } from '@/types/payroll';
 import { id as indonesiaLocale } from 'date-fns/locale';
-import { format as formatDateFns, getDaysInMonth, getDate, getDay, parseISO, startOfDay, endOfDay } from 'date-fns';
+import { format as formatDateFns, getDaysInMonth, getDate, getDay, parseISO, startOfDay, endOfDay, subMonths } from 'date-fns';
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -437,11 +437,21 @@ const parsePeriodToDateRange = (period: string): { startDate: Date, endDate: Dat
     return { startDate, endDate };
 };
 
+const generatePreviousMonthsLabels = (count: number): string[] => {
+  const labels = [];
+  let currentDate = new Date();
+  for (let i = 0; i < count; i++) {
+    labels.push(formatDateFns(currentDate, 'MMMM yyyy', { locale: indonesiaLocale }));
+    currentDate = subMonths(currentDate, 1);
+  }
+  return labels;
+};
+
 
 export default function PayrollPage() {
   const [payrollData, setPayrollData] = useState<PayrollEntry[]>([]);
   const [loadingPayroll, setLoadingPayroll] = useState(true);
-  const availablePeriods = ['Agustus 2024', 'Juli 2024', 'Juni 2024', 'Mei 2024', 'April 2024', 'Maret 2024'];
+  const availablePeriods = React.useMemo(() => generatePreviousMonthsLabels(12), []);
   const [selectedPeriod, setSelectedPeriod] = useState<string>(availablePeriods[0] || 'Periode Tidak Tersedia');
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -996,3 +1006,4 @@ interface AttendanceRecord {
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
+
