@@ -6,32 +6,32 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building, Palette, Bell, Users, CreditCard as CreditCardIcon, Gift } from 'lucide-react';
-import React from 'react'; // Assuming you might use useState for local input values
+import { Building, Palette, Bell, Users, CreditCard as CreditCardIcon, Gift, DollarSign } from 'lucide-react'; // Added DollarSign
+import React from 'react';
 
 export default function SettingsPage() {
-  // Example local state for loyalty settings - in a real app, these would be fetched/saved
-  const [pointToRupiahRate, setPointToRupiahRate] = React.useState('10'); // 1 point = Rp 10
+  const [pointToRupiahRate, setPointToRupiahRate] = React.useState('10');
   const [minPointsToRedeem, setMinPointsToRedeem] = React.useState('100');
+  const [initialBankBalance, setInitialBankBalance] = React.useState(''); // State for initial bank balance
 
   return (
     <div className="flex flex-col h-full">
       <AppHeader title="Pengaturan" />
       <main className="flex-1 overflow-y-auto p-6">
         <Tabs defaultValue="general" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 md:grid-cols-6 mb-6"> {/* Adjusted grid columns */}
+          <TabsList className="grid w-full grid-cols-4 md:grid-cols-6 mb-6">
             <TabsTrigger value="general"><Building className="mr-2 h-4 w-4 hidden md:inline" />Umum</TabsTrigger>
             <TabsTrigger value="loyalty"><Gift className="mr-2 h-4 w-4 hidden md:inline" />Loyalitas</TabsTrigger>
             <TabsTrigger value="appearance"><Palette className="mr-2 h-4 w-4 hidden md:inline" />Tampilan</TabsTrigger>
             <TabsTrigger value="notifications"><Bell className="mr-2 h-4 w-4 hidden md:inline" />Notifikasi</TabsTrigger>
-            <TabsTrigger value="users"><Users className="mr-2 h-4 w-4 hidden md:inline" />Peran</TabsTrigger> {/* Shortened for space */}
+            <TabsTrigger value="users"><Users className="mr-2 h-4 w-4 hidden md:inline" />Peran</TabsTrigger>
             <TabsTrigger value="billing"><CreditCardIcon className="mr-2 h-4 w-4 hidden md:inline" />Tagihan</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="general">
+          <TabsContent value="general" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Pengaturan Umum</CardTitle>
+                <CardTitle>Pengaturan Umum Bengkel</CardTitle>
                 <CardDescription>Kelola informasi bengkel Anda dan pengaturan dasar.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -50,6 +50,34 @@ export default function SettingsPage() {
               </CardContent>
               <CardFooter>
                 <Button disabled>Simpan Perubahan Umum (Segera)</Button>
+              </CardFooter>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <DollarSign className="mr-2 h-5 w-5 text-primary" />
+                  Pengaturan Finansial Dasar
+                </CardTitle>
+                <CardDescription>Pengaturan terkait keuangan dasar bengkel.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="initial-bank-balance">Saldo Awal Rekening Bank Utama (Rp)</Label>
+                  <Input 
+                    id="initial-bank-balance" 
+                    type="number" 
+                    placeholder="mis. 10000000" 
+                    value={initialBankBalance}
+                    onChange={(e) => setInitialBankBalance(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Masukkan saldo awal rekening bank utama Anda. Ini akan digunakan sebagai dasar perhitungan laporan kas.
+                  </p>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button disabled>Simpan Pengaturan Finansial (Segera)</Button>
               </CardFooter>
             </Card>
           </TabsContent>
