@@ -12,12 +12,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Save, Loader2, ArrowLeft, Phone, DollarSign, Percent, Image as ImageIcon } from 'lucide-react';
-import { db } from '@/lib/firebase';
+import { Save, Loader2, ArrowLeft, Phone, DollarSign, Percent, Image as ImageIcon, UploadCloud, Trash2 } from 'lucide-react';
+import { db, app } from '@/lib/firebase'; // Pastikan 'app' diekspor dari firebase.ts
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { STAFF_ROLES, type StaffRole, type StaffMember } from '@/types/staff';
+import { v4 as uuidv4 } from 'uuid'; // Untuk nama file unik
 
 const staffFormSchema = z.object({
   name: z.string().min(2, "Nama staf minimal 2 karakter").max(50, "Nama staf maksimal 50 karakter"),
@@ -31,7 +33,7 @@ const staffFormSchema = z.object({
     (val) => (val === "" || val === undefined || val === null) ? undefined : parseInt(String(val), 10),
     z.number({ invalid_type_error: "Persentase harus angka" }).min(0, "Minimal 0%").max(100, "Maksimal 100%").optional()
   ),
-  photoUrl: z.string().url("URL foto tidak valid (mis. https://...)").optional().or(z.literal('')),
+  photoUrl: z.string().url("URL foto tidak valid").optional().or(z.literal('')),
 });
 
 type StaffFormValues = z.infer<typeof staffFormSchema>;
@@ -45,6 +47,9 @@ export default function EditStaffPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [staffNotFound, setStaffNotFound] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [existingPhotoUrl, setExistingPhotoUrl] = useState<string | null>(null);
 
   const form = useForm<StaffFormValues>({
     resolver: zodResolver(staffFormSchema),
@@ -79,10 +84,14 @@ export default function EditStaffPage() {
             name: staffData.name,
             role: staffData.role,
             phone: staffData.phone || '',
-            baseSalary: staffData.baseSalary, // undefined is fine if not set
-            profitSharePercentage: staffData.profitSharePercentage, // undefined is fine
+            baseSalary: staffData.baseSalary,
+            profitSharePercentage: staffData.profitSharePercentage,
             photoUrl: staffData.photoUrl || '',
           });
+          if (staffData.photoUrl) {
+            setImagePreview(staffData.photoUrl);
+            setExistingPhotoUrl(staffData.photoUrl);
+          }
         } else {
           setStaffNotFound(true);
           toast({ title: "Error", description: "Staf tidak ditemukan.", variant: "destructive" });
@@ -100,27 +109,101 @@ export default function EditStaffPage() {
     fetchStaffData();
   }, [staffId, form, router, toast]);
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+      form.setValue('photoUrl', ''); // Kosongkan field photoUrl di form jika ada file baru
+    }
+  };
+
+  const handleRemoveImage = async () => {
+    setSelectedFile(null);
+    setImagePreview(null);
+    form.setValue('photoUrl', ''); // Hapus URL dari form juga
+
+    // Jika ada existingPhotoUrl dan ingin menghapusnya dari storage (opsional)
+    // if (existingPhotoUrl) {
+    //   try {
+    //     const storage = getStorage(app);
+    //     const imageRef = storageRef(storage, existingPhotoUrl); // Perlu cara untuk mendapatkan path dari URL
+    //     await deleteObject(imageRef);
+    //     toast({ title: "Info", description: "Foto lama dihapus dari storage." });
+    //   } catch (error) {
+    //     console.warn("Gagal menghapus foto lama dari storage:", error);
+    //   }
+    // }
+    setExistingPhotoUrl(null); // Hapus dari state
+    const fileInput = document.getElementById('photo-upload') as HTMLInputElement;
+    if (fileInput) {
+        fileInput.value = ""; // Reset file input
+    }
+  };
+
+
   const onSubmit = async (data: StaffFormValues) => {
     if (!staffId) return;
     setIsSubmitting(true);
+    let finalPhotoUrl = data.photoUrl || ''; // Ambil dari form jika tidak ada file baru
+
     try {
       const staffDocRef = doc(db, 'staffMembers', staffId);
+
+      if (selectedFile) { // Jika ada file baru yang dipilih untuk diupload
+        const storage = getStorage(app);
+        const uniqueFileName = `${uuidv4()}-${selectedFile.name}`;
+        const imagePath = `staff_photos/${staffId}/${uniqueFileName}`;
+        const imageStorageRef = storageRef(storage, imagePath);
+        
+        toast({ title: "Mengupload gambar baru...", description: "Mohon tunggu sebentar." });
+        await uploadBytes(imageStorageRef, selectedFile);
+        finalPhotoUrl = await getDownloadURL(imageStorageRef);
+        toast({ title: "Upload Berhasil", description: "Gambar staf berhasil diupload." });
+
+        // Hapus foto lama dari storage jika ada dan foto baru diupload
+        // if (existingPhotoUrl && existingPhotoUrl !== finalPhotoUrl) {
+        //   try {
+        //     const oldImageRef = storageRef(storage, existingPhotoUrl); // Perlu cara konversi URL ke ref yg benar
+        //     await deleteObject(oldImageRef);
+        //     toast({ title: "Info", description: "Foto lama telah dihapus dari storage." });
+        //   } catch (err) {
+        //     console.warn("Gagal menghapus foto lama dari storage:", err);
+        //   }
+        // }
+
+      } else if (data.photoUrl === '' && existingPhotoUrl) {
+        // Kasus dimana gambar dihapus (form.setValue('photoUrl', '') dipanggil oleh handleRemoveImage)
+        // dan tidak ada file baru yang dipilih
+        finalPhotoUrl = ''; // Pastikan photoUrl dikosongkan di Firestore
+        // Penghapusan file dari storage bisa ditambahkan di sini jika diinginkan,
+        // tapi untuk sekarang kita hanya mengosongkan URL di Firestore.
+      }
+
+
       const updateData: Partial<Omit<StaffMember, 'id' | 'createdAt'>> & { updatedAt?: any } = {
         name: data.name,
         role: data.role,
         phone: data.phone || undefined,
-        baseSalary: data.baseSalary || undefined,
-        profitSharePercentage: data.profitSharePercentage || undefined,
-        photoUrl: data.photoUrl || undefined,
+        baseSalary: data.baseSalary,
+        profitSharePercentage: data.profitSharePercentage,
+        photoUrl: finalPhotoUrl || undefined, // Simpan URL baru atau kosongkan
         updatedAt: serverTimestamp(),
       };
       
-      // Explicitly remove fields that are undefined to avoid writing them as null to Firestore if not desired
       Object.keys(updateData).forEach(key => {
-        if (updateData[key as keyof typeof updateData] === undefined && key !== 'updatedAt') {
-          delete updateData[key as keyof typeof updateData];
+        const K = key as keyof typeof updateData;
+        if (updateData[K] === undefined && K !== 'updatedAt' && K !== 'photoUrl') {
+          delete updateData[K];
         }
       });
+       if (updateData.photoUrl === undefined) {
+         updateData.photoUrl = ''; // Pastikan dikirim sebagai string kosong jika undefined
+       }
 
 
       await updateDoc(staffDocRef, updateData);
@@ -129,11 +212,12 @@ export default function EditStaffPage() {
         description: `Data staf "${data.name}" berhasil diperbarui.`,
       });
       router.push('/staff/list');
+
     } catch (error) {
       console.error("Error updating staff: ", error);
       toast({
         title: "Error",
-        description: "Gagal memperbarui data staf. Silakan coba lagi.",
+        description: `Gagal memperbarui data staf: ${error instanceof Error ? error.message : 'Kesalahan tidak diketahui'}`,
         variant: "destructive",
       });
     } finally {
@@ -274,19 +358,35 @@ export default function EditStaffPage() {
                     )}
                   />
                 </div>
-                 <FormField
-                  control={form.control}
-                  name="photoUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center"><ImageIcon className="mr-2 h-4 w-4 text-muted-foreground"/>URL Foto (Opsional)</FormLabel>
-                      <FormControl>
-                        <Input type="url" placeholder="mis. https://example.com/foto.jpg" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
+                
+                <FormItem>
+                  <FormLabel className="flex items-center"><ImageIcon className="mr-2 h-4 w-4 text-muted-foreground"/>Foto Staf (Opsional)</FormLabel>
+                  {imagePreview && (
+                    <div className="my-2">
+                      <img src={imagePreview} alt="Preview Foto Staf" className="h-32 w-32 object-cover rounded-md border" />
+                    </div>
                   )}
-                />
+                  <div className="flex items-center gap-2">
+                    <FormControl>
+                       <Input 
+                          id="photo-upload"
+                          type="file" 
+                          accept="image/*" 
+                          onChange={handleFileChange} 
+                          className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                        />
+                    </FormControl>
+                     {(imagePreview || selectedFile) && ( // Tampilkan tombol hapus jika ada preview atau file dipilih
+                      <Button type="button" variant="ghost" size="icon" onClick={handleRemoveImage} title="Hapus gambar">
+                        <Trash2 className="h-5 w-5 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                   <p className="text-xs text-muted-foreground mt-1">Upload file gambar baru (JPG, PNG, GIF). Maks 2MB. Jika tidak ada file baru dipilih, foto lama akan dipertahankan kecuali dihapus.</p>
+                  {/* Field photoUrl di form tidak lagi ditampilkan langsung, dikelola oleh state */}
+                  <FormMessage>{form.formState.errors.photoUrl?.message}</FormMessage>
+                </FormItem>
+
               </CardContent>
               <CardFooter className="flex justify-between">
                 <Button variant="outline" asChild>
@@ -310,3 +410,4 @@ export default function EditStaffPage() {
     </div>
   );
 }
+

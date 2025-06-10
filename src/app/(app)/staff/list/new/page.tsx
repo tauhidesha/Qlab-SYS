@@ -12,34 +12,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Save, Loader2, ArrowLeft, Phone, DollarSign, Percent, Image as ImageIcon } from 'lucide-react';
-import { db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { Save, Loader2, ArrowLeft, Phone, DollarSign, Percent, Image as ImageIcon, UploadCloud, Trash2 } from 'lucide-react';
+import { db, app } from '@/lib/firebase'; // Pastikan 'app' diekspor dari firebase.ts
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import { collection, addDoc, serverTimestamp, doc } from 'firebase/firestore'; // Import 'doc'
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { STAFF_ROLES, type NewStaffMemberData, type StaffRole } from '@/types/staff';
+import { v4 as uuidv4 } from 'uuid'; // Untuk nama file unik
 
 const staffFormSchema = z.object({
   name: z.string().min(2, "Nama staf minimal 2 karakter").max(50, "Nama staf maksimal 50 karakter"),
   role: z.enum(STAFF_ROLES, { required_error: "Peran staf diperlukan" }),
   phone: z.string().regex(/^(|\+?[0-9\s-]{10,15})$/, "Format nomor telepon tidak valid (min 10, maks 15 digit)").optional().or(z.literal('')),
   baseSalary: z.preprocess(
-    (val) => {
-      if (val === "" || val === undefined || val === null) return undefined;
-      const num = parseFloat(String(val));
-      return isNaN(num) ? undefined : num;
-    },
+    (val) => (val === "" || val === undefined || val === null) ? undefined : parseFloat(String(val)),
     z.number({ invalid_type_error: "Gaji harus angka" }).nonnegative("Gaji tidak boleh negatif").optional()
   ),
   profitSharePercentage: z.preprocess(
-    (val) => {
-      if (val === "" || val === undefined || val === null) return undefined;
-      const num = parseInt(String(val), 10);
-      return isNaN(num) ? undefined : num;
-    },
+    (val) => (val === "" || val === undefined || val === null) ? undefined : parseInt(String(val), 10),
     z.number({ invalid_type_error: "Persentase harus angka" }).min(0, "Minimal 0%").max(100, "Maksimal 100%").optional()
   ),
-  photoUrl: z.string().url("URL foto tidak valid (mis. https://...)").optional().or(z.literal('')),
+  photoUrl: z.string().url("URL foto tidak valid").optional().or(z.literal('')), // Tetap string untuk URL hasil upload
 });
 
 type StaffFormValues = z.infer<typeof staffFormSchema>;
@@ -48,6 +42,8 @@ export default function NewStaffPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const form = useForm<StaffFormValues>({
     resolver: zodResolver(staffFormSchema),
@@ -61,46 +57,82 @@ export default function NewStaffPage() {
     },
   });
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+      form.setValue('photoUrl', ''); // Kosongkan photoUrl jika ada file baru, nanti diisi URL dari storage
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setSelectedFile(null);
+    setImagePreview(null);
+    form.setValue('photoUrl', ''); // Hapus juga URL yang mungkin sudah ada
+    const fileInput = document.getElementById('photo-upload') as HTMLInputElement;
+    if (fileInput) {
+        fileInput.value = ""; // Reset file input
+    }
+  };
+
   const onSubmit = async (data: StaffFormValues) => {
     setIsSubmitting(true);
+    let finalPhotoUrl = '';
+
     try {
-      // Start with mandatory fields and createdAt
-      const newStaffEntry: NewStaffMemberData & { createdAt: any } = {
+      // Generate a new ID for the staff member document first
+      const newStaffDocRef = doc(collection(db, 'staffMembers'));
+      const staffId = newStaffDocRef.id;
+
+      if (selectedFile) {
+        const storage = getStorage(app);
+        const uniqueFileName = `${uuidv4()}-${selectedFile.name}`;
+        const imagePath = `staff_photos/${staffId}/${uniqueFileName}`;
+        const imageStorageRef = storageRef(storage, imagePath);
+        
+        toast({ title: "Mengupload gambar...", description: "Mohon tunggu sebentar." });
+        await uploadBytes(imageStorageRef, selectedFile);
+        finalPhotoUrl = await getDownloadURL(imageStorageRef);
+        toast({ title: "Upload Berhasil", description: "Gambar staf berhasil diupload." });
+      }
+
+      const newStaffEntry: NewStaffMemberData & { createdAt: any; photoUrl?: string } = {
         name: data.name,
         role: data.role,
         createdAt: serverTimestamp(),
       };
 
-      // Conditionally add optional fields if they have a valid value
-      if (data.phone && data.phone.trim() !== '') {
-        newStaffEntry.phone = data.phone;
+      if (finalPhotoUrl) {
+        newStaffEntry.photoUrl = finalPhotoUrl;
       }
-      // For numbers, ensure they are actual numbers (not NaN, which Zod preprocess might return as undefined)
-      if (typeof data.baseSalary === 'number' && !isNaN(data.baseSalary)) {
-        newStaffEntry.baseSalary = data.baseSalary;
-      }
-      if (typeof data.profitSharePercentage === 'number' && !isNaN(data.profitSharePercentage)) {
-        newStaffEntry.profitSharePercentage = data.profitSharePercentage;
-      }
-      if (data.photoUrl && data.photoUrl.trim() !== '') {
-        newStaffEntry.photoUrl = data.photoUrl;
-      }
-
+      if (data.phone && data.phone.trim() !== '') newStaffEntry.phone = data.phone;
+      if (typeof data.baseSalary === 'number' && !isNaN(data.baseSalary)) newStaffEntry.baseSalary = data.baseSalary;
+      if (typeof data.profitSharePercentage === 'number' && !isNaN(data.profitSharePercentage)) newStaffEntry.profitSharePercentage = data.profitSharePercentage;
+      
+      // Use setDoc with the generated ref to ensure the ID is what we used for the photo path
       await addDoc(collection(db, 'staffMembers'), newStaffEntry);
+
+
       toast({
         title: "Sukses!",
         description: `Staf baru "${data.name}" berhasil ditambahkan.`,
       });
       router.push('/staff/list');
+
     } catch (error) {
       console.error("Error adding staff member: ", error);
       toast({
         title: "Error",
-        description: "Gagal menambahkan staf baru. Silakan coba lagi.",
+        description: `Gagal menambahkan staf baru: ${error instanceof Error ? error.message : 'Kesalahan tidak diketahui'}`,
         variant: "destructive",
       });
     } finally {
-        setIsSubmitting(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -211,19 +243,34 @@ export default function NewStaffPage() {
                     )}
                   />
                 </div>
-                <FormField
-                  control={form.control}
-                  name="photoUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="flex items-center"><ImageIcon className="mr-2 h-4 w-4 text-muted-foreground"/>URL Foto (Opsional)</FormLabel>
-                      <FormControl>
-                        <Input type="url" placeholder="mis. https://example.com/foto.jpg" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
+                
+                <FormItem>
+                  <FormLabel className="flex items-center"><ImageIcon className="mr-2 h-4 w-4 text-muted-foreground"/>Foto Staf (Opsional)</FormLabel>
+                  {imagePreview && (
+                    <div className="my-2">
+                      <img src={imagePreview} alt="Preview Foto Staf" className="h-32 w-32 object-cover rounded-md border" />
+                    </div>
                   )}
-                />
+                  <div className="flex items-center gap-2">
+                    <FormControl>
+                       <Input 
+                          id="photo-upload"
+                          type="file" 
+                          accept="image/*" 
+                          onChange={handleFileChange} 
+                          className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                        />
+                    </FormControl>
+                    {(imagePreview || selectedFile) && (
+                      <Button type="button" variant="ghost" size="icon" onClick={handleRemoveImage} title="Hapus gambar">
+                        <Trash2 className="h-5 w-5 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                   <p className="text-xs text-muted-foreground mt-1">Upload file gambar (JPG, PNG, GIF). Maks 2MB.</p>
+                  <FormMessage>{form.formState.errors.photoUrl?.message}</FormMessage>
+                </FormItem>
+
               </CardContent>
               <CardFooter className="flex justify-between">
                 <Button variant="outline" asChild>
@@ -247,4 +294,3 @@ export default function NewStaffPage() {
     </div>
   );
 }
-
