@@ -12,14 +12,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Save, Loader2, ArrowLeft, Phone, DollarSign, Percent, Image as ImageIcon, Trash2 } from 'lucide-react';
-import { db, app } from '@/lib/firebase';
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
-import { collection, addDoc, serverTimestamp, doc } from 'firebase/firestore'; // Import doc
+import { Save, Loader2, ArrowLeft, Phone, DollarSign, Percent, Image as ImageIcon } from 'lucide-react';
+import { db } from '@/lib/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { STAFF_ROLES, type NewStaffMemberData } from '@/types/staff';
-import { v4 as uuidv4 } from 'uuid';
 
 const staffFormSchema = z.object({
   name: z.string().min(2, "Nama staf minimal 2 karakter").max(50, "Nama staf maksimal 50 karakter"),
@@ -33,7 +31,7 @@ const staffFormSchema = z.object({
     (val) => (val === "" || val === undefined || val === null) ? undefined : parseInt(String(val), 10),
     z.number({ invalid_type_error: "Persentase harus angka" }).min(0, "Minimal 0%").max(100, "Maksimal 100%").optional()
   ),
-  photoUrl: z.string().url("URL foto tidak valid").optional().or(z.literal('')), // Kept for Zod schema, but UI uses file input
+  photoUrl: z.string().url("URL foto tidak valid. Pastikan formatnya benar (mis. http:// atau https://).").optional().or(z.literal('')),
 });
 
 type StaffFormValues = z.infer<typeof staffFormSchema>;
@@ -42,8 +40,6 @@ export default function NewStaffPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const form = useForm<StaffFormValues>({
     resolver: zodResolver(staffFormSchema),
@@ -57,78 +53,28 @@ export default function NewStaffPage() {
     },
   });
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) { // 2MB limit
-        toast({
-          title: "Ukuran File Terlalu Besar",
-          description: "Ukuran file foto maksimal adalah 2MB.",
-          variant: "destructive",
-        });
-        event.target.value = ""; // Reset file input
-        return;
-      }
-      setSelectedFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-      form.setValue('photoUrl', ''); 
-    }
-  };
-
-  const handleRemoveImage = () => {
-    setSelectedFile(null);
-    setImagePreview(null);
-    form.setValue('photoUrl', ''); 
-    const fileInput = document.getElementById('photo-upload') as HTMLInputElement;
-    if (fileInput) {
-        fileInput.value = ""; 
-    }
-  };
-
   const onSubmit = async (data: StaffFormValues) => {
     setIsSubmitting(true);
-    let finalPhotoUrl = '';
-
     try {
-      // Create a new document reference with an auto-generated ID to get staffId first
-      const newStaffDocRef = doc(collection(db, 'staffMembers'));
-      const staffId = newStaffDocRef.id;
-
-      if (selectedFile) {
-        const storage = getStorage(app);
-        const uniqueFileName = `${uuidv4()}-${selectedFile.name}`;
-        const imagePath = `staff_photos/${staffId}/${uniqueFileName}`;
-        const imageStorageRef = storageRef(storage, imagePath);
-        
-        toast({ title: "Mengupload gambar...", description: "Proses ini mungkin butuh beberapa saat." });
-        await uploadBytes(imageStorageRef, selectedFile);
-        finalPhotoUrl = await getDownloadURL(imageStorageRef);
-        toast({ title: "Upload Berhasil", description: "Gambar staf berhasil diupload." });
-      }
-
-      const newStaffEntry: NewStaffMemberData & { createdAt: any; id: string; photoUrl?: string } = {
-        id: staffId, // Store the auto-generated ID
+      const newStaffEntry: NewStaffMemberData & { createdAt: any } = {
         name: data.name,
         role: data.role,
         createdAt: serverTimestamp(),
       };
 
-      if (finalPhotoUrl) {
-        newStaffEntry.photoUrl = finalPhotoUrl;
+      if (data.photoUrl && data.photoUrl.trim() !== '') {
+        newStaffEntry.photoUrl = data.photoUrl;
       }
       if (data.phone && data.phone.trim() !== '') newStaffEntry.phone = data.phone;
       if (typeof data.baseSalary === 'number' && !isNaN(data.baseSalary)) newStaffEntry.baseSalary = data.baseSalary;
       if (typeof data.profitSharePercentage === 'number' && !isNaN(data.profitSharePercentage)) {
         newStaffEntry.profitSharePercentage = data.profitSharePercentage;
+      } else if (data.profitSharePercentage === undefined && Object.prototype.hasOwnProperty.call(data, 'profitSharePercentage')) {
+        // Explicitly do not include if it was optional and not provided
       }
-      
-      // Use setDoc with the pre-generated ref instead of addDoc
-      await addDoc(collection(db, 'staffMembers'), newStaffEntry);
 
+
+      await addDoc(collection(db, 'staffMembers'), newStaffEntry);
 
       toast({
         title: "Sukses!",
@@ -138,30 +84,13 @@ export default function NewStaffPage() {
 
     } catch (error: any) {
       console.error("Error adding staff member: ", error);
-      let errorMessage = "Gagal menambahkan staf baru. Silakan coba lagi.";
-      if (error.code && typeof error.code === 'string') {
-        if (error.code.startsWith('storage/')) {
-          errorMessage = `Error upload gambar: ${error.message || 'Tidak diketahui'}`;
-        } else if (error.code.startsWith('firestore/')) {
-          errorMessage = `Error penyimpanan data: ${error.message || 'Tidak diketahui'}`;
-        } else if (error instanceof Error) {
-          errorMessage = error.message;
-        }
-      } else if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-      
       toast({
         title: "Error",
-        description: errorMessage,
+        description: `Gagal menambahkan staf baru: ${error.message || "Silakan coba lagi."}`,
         variant: "destructive",
       });
-      setIsSubmitting(false); // Ensure reset on error
     } finally {
-      // isSubmitting will be false if an error occurred and was caught.
-      // If successful, router.push happens, and this component might unmount.
-      // For safety, ensure it's set, though if an error is thrown and caught, it's handled above.
-      if(isSubmitting) setIsSubmitting(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -237,7 +166,7 @@ export default function NewStaffPage() {
                             type="number" 
                             placeholder="mis. 3000000" 
                             {...field}
-                            value={field.value === undefined ? '' : String(field.value)} // Ensure value is string for input
+                            value={field.value === undefined ? '' : String(field.value)} 
                             onChange={e => {
                                 const val = e.target.value;
                                 field.onChange(val === '' ? undefined : parseFloat(val));
@@ -260,7 +189,7 @@ export default function NewStaffPage() {
                             placeholder="mis. 25 (untuk 25%)" 
                             min="0" max="100" 
                             {...field} 
-                            value={field.value === undefined ? '' : String(field.value)} // Ensure value is string for input
+                            value={field.value === undefined ? '' : String(field.value)} 
                             onChange={e => {
                                 const val = e.target.value;
                                 field.onChange(val === '' ? undefined : parseInt(val, 10));
@@ -273,32 +202,20 @@ export default function NewStaffPage() {
                   />
                 </div>
                 
-                <FormItem>
-                  <FormLabel className="flex items-center"><ImageIcon className="mr-2 h-4 w-4 text-muted-foreground"/>Foto Staf (Opsional)</FormLabel>
-                  {imagePreview && (
-                    <div className="my-2">
-                      <img src={imagePreview} alt="Preview Foto Staf" className="h-32 w-32 object-cover rounded-md border" />
-                    </div>
+                <FormField
+                  control={form.control}
+                  name="photoUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center"><ImageIcon className="mr-2 h-4 w-4 text-muted-foreground"/>URL Foto Staf (Opsional)</FormLabel>
+                      <FormControl>
+                        <Input type="text" placeholder="mis. https://example.com/foto.jpg" {...field} />
+                      </FormControl>
+                       <p className="text-xs text-muted-foreground mt-1">Masukkan URL gambar yang sudah dihosting.</p>
+                      <FormMessage />
+                    </FormItem>
                   )}
-                  <div className="flex items-center gap-2">
-                    <FormControl>
-                       <Input 
-                          id="photo-upload"
-                          type="file" 
-                          accept="image/*" 
-                          onChange={handleFileChange} 
-                          className="block flex-grow text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
-                        />
-                    </FormControl>
-                    {(imagePreview || selectedFile) && (
-                      <Button type="button" variant="ghost" size="icon" onClick={handleRemoveImage} title="Hapus gambar" className="flex-shrink-0">
-                        <Trash2 className="h-5 w-5 text-destructive" />
-                      </Button>
-                    )}
-                  </div>
-                   <p className="text-xs text-muted-foreground mt-1">Upload file gambar (JPG, PNG, GIF). Maks 2MB.</p>
-                  <FormMessage>{form.formState.errors.photoUrl?.message}</FormMessage>
-                </FormItem>
+                />
 
               </CardContent>
               <CardFooter className="flex justify-between">
@@ -323,5 +240,3 @@ export default function NewStaffPage() {
     </div>
   );
 }
-
-    

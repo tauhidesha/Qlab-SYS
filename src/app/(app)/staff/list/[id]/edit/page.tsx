@@ -12,14 +12,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Save, Loader2, ArrowLeft, Phone, DollarSign, Percent, Image as ImageIcon, Trash2 } from 'lucide-react';
-import { db, app } from '@/lib/firebase'; 
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import { Save, Loader2, ArrowLeft, Phone, DollarSign, Percent, Image as ImageIcon } from 'lucide-react';
+import { db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { STAFF_ROLES, type StaffMember } from '@/types/staff';
-import { v4 as uuidv4 } from 'uuid'; 
 
 const staffFormSchema = z.object({
   name: z.string().min(2, "Nama staf minimal 2 karakter").max(50, "Nama staf maksimal 50 karakter"),
@@ -33,7 +31,7 @@ const staffFormSchema = z.object({
     (val) => (val === "" || val === undefined || val === null) ? undefined : parseInt(String(val), 10),
     z.number({ invalid_type_error: "Persentase harus angka" }).min(0, "Minimal 0%").max(100, "Maksimal 100%").optional()
   ),
-  photoUrl: z.string().url("URL foto tidak valid").optional().or(z.literal('')),
+  photoUrl: z.string().url("URL foto tidak valid. Pastikan formatnya benar (mis. http:// atau https://).").optional().or(z.literal('')),
 });
 
 type StaffFormValues = z.infer<typeof staffFormSchema>;
@@ -47,10 +45,7 @@ export default function EditStaffPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [staffNotFound, setStaffNotFound] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [existingPhotoUrl, setExistingPhotoUrl] = useState<string | null>(null);
-  const [deleteExistingPhotoOnSave, setDeleteExistingPhotoOnSave] = useState(false);
+  const [currentPhotoUrl, setCurrentPhotoUrl] = useState<string | null>(null);
 
 
   const form = useForm<StaffFormValues>({
@@ -91,8 +86,7 @@ export default function EditStaffPage() {
             photoUrl: staffData.photoUrl || '',
           });
           if (staffData.photoUrl) {
-            setImagePreview(staffData.photoUrl);
-            setExistingPhotoUrl(staffData.photoUrl);
+            setCurrentPhotoUrl(staffData.photoUrl);
           }
         } else {
           setStaffNotFound(true);
@@ -111,107 +105,40 @@ export default function EditStaffPage() {
     fetchStaffData();
   }, [staffId, form, router, toast]);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) { // 2MB limit
-        toast({
-          title: "Ukuran File Terlalu Besar",
-          description: "Ukuran file foto maksimal adalah 2MB.",
-          variant: "destructive",
-        });
-        event.target.value = ""; // Reset file input
-        return;
-      }
-      setSelectedFile(file);
-      setDeleteExistingPhotoOnSave(!!existingPhotoUrl); // Mark existing photo for deletion if a new one is selected
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-      form.setValue('photoUrl', ''); 
-    }
-  };
-
-  const handleRemoveImage = async () => {
-    if (existingPhotoUrl) {
-      setDeleteExistingPhotoOnSave(true);
-    }
-    setSelectedFile(null);
-    setImagePreview(null);
-    form.setValue('photoUrl', ''); 
-    // setExistingPhotoUrl(null); // Don't nullify existingPhotoUrl until save, so we know what to delete
-    const fileInput = document.getElementById('photo-upload') as HTMLInputElement;
-    if (fileInput) {
-        fileInput.value = ""; 
-    }
-  };
-
 
   const onSubmit = async (data: StaffFormValues) => {
     if (!staffId) return;
     setIsSubmitting(true);
-    let finalPhotoUrl = existingPhotoUrl || ''; 
 
     try {
       const staffDocRef = doc(db, 'staffMembers', staffId);
-      const storage = getStorage(app);
-
-      // Delete old photo if marked for deletion
-      if (deleteExistingPhotoOnSave && existingPhotoUrl && (selectedFile || !imagePreview)) { // Also delete if preview removed
-        try {
-          const oldImageRef = storageRef(storage, existingPhotoUrl);
-          await deleteObject(oldImageRef);
-          toast({ title: "Info", description: "Foto lama berhasil dihapus dari penyimpanan." });
-          finalPhotoUrl = ''; // Ensure finalPhotoUrl is cleared if old photo is deleted
-        } catch (deleteError: any) {
-          // Log error but continue, as main operation is updating staff data
-          console.error("Error deleting old photo: ", deleteError);
-          if (deleteError.code !== 'storage/object-not-found') { // Don't toast if already deleted
-             toast({ title: "Peringatan", description: "Gagal menghapus foto lama dari penyimpanan, namun data staf akan tetap diperbarui.", variant: "default" });
-          }
-        }
-      }
-
-
-      if (selectedFile) { 
-        const uniqueFileName = `${uuidv4()}-${selectedFile.name}`;
-        const imagePath = `staff_photos/${staffId}/${uniqueFileName}`;
-        const imageStorageRef = storageRef(storage, imagePath);
-        
-        toast({ title: "Mengupload gambar baru...", description: "Proses ini mungkin butuh beberapa saat." });
-        await uploadBytes(imageStorageRef, selectedFile);
-        finalPhotoUrl = await getDownloadURL(imageStorageRef);
-        toast({ title: "Upload Berhasil", description: "Gambar staf berhasil diupload." });
-
-      } else if (!imagePreview && existingPhotoUrl) { // Image was removed but no new one selected
-         finalPhotoUrl = '';
-      }
-
-
+      
       const updateData: Partial<Omit<StaffMember, 'id' | 'createdAt'>> & { updatedAt?: any } = {
         name: data.name,
         role: data.role,
-        phone: data.phone || undefined,
+        phone: (data.phone && data.phone.trim() !== '') ? data.phone : undefined, // Store undefined if empty string
         baseSalary: data.baseSalary,
         profitSharePercentage: data.profitSharePercentage,
-        photoUrl: finalPhotoUrl || undefined, 
+        photoUrl: (data.photoUrl && data.photoUrl.trim() !== '') ? data.photoUrl : undefined, // Store undefined if empty string
         updatedAt: serverTimestamp(),
       };
       
+      // Remove undefined fields to prevent Firestore errors, except for photoUrl and phone which should be explicitly set to '' or removed
       Object.keys(updateData).forEach(key => {
         const K = key as keyof typeof updateData;
-        if (updateData[K] === undefined && K !== 'updatedAt' && K !== 'photoUrl' && K !== 'phone' && K !== 'baseSalary' && K !== 'profitSharePercentage') {
-          delete updateData[K];
+        if (updateData[K] === undefined && K !== 'updatedAt') {
+          if (K === 'photoUrl' || K === 'phone') {
+            // If explicitly set to undefined (e.g. cleared input), we want to remove it or set to empty
+            // Firestore handles removal if value is undefined, or you can set to empty string if preferred
+            (updateData as any)[K] = ''; // Or delete updateData[K];
+          } else if (K === 'baseSalary' || K === 'profitSharePercentage') {
+            delete updateData[K]; // Ensure numeric fields are fully removed if undefined
+          }
         }
       });
-       if (updateData.photoUrl === undefined) {
-         updateData.photoUrl = ''; // Ensure it's an empty string if it was undefined
-       }
-       if (updateData.phone === undefined) updateData.phone = '';
-       if (updateData.baseSalary === undefined) delete updateData.baseSalary; // Remove if undefined
-       if (updateData.profitSharePercentage === undefined) delete updateData.profitSharePercentage; // Remove if undefined
+      
+      if (updateData.photoUrl === undefined) updateData.photoUrl = '';
+      if (updateData.phone === undefined) updateData.phone = '';
 
 
       await updateDoc(staffDocRef, updateData);
@@ -223,26 +150,13 @@ export default function EditStaffPage() {
 
     } catch (error: any) {
       console.error("Error updating staff: ", error);
-      let errorMessage = "Gagal memperbarui data staf. Silakan coba lagi.";
-       if (error.code && typeof error.code === 'string') {
-        if (error.code.startsWith('storage/')) {
-          errorMessage = `Error upload gambar: ${error.message || 'Tidak diketahui'}`;
-        } else if (error.code.startsWith('firestore/')) {
-          errorMessage = `Error penyimpanan data: ${error.message || 'Tidak diketahui'}`;
-        } else if (error instanceof Error) {
-          errorMessage = error.message;
-        }
-      } else if (error instanceof Error) {
-        errorMessage = error.message;
-      }
       toast({
         title: "Error",
-        description: errorMessage,
+        description: `Gagal memperbarui data staf: ${error.message || "Silakan coba lagi."}`,
         variant: "destructive",
       });
-      setIsSubmitting(false); // Ensure reset on error
     } finally {
-      if(isSubmitting) setIsSubmitting(false);
+      setIsSubmitting(false);
     }
   };
   
@@ -380,32 +294,36 @@ export default function EditStaffPage() {
                   />
                 </div>
                 
-                <FormItem>
-                  <FormLabel className="flex items-center"><ImageIcon className="mr-2 h-4 w-4 text-muted-foreground"/>Foto Staf (Opsional)</FormLabel>
-                  {imagePreview && (
-                    <div className="my-2">
-                      <img src={imagePreview} alt="Preview Foto Staf" className="h-32 w-32 object-cover rounded-md border" />
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2">
-                    <FormControl>
-                       <Input 
-                          id="photo-upload"
-                          type="file" 
-                          accept="image/*" 
-                          onChange={handleFileChange} 
-                          className="block flex-grow text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                <FormField
+                  control={form.control}
+                  name="photoUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center"><ImageIcon className="mr-2 h-4 w-4 text-muted-foreground"/>URL Foto Staf (Opsional)</FormLabel>
+                      {currentPhotoUrl && !form.watch('photoUrl') && ( // Show current photo if not actively typing a new URL
+                        <div className="my-2">
+                           <img src={currentPhotoUrl} alt="Foto Staf Saat Ini" className="h-32 w-32 object-cover rounded-md border" />
+                        </div>
+                      )}
+                       {form.watch('photoUrl') && ( // Show preview if there is a URL in the form field
+                        <div className="my-2">
+                           <img src={form.watch('photoUrl')} alt="Preview Foto Staf" className="h-32 w-32 object-cover rounded-md border" 
+                                onError={(e) => (e.currentTarget.style.display = 'none')} />
+                        </div>
+                      )}
+                      <FormControl>
+                        <Input type="text" placeholder="mis. https://example.com/foto.jpg" {...field} 
+                               onChange={(e) => {
+                                 field.onChange(e.target.value);
+                                 setCurrentPhotoUrl(null); // Clear current stored photo when user types
+                               }}
                         />
-                    </FormControl>
-                     {(imagePreview || selectedFile) && ( 
-                      <Button type="button" variant="ghost" size="icon" onClick={handleRemoveImage} title="Hapus gambar" className="flex-shrink-0">
-                        <Trash2 className="h-5 w-5 text-destructive" />
-                      </Button>
-                    )}
-                  </div>
-                   <p className="text-xs text-muted-foreground mt-1">Upload file gambar baru (JPG, PNG, GIF). Maks 2MB. Jika tidak ada file baru dipilih, foto lama akan dipertahankan kecuali dihapus.</p>
-                  <FormMessage>{form.formState.errors.photoUrl?.message}</FormMessage>
-                </FormItem>
+                      </FormControl>
+                       <p className="text-xs text-muted-foreground mt-1">Masukkan URL gambar yang sudah dihosting.</p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
               </CardContent>
               <CardFooter className="flex justify-between">
@@ -430,5 +348,3 @@ export default function EditStaffPage() {
     </div>
   );
 }
-
-    
