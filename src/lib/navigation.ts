@@ -1,6 +1,6 @@
 
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, BarChartBig, Settings, Clipboard, Banknote, CalendarDays, ClipboardList, Percent, ReceiptText, Landmark, DollarSign, TrendingUp, History, ArrowRightLeft, FileText, Wallet, Palette, Bell, CreditCard as CreditCardIcon, Award, Gift, SlidersHorizontal, Settings2, Package, MessageSquareText } from 'lucide-react'; // Added Package, MessageSquareText
+import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, BarChartBig, Settings, Clipboard, Banknote, CalendarDays, ClipboardList, Percent, ReceiptText, Landmark, DollarSign, TrendingUp, History, ArrowRightLeft, FileText, Wallet, Palette, Bell, CreditCard as CreditCardIcon, Award, Gift, SlidersHorizontal, Settings2, Package, MessageSquareText, Zap } from 'lucide-react'; // Added Package, MessageSquareText, Zap
 
 export interface NavItem {
   title: string;
@@ -149,8 +149,18 @@ export const settingsNavItem: NavItem = {
   collapsible: true,
   items: [ 
     { title: 'Umum', href: '/settings?tab=general', icon: SlidersHorizontal, description: 'Pengaturan umum bengkel.'}, 
-    { title: 'Loyalitas Dasar', href: '/settings?tab=loyalty', icon: Gift, description: 'Pengaturan program loyalitas.'},
-    { title: 'Daftar Reward', href: '/settings?tab=loyalty_rewards', icon: Award, description: 'Kelola reward untuk poin loyalitas.'},
+    { 
+      title: 'Program Loyalitas', 
+      href: '/settings?tab=loyalty', // Default tab for loyalty section
+      icon: Gift, 
+      description: 'Pengaturan program loyalitas.',
+      collapsible: true,
+      items: [
+        { title: 'Dasar Loyalitas', href: '/settings?tab=loyalty', icon: Gift, description: 'Pengaturan dasar program loyalitas.'},
+        { title: 'Daftar Reward Poin', href: '/settings?tab=loyalty_rewards', icon: Award, description: 'Kelola reward untuk poin loyalitas.'},
+        { title: 'Reward Langsung', href: '/settings?tab=direct_rewards', icon: Zap, description: 'Atur reward otomatis (Beli X Dapat Y).'},
+      ]
+    },
     { title: 'Tampilan', href: '/settings?tab=appearance', icon: Palette, description: 'Sesuaikan tampilan aplikasi.'},
     { title: 'Notifikasi', href: '/settings?tab=notifications', icon: Bell, description: 'Kelola preferensi notifikasi.'},
     { title: 'Peran Pengguna', href: '/settings?tab=users', icon: Users, description: 'Kelola akun staf dan akses.'}, 

@@ -8,12 +8,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Palette, Bell, Users, CreditCard as CreditCardIcon, Gift, DollarSign, Loader2, Wallet, Award, PlusCircle, Edit3, Trash2, SlidersHorizontal, Settings2 } from 'lucide-react';
+import { Palette, Bell, Users, CreditCard as CreditCardIcon, Gift, DollarSign, Loader2, Wallet, Award, PlusCircle, Edit3, Trash2, SlidersHorizontal, Settings2, Zap } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc, serverTimestamp, collection, addDoc, updateDoc, deleteDoc, query, orderBy, getDocs as getFirestoreDocs } from 'firebase/firestore'; 
+import { doc, getDoc, setDoc, serverTimestamp, collection, addDoc, updateDoc, deleteDoc, query, orderBy, getDocs as getFirestoreDocs, where } from 'firebase/firestore'; 
 import { useToast } from '@/hooks/use-toast';
 import type { LoyaltyReward } from '@/types/loyalty';
+import type { DirectReward, DirectRewardFormData } from '@/types/directReward';
+import type { ServiceProduct } from '@/app/(app)/services/page';
 import {
   Dialog,
   DialogContent,
@@ -74,6 +76,15 @@ const loyaltyRewardFormSchema = z.object({
 
 type LoyaltyRewardFormValues = z.infer<typeof loyaltyRewardFormSchema>;
 
+const directRewardFormSchema = z.object({
+  triggerServiceId: z.string().min(1, "Layanan pemicu harus dipilih"),
+  rewardProductId: z.string().min(1, "Produk reward harus dipilih"),
+  description: z.string().max(200, "Deskripsi maksimal 200 karakter").optional(),
+  isActive: z.boolean().default(true),
+});
+
+type DirectRewardFormValues = z.infer<typeof directRewardFormSchema>;
+
 
 export default function SettingsPage() {
   const { toast } = useToast();
@@ -96,6 +107,17 @@ export default function SettingsPage() {
   const [rewardToDelete, setRewardToDelete] = useState<LoyaltyReward | null>(null);
   const [isSubmittingReward, setIsSubmittingReward] = useState(false);
 
+  const [directRewards, setDirectRewards] = useState<DirectReward[]>([]);
+  const [isLoadingDirectRewards, setIsLoadingDirectRewards] = useState(true);
+  const [isDirectRewardFormDialogOpen, setIsDirectRewardFormDialogOpen] = useState(false);
+  const [editingDirectReward, setEditingDirectReward] = useState<DirectReward | null>(null);
+  const [directRewardToDelete, setDirectRewardToDelete] = useState<DirectReward | null>(null);
+  const [isSubmittingDirectReward, setIsSubmittingDirectReward] = useState(false);
+
+  const [availableServicesForDropdown, setAvailableServicesForDropdown] = useState<ServiceProduct[]>([]);
+  const [availableProductsForDropdown, setAvailableProductsForDropdown] = useState<ServiceProduct[]>([]);
+  const [isLoadingServicesForDropdown, setIsLoadingServicesForDropdown] = useState(true);
+
 
   const rewardForm = useForm<LoyaltyRewardFormValues>({
     resolver: zodResolver(loyaltyRewardFormSchema),
@@ -109,6 +131,16 @@ export default function SettingsPage() {
     },
   });
   const watchedRewardType = rewardForm.watch('type');
+
+  const directRewardForm = useForm<DirectRewardFormValues>({
+    resolver: zodResolver(directRewardFormSchema),
+    defaultValues: {
+      triggerServiceId: '',
+      rewardProductId: '',
+      description: '',
+      isActive: true,
+    }
+  });
 
   useEffect(() => {
     const fetchGeneralSettings = async () => {
@@ -217,6 +249,56 @@ export default function SettingsPage() {
   useEffect(() => {
     fetchLoyaltyRewards();
   }, [fetchLoyaltyRewards]);
+
+  const fetchDirectRewards = useCallback(async () => {
+    setIsLoadingDirectRewards(true);
+    try {
+      const rewardsCollectionRef = collection(db, 'directRewards');
+      const q = query(rewardsCollectionRef, orderBy("triggerServiceName"));
+      const querySnapshot = await getFirestoreDocs(q);
+      const rewardsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DirectReward));
+      setDirectRewards(rewardsData);
+    } catch (error) {
+      console.error("Error fetching direct rewards: ", error);
+      toast({ title: "Error", description: "Gagal mengambil data reward langsung.", variant: "destructive" });
+    } finally {
+      setIsLoadingDirectRewards(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchDirectRewards();
+  }, [fetchDirectRewards]);
+
+  const fetchServicesAndProductsForDropdowns = useCallback(async () => {
+    setIsLoadingServicesForDropdown(true);
+    try {
+      const servicesRef = collection(db, 'services');
+      const servicesQuery = query(servicesRef, where("type", "==", "Layanan"), orderBy("name"));
+      const productsQuery = query(servicesRef, where("type", "==", "Produk"), orderBy("name"));
+
+      const [servicesSnapshot, productsSnapshot] = await Promise.all([
+        getFirestoreDocs(servicesQuery),
+        getFirestoreDocs(productsQuery)
+      ]);
+
+      const servicesData = servicesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceProduct));
+      const productsData = productsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceProduct));
+      
+      setAvailableServicesForDropdown(servicesData);
+      setAvailableProductsForDropdown(productsData);
+
+    } catch (error) {
+      console.error("Error fetching services/products for dropdowns: ", error);
+      toast({ title: "Error Data", description: "Gagal memuat daftar layanan/produk untuk form.", variant: "destructive" });
+    } finally {
+      setIsLoadingServicesForDropdown(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchServicesAndProductsForDropdowns();
+  }, [fetchServicesAndProductsForDropdowns]);
 
 
   const handleSaveFinancialSettings = async () => {
@@ -331,6 +413,84 @@ export default function SettingsPage() {
     }
   };
 
+  const handleOpenDirectRewardForm = (reward: DirectReward | null = null) => {
+    setEditingDirectReward(reward);
+    if (reward) {
+      directRewardForm.reset({
+        triggerServiceId: reward.triggerServiceId,
+        rewardProductId: reward.rewardProductId,
+        description: reward.description || '',
+        isActive: reward.isActive,
+      });
+    } else {
+      directRewardForm.reset({
+        triggerServiceId: '',
+        rewardProductId: '',
+        description: '',
+        isActive: true,
+      });
+    }
+    setIsDirectRewardFormDialogOpen(true);
+  };
+
+  const handleDirectRewardFormSubmit = async (values: DirectRewardFormValues) => {
+    setIsSubmittingDirectReward(true);
+
+    const triggerService = availableServicesForDropdown.find(s => s.id === values.triggerServiceId);
+    const rewardProduct = availableProductsForDropdown.find(p => p.id === values.rewardProductId);
+
+    if (!triggerService || !rewardProduct) {
+      toast({ title: "Error Data", description: "Layanan pemicu atau produk reward tidak ditemukan.", variant: "destructive" });
+      setIsSubmittingDirectReward(false);
+      return;
+    }
+
+    const directRewardData: Omit<DirectReward, 'id' | 'createdAt' | 'updatedAt'> = {
+      triggerServiceId: values.triggerServiceId,
+      triggerServiceName: triggerService.name,
+      rewardProductId: values.rewardProductId,
+      rewardProductName: rewardProduct.name,
+      description: values.description,
+      isActive: values.isActive,
+    };
+
+    try {
+      if (editingDirectReward) {
+        const rewardDocRef = doc(db, 'directRewards', editingDirectReward.id);
+        await updateDoc(rewardDocRef, {...directRewardData, updatedAt: serverTimestamp()});
+        toast({ title: "Sukses", description: "Aturan reward langsung berhasil diperbarui." });
+      } else {
+        await addDoc(collection(db, 'directRewards'), {...directRewardData, createdAt: serverTimestamp(), updatedAt: serverTimestamp()});
+        toast({ title: "Sukses", description: "Aturan reward langsung baru berhasil ditambahkan." });
+      }
+      fetchDirectRewards();
+      setIsDirectRewardFormDialogOpen(false);
+      setEditingDirectReward(null);
+    } catch (error) {
+      console.error("Error saving direct reward: ", error);
+      toast({ title: "Error", description: "Gagal menyimpan aturan reward langsung.", variant: "destructive" });
+    } finally {
+      setIsSubmittingDirectReward(false);
+    }
+  };
+
+  const handleDeleteDirectReward = async () => {
+    if (!directRewardToDelete) return;
+    setIsSubmittingDirectReward(true);
+    try {
+      await deleteDoc(doc(db, 'directRewards', directRewardToDelete.id));
+      toast({ title: "Sukses", description: `Aturan reward untuk "${directRewardToDelete.triggerServiceName}" berhasil dihapus.` });
+      fetchDirectRewards();
+      setDirectRewardToDelete(null);
+    } catch (error) {
+      console.error("Error deleting direct reward: ", error);
+      toast({ title: "Error", description: "Gagal menghapus aturan reward langsung.", variant: "destructive" });
+    } finally {
+      setIsSubmittingDirectReward(false);
+    }
+  };
+
+
   return (
     <div className="flex flex-col h-full">
       <AppHeader title="Pengaturan" />
@@ -339,10 +499,10 @@ export default function SettingsPage() {
           <TabsList className="grid w-full grid-cols-4 md:grid-cols-7 mb-6">
             <TabsTrigger value="general"><SlidersHorizontal className="mr-2 h-4 w-4 hidden md:inline" />Umum</TabsTrigger>
             <TabsTrigger value="loyalty"><Gift className="mr-2 h-4 w-4 hidden md:inline" />Loyalitas Dasar</TabsTrigger>
-            <TabsTrigger value="loyalty_rewards"><Award className="mr-2 h-4 w-4 hidden md:inline" />Daftar Reward</TabsTrigger>
+            <TabsTrigger value="loyalty_rewards"><Award className="mr-2 h-4 w-4 hidden md:inline" />Daftar Reward Poin</TabsTrigger>
+            <TabsTrigger value="direct_rewards"><Zap className="mr-2 h-4 w-4 hidden md:inline" />Reward Langsung</TabsTrigger>
             <TabsTrigger value="appearance"><Palette className="mr-2 h-4 w-4 hidden md:inline" />Tampilan</TabsTrigger>
             <TabsTrigger value="notifications"><Bell className="mr-2 h-4 w-4 hidden md:inline" />Notifikasi</TabsTrigger>
-            <TabsTrigger value="users"><Users className="mr-2 h-4 w-4 hidden md:inline" />Peran</TabsTrigger>
             <TabsTrigger value="billing"><CreditCardIcon className="mr-2 h-4 w-4 hidden md:inline" />Tagihan</TabsTrigger>
           </TabsList>
           
@@ -477,7 +637,7 @@ export default function SettingsPage() {
                 )}
                 <p className="text-sm text-muted-foreground">
                   Pengaturan detail poin yang diberikan per layanan/produk dapat diatur di halaman "Layanan & Produk".
-                  Pengaturan reward spesifik (item merchandise, diskon, dll.) ada di tab "Daftar Reward".
+                  Pengaturan reward spesifik (item merchandise, diskon, dll.) ada di tab "Daftar Reward Poin".
                 </p>
               </CardContent>
               <CardFooter>
@@ -496,11 +656,11 @@ export default function SettingsPage() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <div>
-                    <CardTitle>Manajemen Reward Loyalitas</CardTitle>
+                    <CardTitle>Manajemen Reward Poin Loyalitas</CardTitle>
                     <CardDescription>Kelola item atau diskon yang dapat ditukar dengan poin loyalitas.</CardDescription>
                   </div>
                   <Button onClick={() => handleOpenRewardForm(null)}>
-                    <PlusCircle className="mr-2 h-4 w-4" /> Tambah Reward Baru
+                    <PlusCircle className="mr-2 h-4 w-4" /> Tambah Reward Poin
                   </Button>
                 </CardHeader>
                 <CardContent>
@@ -509,7 +669,7 @@ export default function SettingsPage() {
                       <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     </div>
                   ) : loyaltyRewards.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">Belum ada reward yang dikonfigurasi.</p>
+                    <p className="text-center text-muted-foreground py-8">Belum ada reward poin yang dikonfigurasi.</p>
                   ) : (
                     <Table>
                       <TableHeader>
@@ -559,7 +719,7 @@ export default function SettingsPage() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Konfirmasi Penghapusan</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Apakah Anda yakin ingin menghapus reward "{rewardToDelete?.name}"? Tindakan ini tidak dapat diurungkan.
+                    Apakah Anda yakin ingin menghapus reward poin "{rewardToDelete?.name}"? Tindakan ini tidak dapat diurungkan.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -572,6 +732,85 @@ export default function SettingsPage() {
               </AlertDialogContent>
             </AlertDialog>
           </TabsContent>
+
+          <TabsContent value="direct_rewards">
+             <AlertDialog open={!!directRewardToDelete} onOpenChange={(open) => !open && setDirectRewardToDelete(null)}>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>Manajemen Reward Langsung (Beli X Dapat Y)</CardTitle>
+                    <CardDescription>Atur reward otomatis ketika pelanggan membeli layanan tertentu.</CardDescription>
+                  </div>
+                  <Button onClick={() => handleOpenDirectRewardForm(null)} disabled={isLoadingServicesForDropdown}>
+                     {isLoadingServicesForDropdown && !isDirectRewardFormDialogOpen ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+                     Tambah Aturan Baru
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  {isLoadingDirectRewards || isLoadingServicesForDropdown ? (
+                    <div className="flex items-center justify-center py-10">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      <span className="ml-2">Memuat data...</span>
+                    </div>
+                  ) : directRewards.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">Belum ada aturan reward langsung yang dikonfigurasi.</p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Layanan Pemicu</TableHead>
+                          <TableHead>Produk Reward</TableHead>
+                          <TableHead>Deskripsi</TableHead>
+                          <TableHead className="text-center">Status</TableHead>
+                          <TableHead className="text-right">Aksi</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {directRewards.map((reward) => (
+                          <TableRow key={reward.id}>
+                            <TableCell className="font-medium">{reward.triggerServiceName}</TableCell>
+                            <TableCell>{reward.rewardProductName}</TableCell>
+                            <TableCell className="text-xs max-w-xs truncate">{reward.description || "-"}</TableCell>
+                            <TableCell className="text-center">
+                              <Badge variant={reward.isActive ? "default" : "outline"}>
+                                {reward.isActive ? "Aktif" : "Nonaktif"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="ghost" size="icon" onClick={() => handleOpenDirectRewardForm(reward)} className="hover:text-primary">
+                                <Edit3 className="h-4 w-4" />
+                              </Button>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" onClick={() => setDirectRewardToDelete(reward)} className="text-destructive hover:text-destructive">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+               <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Konfirmasi Penghapusan</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Apakah Anda yakin ingin menghapus aturan reward langsung untuk layanan "{directRewardToDelete?.triggerServiceName}"?
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => setDirectRewardToDelete(null)} disabled={isSubmittingDirectReward}>Batal</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeleteDirectReward} disabled={isSubmittingDirectReward} className={buttonVariants({variant: "destructive"})}>
+                    {isSubmittingDirectReward ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Hapus Aturan
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </TabsContent>
+
 
           <TabsContent value="appearance">
             <Card>
@@ -634,9 +873,9 @@ export default function SettingsPage() {
         }}>
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
-              <DialogTitle>{editingReward ? "Edit Reward" : "Tambah Reward Baru"}</DialogTitle>
+              <DialogTitle>{editingReward ? "Edit Reward Poin" : "Tambah Reward Poin Baru"}</DialogTitle>
               <DialogDescription>
-                {editingReward ? "Ubah detail reward di bawah ini." : "Isi detail untuk reward loyalitas baru."}
+                {editingReward ? "Ubah detail reward poin di bawah ini." : "Isi detail untuk reward poin loyalitas baru."}
               </DialogDescription>
             </DialogHeader>
             <Form {...rewardForm}>
@@ -741,11 +980,102 @@ export default function SettingsPage() {
                   <DialogClose asChild><Button type="button" variant="outline" disabled={isSubmittingReward}>Batal</Button></DialogClose>
                   <Button type="submit" disabled={isSubmittingReward} className="bg-accent text-accent-foreground hover:bg-accent/90">
                     {isSubmittingReward && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Simpan Reward
+                    Simpan Reward Poin
                   </Button>
                 </DialogFooter>
               </form>
             </Form>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isDirectRewardFormDialogOpen} onOpenChange={(isOpen) => {
+          setIsDirectRewardFormDialogOpen(isOpen);
+          if (!isOpen) setEditingDirectReward(null);
+        }}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{editingDirectReward ? "Edit Aturan Reward Langsung" : "Tambah Aturan Reward Langsung"}</DialogTitle>
+              <DialogDescription>
+                Atur layanan mana yang akan memicu pemberian produk reward secara otomatis.
+              </DialogDescription>
+            </DialogHeader>
+            {isLoadingServicesForDropdown ? (
+                <div className="flex items-center justify-center py-10"><Loader2 className="h-6 w-6 animate-spin" /> Memuat data layanan/produk...</div>
+            ) : (
+              <Form {...directRewardForm}>
+                <form onSubmit={directRewardForm.handleSubmit(handleDirectRewardFormSubmit)} className="space-y-4 py-2 pb-4">
+                  <FormField
+                    control={directRewardForm.control}
+                    name="triggerServiceId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Layanan Pemicu</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl><SelectTrigger><SelectValue placeholder="Pilih layanan pemicu" /></SelectTrigger></FormControl>
+                          <SelectContent>
+                            {availableServicesForDropdown.length === 0 && <SelectItem value="" disabled>Tidak ada layanan</SelectItem>}
+                            {availableServicesForDropdown.map(service => (
+                              <SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={directRewardForm.control}
+                    name="rewardProductId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Produk Reward</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl><SelectTrigger><SelectValue placeholder="Pilih produk reward" /></SelectTrigger></FormControl>
+                          <SelectContent>
+                             {availableProductsForDropdown.length === 0 && <SelectItem value="" disabled>Tidak ada produk</SelectItem>}
+                            {availableProductsForDropdown.map(product => (
+                              <SelectItem key={product.id} value={product.id}>{product.name} (Harga: Rp {product.price.toLocaleString('id-ID')})</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription className="text-xs">Produk ini akan ditambahkan otomatis dengan harga Rp 0 ke transaksi.</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={directRewardForm.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Deskripsi (Opsional)</FormLabel>
+                        <FormControl><Textarea placeholder="Deskripsi singkat aturan ini, mis. Promo Juli" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={directRewardForm.control}
+                    name="isActive"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                        <div className="space-y-0.5">
+                          <FormLabel>Aktifkan Aturan Ini</FormLabel>
+                        </div>
+                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <DialogFooter>
+                    <DialogClose asChild><Button type="button" variant="outline" disabled={isSubmittingDirectReward}>Batal</Button></DialogClose>
+                    <Button type="submit" disabled={isSubmittingDirectReward || isLoadingServicesForDropdown} className="bg-accent text-accent-foreground hover:bg-accent/90">
+                      {isSubmittingDirectReward && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Simpan Aturan Reward Langsung
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            )}
           </DialogContent>
         </Dialog>
 
