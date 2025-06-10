@@ -71,7 +71,7 @@ export default function QueueDisplayPage() {
 
   const getStatusIcon = (status: QueueItem['status']) => {
     if (status === 'Dalam Layanan') return <Clock className="h-5 w-5 mr-1.5" />;
-    if (status === 'Selesai') return <CheckCircle className="h-5 w-5 mr-1.5 text-accent" />; // Changed to text-accent
+    if (status === 'Selesai') return <CheckCircle className="h-5 w-5 mr-1.5 text-accent-foreground" />; // Changed to text-accent-foreground
     return <Clock className="h-5 w-5 mr-1.5 text-yellow-500" />; // Menunggu
   };
 
@@ -114,14 +114,17 @@ export default function QueueDisplayPage() {
     return () => unsubscribe();
   }, [toast]);
   
-  useEffect(() => {
+ useEffect(() => {
     const activeIntervals: Record<string, NodeJS.Timeout> = {};
 
+    // Synchronize countdownTimers state with queueItems first
     setCountdownTimers(currentTimers => {
-        const nextTimersState: Record<string, string> = {}; // Start fresh to clear old/irrelevant timers
+        const nextTimersState: Record<string, string> = {};
+        const itemsWithActiveTimers = new Set<string>();
 
         queueItems.forEach(item => {
             if (item.status === 'Dalam Layanan' && item.serviceStartTime) {
+                itemsWithActiveTimers.add(item.id);
                 const estimatedDurationMinutes = parseEstimatedTimeToMinutes(item.estimatedTime);
                 if (estimatedDurationMinutes === null) {
                     nextTimersState[item.id] = item.estimatedTime; // Fallback to static text
@@ -140,10 +143,16 @@ export default function QueueDisplayPage() {
                     const seconds = Math.floor((remainingMs / 1000) % 60);
                     nextTimersState[item.id] = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
                 }
-            } else if (currentTimers[item.id] && activeIntervals[item.id]) { 
-                // If item is no longer 'Dalam Layanan' but had a timer, ensure interval is cleared
-                clearInterval(activeIntervals[item.id]);
-                delete activeIntervals[item.id];
+            } else if (currentTimers[item.id]) {
+                 // If item is no longer 'Dalam Layanan' but had a timer, it might still be in currentTimers
+                 // We can let it be naturally removed if not re-added by an active item, or explicitly clear:
+                 // delete nextTimersState[item.id]; // Or simply don't add it
+            }
+        });
+        // Ensure timers for items no longer active or present are removed
+        Object.keys(currentTimers).forEach(timerId => {
+            if (!itemsWithActiveTimers.has(timerId) && nextTimersState[timerId]) {
+                delete nextTimersState[timerId];
             }
         });
         return nextTimersState;
@@ -177,6 +186,7 @@ export default function QueueDisplayPage() {
                 }
                 
                 setCountdownTimers(prev => {
+                    // Only update if the value has actually changed
                     if (prev[item.id] !== newTimeValue) {
                         return { ...prev, [item.id]: newTimeValue };
                     }
@@ -184,14 +194,16 @@ export default function QueueDisplayPage() {
                 });
             };
             
+            // Clear any existing interval for this item before setting a new one
             if (activeIntervals[item.id]) {
                 clearInterval(activeIntervals[item.id]);
             }
             
-            if (targetEndTimeMs > new Date().getTime()) {
-                 updateTimerForThisItem();
+            if (targetEndTimeMs > new Date().getTime()) { // Only set interval if time has not passed
+                 updateTimerForThisItem(); // Initial call to set timer immediately
                  activeIntervals[item.id] = setInterval(updateTimerForThisItem, 1000);
             } else {
+                // If time has already passed, set to TIME_UP_MESSAGE directly
                 setCountdownTimers(prev => ({ ...prev, [item.id]: TIME_UP_MESSAGE }));
             }
         }
@@ -214,7 +226,7 @@ export default function QueueDisplayPage() {
           return true;
         })
       );
-    }, 60 * 1000); 
+    }, 60 * 1000); // Check every minute to remove old "Selesai" items
 
     return () => clearInterval(intervalId);
   }, []);
@@ -314,7 +326,7 @@ export default function QueueDisplayPage() {
                           ) : item.status === 'Dalam Layanan' ? (
                              <div className="flex flex-col items-center">
                                {countdownTimers[item.id] !== TIME_UP_MESSAGE && (
-                                 <span className="text-base">Estimasi Sisa</span>
+                                 <span className="text-sm">Estimasi Sisa</span>
                                )}
                                <span className={`text-xl font-semibold ${countdownTimers[item.id] === TIME_UP_MESSAGE ? 'text-amber-500' : 'text-primary'}`}>
                                 {countdownTimers[item.id] || item.estimatedTime}
