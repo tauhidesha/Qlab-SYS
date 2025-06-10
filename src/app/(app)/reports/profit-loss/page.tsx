@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, TrendingUp, Download, DollarSign, TrendingDown } from 'lucide-react';
+import { Loader2, TrendingUp, Download, DollarSign, TrendingDown, Sparkles } from 'lucide-react'; // Added Sparkles
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, orderBy, getDocs, Timestamp } from 'firebase/firestore';
@@ -16,9 +16,12 @@ import type { IncomeEntry, IncomeCategory } from '@/types/income';
 import type { Expense, ExpenseCategory } from '@/types/expense';
 import { format as formatDateFns, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { id as indonesiaLocale } from 'date-fns/locale';
+import { analyzeProfitLoss, type AnalyzeProfitLossInput, type AnalyzeProfitLossOutput } from '@/ai/flows/analyze-profit-loss-flow';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface ProfitLossReportData {
-  period: string;
+  period: string; // Label periode, mis. "Juli 2024"
+  periodValue: string; // Nilai periode untuk AI, mis. "2024-07"
   totalRevenue: number;
   revenueFromSales: number;
   revenueFromOtherIncome: number;
@@ -48,22 +51,30 @@ export default function ProfitLossPage() {
   const [reportData, setReportData] = useState<ProfitLossReportData | null>(null);
   const availablePeriods = React.useMemo(() => generatePreviousMonths(12), []);
   const [selectedPeriod, setSelectedPeriod] = useState<string>(availablePeriods[0]?.value || '');
+  
+  const [aiAnalysis, setAiAnalysis] = useState<AnalyzeProfitLossOutput | null>(null);
+  const [isLoadingAiAnalysis, setIsLoadingAiAnalysis] = useState(false);
+  const [aiAnalysisError, setAiAnalysisError] = useState<string | null>(null);
+
   const { toast } = useToast();
 
-  const fetchProfitLossData = useCallback(async (period: string) => {
-    if (!period) {
+  const fetchProfitLossData = useCallback(async (periodValue: string) => {
+    if (!periodValue) {
       setReportData(null);
+      setAiAnalysis(null);
       setLoading(false);
       return;
     }
     setLoading(true);
+    setAiAnalysis(null); 
+    setAiAnalysisError(null);
 
-    const [year, month] = period.split('-').map(Number);
+    const [year, month] = periodValue.split('-').map(Number);
     const startDate = Timestamp.fromDate(startOfMonth(new Date(year, month - 1, 1)));
     const endDate = Timestamp.fromDate(endOfMonth(new Date(year, month - 1, 1)));
+    const periodLabel = availablePeriods.find(p => p.value === periodValue)?.label || periodValue;
 
     try {
-      // Fetch Transactions (Sales Revenue)
       const transactionsRef = collection(db, 'transactions');
       const salesQuery = query(
         transactionsRef,
@@ -77,7 +88,6 @@ export default function ProfitLossPage() {
         revenueFromSales += (doc.data() as Transaction).total;
       });
 
-      // Fetch Other Income
       const incomeEntriesRef = collection(db, 'incomeEntries');
       const incomeQuery = query(
         incomeEntriesRef,
@@ -97,8 +107,6 @@ export default function ProfitLossPage() {
       });
       const otherIncomeBreakdown = Array.from(otherIncomeBreakdownMap).map(([category, amount]) => ({ category, amount }));
 
-
-      // Fetch Expenses
       const expensesRef = collection(db, 'expenses');
       const expensesQuery = query(
         expensesRef,
@@ -110,21 +118,23 @@ export default function ProfitLossPage() {
       const expensesBreakdownMap = new Map<ExpenseCategory, number>();
       expensesSnapshot.forEach(doc => {
         const expense = doc.data() as Expense;
-        totalExpenses += expense.amount;
-        expensesBreakdownMap.set(
-          expense.category,
-          (expensesBreakdownMap.get(expense.category) || 0) + expense.amount
-        );
+        // Exclude "Setoran Tunai ke Bank" from P&L expenses as it's a balance sheet movement
+        if (expense.category !== "Setoran Tunai ke Bank") {
+            totalExpenses += expense.amount;
+            expensesBreakdownMap.set(
+            expense.category,
+            (expensesBreakdownMap.get(expense.category) || 0) + expense.amount
+            );
+        }
       });
       const expensesBreakdown = Array.from(expensesBreakdownMap).map(([category, amount]) => ({ category, amount }));
 
       const totalRevenue = revenueFromSales + revenueFromOtherIncome;
       const netProfit = totalRevenue - totalExpenses;
       
-      const periodLabel = availablePeriods.find(p => p.value === period)?.label || period;
-
       setReportData({
         period: periodLabel,
+        periodValue: periodValue,
         totalRevenue,
         revenueFromSales,
         revenueFromOtherIncome,
@@ -147,10 +157,42 @@ export default function ProfitLossPage() {
     if (selectedPeriod) {
       fetchProfitLossData(selectedPeriod);
     } else {
-      setReportData(null); // Clear data if no period is selected
+      setReportData(null);
+      setAiAnalysis(null);
       setLoading(false);
     }
   }, [selectedPeriod, fetchProfitLossData]);
+
+  useEffect(() => {
+    if (reportData && !isLoadingAiAnalysis && !aiAnalysis && !aiAnalysisError) {
+      const fetchAnalysis = async () => {
+        setIsLoadingAiAnalysis(true);
+        setAiAnalysisError(null);
+        try {
+          const inputForAI: AnalyzeProfitLossInput = {
+            period: reportData.period,
+            totalRevenue: reportData.totalRevenue,
+            revenueFromSales: reportData.revenueFromSales,
+            revenueFromOtherIncome: reportData.revenueFromOtherIncome,
+            otherIncomeBreakdown: reportData.otherIncomeBreakdown,
+            totalExpenses: reportData.totalExpenses,
+            expensesBreakdown: reportData.expensesBreakdown,
+            netProfit: reportData.netProfit,
+          };
+          const analysisResult = await analyzeProfitLoss(inputForAI);
+          setAiAnalysis(analysisResult);
+        } catch (error) {
+          console.error("Error fetching AI analysis: ", error);
+          setAiAnalysisError("Gagal mendapatkan analisa AI. Silakan coba lagi nanti.");
+          toast({ title: "Analisa AI Error", description: "Terjadi masalah saat mengambil analisa dari AI.", variant: "destructive" });
+        } finally {
+          setIsLoadingAiAnalysis(false);
+        }
+      };
+      fetchAnalysis();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportData]); // Trigger only when reportData changes
 
   return (
     <div className="flex flex-col h-full">
@@ -229,6 +271,53 @@ export default function ProfitLossPage() {
                 </Card>
               </CardContent>
             </Card>
+            
+            {isLoadingAiAnalysis ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center"><Sparkles className="mr-2 h-5 w-5 text-accent" />Analisa AI ✨</CardTitle>
+                </CardHeader>
+                <CardContent className="flex items-center justify-center py-10">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="ml-2 text-muted-foreground">AI sedang menganalisa data...</p>
+                </CardContent>
+              </Card>
+            ) : aiAnalysisError ? (
+              <Alert variant="destructive">
+                <Sparkles className="h-4 w-4" />
+                <AlertTitle>Analisa AI Gagal</AlertTitle>
+                <AlertDescription>{aiAnalysisError}</AlertDescription>
+              </Alert>
+            ) : aiAnalysis && (
+              <Card className="bg-accent/5 dark:bg-accent/10 border-accent/30">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-accent"><Sparkles className="mr-2 h-6 w-6" />Analisa AI ✨</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <h4 className="font-semibold mb-1">Ringkasan Performa:</h4>
+                    <p className="text-sm">{aiAnalysis.summary}</p>
+                  </div>
+                  {aiAnalysis.keyObservations && aiAnalysis.keyObservations.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold mb-1">Observasi Kunci:</h4>
+                      <ul className="list-disc list-inside space-y-1 text-sm">
+                        {aiAnalysis.keyObservations.map((obs, index) => <li key={index}>{obs}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  {aiAnalysis.recommendations && aiAnalysis.recommendations.length > 0 && (
+                    <div>
+                      <h4 className="font-semibold mb-1">Saran/Rekomendasi:</h4>
+                      <ul className="list-disc list-inside space-y-1 text-sm">
+                        {aiAnalysis.recommendations.map((rec, index) => <li key={index}>{rec}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
@@ -249,7 +338,7 @@ export default function ProfitLossPage() {
                         <TableCell>Penjualan (POS)</TableCell>
                         <TableCell className="text-right">{reportData.revenueFromSales.toLocaleString('id-ID')}</TableCell>
                       </TableRow>
-                      {reportData.otherIncomeBreakdown.map(item => (
+                      {reportData.otherIncomeBreakdown.length > 0 && reportData.otherIncomeBreakdown.map(item => (
                         <TableRow key={item.category}>
                           <TableCell className="pl-6">Pemasukan Lain: {item.category}</TableCell>
                           <TableCell className="text-right">{item.amount.toLocaleString('id-ID')}</TableCell>
@@ -267,7 +356,7 @@ export default function ProfitLossPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Rincian Biaya</CardTitle>
-                  <CardDescription>Kategori pengeluaran untuk periode {reportData.period}.</CardDescription>
+                  <CardDescription>Kategori pengeluaran untuk periode {reportData.period}. (Tidak termasuk Setoran Tunai ke Bank)</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Table>
