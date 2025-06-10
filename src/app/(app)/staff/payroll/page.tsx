@@ -44,6 +44,7 @@ import { format as formatDateFns, getDaysInMonth, getDate, getDay, parseISO, sta
 import { Separator } from '@/components/ui/separator';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import type { AttendanceRecord } from '@/types/attendance';
 
 
 const payrollFormSchema = z.object({
@@ -259,8 +260,8 @@ interface DetailPayrollDialogProps {
 }
 
 interface ParsedCalculationDetail {
-  date: string; // YYYY-MM-DD original for sorting
-  formattedDate: string; // dd MMM yyyy, EEEE for display
+  date: string; 
+  formattedDate: string; 
   events: string[];
 }
 
@@ -270,12 +271,12 @@ const parseCalculationDetails = (details?: string): ParsedCalculationDetail[] =>
   }
 
   const lines = details.trim().split('\n');
-  const groupedByDate: Record<string, string[]> = {}; // Key is YYYY-MM-DD
+  const groupedByDate: Record<string, string[]> = {}; 
 
   lines.forEach(line => {
     const match = line.match(/^(\d{4}-\d{2}-\d{2}):\s*(.*)$/);
     if (match) {
-      const date = match[1]; // YYYY-MM-DD
+      const date = match[1]; 
       const event = match[2];
       if (!groupedByDate[date]) {
         groupedByDate[date] = [];
@@ -303,7 +304,7 @@ function DetailPayrollDialog({ isOpen, onClose, entry }: DetailPayrollDialogProp
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="sm:max-w-2xl md:max-w-3xl"> {/* Lebarkan dialog */}
+      <DialogContent className="sm:max-w-2xl md:max-w-3xl"> 
         <DialogHeader>
           <DialogTitle>Detail Penggajian: {entry.staffName}</DialogTitle>
           <DialogDescription>Periode: {entry.period}</DialogDescription>
@@ -545,7 +546,7 @@ export default function PayrollPage() {
                 anyStaffScheduledAndPresent = true;
                 for (const att of dailyAttendances) {
                     if (att.status === 'Cuti' || att.status === 'Absen') {
-                        continue; // Skip checking clockIn for Cuti/Absen
+                        continue; 
                     }
                     if (!att.clockIn || att.clockIn < "09:05") {
                         allStaffPresentAndLate = false;
@@ -567,7 +568,7 @@ export default function PayrollPage() {
         const dayOfWeek = getDay(d);
         const staffDaysOff = staff.daysOff || [];
         let dailyLatenessDeduction = 0;
-        let isTelatBukaHariIniUntukStaf = false;
+        let alreadyDeductedForTelatBukaThisDay = false;
 
         if (staffDaysOff.includes(dayOfWeek)) {
             calculationDetails += `${dateStr}: Hari Libur Staf.\n`;
@@ -585,35 +586,39 @@ export default function PayrollPage() {
                 absenceDeduction += 50000;
                 calculationDetails += `${dateStr}: Absen (-Rp 50.000).\n`;
             } else if (attendance.clockIn) {
-                
-                if (shopLateOpeningDays.has(dateStr) && (attendance.status !== 'Cuti' && attendance.status !== 'Absen')) {
-                    telatBukaDeductionTotalForStaff += 25000;
-                    calculationDetails += `${dateStr}: Potongan Telat Buka Toko (-Rp 25.000).\n`;
-                    isTelatBukaHariIniUntukStaf = true;
-                }
-
+                let isTelatParah = false;
                 if (attendance.clockIn >= "10:00") {
                     dailyLatenessDeduction = 50000;
                     calculationDetails += `${dateStr}: Telat >=10:00 (-Rp 50.000).\n`;
+                    isTelatParah = true;
                 } else if (attendance.clockIn >= "09:05") {
-                    if (!isTelatBukaHariIniUntukStaf) { 
-                        dailyLatenessDeduction = 15000;
-                        calculationDetails += `${dateStr}: Telat >=09:05 (-Rp 15.000).\n`;
-                    } else {
-                         calculationDetails += `${dateStr}: Telat >=09:05 (digugurkan oleh Telat Buka Toko).\n`;
-                    }
+                    // Potensi telat normal, akan dicek setelah Telat Buka Toko
                 }
+                
+                // Cek Telat Buka Toko hanya jika tidak telat parah
+                if (!isTelatParah && shopLateOpeningDays.has(dateStr) && (attendance.status !== 'Cuti' && attendance.status !== 'Absen')) {
+                    telatBukaDeductionTotalForStaff += 25000;
+                    calculationDetails += `${dateStr}: Potongan Telat Buka Toko (-Rp 25.000).\n`;
+                    alreadyDeductedForTelatBukaThisDay = true;
+                }
+
+                // Jika tidak telat parah dan tidak kena potongan telat buka, cek potongan telat normal
+                if (!isTelatParah && !alreadyDeductedForTelatBukaThisDay && attendance.clockIn >= "09:05") {
+                    dailyLatenessDeduction = 15000;
+                    calculationDetails += `${dateStr}: Telat >=09:05 (-Rp 15.000).\n`;
+                } else if (!isTelatParah && alreadyDeductedForTelatBukaThisDay && attendance.clockIn >= "09:05") {
+                    calculationDetails += `${dateStr}: Telat >=09:05 (digugurkan oleh Telat Buka Toko).\n`;
+                }
+
                 latenessDeduction += dailyLatenessDeduction;
 
-            } else { // No clockIn but not 'Absen' or 'Cuti' (e.g., status 'Hadir' but forgot clockIn)
-                absenceDeduction += 50000; // Assume absent if no clockIn and not explicitly on leave
+            } else { 
+                absenceDeduction += 50000; 
                 calculationDetails += `${dateStr}: ${attendance.status} tanpa clockIn, dianggap Absen (-Rp 50.000).\n`;
             }
-        } else { // No attendance record at all for the day
+        } else { 
             absenceDeduction += 50000;
             calculationDetails += `${dateStr}: Tidak ada catatan absensi (-Rp 50.000).\n`;
-            // Check for "Telat Buka Toko" even if this specific staff has no record,
-            // as the "Telat Buka" applies if *all present staff* were late.
             if (shopLateOpeningDays.has(dateStr)) {
                  telatBukaDeductionTotalForStaff += 25000;
                  calculationDetails += `${dateStr}: Potongan Telat Buka Toko (-Rp 25.000 saat tidak ada absensi).\n`;
@@ -947,7 +952,7 @@ export default function PayrollPage() {
             <CardContent className="text-sm space-y-2">
                 <p><span className="font-semibold">Keterlambatan:</span> Masuk pukul 09:05-09:59: -Rp 15.000. Masuk pukul 10:00 atau lebih: -Rp 50.000.</p>
                 <p><span className="font-semibold">Absensi Tidak Sah:</span> Tidak hadir tanpa status "Cuti" atau bukan hari libur staf: -Rp 50.000/hari.</p>
-                <p><span className="font-semibold">Telat Buka Toko:</span> Jika semua staf yang hadir pada satu hari tercatat masuk pukul 09:05 atau lebih, masing-masing staf tersebut mendapat potongan tambahan -Rp 25.000 untuk hari itu. Jika potongan "Telat Buka" aktif, potongan keterlambatan normal (Rp 15.000) tidak berlaku untuk staf tersebut di hari yang sama.</p>
+                <p><span className="font-semibold">Telat Buka Toko:</span> Jika semua staf yang hadir pada satu hari tercatat masuk pukul 09:05 atau lebih, masing-masing staf tersebut mendapat potongan tambahan -Rp 25.000 untuk hari itu. Jika potongan "Telat Buka" aktif, potongan keterlambatan normal (Rp 15.000 karena masuk 09:05-09:59) tidak berlaku untuk staf tersebut di hari yang sama. Namun, jika staf sudah kena potongan telat 1 jam (Rp 50.000), potongan "Telat Buka Toko" tidak dikenakan.</p>
                 <p className="text-xs text-muted-foreground">Jam operasional bengkel: 09:00 - 21:00. Semua perhitungan potongan dilakukan relatif terhadap jam operasional ini dan data absensi yang tercatat.</p>
             </CardContent>
         </Card>
@@ -994,16 +999,4 @@ export default function PayrollPage() {
   );
 }
 
-interface AttendanceRecord { 
-  id: string;
-  staffId: string;
-  staffName: string;
-  date: string; 
-  clockIn?: string; 
-  clockOut?: string; 
-  status: 'Hadir' | 'Absen' | 'Terlambat' | 'Cuti';
-  notes?: string;
-  createdAt?: Timestamp;
-  updatedAt?: Timestamp;
-}
-
+    
