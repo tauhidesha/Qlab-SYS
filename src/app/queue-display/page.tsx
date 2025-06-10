@@ -63,15 +63,14 @@ export default function QueueDisplayPage() {
   const { toast } = useToast();
 
   const getStatusBadgeVariant = (status: QueueItem['status']) => {
-    if (status === 'Dalam Layanan') return 'default';
-    // 'Selesai' color is handled directly via className for accent color
-    if (status === 'Selesai') return undefined; // No specific variant needed if overriding with classes
-    return 'outline';
+    // 'Dalam Layanan' and 'Selesai' will be handled by direct className for accent color
+    if (status === 'Dalam Layanan' || status === 'Selesai') return undefined;
+    return 'outline'; // For 'Menunggu'
   };
 
   const getStatusIcon = (status: QueueItem['status']) => {
-    if (status === 'Dalam Layanan') return <Clock className="h-5 w-5 mr-1.5" />;
-    if (status === 'Selesai') return <CheckCircle className="h-5 w-5 mr-1.5 text-accent-foreground" />; // Changed to text-accent-foreground
+    if (status === 'Dalam Layanan') return <Clock className="h-5 w-5 mr-1.5 text-accent-foreground" />;
+    if (status === 'Selesai') return <CheckCircle className="h-5 w-5 mr-1.5 text-accent-foreground" />;
     return <Clock className="h-5 w-5 mr-1.5 text-yellow-500" />; // Menunggu
   };
 
@@ -117,7 +116,6 @@ export default function QueueDisplayPage() {
  useEffect(() => {
     const activeIntervals: Record<string, NodeJS.Timeout> = {};
 
-    // Synchronize countdownTimers state with queueItems first
     setCountdownTimers(currentTimers => {
         const nextTimersState: Record<string, string> = {};
         const itemsWithActiveTimers = new Set<string>();
@@ -127,7 +125,7 @@ export default function QueueDisplayPage() {
                 itemsWithActiveTimers.add(item.id);
                 const estimatedDurationMinutes = parseEstimatedTimeToMinutes(item.estimatedTime);
                 if (estimatedDurationMinutes === null) {
-                    nextTimersState[item.id] = item.estimatedTime; // Fallback to static text
+                    nextTimersState[item.id] = item.estimatedTime; 
                     return;
                 }
                 
@@ -143,13 +141,8 @@ export default function QueueDisplayPage() {
                     const seconds = Math.floor((remainingMs / 1000) % 60);
                     nextTimersState[item.id] = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
                 }
-            } else if (currentTimers[item.id]) {
-                 // If item is no longer 'Dalam Layanan' but had a timer, it might still be in currentTimers
-                 // We can let it be naturally removed if not re-added by an active item, or explicitly clear:
-                 // delete nextTimersState[item.id]; // Or simply don't add it
             }
         });
-        // Ensure timers for items no longer active or present are removed
         Object.keys(currentTimers).forEach(timerId => {
             if (!itemsWithActiveTimers.has(timerId) && nextTimersState[timerId]) {
                 delete nextTimersState[timerId];
@@ -162,6 +155,7 @@ export default function QueueDisplayPage() {
         if (item.status === 'Dalam Layanan' && item.serviceStartTime) {
             const estimatedDurationMinutes = parseEstimatedTimeToMinutes(item.estimatedTime);
             if (estimatedDurationMinutes === null) {
+                 setCountdownTimers(prev => ({ ...prev, [item.id]: item.estimatedTime }));
                 return; 
             }
 
@@ -186,7 +180,6 @@ export default function QueueDisplayPage() {
                 }
                 
                 setCountdownTimers(prev => {
-                    // Only update if the value has actually changed
                     if (prev[item.id] !== newTimeValue) {
                         return { ...prev, [item.id]: newTimeValue };
                     }
@@ -194,16 +187,14 @@ export default function QueueDisplayPage() {
                 });
             };
             
-            // Clear any existing interval for this item before setting a new one
             if (activeIntervals[item.id]) {
                 clearInterval(activeIntervals[item.id]);
             }
             
-            if (targetEndTimeMs > new Date().getTime()) { // Only set interval if time has not passed
-                 updateTimerForThisItem(); // Initial call to set timer immediately
+            if (targetEndTimeMs > new Date().getTime()) {
+                 updateTimerForThisItem(); 
                  activeIntervals[item.id] = setInterval(updateTimerForThisItem, 1000);
             } else {
-                // If time has already passed, set to TIME_UP_MESSAGE directly
                 setCountdownTimers(prev => ({ ...prev, [item.id]: TIME_UP_MESSAGE }));
             }
         }
@@ -226,7 +217,7 @@ export default function QueueDisplayPage() {
           return true;
         })
       );
-    }, 60 * 1000); // Check every minute to remove old "Selesai" items
+    }, 60 * 1000);
 
     return () => clearInterval(intervalId);
   }, []);
@@ -275,12 +266,13 @@ export default function QueueDisplayPage() {
                   ) : (
                     queueItems.map((item, index) => {
                       const isSelesai = item.status === 'Selesai';
+                      const isDalamLayanan = item.status === 'Dalam Layanan';
                       return (
                       <TableRow 
                         key={item.id} 
                         className={cn(
                           "text-lg", 
-                          item.status === 'Dalam Layanan' && 'bg-primary/10',
+                          isDalamLayanan && 'bg-accent/10',
                           isSelesai && 'opacity-70'
                         )}
                       >
@@ -292,10 +284,10 @@ export default function QueueDisplayPage() {
                         </TableCell>
                         <TableCell className="text-center py-4 px-3">
                           <Badge 
-                            variant={isSelesai ? undefined : getStatusBadgeVariant(item.status)} 
+                            variant={getStatusBadgeVariant(item.status)} 
                             className={cn(
                               "capitalize text-lg px-4 py-2 h-auto",
-                              isSelesai && "bg-accent text-accent-foreground" // Apply accent colors directly for Selesai
+                              (isSelesai || isDalamLayanan) && "bg-accent text-accent-foreground"
                             )}
                           >
                             {getStatusIcon(item.status)}
@@ -328,7 +320,7 @@ export default function QueueDisplayPage() {
                                {countdownTimers[item.id] !== TIME_UP_MESSAGE && (
                                  <span className="text-sm">Estimasi Sisa</span>
                                )}
-                               <span className={`text-xl font-semibold ${countdownTimers[item.id] === TIME_UP_MESSAGE ? 'text-amber-500' : 'text-primary'}`}>
+                               <span className={`text-xl font-semibold ${countdownTimers[item.id] === TIME_UP_MESSAGE ? 'text-amber-500' : 'text-accent'}`}>
                                 {countdownTimers[item.id] || item.estimatedTime}
                                </span>
                              </div>
