@@ -8,7 +8,7 @@ import { Banknote, FileText, Download, Loader2, Eye, CheckCircle, Save, UserPlus
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, orderBy, doc, updateDoc, addDoc, serverTimestamp, Timestamp, writeBatch, getDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy, doc, updateDoc, addDoc, serverTimestamp, Timestamp, writeBatch, getDoc, limit } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -41,7 +41,7 @@ import type { ExpenseFormData, ExpenseCategory, PaymentSource } from '@/types/ex
 import type { PayrollEntry } from '@/types/payroll';
 import type { AttendanceRecord } from '@/types/attendance';
 import { id as indonesiaLocale } from 'date-fns/locale';
-import { format as formatDateFns, getDaysInMonth, getDate, getDay, parse as parseDateFns } from 'date-fns';
+import { format as formatDateFns, getDaysInMonth, getDate, getDay, parseISO, startOfDay, endOfDay } from 'date-fns';
 
 
 const payrollFormSchema = z.object({
@@ -54,7 +54,7 @@ const payrollFormSchema = z.object({
     (val) => val ? parseFloat(String(val)) : undefined,
     z.number({ invalid_type_error: "Total jam harus angka" }).nonnegative("Total jam tidak boleh negatif").optional()
   ),
-  manualDeductions: z.preprocess( // Changed from deductions to manualDeductions
+  manualDeductions: z.preprocess( 
     (val) => val ? parseFloat(String(val)) : undefined,
     z.number({ invalid_type_error: "Potongan harus angka" }).nonnegative("Potongan tidak boleh negatif").optional()
   ),
@@ -139,7 +139,6 @@ function CreatePayrollDialog({ isOpen, onClose, onSubmit, staffList, selectedPer
         toast({ title: "Error", description: "Staf tidak ditemukan.", variant: "destructive"});
         return;
     }
-    // Net pay here is just base - manual. Full calculation happens server-side or in the main page's effect.
     const initialNetPay = (data.baseSalary || 0) - (data.manualDeductions || 0);
     const initialTotalDeductions = data.manualDeductions || 0;
     await onSubmit({ ...data, staffName: selectedStaffMember.name, period: selectedPeriod, status: 'Dibuat', netPay: initialNetPay, totalDeductions: initialTotalDeductions });
@@ -296,7 +295,6 @@ function DetailPayrollDialog({ isOpen, onClose, entry }: DetailPayrollDialogProp
   );
 }
 
-// Helper function to parse "MMMM yyyy" string to Date objects for start and end of month
 const parsePeriodToDateRange = (period: string): { startDate: Date, endDate: Date } | null => {
     const parts = period.split(" ");
     if (parts.length !== 2) return null;
@@ -310,7 +308,7 @@ const parsePeriodToDateRange = (period: string): { startDate: Date, endDate: Dat
     if (monthIndex === -1 || isNaN(year)) return null;
 
     const startDate = new Date(year, monthIndex, 1);
-    const endDate = new Date(year, monthIndex + 1, 0); // Day 0 of next month is last day of current month
+    const endDate = endOfDay(new Date(year, monthIndex + 1, 0)); // End of day for last day of month
     return { startDate, endDate };
 };
 
@@ -386,94 +384,107 @@ export default function PayrollPage() {
         attendanceRecords[attData.date] = attData;
     });
 
-    // Telat Buka: Pre-calculate for all days in the period
     const shopLateOpeningDays = new Set<string>();
     if (staffList.length > 0) {
-      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-        const dateStr = formatDateFns(d, 'yyyy-MM-dd');
-        const dayOfWeek = getDay(d);
-        
-        // Check if this day is a "Telat Buka" day
-        let allStaffPresentAndLate = true;
-        let anyStaffPresent = false;
+        for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+            const dateStr = formatDateFns(d, 'yyyy-MM-dd');
+            const dayOfWeek = getDay(d);
+            
+            let allStaffPresentAndLate = true;
+            let anyStaffScheduledAndPresent = false; // Tracks if anyone who was supposed to work, actually came
 
-        const dailyAttendancePromises = staffList.map(async (s) => {
-            const staffDaysOff = s.daysOff || [];
-            if (staffDaysOff.includes(dayOfWeek)) return null; // Skip if day off for this staff
+            const dailyAttendancePromises = staffList.map(async (sMember) => {
+                const staffMemberDaysOff = sMember.daysOff || [];
+                if (staffMemberDaysOff.includes(dayOfWeek)) return null; // Skip if day off for this staff member
+                
+                const attQuery = query(collection(db, 'attendanceRecords'), 
+                                        where("staffId", "==", sMember.id), 
+                                        where("date", "==", dateStr),
+                                        limit(1));
+                const attSnap = await getDocs(attQuery);
+                return attSnap.empty ? null : attSnap.docs[0].data() as AttendanceRecord;
+            });
+            const dailyAttendances = (await Promise.all(dailyAttendancePromises)).filter(Boolean) as AttendanceRecord[];
 
-            const attDocRef = query(collection(db, 'attendanceRecords'), 
-                                    where("staffId", "==", s.id), 
-                                    where("date", "==", dateStr),
-                                    limit(1));
-            const attSnap = await getDocs(attDocRef);
-            return attSnap.empty ? null : attSnap.docs[0].data() as AttendanceRecord;
-        });
-        const dailyAttendances = (await Promise.all(dailyAttendancePromises)).filter(Boolean) as AttendanceRecord[];
-
-        if (dailyAttendances.length > 0) { // Only if at least one staff was supposed to work & has a record
-            anyStaffPresent = true;
-            for (const att of dailyAttendances) {
-                if (att.status === 'Cuti' || att.status === 'Absen') { // If someone is on leave/absent, they don't make the shop "not late"
-                    continue;
+            if (dailyAttendances.length > 0) {
+                anyStaffScheduledAndPresent = true;
+                for (const att of dailyAttendances) {
+                    if (att.status === 'Cuti' || att.status === 'Absen') {
+                        // If on leave/absent, they don't contribute to opening the shop or being late for it
+                        continue;
+                    }
+                    // If anyone present is NOT late (i.e. came before 09:05), then shop is not late
+                    if (!att.clockIn || att.clockIn < "09:05") {
+                        allStaffPresentAndLate = false;
+                        break;
+                    }
                 }
-                if (!att.clockIn || att.clockIn < "09:05") {
-                    allStaffPresentAndLate = false;
-                    break;
-                }
+            } else { // No attendance records for anyone scheduled (could be holiday or no one came)
+                allStaffPresentAndLate = false; 
             }
-        } else { // No attendance records for anyone (could be holiday or no one came)
-            allStaffPresentAndLate = false; 
+            
+            if (anyStaffScheduledAndPresent && allStaffPresentAndLate) {
+                shopLateOpeningDays.add(dateStr);
+            }
         }
-        if (anyStaffPresent && allStaffPresentAndLate) {
-            shopLateOpeningDays.add(dateStr);
-        }
-      }
     }
-
 
     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
         const dateStr = formatDateFns(d, 'yyyy-MM-dd');
-        const dayOfWeek = getDay(d); // 0 for Sunday, 6 for Saturday
+        const dayOfWeek = getDay(d);
         const staffDaysOff = staff.daysOff || [];
+        let dailyLatenessDeduction = 0;
+        let isTelatBukaHariIniUntukStaf = false;
 
         if (staffDaysOff.includes(dayOfWeek)) {
             calculationDetails += `${dateStr}: Hari Libur Staf. `;
-            continue; // Skip deduction if it's a day off for the staff
+            continue;
         }
 
         const attendance = attendanceRecords[dateStr];
 
         if (attendance) {
             if (attendance.status === 'Cuti') {
-                 calculationDetails += `${dateStr}: Cuti. `;
-                continue; // No deduction for Cuti
+                calculationDetails += `${dateStr}: Cuti. `;
+                continue;
             }
             if (attendance.status === 'Absen') {
                 absenceDeduction += 50000;
                 calculationDetails += `${dateStr}: Absen (-50000). `;
             } else if (attendance.clockIn) {
+                // Check for Telat Buka first for this staff on this day
+                if (shopLateOpeningDays.has(dateStr) && (attendance.status !== 'Cuti' && attendance.status !== 'Absen')) {
+                    telatBukaDeductionTotalForStaff += 25000;
+                    calculationDetails += `Potongan Telat Buka (-25000). `;
+                    isTelatBukaHariIniUntukStaf = true;
+                }
+
                 if (attendance.clockIn >= "10:00") {
-                    latenessDeduction += 50000;
+                    dailyLatenessDeduction = 50000;
                     calculationDetails += `${dateStr}: Telat >=10:00 (-50000). `;
                 } else if (attendance.clockIn >= "09:05") {
-                    latenessDeduction += 15000;
-                    calculationDetails += `${dateStr}: Telat >=09:05 (-15000). `;
+                    // If Telat Buka is active, this Rp 15,000 is waived
+                    if (!isTelatBukaHariIniUntukStaf) {
+                        dailyLatenessDeduction = 15000;
+                        calculationDetails += `${dateStr}: Telat >=09:05 (-15000). `;
+                    } else {
+                         calculationDetails += `${dateStr}: Telat >=09:05 (digugurkan oleh Telat Buka). `;
+                    }
                 }
-            } else { // Status Hadir/Terlambat tapi tidak ada clockIn (data anomali, anggap absen)
+                latenessDeduction += dailyLatenessDeduction;
+
+            } else { // Status Hadir/Terlambat tapi tidak ada clockIn
                 absenceDeduction += 50000;
                 calculationDetails += `${dateStr}: ${attendance.status} tanpa clockIn, dianggap Absen (-50000). `;
             }
-        } else { // No attendance record for the day, not a day off
+        } else { // No attendance record
             absenceDeduction += 50000;
             calculationDetails += `${dateStr}: Tidak ada catatan absensi (-50000). `;
-        }
-        
-        // Telat Buka Deduction
-        if (shopLateOpeningDays.has(dateStr)) {
-             // Apply only if staff was not on Cuti/Absen on that "Telat Buka" day
-            if (!attendance || (attendance.status !== 'Cuti' && attendance.status !== 'Absen')) {
-                telatBukaDeductionTotalForStaff += 25000;
-                calculationDetails += `Potongan Telat Buka (-25000). `;
+             // If no attendance record for the staff, also check if this day was a "Telat Buka" day for the shop
+            // This means if the staff was absent, they might still get "Telat Buka" if other conditions met
+            if (shopLateOpeningDays.has(dateStr)) {
+                 telatBukaDeductionTotalForStaff += 25000;
+                 calculationDetails += `Potongan Telat Buka (-25000 saat tidak ada absensi). `;
             }
         }
     }
@@ -507,7 +518,6 @@ export default function PayrollPage() {
           updatedAt: docSnap.data().updatedAt || Timestamp.now()
         } as PayrollEntry));
 
-      // Auto-create/update entries if staff list is loaded
       if (staffList.length > 0) {
         const batch = writeBatch(db);
         let entriesModified = false;
@@ -517,7 +527,6 @@ export default function PayrollPage() {
           const calculatedData = await calculateDeductionsAndNetPay(staff, period, existingEntry?.manualDeductions || 0);
           
           if (existingEntry) {
-            // Update existing entry if calculated data differs significantly or if status is 'Dibuat'
             if (existingEntry.status === 'Dibuat' || 
                 existingEntry.latenessDeduction !== calculatedData.latenessDeduction ||
                 existingEntry.absenceDeduction !== calculatedData.absenceDeduction ||
@@ -528,21 +537,20 @@ export default function PayrollPage() {
               const entryDocRef = doc(db, 'payrollData', existingEntry.id);
               batch.update(entryDocRef, { 
                 ...calculatedData, 
-                status: existingEntry.status === 'Dibayar' ? 'Dibayar' : 'Tertunda', // Keep 'Dibayar', otherwise 'Tertunda' after calc
+                status: existingEntry.status === 'Dibayar' ? 'Dibayar' : 'Tertunda',
                 updatedAt: serverTimestamp() 
               });
               entriesModified = true;
             }
           } else {
-            // Create new entry
             const newDocRef = doc(collection(db, 'payrollData'));
             batch.set(newDocRef, {
               staffId: staff.id,
               staffName: staff.name,
               period: period,
-              totalHours: 0, // Default, can be adjusted manually
+              totalHours: 0, 
               ...calculatedData,
-              status: 'Tertunda', // New entries after calculation are 'Tertunda'
+              status: 'Tertunda',
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
             });
@@ -551,7 +559,6 @@ export default function PayrollPage() {
         }
         if (entriesModified) {
           await batch.commit();
-          // Refetch data after batch commit
           const updatedSnapshot = await getDocs(q);
           data = updatedSnapshot.docs.map(docSnap => ({
             id: docSnap.id,
@@ -604,11 +611,10 @@ export default function PayrollPage() {
         telatBukaDeduction: calculatedData.telatBukaDeduction,
         totalDeductions: calculatedData.totalDeductions as number,
         netPay: calculatedData.netPay as number,
-        status: 'Tertunda', // Entries created/recalculated manually become 'Tertunda'
+        status: 'Tertunda',
         calculationDetails: calculatedData.calculationDetails,
       };
 
-      // Check if entry already exists to update, otherwise add new
       const payrollCollectionRef = collection(db, 'payrollData');
       const q = query(payrollCollectionRef, where("staffId", "==", data.staffId), where("period", "==", data.period), limit(1));
       const existingSnapshot = await getDocs(q);
@@ -652,14 +658,13 @@ export default function PayrollPage() {
       const paidTimestamp = Timestamp.now();
       const entryDocRef = doc(db, 'payrollData', entryToPay.id);
       
-      // Before marking as paid, re-calculate one last time to ensure data is fresh
       const staffMember = staffList.find(s => s.id === entryToPay.staffId);
       if (!staffMember) throw new Error("Staf tidak ditemukan untuk kalkulasi final.");
       
       const finalCalculatedData = await calculateDeductionsAndNetPay(staffMember, entryToPay.period, entryToPay.manualDeductions || 0);
 
       await updateDoc(entryDocRef, {
-        ...finalCalculatedData, // Update with latest calculations
+        ...finalCalculatedData, 
         status: 'Dibayar',
         paidAt: paidTimestamp,
         updatedAt: serverTimestamp(),
@@ -669,7 +674,7 @@ export default function PayrollPage() {
         date: paidTimestamp,
         category: "Gaji & Komisi Staf",
         description: `Pembayaran Gaji ${entryToPay.staffName} - Periode ${entryToPay.period}`,
-        amount: finalCalculatedData.netPay as number, // Use the re-calculated netPay
+        amount: finalCalculatedData.netPay as number, 
         paymentSource: "Transfer Bank", 
         notes: `Pembayaran gaji otomatis dari modul penggajian. Detail: ${finalCalculatedData.calculationDetails || ''}`,
         createdAt: serverTimestamp(),
@@ -810,7 +815,7 @@ export default function PayrollPage() {
             <CardContent className="text-sm space-y-2">
                 <p><span className="font-semibold">Keterlambatan:</span> Masuk pukul 09:05-09:59: -Rp 15.000. Masuk pukul 10:00 atau lebih: -Rp 50.000.</p>
                 <p><span className="font-semibold">Absensi Tidak Sah:</span> Tidak hadir tanpa status "Cuti" atau bukan hari libur staf: -Rp 50.000/hari.</p>
-                <p><span className="font-semibold">Telat Buka Toko:</span> Jika semua staf yang hadir pada satu hari tercatat masuk pukul 09:05 atau lebih, masing-masing staf tersebut mendapat potongan tambahan -Rp 25.000 untuk hari itu.</p>
+                <p><span className="font-semibold">Telat Buka Toko:</span> Jika semua staf yang hadir pada satu hari tercatat masuk pukul 09:05 atau lebih, masing-masing staf tersebut mendapat potongan tambahan -Rp 25.000 untuk hari itu. Jika potongan "Telat Buka" aktif, potongan keterlambatan normal (Rp 15.000) tidak berlaku untuk staf tersebut di hari yang sama.</p>
                 <p className="text-xs text-muted-foreground">Jam operasional bengkel: 09:00 - 21:00. Semua perhitungan potongan dilakukan relatif terhadap jam operasional ini dan data absensi yang tercatat.</p>
             </CardContent>
         </Card>
@@ -856,3 +861,4 @@ export default function PayrollPage() {
     </div>
   );
 }
+
