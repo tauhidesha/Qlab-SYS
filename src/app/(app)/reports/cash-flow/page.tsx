@@ -16,6 +16,7 @@ import type { Expense } from '@/types/expense';
 import type { DateRange } from "react-day-picker";
 import { format as formatDateFns, startOfMonth, endOfMonth } from 'date-fns';
 import { id as indonesiaLocale } from 'date-fns/locale';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface CashFlowReportData {
   period: string;
