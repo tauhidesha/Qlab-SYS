@@ -42,6 +42,7 @@ export interface ServiceProductVariant {
   name: string;
   price: number;
   pointsAwarded?: number;
+  estimatedDuration?: string; // Tambahan baru
 }
 
 export interface ServiceProduct {
@@ -52,6 +53,7 @@ export interface ServiceProduct {
   price: number; 
   description?: string;
   pointsAwarded?: number;
+  estimatedDuration?: string; // Tambahan baru
   createdAt?: any; 
   variants?: ServiceProductVariant[];
 }
@@ -127,7 +129,7 @@ export default function ServicesPage() {
             return;
           }
 
-          const requiredHeaders = ['name', 'type', 'category', 'price'];
+          const requiredHeaders = ['name', 'type', 'category']; // Price is now conditionally required
           const actualHeaders = Object.keys(parsedData[0] || {});
           const missingHeaders = requiredHeaders.filter(h => !actualHeaders.includes(h));
           if (missingHeaders.length > 0) {
@@ -152,8 +154,9 @@ export default function ServicesPage() {
             const priceString = row.price?.trim();
             const description = row.description?.trim() || '';
             const pointsAwardedString = row.pointsAwarded?.trim();
+            const estimatedDurationString = row.estimatedDuration?.trim();
 
-            if (!name || !type || !category) { // Price string check will be done later based on variants
+            if (!name || !type || !category) {
               console.warn(`Baris ${index + 2} dilewati: field wajib (name, type, category) tidak lengkap.`);
               itemsFailedCount++;
               return;
@@ -165,13 +168,12 @@ export default function ServicesPage() {
               return;
             }
             
-            let basePrice = parseFloat(priceString); // Might be NaN
-            
-            let pointsAwarded = 0;
+            let basePrice = parseFloat(priceString); 
+            let basePointsAwarded = 0;
             if (pointsAwardedString) {
                 const parsedPoints = parseInt(pointsAwardedString, 10);
                 if (!isNaN(parsedPoints) && parsedPoints >= 0) {
-                    pointsAwarded = parsedPoints;
+                    basePointsAwarded = parsedPoints;
                 } else {
                     console.warn(`Baris ${index + 2}: 'pointsAwarded' tidak valid ('${pointsAwardedString}'), akan diabaikan.`);
                 }
@@ -182,6 +184,7 @@ export default function ServicesPage() {
               const variantName = row[`variant${i}_name`]?.trim();
               const variantPriceString = row[`variant${i}_price`]?.trim();
               const variantPointsString = row[`variant${i}_pointsAwarded`]?.trim();
+              const variantDurationString = row[`variant${i}_estimatedDuration`]?.trim();
 
               if (variantName && variantPriceString) {
                 const variantPrice = parseFloat(variantPriceString);
@@ -194,8 +197,6 @@ export default function ServicesPage() {
                   const parsedVP = parseInt(variantPointsString, 10);
                   if (!isNaN(parsedVP) && parsedVP >= 0) {
                     variantPoints = parsedVP;
-                  } else {
-                    console.warn(`Baris ${index + 2}, Varian ${i}: poin varian tidak valid ('${variantPointsString}'), akan diabaikan.`);
                   }
                 }
                 variants.push({
@@ -203,21 +204,20 @@ export default function ServicesPage() {
                   name: variantName,
                   price: variantPrice,
                   pointsAwarded: variantPoints,
+                  estimatedDuration: variantDurationString || undefined,
                 });
               } else if (variantName || variantPriceString) {
                 console.warn(`Baris ${index + 2}, Varian ${i}: Nama dan Harga varian harus diisi bersamaan. Varian ini dilewati.`);
               }
             }
 
-            // Validate basePrice based on variants
             if (variants.length > 0) {
-                if (isNaN(basePrice)) basePrice = 0; // Default to 0 if variants exist and base price is empty/invalid
+                if (isNaN(basePrice)) basePrice = 0; 
             } else {
-                // No variants, base price is mandatory and must be positive
                 if (isNaN(basePrice) || basePrice <= 0) {
                     console.warn(`Baris ${index + 2} dilewati: 'price' (harga dasar) wajib dan harus positif jika tidak ada varian. Diterima: '${priceString}'.`);
                     itemsFailedCount++;
-                    return; // Skip this row
+                    return; 
                 }
             }
 
@@ -228,7 +228,8 @@ export default function ServicesPage() {
               category,
               price: basePrice,
               description,
-              pointsAwarded,
+              pointsAwarded: basePointsAwarded,
+              estimatedDuration: estimatedDurationString || undefined,
               variants,
               createdAt: serverTimestamp(),
             });
@@ -333,13 +334,15 @@ export default function ServicesPage() {
                       <li><code className="bg-muted px-1 rounded-sm">price</code> (Angka, Wajib jika tidak ada varian, bisa 0 jika ada varian) - Harga dasar.</li>
                       <li><code className="bg-muted px-1 rounded-sm">description</code> (Teks, Opsional) - Deskripsi item.</li>
                       <li><code className="bg-muted px-1 rounded-sm">pointsAwarded</code> (Angka, Opsional) - Poin loyalitas dasar.</li>
+                      <li><code className="bg-muted px-1 rounded-sm">estimatedDuration</code> (Teks, Opsional) - Mis. "30 mnt", "1 jam".</li>
                       <li className="font-semibold mt-2">Untuk Varian (Opsional, maksimal 5 varian):</li>
                       <li><code className="bg-muted px-1 rounded-sm">variantN_name</code> (Teks, Wajib jika variantN_price diisi)</li>
-                      <li><code className="bg-muted px-1 rounded-sm">variantN_price</code> (Angka, Wajib jika variantN_name diisi)</li>
+                      <li><code className="bg-muted px-1 rounded-sm">variantN_price</code> (Angka, Wajib jika variantN_name diisi, harus > 0)</li>
                       <li><code className="bg-muted px-1 rounded-sm">variantN_pointsAwarded</code> (Angka, Opsional)</li>
+                      <li><code className="bg-muted px-1 rounded-sm">variantN_estimatedDuration</code> (Teks, Opsional)</li>
                       <li>Ganti 'N' dengan angka 1 sampai 5 (mis. variant1_name, variant2_price).</li>
                     </ul>
-                    <p className="text-xs text-muted-foreground">Baris pertama CSV harus berisi nama header. Jika produk tidak memiliki varian, harga dasar (`price`) wajib diisi dan harus > 0. Jika produk memiliki varian, harga dasar bisa 0 atau kosong.</p>
+                    <p className="text-xs text-muted-foreground">Baris pertama CSV harus berisi nama header. Jika produk tidak memiliki varian, harga dasar (`price`) wajib diisi dan harus > 0. Jika produk memiliki varian, harga dasar bisa 0 atau kosong (akan dianggap 0).</p>
                     <InfoDialogFooter>
                       <DialogClose asChild>
                         <Button type="button" variant="secondary">Tutup</Button>
@@ -439,7 +442,7 @@ export default function ServicesPage() {
     </div>
   );
 }
-
     
 
     
+

@@ -2,7 +2,7 @@
 import { db } from './firebase';
 import { collection, doc, writeBatch, getDocs, query, limit } from 'firebase/firestore';
 import type { Timestamp } from 'firebase/firestore'; 
-import { v4 as uuidv4 } from 'uuid'; // For variant IDs
+import { v4 as uuidv4 } from 'uuid'; 
 
 interface Client {
   id: string;
@@ -18,14 +18,15 @@ const mockClients: Client[] = [
   { id: 'C003', name: 'Siti Fatimah', phone: '0855-1122-3344', motorcycles: [{ name: 'Suzuki Address', licensePlate: 'F 9876 SIT' }], loyaltyPoints: 200, lastVisit: '2024-06-20' },
 ];
 
-export interface ServiceProductVariant { // Exporting for use elsewhere if needed
+export interface ServiceProductVariant { 
   id: string; 
   name: string;
   price: number;
   pointsAwarded?: number;
+  estimatedDuration?: string; // Tambahan baru
 }
 
-export interface ServiceProduct { // Exporting for use elsewhere if needed
+export interface ServiceProduct { 
   id: string;
   name: string;
   type: 'Layanan' | 'Produk';
@@ -33,34 +34,35 @@ export interface ServiceProduct { // Exporting for use elsewhere if needed
   price: number; 
   description?: string;
   pointsAwarded?: number;
+  estimatedDuration?: string; // Tambahan baru
   variants?: ServiceProductVariant[];
 }
 const mockServicesProducts: ServiceProduct[] = [
   { 
-    id: 'S001', name: 'Cuci Motor Premium', type: 'Layanan', category: 'Pencucian', price: 75000, 
-    description: 'Cuci lengkap termasuk bodi, mesin, dan roda.', pointsAwarded: 50,
+    id: 'S001', name: 'Cuci Motor Premium', type: 'Layanan', category: 'Pencucian', price: 0, // Harga dasar 0 karena ada varian
+    description: 'Cuci lengkap termasuk bodi, mesin, dan roda.', pointsAwarded: 0, estimatedDuration: "45 mnt",
     variants: [
-        {id: uuidv4(), name: "Reguler", price: 75000, pointsAwarded: 50},
-        {id: uuidv4(), name: "Dengan Wax Super", price: 100000, pointsAwarded: 70}
+        {id: uuidv4(), name: "Reguler", price: 75000, pointsAwarded: 50, estimatedDuration: "45 mnt"},
+        {id: uuidv4(), name: "Dengan Wax Super", price: 100000, pointsAwarded: 70, estimatedDuration: "1 jam"}
     ]
   },
   { 
     id: 'S002', name: 'Paket Detailing Lengkap', type: 'Layanan', category: 'Detailing', price: 350000, 
-    description: 'Termasuk cuci, poles, wax, dan pembersihan interior.', pointsAwarded: 200 
+    description: 'Termasuk cuci, poles, wax, dan pembersihan interior.', pointsAwarded: 200, estimatedDuration: "3 jam" 
   },
   { 
-    id: 'P001', name: 'Pelumas Rantai (Merek X)', type: 'Produk', category: 'Pelumas', price: 60000, 
-    description: 'Pelumas rantai performa tinggi, 250ml.', pointsAwarded: 30,
+    id: 'P001', name: 'Pelumas Rantai (Merek X)', type: 'Produk', category: 'Pelumas', price: 0, 
+    description: 'Pelumas rantai performa tinggi.', pointsAwarded: 0, // Points should be per variant
     variants: [
         {id: uuidv4(), name: "250ml", price: 60000, pointsAwarded: 30},
         {id: uuidv4(), name: "500ml", price: 100000, pointsAwarded: 50}
     ]
   },
   { id: 'P002', name: 'Set Handuk Mikrofiber', type: 'Produk', category: 'Aksesoris', price: 50000, description: 'Set isi 3 handuk mikrofiber premium.', pointsAwarded: 25 },
-  { id: 'S003', name: 'Sanitasi Helm', type: 'Layanan', category: 'Kebersihan', price: 20000, description: 'Membunuh kuman dan menyegarkan interior helm.', pointsAwarded: 10 },
-  { id: 'S004', name: 'Cuci Cepat & Wax', type: 'Layanan', category: 'Pencucian', price: 100000, description: 'Cuci bersih plus lapisan wax kilap instan.', pointsAwarded: 75 },
+  { id: 'S003', name: 'Sanitasi Helm', type: 'Layanan', category: 'Kebersihan', price: 20000, description: 'Membunuh kuman dan menyegarkan interior helm.', pointsAwarded: 10, estimatedDuration: "15 mnt" },
+  { id: 'S004', name: 'Cuci Cepat & Wax', type: 'Layanan', category: 'Pencucian', price: 100000, description: 'Cuci bersih plus lapisan wax kilap instan.', pointsAwarded: 75, estimatedDuration: "1 jam 15 mnt" },
   { id: 'P003', name: 'Cairan Pembersih Interior Mobil', type: 'Produk', category: 'Pembersih', price: 85000, description: 'Pembersih interior serbaguna, aman untuk berbagai permukaan.', pointsAwarded: 50 },
-  { id: 'S005', name: 'Tune Up Mesin Motor Matic', type: 'Layanan', category: 'Perawatan Mesin', price: 120000, description: 'Pembersihan CVT, busi, filter udara, dan setel klep (jika perlu).', pointsAwarded: 100},
+  { id: 'S005', name: 'Tune Up Mesin Motor Matic', type: 'Layanan', category: 'Perawatan Mesin', price: 120000, description: 'Pembersihan CVT, busi, filter udara, dan setel klep (jika perlu).', pointsAwarded: 100, estimatedDuration: "1 jam 30 mnt"},
   { id: 'P004', name: 'Oli Mesin Super Matic 0.8L', type: 'Produk', category: 'Pelumas', price: 65000, description: 'Oli mesin khusus motor matic, SAE 10W-30 API SL JASO MB.', pointsAwarded: 40},
 ];
 
@@ -70,11 +72,11 @@ interface QueueItem {
   vehicleInfo: string;
   service: string;
   status: 'Menunggu' | 'Dalam Layanan' | 'Selesai';
-  estimatedTime: string;
+  estimatedTime: string; // Ini akan diambil dari service.estimatedDuration
   staff?: string;
 }
 const mockQueueItems: QueueItem[] = [
-  { id: 'Q001', customerName: 'Budi Santoso', vehicleInfo: 'Honda Beat - B 4321 ABC', service: 'Cuci Reguler', status: 'Menunggu', estimatedTime: '15 mnt' },
+  { id: 'Q001', customerName: 'Budi Santoso', vehicleInfo: 'Honda Beat - B 4321 ABC', service: 'Cuci Reguler', status: 'Menunggu', estimatedTime: '45 mnt' },
   { id: 'Q002', customerName: 'Citra Lestari', vehicleInfo: 'Yamaha NMAX - D 8765 XYZ', service: 'Detailing Lengkap', status: 'Dalam Layanan', estimatedTime: 'sisa 45 mnt', staff: 'Andi P.' },
   { id: 'Q003', customerName: 'Ahmad Yani', vehicleInfo: 'Suzuki GSX - A 1122 BBB', service: 'Ganti Ban', status: 'Menunggu', estimatedTime: '30 mnt' },
   { id: 'Q004', customerName: 'Dewi Anggraini', vehicleInfo: 'Kawasaki Ninja - L 5544 CCC', service: 'Ganti Oli', status: 'Selesai', estimatedTime: 'Selesai', staff: 'Rian S.' },
@@ -131,12 +133,15 @@ async function seedCollection<T extends { id: string }>(collectionName: string, 
     const { id, ...itemData } = item; 
     const docRef = doc(collectionRef, id); 
     
-    // Ensure variants have IDs if they exist
     if ('variants' in itemData && Array.isArray((itemData as any).variants)) {
         (itemData as any).variants = (itemData as any).variants.map((v: any) => ({
             ...v,
-            id: v.id || uuidv4() 
+            id: v.id || uuidv4(),
+            estimatedDuration: v.estimatedDuration || undefined,
         }));
+    }
+    if ('estimatedDuration' in itemData && !(itemData as any).estimatedDuration) {
+        delete (itemData as any).estimatedDuration;
     }
     
     batch.set(docRef, itemData);

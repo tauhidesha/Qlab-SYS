@@ -14,7 +14,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Save, Loader2, ArrowLeft, Gift, PlusCircle, Trash2 } from 'lucide-react';
+import { Save, Loader2, ArrowLeft, Gift, PlusCircle, Trash2, Clock } from 'lucide-react'; // Added Clock
 import { db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -34,6 +34,7 @@ const variantSchema = z.object({
     (val) => (val === "" || val === undefined || val === null) ? undefined : parseInt(String(val), 10),
     z.number({ invalid_type_error: "Poin varian harus berupa angka" }).nonnegative("Poin varian tidak boleh negatif").optional()
   ),
+  estimatedDuration: z.string().max(50, "Estimasi durasi varian maksimal 50 karakter").optional(),
 });
 
 const serviceProductFormSchema = z.object({
@@ -41,25 +42,18 @@ const serviceProductFormSchema = z.object({
   type: z.enum(['Layanan', 'Produk'], { required_error: "Jenis item diperlukan" }),
   category: z.string().min(2, "Kategori minimal 2 karakter").max(50, "Kategori maksimal 50 karakter"),
   price: z.preprocess(
-    (val) => {
-        if (val === "" || val === null || val === undefined) return undefined;
-        const num = parseFloat(String(val));
-        return isNaN(num) ? undefined : num;
-    },
+    (val) => (val === "" || val === null || val === undefined) ? undefined : parseFloat(String(val)),
     z.number({invalid_type_error: "Harga dasar harus berupa angka."})
      .nonnegative("Harga dasar tidak boleh negatif.")
      .optional()
   ),
   pointsAwarded: z.preprocess(
-    (val) => {
-        if (val === "" || val === null || val === undefined) return undefined;
-        const num = parseInt(String(val), 10);
-        return isNaN(num) ? undefined : num;
-    },
+    (val) => (val === "" || val === null || val === undefined) ? undefined : parseInt(String(val), 10),
     z.number({ invalid_type_error: "Poin dasar harus berupa angka." })
      .int("Poin dasar harus bilangan bulat.")
      .nonnegative("Poin dasar tidak boleh negatif.").optional()
   ),
+  estimatedDuration: z.string().max(50, "Estimasi durasi maksimal 50 karakter").optional(),
   description: z.string().max(500, "Deskripsi maksimal 500 karakter").optional(),
   variants: z.array(variantSchema).optional(),
 }).refine(data => {
@@ -94,6 +88,7 @@ export default function EditServiceProductPage() {
       category: '',
       price: undefined,
       pointsAwarded: undefined,
+      estimatedDuration: '',
       description: '',
       variants: [],
     },
@@ -127,12 +122,14 @@ export default function EditServiceProductPage() {
             category: itemData.category,
             price: itemData.price,
             pointsAwarded: itemData.pointsAwarded || undefined,
+            estimatedDuration: itemData.estimatedDuration || '',
             description: itemData.description || '',
             variants: itemData.variants?.map(v => ({ 
                 id: v.id || uuidv4(), 
                 name: v.name,
                 price: v.price,
-                pointsAwarded: v.pointsAwarded
+                pointsAwarded: v.pointsAwarded,
+                estimatedDuration: v.estimatedDuration || '',
             })) || [],
           });
         } else {
@@ -163,12 +160,14 @@ export default function EditServiceProductPage() {
         category: data.category,
         price: (data.variants && data.variants.length > 0) ? (data.price || 0) : (data.price as number),
         pointsAwarded: data.pointsAwarded || 0,
+        estimatedDuration: data.estimatedDuration || '',
         description: data.description || '',
         variants: data.variants?.map(v => ({
             id: v.id || uuidv4(), 
             name: v.name,
             price: v.price,
             pointsAwarded: v.pointsAwarded || 0,
+            estimatedDuration: v.estimatedDuration || '',
         })) || [],
         updatedAt: serverTimestamp(),
       };
@@ -288,7 +287,7 @@ export default function EditServiceProductPage() {
                         <FormControl>
                           <Input
                             type="number"
-                            placeholder="mis. 75000 (0 jika harga dari varian)"
+                            placeholder="mis. 75000 (0 jika ada varian)"
                             {...field}
                             value={field.value === undefined ? '' : field.value}
                             onChange={e => {
@@ -307,7 +306,7 @@ export default function EditServiceProductPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel className="flex items-center">
-                          <Gift className="mr-2 h-4 w-4 text-yellow-500" /> Poin Dasar Diberikan (Opsional)
+                          <Gift className="mr-2 h-4 w-4 text-yellow-500" /> Poin Dasar (Opsional)
                         </FormLabel>
                         <FormControl>
                            <Input
@@ -326,6 +325,21 @@ export default function EditServiceProductPage() {
                     )}
                   />
                 </div>
+                <FormField
+                  control={form.control}
+                  name="estimatedDuration"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="flex items-center">
+                        <Clock className="mr-2 h-4 w-4 text-muted-foreground" /> Estimasi Durasi Dasar (Opsional)
+                      </FormLabel>
+                      <FormControl>
+                        <Input placeholder="mis. 30 mnt, 1 jam, 2 hari" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <FormField
                   control={form.control}
                   name="description"
@@ -349,16 +363,16 @@ export default function EditServiceProductPage() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => append({ id: uuidv4(), name: '', price: '' as any, pointsAwarded: undefined })}
+                      onClick={() => append({ id: uuidv4(), name: '', price: '' as any, pointsAwarded: undefined, estimatedDuration: '' })}
                     >
                       <PlusCircle className="mr-2 h-4 w-4" /> Tambah Varian
                     </Button>
                   </div>
-                  {fields.length === 0 && <p className="text-sm text-muted-foreground mb-4">Tidak ada varian. Item akan menggunakan harga dan poin dasar.</p>}
+                  {fields.length === 0 && <p className="text-sm text-muted-foreground mb-4">Tidak ada varian. Item akan menggunakan harga, poin, dan estimasi durasi dasar.</p>}
                   
                   {fields.map((fieldItem, index) => (
                     <Card key={fieldItem.id} className="mb-4 p-4 border-dashed">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3 mb-2">
                         <FormField
                           control={form.control}
                           name={`variants.${index}.name`}
@@ -391,12 +405,12 @@ export default function EditServiceProductPage() {
                             </FormItem>
                           )}
                         />
-                        <FormField
+                         <FormField
                           control={form.control}
                           name={`variants.${index}.pointsAwarded`}
                           render={({ field: variantField }) => (
                             <FormItem>
-                              <FormLabel>Poin Varian</FormLabel>
+                              <FormLabel>Poin Varian (Opsional)</FormLabel>
                               <FormControl>
                                 <Input type="number" placeholder="mis. 110" {...variantField} 
                                   value={variantField.value === undefined ? '' : variantField.value}
@@ -405,6 +419,19 @@ export default function EditServiceProductPage() {
                                     variantField.onChange(val === '' ? undefined : parseInt(val, 10));
                                   }}
                                 />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`variants.${index}.estimatedDuration`}
+                          render={({ field: variantField }) => (
+                            <FormItem>
+                              <FormLabel>Estimasi Durasi Varian (Opsional)</FormLabel>
+                              <FormControl>
+                                <Input placeholder="mis. 45 mnt" {...variantField} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -450,3 +477,4 @@ export default function EditServiceProductPage() {
   );
 }
     
+
