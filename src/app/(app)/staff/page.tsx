@@ -3,7 +3,7 @@ import AppHeader from '@/components/layout/AppHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { CalendarDays, Banknote, Users } from 'lucide-react';
+import { CalendarDays, Banknote, ClipboardList } from 'lucide-react'; // Mengganti Users dengan ClipboardList
 
 export default function StaffPage() {
   return (
@@ -15,7 +15,23 @@ export default function StaffPage() {
             <CardTitle>Dasbor Staf</CardTitle>
             <CardDescription>Gambaran umum dan akses cepat ke modul terkait staf.</CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6"> {/* Mengubah menjadi 3 kolom */}
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-lg font-semibold">Daftar Staf</CardTitle>
+                <ClipboardList className="h-6 w-6 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Lihat dan kelola profil serta informasi staf.
+                </p>
+              </CardContent>
+              <CardFooter>
+                <Button asChild className="w-full">
+                  <Link href="/staff/list">Kelola Daftar Staf</Link>
+                </Button>
+              </CardFooter>
+            </Card>
             <Card className="hover:shadow-lg transition-shadow">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-lg font-semibold">Absensi</CardTitle>
@@ -46,20 +62,6 @@ export default function StaffPage() {
                 <Button asChild className="w-full">
                   <Link href="/staff/payroll">Buka Penggajian</Link>
                 </Button>
-              </CardFooter>
-            </Card>
-             <Card className="md:col-span-2 hover:shadow-lg transition-shadow">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-lg font-semibold">Daftar Staf</CardTitle>
-                <Users className="h-6 w-6 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Lihat dan kelola profil serta informasi staf.
-                </p>
-              </CardContent>
-              <CardFooter>
-                <Button disabled className="w-full">Lihat Daftar Staf (Segera Hadir)</Button>
               </CardFooter>
             </Card>
           </CardContent>

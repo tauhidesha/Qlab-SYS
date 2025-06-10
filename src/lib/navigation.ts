@@ -1,6 +1,6 @@
 
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, BarChartBig, Settings, Clipboard, Banknote, CalendarDays } from 'lucide-react';
+import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, BarChartBig, Settings, Clipboard, Banknote, CalendarDays, ClipboardList } from 'lucide-react';
 
 export interface NavItem {
   title: string;
@@ -47,11 +47,12 @@ export const mainNavItems: NavItem[] = [
   },
   {
     title: 'Manajemen Staf',
-    href: '/staff',
+    href: '/staff', // Halaman utama modul staf
     icon: Clipboard,
-    description: 'Kelola absensi dan penggajian staf.',
+    description: 'Kelola data, absensi, dan penggajian staf.',
     collapsible: true,
     items: [
+        { title: 'Daftar Staf', href: '/staff/list', icon: ClipboardList, description: "Kelola daftar dan detail staf."},
         { title: 'Absensi', href: '/staff/attendance', icon: CalendarDays, description: "Lacak absensi staf."},
         { title: 'Penggajian', href: '/staff/payroll', icon: Banknote, description: "Kelola penggajian staf."},
     ]
@@ -70,4 +71,3 @@ export const settingsNavItem: NavItem = {
   icon: Settings,
   description: 'Konfigurasi pengaturan aplikasi.',
 };
-
