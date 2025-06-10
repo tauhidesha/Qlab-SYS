@@ -271,11 +271,11 @@ const parseCalculationDetails = (details?: string): ParsedCalculationDetail[] =>
     return [{ date: "N/A", formattedDate: "N/A", events: ["Tidak ada potongan otomatis."] }];
   }
 
-  const lines = details.trim().split('\\n');
+  const lines = details.trim().split('\n'); // Use single newline character
   const groupedByDate: Record<string, string[]> = {}; 
 
   lines.forEach(line => {
-    const match = line.match(/^(\\d{4}-\\d{2}-\\d{2}):\\s*(.*)$/);
+    const match = line.match(/^(\d{4}-\d{2}-\d{2}):\s*(.*)$/); // Regex to capture date and event
     if (match) {
       const date = match[1]; 
       const event = match[2];
@@ -283,16 +283,24 @@ const parseCalculationDetails = (details?: string): ParsedCalculationDetail[] =>
         groupedByDate[date] = [];
       }
       groupedByDate[date].push(event);
+    } else if (line.trim() !== "") { // Handle lines that might not fit the regex (e.g., general notes)
+        if (!groupedByDate["GeneralNotes"]) groupedByDate["GeneralNotes"] = [];
+        groupedByDate["GeneralNotes"].push(line.trim());
     }
   });
 
   const parsedEntries = Object.entries(groupedByDate).map(([date, events]) => ({
     date, 
-    formattedDate: formatDateFns(parseISO(date), 'dd MMM yyyy, EEEE', { locale: indonesiaLocale }), 
+    formattedDate: date === "GeneralNotes" ? "Catatan Umum" : formatDateFns(parseISO(date), 'dd MMM yyyy, EEEE', { locale: indonesiaLocale }), 
     events,
   }));
 
-  parsedEntries.sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
+  // Sort by date, keeping GeneralNotes potentially at the end or start if needed
+  parsedEntries.sort((a, b) => {
+    if (a.date === "GeneralNotes") return 1;
+    if (b.date === "GeneralNotes") return -1;
+    return parseISO(a.date).getTime() - parseISO(b.date).getTime();
+  });
 
   return parsedEntries;
 };
@@ -592,7 +600,7 @@ export default function PayrollPage() {
         let alreadyDeductedForTelatBukaThisDay = false;
 
         if (staffDaysOff.includes(dayOfWeek)) {
-            calculationDetails += `${dateStr}: Hari Libur Staf.\\n`;
+            calculationDetails += `${dateStr}: Hari Libur Staf.\n`;
             continue;
         }
 
@@ -600,40 +608,40 @@ export default function PayrollPage() {
 
         if (attendance) {
             if (attendance.status === 'Cuti') {
-                calculationDetails += `${dateStr}: Cuti.\\n`;
+                calculationDetails += `${dateStr}: Cuti.\n`;
                 continue;
             }
             if (attendance.status === 'Absen') {
                 absenceDeduction += 50000;
-                calculationDetails += `${dateStr}: Absen (-Rp 50.000).\\n`;
+                calculationDetails += `${dateStr}: Absen (-Rp 50.000).\n`;
             } else if (attendance.clockIn) { 
                 let isTelatParah = false;
                 if (attendance.clockIn >= "10:00") {
                     dailyLatenessDeduction = 50000;
-                    calculationDetails += `${dateStr}: Telat >=10:00 (-Rp 50.000).\\n`;
+                    calculationDetails += `${dateStr}: Telat >=10:00 (-Rp 50.000).\n`;
                     isTelatParah = true;
                 }
                 
                 if (!isTelatParah && shopLateOpeningDays.has(dateStr) && (attendance.status !== 'Cuti' && attendance.status !== 'Absen')) {
                     telatBukaDeductionTotalForStaff += 25000;
-                    calculationDetails += `${dateStr}: Potongan Telat Buka Toko (-Rp 25.000).\\n`;
+                    calculationDetails += `${dateStr}: Potongan Telat Buka Toko (-Rp 25.000).\n`;
                     alreadyDeductedForTelatBukaThisDay = true;
                 }
 
                 if (!isTelatParah && !alreadyDeductedForTelatBukaThisDay && attendance.clockIn >= "09:05") {
                     dailyLatenessDeduction = 15000;
-                    calculationDetails += `${dateStr}: Telat >=09:05 (-Rp 15.000).\\n`;
+                    calculationDetails += `${dateStr}: Telat >=09:05 (-Rp 15.000).\n`;
                 } else if (!isTelatParah && alreadyDeductedForTelatBukaThisDay && attendance.clockIn >= "09:05") {
-                    calculationDetails += `${dateStr}: Telat >=09:05 (digugurkan oleh Telat Buka Toko).\\n`;
+                    calculationDetails += `${dateStr}: Telat >=09:05 (digugurkan oleh Telat Buka Toko).\n`;
                 }
                 latenessDeduction += dailyLatenessDeduction;
             } else { 
                 absenceDeduction += 50000; 
-                calculationDetails += `${dateStr}: ${attendance.status} tanpa clockIn, dianggap Absen (-Rp 50.000).\\n`;
+                calculationDetails += `${dateStr}: ${attendance.status} tanpa clockIn, dianggap Absen (-Rp 50.000).\n`;
             }
         } else { 
             absenceDeduction += 50000;
-            calculationDetails += `${dateStr}: Tidak ada catatan absensi (-Rp 50.000).\\n`;
+            calculationDetails += `${dateStr}: Tidak ada catatan absensi (-Rp 50.000).\n`;
         }
     }
     
@@ -643,13 +651,13 @@ export default function PayrollPage() {
 
     return {
         baseSalary: staff.baseSalary || 0,
-        latenessDeduction,
-        absenceDeduction,
+        latenessDeduction: latenessDeduction,
+        absenceDeduction: absenceDeduction,
         telatBukaDeduction: telatBukaDeductionTotalForStaff,
         profitShareReceivedThisPeriod: profitShareReceivedThisPeriod,
         manualDeductions: manualDeductionsInput || 0,
-        totalDeductions,
-        netPay,
+        totalDeductions: totalDeductions,
+        netPay: netPay,
         calculationDetails: calculationDetails.trim() || "Tidak ada potongan otomatis.",
     };
   };
@@ -675,7 +683,7 @@ export default function PayrollPage() {
           const existingEntry = data.find(p => p.staffId === staff.id);
           const calculatedData = await calculateDeductionsAndNetPay(staff, period, existingEntry?.manualDeductions || 0);
           
-          const corePayrollValues: any = { // Use any for temp flexibility, or define a more precise intermediate type
+          const corePayrollValues: Partial<PayrollEntry> = { 
             baseSalary: calculatedData.baseSalary ?? 0,
             latenessDeduction: calculatedData.latenessDeduction ?? 0,
             absenceDeduction: calculatedData.absenceDeduction ?? 0,
@@ -685,11 +693,8 @@ export default function PayrollPage() {
             totalDeductions: calculatedData.totalDeductions ?? 0,
             netPay: calculatedData.netPay ?? 0,
             calculationDetails: calculatedData.calculationDetails ?? "Tidak ada detail.",
+            totalHours: calculatedData.totalHours
           };
-          if (calculatedData.totalHours !== undefined) {
-            corePayrollValues.totalHours = calculatedData.totalHours;
-          }
-
 
           if (existingEntry) {
             if (existingEntry.status !== 'Dibayar' || 
@@ -709,7 +714,8 @@ export default function PayrollPage() {
                 status: (existingEntry.status === 'Dibayar' ? 'Dibayar' : 'Tertunda') as PayrollEntry['status'],
                 updatedAt: serverTimestamp()
               };
-               if (updateDataForFirestore.totalHours === undefined) delete updateDataForFirestore.totalHours;
+               if (updateDataForFirestore.totalHours === undefined) updateDataForFirestore.totalHours = deleteField();
+
 
               batch.update(entryDocRef, updateDataForFirestore);
               entriesModified = true;
@@ -726,7 +732,7 @@ export default function PayrollPage() {
                 updatedAt: serverTimestamp(),
             };
             if (newEntryData.totalHours === undefined) {
-                delete newEntryData.totalHours;
+                newEntryData.totalHours = deleteField();
             }
             batch.set(newDocRef, newEntryData);
             entriesModified = true;
@@ -792,7 +798,7 @@ export default function PayrollPage() {
       };
       
       const finalDataForFirestore: any = {...finalData};
-      if (finalDataForFirestore.totalHours === undefined) delete finalDataForFirestore.totalHours;
+      if (finalDataForFirestore.totalHours === undefined) finalDataForFirestore.totalHours = deleteField();
       if (finalDataForFirestore.profitShareReceivedThisPeriod === undefined) finalDataForFirestore.profitShareReceivedThisPeriod = 0;
 
 
@@ -861,8 +867,6 @@ export default function PayrollPage() {
       if (finalCalculatedData.totalHours !== undefined) {
         dataForUpdate.totalHours = finalCalculatedData.totalHours;
       } else {
-        // If totalHours was not in finalCalculatedData (meaning it was undefined)
-        // and you want to ensure it's removed from Firestore if it existed before:
         dataForUpdate.totalHours = deleteField();
       }
 
