@@ -1,5 +1,5 @@
 
-"use client"; // Ditambahkan untuk memperbolehkan penggunaan hook sisi klien
+"use client"; 
 
 import AppHeader from '@/components/layout/AppHeader';
 import { Button } from '@/components/ui/button';
@@ -8,13 +8,84 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building, Palette, Bell, Users, CreditCard as CreditCardIcon, Gift, DollarSign } from 'lucide-react'; // Added DollarSign
-import React from 'react';
+import { Building, Palette, Bell, Users, CreditCard as CreditCardIcon, Gift, DollarSign, Loader2 } from 'lucide-react'; 
+import React, { useState, useEffect } from 'react';
+import { db } from '@/lib/firebase';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 export default function SettingsPage() {
+  const { toast } = useToast();
   const [pointToRupiahRate, setPointToRupiahRate] = React.useState('10');
   const [minPointsToRedeem, setMinPointsToRedeem] = React.useState('100');
-  const [initialBankBalance, setInitialBankBalance] = React.useState(''); // State for initial bank balance
+  
+  const [initialBankBalance, setInitialBankBalance] = React.useState('');
+  const [isLoadingFinancialSettings, setIsLoadingFinancialSettings] = useState(true);
+  const [isSavingFinancialSettings, setIsSavingFinancialSettings] = useState(false);
+
+  useEffect(() => {
+    const fetchFinancialSettings = async () => {
+      setIsLoadingFinancialSettings(true);
+      try {
+        const settingsDocRef = doc(db, 'appSettings', 'financial');
+        const docSnap = await getDoc(settingsDocRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          if (data.initialBankBalance !== undefined) {
+            setInitialBankBalance(String(data.initialBankBalance));
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching financial settings: ", error);
+        toast({
+          title: "Error",
+          description: "Gagal memuat pengaturan finansial.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingFinancialSettings(false);
+      }
+    };
+
+    fetchFinancialSettings();
+  }, [toast]);
+
+  const handleSaveFinancialSettings = async () => {
+    setIsSavingFinancialSettings(true);
+    try {
+      const balance = parseFloat(initialBankBalance);
+      if (isNaN(balance) || balance < 0) {
+        toast({
+          title: "Input Tidak Valid",
+          description: "Saldo awal bank harus berupa angka positif.",
+          variant: "destructive",
+        });
+        setIsSavingFinancialSettings(false);
+        return;
+      }
+
+      const settingsDocRef = doc(db, 'appSettings', 'financial');
+      await setDoc(settingsDocRef, { 
+        initialBankBalance: balance,
+        updatedAt: serverTimestamp() 
+      }, { merge: true });
+
+      toast({
+        title: "Sukses",
+        description: "Pengaturan finansial berhasil disimpan.",
+      });
+    } catch (error) {
+      console.error("Error saving financial settings: ", error);
+      toast({
+        title: "Error",
+        description: "Gagal menyimpan pengaturan finansial.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingFinancialSettings(false);
+    }
+  };
+
 
   return (
     <div className="flex flex-col h-full">
@@ -64,22 +135,35 @@ export default function SettingsPage() {
                 <CardDescription>Pengaturan terkait keuangan dasar bengkel.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="initial-bank-balance">Saldo Awal Rekening Bank Utama (Rp)</Label>
-                  <Input 
-                    id="initial-bank-balance" 
-                    type="number" 
-                    placeholder="mis. 10000000" 
-                    value={initialBankBalance}
-                    onChange={(e) => setInitialBankBalance(e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Masukkan saldo awal rekening bank utama Anda. Ini akan digunakan sebagai dasar perhitungan laporan kas.
-                  </p>
-                </div>
+                {isLoadingFinancialSettings ? (
+                  <div className="flex items-center space-x-2">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>Memuat pengaturan finansial...</span>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label htmlFor="initial-bank-balance">Saldo Awal Rekening Bank Utama (Rp)</Label>
+                    <Input 
+                      id="initial-bank-balance" 
+                      type="number" 
+                      placeholder="mis. 10000000" 
+                      value={initialBankBalance}
+                      onChange={(e) => setInitialBankBalance(e.target.value)}
+                      disabled={isSavingFinancialSettings}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Masukkan saldo awal rekening bank utama Anda. Ini akan digunakan sebagai dasar perhitungan laporan kas.
+                    </p>
+                  </div>
+                )}
               </CardContent>
               <CardFooter>
-                <Button disabled>Simpan Pengaturan Finansial (Segera)</Button>
+                <Button onClick={handleSaveFinancialSettings} disabled={isSavingFinancialSettings || isLoadingFinancialSettings}>
+                  {isSavingFinancialSettings ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : null}
+                  Simpan Pengaturan Finansial
+                </Button>
               </CardFooter>
             </Card>
           </TabsContent>
@@ -193,3 +277,5 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+    
