@@ -12,6 +12,7 @@ export interface StaffMember {
   baseSalary?: number;
   profitSharePercentage?: number; // 0-100
   photoUrl?: string;
+  daysOff?: number[]; // 0 for Sunday, 1 for Monday, ..., 6 for Saturday
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
@@ -24,4 +25,5 @@ export interface NewStaffMemberData {
   baseSalary?: number;
   profitSharePercentage?: number;
   photoUrl?: string;
+  daysOff?: number[];
 }

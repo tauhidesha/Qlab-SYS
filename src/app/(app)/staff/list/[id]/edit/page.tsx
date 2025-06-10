@@ -7,17 +7,28 @@ import AppHeader from '@/components/layout/AppHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Save, Loader2, ArrowLeft, Phone, DollarSign, Percent, Image as ImageIcon } from 'lucide-react';
+import { Save, Loader2, ArrowLeft, Phone, DollarSign, Percent, Image as ImageIcon, CalendarOff } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { STAFF_ROLES, type StaffMember } from '@/types/staff';
+
+const daysOfWeek = [
+  { id: 0, label: "Minggu" },
+  { id: 1, label: "Senin" },
+  { id: 2, label: "Selasa" },
+  { id: 3, label: "Rabu" },
+  { id: 4, label: "Kamis" },
+  { id: 5, label: "Jumat" },
+  { id: 6, label: "Sabtu" },
+];
 
 const staffFormSchema = z.object({
   name: z.string().min(2, "Nama staf minimal 2 karakter").max(50, "Nama staf maksimal 50 karakter"),
@@ -32,6 +43,7 @@ const staffFormSchema = z.object({
     z.number({ invalid_type_error: "Persentase harus angka" }).min(0, "Minimal 0%").max(100, "Maksimal 100%").optional()
   ),
   photoUrl: z.string().url("URL foto tidak valid. Pastikan formatnya benar (mis. http:// atau https://).").optional().or(z.literal('')),
+  daysOff: z.array(z.number()).optional(),
 });
 
 type StaffFormValues = z.infer<typeof staffFormSchema>;
@@ -57,6 +69,7 @@ export default function EditStaffPage() {
       baseSalary: undefined,
       profitSharePercentage: undefined,
       photoUrl: '',
+      daysOff: [],
     },
   });
 
@@ -84,6 +97,7 @@ export default function EditStaffPage() {
             baseSalary: staffData.baseSalary,
             profitSharePercentage: staffData.profitSharePercentage,
             photoUrl: staffData.photoUrl || '',
+            daysOff: staffData.daysOff || [],
           });
           if (staffData.photoUrl) {
             setCurrentPhotoUrl(staffData.photoUrl);
@@ -112,31 +126,24 @@ export default function EditStaffPage() {
 
     try {
       const staffDocRef = doc(db, 'staffMembers', staffId);
-      
+
       const updateData: Partial<Omit<StaffMember, 'id' | 'createdAt'>> & { updatedAt?: any } = {
         name: data.name,
         role: data.role,
-        phone: (data.phone && data.phone.trim() !== '') ? data.phone : undefined, // Store undefined if empty string
+        phone: (data.phone && data.phone.trim() !== '') ? data.phone : undefined,
         baseSalary: data.baseSalary,
         profitSharePercentage: data.profitSharePercentage,
-        photoUrl: (data.photoUrl && data.photoUrl.trim() !== '') ? data.photoUrl : undefined, // Store undefined if empty string
+        photoUrl: (data.photoUrl && data.photoUrl.trim() !== '') ? data.photoUrl : undefined,
+        daysOff: data.daysOff || [], // Ensure daysOff is an array, empty if undefined
         updatedAt: serverTimestamp(),
       };
-      
-      // Remove undefined fields to prevent Firestore errors, except for photoUrl and phone which should be explicitly set to '' or removed
+
       Object.keys(updateData).forEach(key => {
         const K = key as keyof typeof updateData;
-        if (updateData[K] === undefined && K !== 'updatedAt') {
-          if (K === 'photoUrl' || K === 'phone') {
-            // If explicitly set to undefined (e.g. cleared input), we want to remove it or set to empty
-            // Firestore handles removal if value is undefined, or you can set to empty string if preferred
-            (updateData as any)[K] = ''; // Or delete updateData[K];
-          } else if (K === 'baseSalary' || K === 'profitSharePercentage') {
-            delete updateData[K]; // Ensure numeric fields are fully removed if undefined
-          }
+        if (updateData[K] === undefined && K !== 'updatedAt' && K !== 'daysOff') {
+            delete updateData[K];
         }
       });
-      
       if (updateData.photoUrl === undefined) updateData.photoUrl = '';
       if (updateData.phone === undefined) updateData.phone = '';
 
@@ -159,7 +166,7 @@ export default function EditStaffPage() {
       setIsSubmitting(false);
     }
   };
-  
+
   if (isLoadingData) {
     return (
       <div className="flex flex-col h-full">
@@ -254,10 +261,10 @@ export default function EditStaffPage() {
                       <FormItem>
                         <FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4 text-muted-foreground"/>Gaji Pokok (Rp, Opsional)</FormLabel>
                         <FormControl>
-                          <Input 
-                            type="number" 
-                            placeholder="mis. 3000000" 
-                            {...field} 
+                          <Input
+                            type="number"
+                            placeholder="mis. 3000000"
+                            {...field}
                             value={field.value === undefined ? '' : String(field.value)}
                             onChange={e => {
                                 const val = e.target.value;
@@ -276,10 +283,10 @@ export default function EditStaffPage() {
                       <FormItem>
                         <FormLabel className="flex items-center"><Percent className="mr-2 h-4 w-4 text-muted-foreground"/>Bagi Hasil (%, Opsional)</FormLabel>
                         <FormControl>
-                          <Input 
-                            type="number" 
-                            placeholder="mis. 25 (untuk 25%)" 
-                            min="0" max="100" 
+                          <Input
+                            type="number"
+                            placeholder="mis. 25 (untuk 25%)"
+                            min="0" max="100"
                             {...field}
                             value={field.value === undefined ? '' : String(field.value)}
                             onChange={e => {
@@ -293,33 +300,87 @@ export default function EditStaffPage() {
                     )}
                   />
                 </div>
-                
+
                 <FormField
                   control={form.control}
                   name="photoUrl"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="flex items-center"><ImageIcon className="mr-2 h-4 w-4 text-muted-foreground"/>URL Foto Staf (Opsional)</FormLabel>
-                      {currentPhotoUrl && !form.watch('photoUrl') && ( // Show current photo if not actively typing a new URL
+                      {currentPhotoUrl && !form.watch('photoUrl') && (
                         <div className="my-2">
                            <img src={currentPhotoUrl} alt="Foto Staf Saat Ini" className="h-32 w-32 object-cover rounded-md border" />
                         </div>
                       )}
-                       {form.watch('photoUrl') && ( // Show preview if there is a URL in the form field
+                       {form.watch('photoUrl') && (
                         <div className="my-2">
-                           <img src={form.watch('photoUrl')} alt="Preview Foto Staf" className="h-32 w-32 object-cover rounded-md border" 
+                           <img src={form.watch('photoUrl')} alt="Preview Foto Staf" className="h-32 w-32 object-cover rounded-md border"
                                 onError={(e) => (e.currentTarget.style.display = 'none')} />
                         </div>
                       )}
                       <FormControl>
-                        <Input type="text" placeholder="mis. https://example.com/foto.jpg" {...field} 
+                        <Input type="text" placeholder="mis. https://example.com/foto.jpg" {...field}
                                onChange={(e) => {
                                  field.onChange(e.target.value);
-                                 setCurrentPhotoUrl(null); // Clear current stored photo when user types
+                                 setCurrentPhotoUrl(null);
                                }}
                         />
                       </FormControl>
                        <p className="text-xs text-muted-foreground mt-1">Masukkan URL gambar yang sudah dihosting.</p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="daysOff"
+                  render={() => (
+                    <FormItem>
+                      <div className="mb-4">
+                        <FormLabel className="text-base flex items-center">
+                          <CalendarOff className="mr-2 h-4 w-4 text-muted-foreground" />
+                           Hari Libur Tetap (Opsional)
+                        </FormLabel>
+                        <FormDescription>
+                          Pilih hari libur reguler untuk staf ini. Penggajian akan mengabaikan potongan absensi pada hari-hari ini.
+                        </FormDescription>
+                      </div>
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-x-4 gap-y-2">
+                        {daysOfWeek.map((day) => (
+                          <FormField
+                            key={day.id}
+                            control={form.control}
+                            name="daysOff"
+                            render={({ field }) => {
+                              return (
+                                <FormItem
+                                  key={day.id}
+                                  className="flex flex-row items-start space-x-3 space-y-0"
+                                >
+                                  <FormControl>
+                                    <Checkbox
+                                      checked={field.value?.includes(day.id)}
+                                      onCheckedChange={(checked) => {
+                                        return checked
+                                          ? field.onChange([...(field.value || []), day.id])
+                                          : field.onChange(
+                                              (field.value || []).filter(
+                                                (value) => value !== day.id
+                                              )
+                                            )
+                                      }}
+                                    />
+                                  </FormControl>
+                                  <FormLabel className="font-normal">
+                                    {day.label}
+                                  </FormLabel>
+                                </FormItem>
+                              )
+                            }}
+                          />
+                        ))}
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}

@@ -7,17 +7,28 @@ import AppHeader from '@/components/layout/AppHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Save, Loader2, ArrowLeft, Phone, DollarSign, Percent, Image as ImageIcon } from 'lucide-react';
+import { Save, Loader2, ArrowLeft, Phone, DollarSign, Percent, Image as ImageIcon, CalendarOff } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { STAFF_ROLES, type NewStaffMemberData } from '@/types/staff';
+
+const daysOfWeek = [
+  { id: 0, label: "Minggu" },
+  { id: 1, label: "Senin" },
+  { id: 2, label: "Selasa" },
+  { id: 3, label: "Rabu" },
+  { id: 4, label: "Kamis" },
+  { id: 5, label: "Jumat" },
+  { id: 6, label: "Sabtu" },
+];
 
 const staffFormSchema = z.object({
   name: z.string().min(2, "Nama staf minimal 2 karakter").max(50, "Nama staf maksimal 50 karakter"),
@@ -32,6 +43,7 @@ const staffFormSchema = z.object({
     z.number({ invalid_type_error: "Persentase harus angka" }).min(0, "Minimal 0%").max(100, "Maksimal 100%").optional()
   ),
   photoUrl: z.string().url("URL foto tidak valid. Pastikan formatnya benar (mis. http:// atau https://).").optional().or(z.literal('')),
+  daysOff: z.array(z.number()).optional(),
 });
 
 type StaffFormValues = z.infer<typeof staffFormSchema>;
@@ -50,6 +62,7 @@ export default function NewStaffPage() {
       baseSalary: undefined,
       profitSharePercentage: undefined,
       photoUrl: '',
+      daysOff: [],
     },
   });
 
@@ -69,8 +82,9 @@ export default function NewStaffPage() {
       if (typeof data.baseSalary === 'number' && !isNaN(data.baseSalary)) newStaffEntry.baseSalary = data.baseSalary;
       if (typeof data.profitSharePercentage === 'number' && !isNaN(data.profitSharePercentage)) {
         newStaffEntry.profitSharePercentage = data.profitSharePercentage;
-      } else if (data.profitSharePercentage === undefined && Object.prototype.hasOwnProperty.call(data, 'profitSharePercentage')) {
-        // Explicitly do not include if it was optional and not provided
+      }
+      if (data.daysOff) {
+        newStaffEntry.daysOff = data.daysOff;
       }
 
 
@@ -162,11 +176,11 @@ export default function NewStaffPage() {
                       <FormItem>
                         <FormLabel className="flex items-center"><DollarSign className="mr-2 h-4 w-4 text-muted-foreground"/>Gaji Pokok (Rp, Opsional)</FormLabel>
                         <FormControl>
-                          <Input 
-                            type="number" 
-                            placeholder="mis. 3000000" 
+                          <Input
+                            type="number"
+                            placeholder="mis. 3000000"
                             {...field}
-                            value={field.value === undefined ? '' : String(field.value)} 
+                            value={field.value === undefined ? '' : String(field.value)}
                             onChange={e => {
                                 const val = e.target.value;
                                 field.onChange(val === '' ? undefined : parseFloat(val));
@@ -184,12 +198,12 @@ export default function NewStaffPage() {
                       <FormItem>
                         <FormLabel className="flex items-center"><Percent className="mr-2 h-4 w-4 text-muted-foreground"/>Bagi Hasil (%, Opsional)</FormLabel>
                         <FormControl>
-                          <Input 
-                            type="number" 
-                            placeholder="mis. 25 (untuk 25%)" 
-                            min="0" max="100" 
-                            {...field} 
-                            value={field.value === undefined ? '' : String(field.value)} 
+                          <Input
+                            type="number"
+                            placeholder="mis. 25 (untuk 25%)"
+                            min="0" max="100"
+                            {...field}
+                            value={field.value === undefined ? '' : String(field.value)}
                             onChange={e => {
                                 const val = e.target.value;
                                 field.onChange(val === '' ? undefined : parseInt(val, 10));
@@ -201,7 +215,7 @@ export default function NewStaffPage() {
                     )}
                   />
                 </div>
-                
+
                 <FormField
                   control={form.control}
                   name="photoUrl"
@@ -216,6 +230,61 @@ export default function NewStaffPage() {
                     </FormItem>
                   )}
                 />
+
+                <FormField
+                  control={form.control}
+                  name="daysOff"
+                  render={() => (
+                    <FormItem>
+                      <div className="mb-4">
+                        <FormLabel className="text-base flex items-center">
+                          <CalendarOff className="mr-2 h-4 w-4 text-muted-foreground" />
+                          Hari Libur Tetap (Opsional)
+                        </FormLabel>
+                        <FormDescription>
+                          Pilih hari libur reguler untuk staf ini. Penggajian akan mengabaikan potongan absensi pada hari-hari ini.
+                        </FormDescription>
+                      </div>
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-x-4 gap-y-2">
+                        {daysOfWeek.map((day) => (
+                          <FormField
+                            key={day.id}
+                            control={form.control}
+                            name="daysOff"
+                            render={({ field }) => {
+                              return (
+                                <FormItem
+                                  key={day.id}
+                                  className="flex flex-row items-start space-x-3 space-y-0"
+                                >
+                                  <FormControl>
+                                    <Checkbox
+                                      checked={field.value?.includes(day.id)}
+                                      onCheckedChange={(checked) => {
+                                        return checked
+                                          ? field.onChange([...(field.value || []), day.id])
+                                          : field.onChange(
+                                              (field.value || []).filter(
+                                                (value) => value !== day.id
+                                              )
+                                            )
+                                      }}
+                                    />
+                                  </FormControl>
+                                  <FormLabel className="font-normal">
+                                    {day.label}
+                                  </FormLabel>
+                                </FormItem>
+                              )
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
 
               </CardContent>
               <CardFooter className="flex justify-between">
