@@ -146,6 +146,7 @@ export default function QueueDisplayPage() {
         const intervalId = setInterval(updateTimer, 1000);
         intervalIds.push(intervalId);
       } else if (countdownTimers[item.id]) {
+        // Clear timer if item is no longer "Dalam Layanan" or serviceStartTime is missing
         setCountdownTimers(prev => {
             const newTimers = {...prev};
             delete newTimers[item.id];
@@ -157,9 +158,10 @@ export default function QueueDisplayPage() {
     return () => {
       intervalIds.forEach(clearInterval);
     };
-  }, [queueItems, countdownTimers]); 
+  }, [queueItems]); // Re-run when queueItems change to setup/clear intervals
 
   useEffect(() => {
+    // This effect ensures that items are hidden even if no new data comes from Firestore
     const intervalId = setInterval(() => {
       const now = Date.now();
       setQueueItems(prevItems => 
@@ -171,10 +173,10 @@ export default function QueueDisplayPage() {
           return true;
         })
       );
-    }, 60 * 1000); 
+    }, 60 * 1000); // Check every minute
 
     return () => clearInterval(intervalId);
-  }, []);
+  }, []); // Runs once on mount
 
 
   return (
