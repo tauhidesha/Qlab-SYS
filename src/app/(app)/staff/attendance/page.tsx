@@ -5,27 +5,15 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Clock, LogIn, LogOut, UserCheck, UserX, PlusCircle, Loader2 } from 'lucide-react';
+import { Clock, LogIn, LogOut, UserCheck, UserX, PlusCircle, Loader2, MapPin } from 'lucide-react'; // Added MapPin
 import { Badge } from '@/components/ui/badge';
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, orderBy, Timestamp } from 'firebase/firestore'; // Added Timestamp
+import { collection, getDocs, query, where, orderBy, Timestamp } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import { id as indonesiaLocale } from 'date-fns/locale';
-import { format as formatDateFns } from 'date-fns'; // Import format from date-fns
-
-interface AttendanceRecord {
-  id: string;
-  staffId: string; // Added staffId for better linking
-  staffName: string;
-  date: string; // YYYY-MM-DD
-  clockIn?: string; // HH:mm
-  clockOut?: string; // HH:mm
-  status: 'Hadir' | 'Absen' | 'Terlambat' | 'Cuti';
-  notes?: string;
-  createdAt?: Timestamp; // Added for tracking
-  updatedAt?: Timestamp; // Added for tracking
-}
+import { format as formatDateFns } from 'date-fns';
+import type { AttendanceRecord } from '@/types/attendance'; // Import from new types file
 
 export default function AttendancePage() {
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
@@ -34,7 +22,7 @@ export default function AttendancePage() {
   const { toast } = useToast();
 
   const formatDateForFirestore = (date: Date): string => {
-    return formatDateFns(date, 'yyyy-MM-dd'); // Using date-fns format
+    return formatDateFns(date, 'yyyy-MM-dd');
   };
 
   const fetchAttendance = useCallback(async (dateToFetch: Date) => {
@@ -53,11 +41,11 @@ export default function AttendancePage() {
         description: "Tidak dapat mengambil data absensi dari Firestore.",
         variant: "destructive",
       });
-      setAttendanceRecords([]); // Clear records on error
+      setAttendanceRecords([]);
     } finally {
       setLoading(false);
     }
-  }, [toast]); // Removed formatDateForFirestore as it's stable
+  }, [toast]);
 
   useEffect(() => {
     fetchAttendance(selectedDate);
@@ -98,7 +86,9 @@ export default function AttendancePage() {
                     <TableRow>
                       <TableHead>Nama Staf</TableHead>
                       <TableHead>Masuk Kerja</TableHead>
+                      <TableHead>Lokasi Masuk</TableHead>
                       <TableHead>Pulang Kerja</TableHead>
+                      <TableHead>Lokasi Pulang</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Aksi</TableHead>
                     </TableRow>
@@ -108,7 +98,23 @@ export default function AttendancePage() {
                       <TableRow key={record.id}>
                         <TableCell className="font-medium">{record.staffName}</TableCell>
                         <TableCell>{record.clockIn || <span className="text-muted-foreground">-</span>}</TableCell>
+                        <TableCell>
+                          {record.clockInLocation ? (
+                            <div className="flex items-center text-xs text-muted-foreground">
+                              <MapPin className="h-3 w-3 mr-1 text-blue-500" />
+                              <span>Lat: {record.clockInLocation.latitude.toFixed(3)}, Lon: {record.clockInLocation.longitude.toFixed(3)}</span>
+                            </div>
+                          ) : record.clockIn ? (<span className="text-muted-foreground text-xs italic">Tidak ada data</span>) : (<span className="text-muted-foreground">-</span>) }
+                        </TableCell>
                         <TableCell>{record.clockOut || (record.clockIn ? <span className="text-muted-foreground italic">Belum Pulang</span> : <span className="text-muted-foreground">-</span>)}</TableCell>
+                        <TableCell>
+                          {record.clockOutLocation ? (
+                             <div className="flex items-center text-xs text-muted-foreground">
+                              <MapPin className="h-3 w-3 mr-1 text-red-500" />
+                              <span>Lat: {record.clockOutLocation.latitude.toFixed(3)}, Lon: {record.clockOutLocation.longitude.toFixed(3)}</span>
+                            </div>
+                          ) : record.clockOut ? (<span className="text-muted-foreground text-xs italic">Tidak ada data</span>) : (<span className="text-muted-foreground">-</span>) }
+                        </TableCell>
                         <TableCell>{getStatusBadge(record.status)}</TableCell>
                         <TableCell className="text-right space-x-1">
                           {!record.clockIn && record.status !== 'Absen' && record.status !== 'Cuti' && <Button variant="outline" size="sm" disabled><LogIn className="mr-1 h-3 w-3"/> Masuk</Button>}
@@ -118,7 +124,7 @@ export default function AttendancePage() {
                     ))}
                     {attendanceRecords.length === 0 && (
                        <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground py-10">
+                        <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
                           Tidak ada catatan absensi untuk tanggal ini.
                         </TableCell>
                       </TableRow>
@@ -141,7 +147,7 @@ export default function AttendancePage() {
                 selected={selectedDate}
                 onSelect={(date) => date && setSelectedDate(date)}
                 className="rounded-md border"
-                disabled={(date) => date > new Date() || date < new Date("2020-01-01")} // Adjusted min date
+                disabled={(date) => date > new Date() || date < new Date("2020-01-01")}
                 initialFocus
                 locale={indonesiaLocale}
               />
