@@ -1,6 +1,7 @@
 
 import { db } from './firebase';
 import { collection, doc, writeBatch, getDocs, query, limit } from 'firebase/firestore';
+import type { Timestamp } from 'firebase/firestore'; // Impor Timestamp jika diperlukan untuk data lain
 
 interface Client {
   id: string;
@@ -16,20 +17,26 @@ const mockClients: Client[] = [
   { id: 'C003', name: 'Siti Fatimah', phone: '0855-1122-3344', motorcycles: [{ name: 'Suzuki Address', licensePlate: 'F 9876 SIT' }], loyaltyPoints: 200, lastVisit: '2024-06-20' },
 ];
 
+// Menggunakan interface yang konsisten dengan src/app/(app)/services/page.tsx
 interface ServiceProduct {
   id: string;
   name: string;
   type: 'Layanan' | 'Produk';
   category: string;
   price: number;
-  description: string;
+  description?: string; // Dibuat opsional
+  pointsAwarded?: number; // Ditambahkan
 }
 const mockServicesProducts: ServiceProduct[] = [
-  { id: 'S001', name: 'Cuci Motor Premium', type: 'Layanan', category: 'Pencucian', price: 75000, description: 'Cuci lengkap termasuk bodi, mesin, dan roda.' },
-  { id: 'S002', name: 'Paket Detailing Lengkap', type: 'Layanan', category: 'Detailing', price: 350000, description: 'Termasuk cuci, poles, wax, dan pembersihan interior.' },
-  { id: 'P001', name: 'Pelumas Rantai (Merek X)', type: 'Produk', category: 'Pelumas', price: 60000, description: 'Pelumas rantai performa tinggi, 250ml.' },
-  { id: 'P002', name: 'Set Handuk Mikrofiber', type: 'Produk', category: 'Aksesoris', price: 50000, description: 'Set isi 3 handuk mikrofiber premium.' },
-  { id: 'S003', name: 'Sanitasi Helm', type: 'Layanan', category: 'Kebersihan', price: 20000, description: 'Membunuh kuman dan menyegarkan interior helm.' },
+  { id: 'S001', name: 'Cuci Motor Premium', type: 'Layanan', category: 'Pencucian', price: 75000, description: 'Cuci lengkap termasuk bodi, mesin, dan roda.', pointsAwarded: 50 },
+  { id: 'S002', name: 'Paket Detailing Lengkap', type: 'Layanan', category: 'Detailing', price: 350000, description: 'Termasuk cuci, poles, wax, dan pembersihan interior.', pointsAwarded: 200 },
+  { id: 'P001', name: 'Pelumas Rantai (Merek X)', type: 'Produk', category: 'Pelumas', price: 60000, description: 'Pelumas rantai performa tinggi, 250ml.', pointsAwarded: 30 },
+  { id: 'P002', name: 'Set Handuk Mikrofiber', type: 'Produk', category: 'Aksesoris', price: 50000, description: 'Set isi 3 handuk mikrofiber premium.', pointsAwarded: 25 },
+  { id: 'S003', name: 'Sanitasi Helm', type: 'Layanan', category: 'Kebersihan', price: 20000, description: 'Membunuh kuman dan menyegarkan interior helm.', pointsAwarded: 10 },
+  { id: 'S004', name: 'Cuci Cepat & Wax', type: 'Layanan', category: 'Pencucian', price: 100000, description: 'Cuci bersih plus lapisan wax kilap instan.', pointsAwarded: 75 },
+  { id: 'P003', name: 'Cairan Pembersih Interior Mobil', type: 'Produk', category: 'Pembersih', price: 85000, description: 'Pembersih interior serbaguna, aman untuk berbagai permukaan.', pointsAwarded: 50 },
+  { id: 'S005', name: 'Tune Up Mesin Motor Matic', type: 'Layanan', category: 'Perawatan Mesin', price: 120000, description: 'Pembersihan CVT, busi, filter udara, dan setel klep (jika perlu).', pointsAwarded: 100},
+  { id: 'P004', name: 'Oli Mesin Super Matic 0.8L', type: 'Produk', category: 'Pelumas', price: 65000, description: 'Oli mesin khusus motor matic, SAE 10W-30 API SL JASO MB.', pointsAwarded: 40},
 ];
 
 interface QueueItem {
@@ -96,8 +103,19 @@ async function seedCollection<T extends { id: string }>(collectionName: string, 
   
   const batch = writeBatch(db);
   data.forEach(item => {
-    const docRef = doc(collectionRef, item.id);
-    batch.set(docRef, item);
+    // Saat menyemai, pastikan semua field yang ada di interface ServiceProduct di services/page.tsx
+    // juga dipertimbangkan di sini, atau setidaknya tidak menyebabkan error jika ada field tambahan di Firestore.
+    // Untuk `createdAt`, biarkan Firestore yang mengisi jika field tersebut ada di aturan Firestore Anda.
+    const { id, ...itemData } = item; // Pisahkan ID dari data lainnya
+    const docRef = doc(collectionRef, id); // Gunakan ID dari mock data sebagai ID dokumen
+    
+    // Pastikan data yang disemai sesuai dengan struktur yang diharapkan,
+    // terutama untuk field opsional seperti description dan pointsAwarded.
+    const dataToSet: Partial<ServiceProduct> = { ...itemData };
+    if (itemData.description === undefined) delete dataToSet.description;
+    if (itemData.pointsAwarded === undefined) delete dataToSet.pointsAwarded;
+    
+    batch.set(docRef, dataToSet);
   });
   await batch.commit();
   console.log(`Berhasil menyemai koleksi ${collectionName} dengan ${data.length} item.`);
@@ -117,3 +135,4 @@ export async function seedAllMockData() {
     return { success: false, message: `Error saat menyemai data: ${errorMessage}` };
   }
 }
+
