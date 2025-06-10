@@ -11,6 +11,7 @@ export const EXPENSE_CATEGORIES = [
   "Transportasi & Pengiriman",
   "Perbaikan & Pemeliharaan",
   "Pajak & Lisensi",
+  "Setoran Tunai ke Bank", // Kategori baru ditambahkan
   "Lain-lain"
 ] as const;
 
@@ -24,6 +25,7 @@ export interface Expense {
   amount: number; // Jumlah pengeluaran
   receiptUrl?: string; // Opsional, URL ke struk/bukti pembayaran
   notes?: string; // Catatan tambahan
+  bankDestination?: string; // Opsional, khusus untuk setoran tunai
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -36,4 +38,6 @@ export interface ExpenseFormData {
   amount: number;
   receiptUrl?: string;
   notes?: string;
+  bankDestination?: string; // Opsional, khusus untuk setoran tunai
 }
+

@@ -1,6 +1,6 @@
 
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, BarChartBig, Settings, Clipboard, Banknote, CalendarDays, ClipboardList, Percent, ReceiptText, Landmark, DollarSign, TrendingUp, History } from 'lucide-react';
+import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, BarChartBig, Settings, Clipboard, Banknote, CalendarDays, ClipboardList, Percent, ReceiptText, Landmark, DollarSign, TrendingUp, History, ArrowRightLeft } from 'lucide-react'; // Added ArrowRightLeft for Cash Deposit
 
 export interface NavItem {
   title: string;
@@ -47,7 +47,7 @@ export const mainNavItems: NavItem[] = [
   },
   {
     title: 'Keuangan',
-    href: '/finance', // Base href tidak diperlukan jika hanya grup
+    href: '/finance', 
     icon: Landmark,
     description: 'Kelola pemasukan, pengeluaran, dan laporan keuangan.',
     collapsible: true,
@@ -65,21 +65,27 @@ export const mainNavItems: NavItem[] = [
         description: 'Catat dan kelola pengeluaran bengkel.',
       },
       {
+        title: 'Setoran Kas', // Menu baru untuk setoran kas
+        href: '/finance/cash-deposit',
+        icon: ArrowRightLeft, // Ikon baru untuk transfer/setoran
+        description: 'Catat setoran uang tunai ke bank.',
+      },
+      {
         title: 'Laporan',
-        href: '/reports', // Parent href for reports overview or first report
+        href: '/reports', 
         icon: BarChartBig,
         description: 'Lihat berbagai laporan keuangan.',
         collapsible: true,
         items: [
           {
             title: 'Riwayat Transaksi',
-            href: '/reports', // Existing reports page becomes transaction history
+            href: '/reports', 
             icon: History, 
             description: 'Lihat semua transaksi terbayar.'
           },
           {
             title: 'Laba Rugi Bulanan',
-            href: '/reports/profit-loss', // New Profit & Loss page
+            href: '/reports/profit-loss', 
             icon: TrendingUp, 
             description: 'Analisis laba rugi per bulan.'
           }
