@@ -492,68 +492,85 @@ export default function SettingsPage() {
           </TabsContent>
 
           <TabsContent value="loyalty_rewards">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Manajemen Reward Loyalitas</CardTitle>
-                  <CardDescription>Kelola item atau diskon yang dapat ditukar dengan poin loyalitas.</CardDescription>
-                </div>
-                <Button onClick={() => handleOpenRewardForm(null)}>
-                  <PlusCircle className="mr-2 h-4 w-4" /> Tambah Reward Baru
-                </Button>
-              </CardHeader>
-              <CardContent>
-                {isLoadingRewards ? (
-                  <div className="flex items-center justify-center py-10">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <AlertDialog open={!!rewardToDelete} onOpenChange={(open) => !open && setRewardToDelete(null)}>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>Manajemen Reward Loyalitas</CardTitle>
+                    <CardDescription>Kelola item atau diskon yang dapat ditukar dengan poin loyalitas.</CardDescription>
                   </div>
-                ) : loyaltyRewards.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-8">Belum ada reward yang dikonfigurasi.</p>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Nama Reward</TableHead>
-                        <TableHead className="text-center">Poin</TableHead>
-                        <TableHead>Tipe</TableHead>
-                        <TableHead>Nilai</TableHead>
-                        <TableHead className="text-center">Status</TableHead>
-                        <TableHead className="text-right">Aksi</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {loyaltyRewards.map((reward) => (
-                        <TableRow key={reward.id}>
-                          <TableCell className="font-medium">{reward.name}</TableCell>
-                          <TableCell className="text-center">{reward.pointsRequired}</TableCell>
-                          <TableCell className="capitalize">{reward.type === 'merchandise' ? 'Merchandise' : 'Diskon Transaksi'}</TableCell>
-                          <TableCell>
-                            {reward.type === 'discount_transaction' 
-                              ? `Rp ${(reward.rewardValue as number).toLocaleString('id-ID')}`
-                              : reward.rewardValue}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <Badge variant={reward.isActive ? "default" : "outline"}>
-                              {reward.isActive ? "Aktif" : "Nonaktif"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" onClick={() => handleOpenRewardForm(reward)} className="hover:text-primary">
-                              <Edit3 className="h-4 w-4" />
-                            </Button>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" onClick={() => setRewardToDelete(reward)} className="text-destructive hover:text-destructive">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                          </TableCell>
+                  <Button onClick={() => handleOpenRewardForm(null)}>
+                    <PlusCircle className="mr-2 h-4 w-4" /> Tambah Reward Baru
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  {isLoadingRewards ? (
+                    <div className="flex items-center justify-center py-10">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : loyaltyRewards.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">Belum ada reward yang dikonfigurasi.</p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Nama Reward</TableHead>
+                          <TableHead className="text-center">Poin</TableHead>
+                          <TableHead>Tipe</TableHead>
+                          <TableHead>Nilai</TableHead>
+                          <TableHead className="text-center">Status</TableHead>
+                          <TableHead className="text-right">Aksi</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
+                      </TableHeader>
+                      <TableBody>
+                        {loyaltyRewards.map((reward) => (
+                          <TableRow key={reward.id}>
+                            <TableCell className="font-medium">{reward.name}</TableCell>
+                            <TableCell className="text-center">{reward.pointsRequired}</TableCell>
+                            <TableCell className="capitalize">{reward.type === 'merchandise' ? 'Merchandise' : 'Diskon Transaksi'}</TableCell>
+                            <TableCell>
+                              {reward.type === 'discount_transaction' 
+                                ? `Rp ${(reward.rewardValue as number).toLocaleString('id-ID')}`
+                                : reward.rewardValue}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Badge variant={reward.isActive ? "default" : "outline"}>
+                                {reward.isActive ? "Aktif" : "Nonaktif"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="ghost" size="icon" onClick={() => handleOpenRewardForm(reward)} className="hover:text-primary">
+                                <Edit3 className="h-4 w-4" />
+                              </Button>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" onClick={() => setRewardToDelete(reward)} className="text-destructive hover:text-destructive">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Konfirmasi Penghapusan</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Apakah Anda yakin ingin menghapus reward "{rewardToDelete?.name}"? Tindakan ini tidak dapat diurungkan.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => setRewardToDelete(null)} disabled={isSubmittingReward}>Batal</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeleteReward} disabled={isSubmittingReward} className={buttonVariants({variant: "destructive"})}>
+                    {isSubmittingReward ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Hapus
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </TabsContent>
 
           <TabsContent value="appearance">
@@ -732,23 +749,6 @@ export default function SettingsPage() {
           </DialogContent>
         </Dialog>
 
-        <AlertDialog open={!!rewardToDelete} onOpenChange={(open) => !open && setRewardToDelete(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Konfirmasi Penghapusan</AlertDialogTitle>
-              <AlertDialogDescription>
-                Apakah Anda yakin ingin menghapus reward "{rewardToDelete?.name}"? Tindakan ini tidak dapat diurungkan.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setRewardToDelete(null)} disabled={isSubmittingReward}>Batal</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteReward} disabled={isSubmittingReward} className={buttonVariants({variant: "destructive"})}>
-                {isSubmittingReward ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Hapus
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
       </main>
     </div>
   );
