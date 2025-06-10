@@ -35,9 +35,10 @@ import {
 } from '@/components/ui/dialog';
 import { buttonVariants } from '@/components/ui/button';
 import Papa from 'papaparse';
+import { v4 as uuidv4 } from 'uuid'; // Import uuid
 
 export interface ServiceProductVariant {
-  id: string; // Client-generated UUID for new, Firestore ID for existing (though in embedded array, it's more like a key)
+  id: string; 
   name: string;
   price: number;
   pointsAwarded?: number;
@@ -48,9 +49,9 @@ export interface ServiceProduct {
   name: string;
   type: 'Layanan' | 'Produk';
   category: string;
-  price: number; // Base price or price if no variants
+  price: number; 
   description?: string;
-  pointsAwarded?: number; // Points for base product or if no variants
+  pointsAwarded?: number;
   createdAt?: any; 
   variants?: ServiceProductVariant[];
 }
@@ -132,7 +133,7 @@ export default function ServicesPage() {
           if (missingHeaders.length > 0) {
             toast({
               title: "Format CSV Salah",
-              description: `Header kolom yang hilang: ${missingHeaders.join(', ')}. Pastikan CSV memiliki kolom: name, type, category, price, description (opsional), pointsAwarded (opsional). Varian tidak didukung via CSV saat ini.`,
+              description: `Header kolom wajib yang hilang: ${missingHeaders.join(', ')}. Lihat info format CSV untuk detail.`,
               variant: "destructive",
               duration: 10000,
             });
@@ -146,27 +147,27 @@ export default function ServicesPage() {
 
           parsedData.forEach((row, index) => {
             const name = row.name?.trim();
-            const type = row.type?.trim();
+            const type = row.type?.trim() as ServiceProduct['type'] | undefined;
             const category = row.category?.trim();
             const priceString = row.price?.trim();
             const description = row.description?.trim() || '';
             const pointsAwardedString = row.pointsAwarded?.trim();
 
             if (!name || !type || !category || !priceString) {
-              console.warn(`Baris ${index + 2} dilewati: field wajib tidak lengkap.`);
+              console.warn(`Baris ${index + 2} dilewati: field wajib (name, type, category, price) tidak lengkap.`);
               itemsFailedCount++;
               return;
             }
 
             if (type !== 'Layanan' && type !== 'Produk') {
-              console.warn(`Baris ${index + 2} dilewati: tipe tidak valid ('${type}'). Harus 'Layanan' atau 'Produk'.`);
+              console.warn(`Baris ${index + 2} dilewati: 'type' tidak valid ('${type}'). Harus 'Layanan' atau 'Produk'.`);
               itemsFailedCount++;
               return;
             }
             
             const price = parseFloat(priceString);
             if (isNaN(price) || price <= 0) {
-              console.warn(`Baris ${index + 2} dilewati: harga tidak valid ('${priceString}').`);
+              console.warn(`Baris ${index + 2} dilewati: 'price' tidak valid ('${priceString}').`);
               itemsFailedCount++;
               return;
             }
@@ -177,8 +178,41 @@ export default function ServicesPage() {
                 if (!isNaN(parsedPoints) && parsedPoints >= 0) {
                     pointsAwarded = parsedPoints;
                 } else {
-                    console.warn(`Baris ${index + 2}: pointsAwarded tidak valid ('${pointsAwardedString}'), akan diabaikan.`);
+                    console.warn(`Baris ${index + 2}: 'pointsAwarded' tidak valid ('${pointsAwardedString}'), akan diabaikan.`);
                 }
+            }
+
+            const variants: ServiceProductVariant[] = [];
+            for (let i = 1; i <= 5; i++) {
+              const variantName = row[`variant${i}_name`]?.trim();
+              const variantPriceString = row[`variant${i}_price`]?.trim();
+              const variantPointsString = row[`variant${i}_pointsAwarded`]?.trim();
+
+              if (variantName && variantPriceString) {
+                const variantPrice = parseFloat(variantPriceString);
+                if (isNaN(variantPrice) || variantPrice <= 0) {
+                  console.warn(`Baris ${index + 2}, Varian ${i}: harga varian tidak valid ('${variantPriceString}'). Varian ini dilewati.`);
+                  continue; 
+                }
+                let variantPoints = 0;
+                if (variantPointsString) {
+                  const parsedVP = parseInt(variantPointsString, 10);
+                  if (!isNaN(parsedVP) && parsedVP >= 0) {
+                    variantPoints = parsedVP;
+                  } else {
+                    console.warn(`Baris ${index + 2}, Varian ${i}: poin varian tidak valid ('${variantPointsString}'), akan diabaikan.`);
+                  }
+                }
+                variants.push({
+                  id: uuidv4(),
+                  name: variantName,
+                  price: variantPrice,
+                  pointsAwarded: variantPoints,
+                });
+              } else if (variantName || variantPriceString) {
+                // If one is provided but not the other (name & price are a pair)
+                console.warn(`Baris ${index + 2}, Varian ${i}: Nama dan Harga varian harus diisi bersamaan. Varian ini dilewati.`);
+              }
             }
 
             const newItemRef = doc(collection(db, 'services'));
@@ -186,10 +220,10 @@ export default function ServicesPage() {
               name,
               type,
               category,
-              price,
+              price, // Base price
               description,
-              pointsAwarded,
-              variants: [], // Variants not supported via CSV import for now
+              pointsAwarded, // Base points
+              variants,
               createdAt: serverTimestamp(),
             });
             itemsAddedCount++;
@@ -279,7 +313,7 @@ export default function ServicesPage() {
                   <InfoDialogTrigger asChild>
                     <Button variant="outline" size="sm">Info Format CSV</Button>
                   </InfoDialogTrigger>
-                  <InfoDialogContent>
+                  <InfoDialogContent className="sm:max-w-md">
                     <InfoDialogHeader>
                       <InfoDialogTitle>Format CSV untuk Impor Layanan/Produk</InfoDialogTitle>
                       <InfoDialogDescription>
@@ -290,11 +324,16 @@ export default function ServicesPage() {
                       <li><code className="bg-muted px-1 rounded-sm">name</code> (Teks, Wajib) - Nama layanan/produk.</li>
                       <li><code className="bg-muted px-1 rounded-sm">type</code> (Teks, Wajib) - Harus 'Layanan' atau 'Produk'.</li>
                       <li><code className="bg-muted px-1 rounded-sm">category</code> (Teks, Wajib) - Kategori item.</li>
-                      <li><code className="bg-muted px-1 rounded-sm">price</code> (Angka, Wajib) - Harga item (contoh: 50000).</li>
+                      <li><code className="bg-muted px-1 rounded-sm">price</code> (Angka, Wajib) - Harga dasar item (contoh: 50000).</li>
                       <li><code className="bg-muted px-1 rounded-sm">description</code> (Teks, Opsional) - Deskripsi item.</li>
-                      <li><code className="bg-muted px-1 rounded-sm">pointsAwarded</code> (Angka, Opsional) - Poin loyalitas yang diberikan.</li>
+                      <li><code className="bg-muted px-1 rounded-sm">pointsAwarded</code> (Angka, Opsional) - Poin loyalitas dasar.</li>
+                      <li className="font-semibold mt-2">Untuk Varian (Opsional, maksimal 5 varian):</li>
+                      <li><code className="bg-muted px-1 rounded-sm">variant1_name</code> (Teks) - Nama varian ke-1.</li>
+                      <li><code className="bg-muted px-1 rounded-sm">variant1_price</code> (Angka) - Harga varian ke-1.</li>
+                      <li><code className="bg-muted px-1 rounded-sm">variant1_pointsAwarded</code> (Angka, Opsional) - Poin varian ke-1.</li>
+                      <li>... (ulangi untuk `variant2`, `variant3`, `variant4`, `variant5`)</li>
                     </ul>
-                    <p className="text-xs text-muted-foreground">Baris pertama CSV harus berisi nama header. Varian produk tidak didukung melalui impor CSV saat ini. Baris dengan data wajib yang kosong atau format harga/tipe yang salah akan dilewati.</p>
+                    <p className="text-xs text-muted-foreground">Baris pertama CSV harus berisi nama header. Jika nama dan harga varian diisi, varian akan dibuat. Harga dasar tetap wajib diisi.</p>
                     <InfoDialogFooter>
                       <DialogClose asChild>
                         <Button type="button" variant="secondary">Tutup</Button>
@@ -394,5 +433,7 @@ export default function ServicesPage() {
     </div>
   );
 }
+
+    
 
     
