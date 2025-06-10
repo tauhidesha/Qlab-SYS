@@ -36,6 +36,7 @@ import { useForm, Controller, useWatch, type Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import type { StaffMember } from '@/types/staff';
 
 interface PayrollEntry {
   id: string;
@@ -43,8 +44,8 @@ interface PayrollEntry {
   period: string;
   baseSalary: number;
   profitShare: number;
-  totalHours?: number; // Opsional
-  deductions?: number; // Opsional
+  totalHours?: number; 
+  deductions?: number; 
   netPay: number;
   status: 'Tertunda' | 'Dibayar' | 'Dibuat';
   createdAt: Timestamp;
@@ -78,9 +79,10 @@ interface CreatePayrollDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: PayrollFormData & { period: string; status: PayrollEntry['status'], netPay: number }) => Promise<void>;
-  staffList: string[];
+  staffList: StaffMember[]; // Updated to use StaffMember type
   selectedPeriod: string;
   isSubmitting: boolean;
+  loadingStaff: boolean;
 }
 
 function CalculatedNetPay({ control }: { control: Control<PayrollFormData & { netPay?: number }> }) {
@@ -98,10 +100,10 @@ function CalculatedNetPay({ control }: { control: Control<PayrollFormData & { ne
   );
 }
 
-function CreatePayrollDialog({ isOpen, onClose, onSubmit, staffList, selectedPeriod, isSubmitting }: CreatePayrollDialogProps) {
+function CreatePayrollDialog({ isOpen, onClose, onSubmit, staffList, selectedPeriod, isSubmitting, loadingStaff }: CreatePayrollDialogProps) {
   const form = useForm<PayrollFormData & { period: string; netPay: number; status: PayrollEntry['status'] }>({
     resolver: zodResolver(payrollFormSchema),
-    defaultValues: { // Explicit defaultValues
+    defaultValues: { 
       staffName: '',
       period: selectedPeriod,
       baseSalary: 0,
@@ -150,14 +152,22 @@ function CreatePayrollDialog({ isOpen, onClose, onSubmit, staffList, selectedPer
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Nama Staf</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={loadingStaff}>
                     <FormControl>
-                      <SelectTrigger><SelectValue placeholder="Pilih staf" /></SelectTrigger>
+                      <SelectTrigger>
+                        <SelectValue placeholder={loadingStaff ? "Memuat staf..." : "Pilih staf"} />
+                      </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {staffList.map(staff => (
-                        <SelectItem key={staff} value={staff}>{staff}</SelectItem>
-                      ))}
+                      {loadingStaff ? (
+                        <SelectItem value="loading" disabled>Memuat...</SelectItem>
+                      ) : staffList.length === 0 ? (
+                        <SelectItem value="no-staff" disabled>Tidak ada staf terdaftar.</SelectItem>
+                      ) : (
+                        staffList.map(staff => (
+                          <SelectItem key={staff.id} value={staff.name}>{staff.name} ({staff.role})</SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -223,7 +233,7 @@ function CreatePayrollDialog({ isOpen, onClose, onSubmit, staffList, selectedPer
             <CalculatedNetPay control={form.control as Control<PayrollFormData & { netPay?: number }>} />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>Batal</Button>
-              <Button type="submit" disabled={isSubmitting} className="bg-accent text-accent-foreground hover:bg-accent/90">
+              <Button type="submit" disabled={isSubmitting || loadingStaff || staffList.length === 0} className="bg-accent text-accent-foreground hover:bg-accent/90">
                 {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 Simpan Entri
               </Button>
@@ -254,7 +264,7 @@ function DetailPayrollDialog({ isOpen, onClose, entry }: DetailPayrollDialogProp
         <div className="space-y-3 py-2 text-sm">
           <div className="flex justify-between"><span>Gaji Pokok:</span> <span>Rp {entry.baseSalary.toLocaleString('id-ID')}</span></div>
           <div className="flex justify-between"><span>Bagi Hasil:</span> <span>Rp {entry.profitShare.toLocaleString('id-ID')}</span></div>
-          <div className="flex justify-between"><span>Total Jam:</span> <span>{entry.totalHours || 'N/A'} jam</span></div>
+          <div className="flex justify-between"><span>Total Jam:</span> <span>{entry.totalHours ? `${entry.totalHours} jam` : 'N/A'}</span></div>
           <div className="flex justify-between"><span>Potongan:</span> <span>Rp {(entry.deductions || 0).toLocaleString('id-ID')}</span></div>
           <hr/>
           <div className="flex justify-between font-semibold"><span>Gaji Bersih:</span> <span>Rp {entry.netPay.toLocaleString('id-ID')}</span></div>
@@ -276,7 +286,7 @@ function DetailPayrollDialog({ isOpen, onClose, entry }: DetailPayrollDialogProp
 
 export default function PayrollPage() {
   const [payrollData, setPayrollData] = useState<PayrollEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingPayroll, setLoadingPayroll] = useState(true);
   const availablePeriods = ['Juli 2024', 'Juni 2024', 'Mei 2024', 'April 2024', 'Maret 2024'];
   const [selectedPeriod, setSelectedPeriod] = useState<string>(availablePeriods[0] || 'Periode Tidak Tersedia');
   
@@ -290,12 +300,39 @@ export default function PayrollPage() {
   const [entryToPay, setEntryToPay] = useState<PayrollEntry | null>(null);
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   
-  const staffList = ['Andi P.', 'Budi S.', 'Rian S.', 'Siti K.', 'Eko W.']; // Placeholder, ideally fetched
+  const [staffList, setStaffList] = useState<StaffMember[]>([]);
+  const [loadingStaff, setLoadingStaff] = useState(true);
 
   const { toast } = useToast();
 
+  const fetchStaffList = useCallback(async () => {
+    setLoadingStaff(true);
+    try {
+      const staffCollectionRef = collection(db, 'staffMembers');
+      const q = query(staffCollectionRef, orderBy("name"));
+      const querySnapshot = await getDocs(q);
+      const membersData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StaffMember));
+      setStaffList(membersData);
+    } catch (error) {
+      console.error("Error fetching staff list: ", error);
+      toast({
+        title: "Error",
+        description: "Tidak dapat mengambil daftar staf.",
+        variant: "destructive",
+      });
+      setStaffList([]); // Set to empty array on error
+    } finally {
+      setLoadingStaff(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchStaffList();
+  }, [fetchStaffList]);
+
+
   const fetchPayrollData = useCallback(async (period: string) => {
-    setLoading(true);
+    setLoadingPayroll(true);
     try {
       const payrollCollectionRef = collection(db, 'payrollData');
       const q = query(payrollCollectionRef, where("period", "==", period), orderBy("staffName"));
@@ -310,7 +347,7 @@ export default function PayrollPage() {
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setLoadingPayroll(false);
     }
   }, [toast]);
 
@@ -318,8 +355,8 @@ export default function PayrollPage() {
     if (selectedPeriod && selectedPeriod !== 'Periode Tidak Tersedia') {
       fetchPayrollData(selectedPeriod);
     } else {
-      setPayrollData([]); // Clear data if period is invalid
-      setLoading(false);
+      setPayrollData([]); 
+      setLoadingPayroll(false);
     }
   }, [selectedPeriod, fetchPayrollData]);
 
@@ -384,15 +421,15 @@ export default function PayrollPage() {
     }
   };
 
-  if (loading && payrollData.length === 0 && selectedPeriod === 'Periode Tidak Tersedia') {
-     // Initial state or no valid period selected, don't show main loader yet
-  } else if (loading) {
+  if (loadingPayroll && payrollData.length === 0 && selectedPeriod === 'Periode Tidak Tersedia') {
+    // Initial state, don't show main loader
+  } else if (loadingPayroll || (loadingStaff && isCreateDialogOpen)) { // Show loader if payroll data is loading OR if staff list is loading for the dialog
     return (
       <div className="flex flex-col h-full">
         <AppHeader title="Penggajian Staf" />
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="ml-2">Memuat data penggajian...</p>
+          <p className="ml-2">Memuat data...</p>
         </div>
       </div>
     );
@@ -420,13 +457,17 @@ export default function PayrollPage() {
                    {availablePeriods.length === 0 && <SelectItem value="no-period" disabled>Tidak ada periode</SelectItem>}
                 </SelectContent>
               </Select>
-              <Button onClick={() => setIsCreateDialogOpen(true)} disabled={selectedPeriod === 'Periode Tidak Tersedia'}>
-                <FileText className="mr-2 h-4 w-4" /> Buat Penggajian
+              <Button 
+                onClick={() => setIsCreateDialogOpen(true)} 
+                disabled={selectedPeriod === 'Periode Tidak Tersedia' || loadingStaff}
+              >
+                {loadingStaff && isCreateDialogOpen ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileText className="mr-2 h-4 w-4" />} 
+                Buat Penggajian
               </Button>
             </div>
           </CardHeader>
           <CardContent>
-            {loading && selectedPeriod !== 'Periode Tidak Tersedia' ? (
+            {loadingPayroll && selectedPeriod !== 'Periode Tidak Tersedia' ? (
                  <div className="flex items-center justify-center py-10">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     <p className="ml-2">Memuat data untuk {selectedPeriod}...</p>
@@ -490,6 +531,7 @@ export default function PayrollPage() {
         staffList={staffList}
         selectedPeriod={selectedPeriod}
         isSubmitting={isSubmittingCreate}
+        loadingStaff={loadingStaff}
       />
 
       <DetailPayrollDialog
