@@ -22,3 +22,4 @@ export interface PayrollEntry {
   paidAt?: Timestamp;
   calculationDetails?: string; // Opsional: untuk menyimpan catatan tentang bagaimana potongan dihitung
 }
+
