@@ -1,6 +1,6 @@
 
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, BarChartBig, Settings, Clipboard, Banknote, CalendarDays, ClipboardList, Percent, ReceiptText, Landmark, DollarSign, TrendingUp, History, ArrowRightLeft, FileText, Wallet, Palette, Bell, CreditCard as CreditCardIcon, Award, Gift, SlidersHorizontal, Settings2 } from 'lucide-react'; // Added SlidersHorizontal, Settings2 and ensured others are present
+import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, BarChartBig, Settings, Clipboard, Banknote, CalendarDays, ClipboardList, Percent, ReceiptText, Landmark, DollarSign, TrendingUp, History, ArrowRightLeft, FileText, Wallet, Palette, Bell, CreditCard as CreditCardIcon, Award, Gift, SlidersHorizontal, Settings2, Package } from 'lucide-react'; // Added Package
 
 export interface NavItem {
   title: string;
@@ -46,8 +46,23 @@ export const mainNavItems: NavItem[] = [
     description: 'Kelola katalog layanan dan produk.',
   },
   {
+    title: 'Inventaris',
+    href: '#', 
+    icon: Package,
+    description: 'Kelola stok produk.',
+    collapsible: true,
+    items: [
+      {
+        title: 'Daftar Produk',
+        href: '/inventory/products',
+        icon: Package, 
+        description: 'Lihat dan kelola stok produk fisik.',
+      },
+    ],
+  },
+  {
     title: 'Keuangan',
-    href: '#', // Parent, not a direct link
+    href: '#', 
     icon: Landmark,
     description: 'Kelola pemasukan, pengeluaran, dan laporan keuangan.',
     collapsible: true,
@@ -72,7 +87,7 @@ export const mainNavItems: NavItem[] = [
       },
       {
         title: 'Laporan',
-        href: '#', // Parent, not a direct link
+        href: '#', 
         icon: BarChartBig,
         description: 'Lihat berbagai laporan keuangan.',
         collapsible: true,
@@ -107,7 +122,7 @@ export const mainNavItems: NavItem[] = [
   },
   {
     title: 'Manajemen Staf',
-    href: '#', // Parent, not a direct link
+    href: '#', 
     icon: Clipboard,
     description: 'Kelola data, absensi, penggajian, dan bagi hasil staf.',
     collapsible: true,
@@ -122,17 +137,19 @@ export const mainNavItems: NavItem[] = [
 
 export const settingsNavItem: NavItem = {
   title: 'Pengaturan',
-  href: '/settings', // Main settings link
-  icon: Settings, // Main settings icon
+  href: '/settings', 
+  icon: Settings, 
   description: 'Konfigurasi pengaturan aplikasi.',
   collapsible: true,
   items: [ 
-    { title: 'Umum', href: '/settings?tab=general', icon: SlidersHorizontal, description: 'Pengaturan umum bengkel.'}, // Changed from Building/Building2/Settings2
+    { title: 'Umum', href: '/settings?tab=general', icon: SlidersHorizontal, description: 'Pengaturan umum bengkel.'}, 
     { title: 'Loyalitas', href: '/settings?tab=loyalty', icon: Gift, description: 'Pengaturan program loyalitas.'},
     { title: 'Reward Loyalitas', href: '/settings?tab=loyalty_rewards', icon: Award, description: 'Kelola reward untuk poin loyalitas.'},
     { title: 'Tampilan', href: '/settings?tab=appearance', icon: Palette, description: 'Sesuaikan tampilan aplikasi.'},
     { title: 'Notifikasi', href: '/settings?tab=notifications', icon: Bell, description: 'Kelola preferensi notifikasi.'},
-    { title: 'Peran Pengguna', href: '/settings?tab=users', icon: Users, description: 'Kelola akun staf dan akses.'}, // Changed from UserCog to Users
+    { title: 'Peran Pengguna', href: '/settings?tab=users', icon: Users, description: 'Kelola akun staf dan akses.'}, 
     { title: 'Tagihan', href: '/settings?tab=billing', icon: CreditCardIcon, description: 'Kelola langganan dan pembayaran.'},
   ]
 };
+
+    
