@@ -7,14 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Trash2, CreditCard, Loader2, ShoppingBag, UserPlus, Star, Tags, MessageSquareText, Send, Gift, UserCog } from 'lucide-react'; // Added UserCog
+import { PlusCircle, Trash2, CreditCard, Loader2, ShoppingBag, UserPlus, Star, Tags, MessageSquareText, Send, Gift, UserCog } from 'lucide-react';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, arrayUnion, serverTimestamp, addDoc, type Timestamp, getDocs, getDoc, deleteDoc } from 'firebase/firestore';
 import type { Transaction, TransactionItem } from '@/types/transaction';
 import type { ServiceProduct } from '@/app/(app)/services/page'; 
 import type { Client } from '@/types/client';
-import type { StaffMember } from '@/types/staff'; // Added StaffMember
+import type { StaffMember } from '@/types/staff';
 import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -243,7 +243,7 @@ export default function PosPage() {
   
   const handleSelectGalleryItem = (item: ServiceProduct) => {
     setSelectedCatalogItemId(item.id);
-    setSelectedStaffForNewItemToAdd(undefined); // Reset staff selection when item changes
+    setSelectedStaffForNewItemToAdd(undefined); 
   };
 
   const handleAddItemToTransaction = async () => {
@@ -379,19 +379,19 @@ export default function PosPage() {
 
   const calculateTransactionTotals = (
     items: TransactionItem[], 
-    discountAmountManual: number = 0, 
-    discountPercentageManual: number = 0,
-    pointsRedeemedValue: number = 0
+    discountAmountParam: number = 0, 
+    discountPercentageParam: number = 0,
+    pointsRedeemedValueParam: number = 0
   ) => {
     const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
     let effectiveDiscountAmount = 0;
 
-    if (pointsRedeemedValue > 0) {
-      effectiveDiscountAmount = pointsRedeemedValue;
-    } else if (discountAmountManual > 0) {
-      effectiveDiscountAmount = discountAmountManual;
-    } else if (discountPercentageManual > 0) {
-      effectiveDiscountAmount = subtotal * (discountPercentageManual / 100);
+    if (pointsRedeemedValueParam > 0) {
+      effectiveDiscountAmount = pointsRedeemedValueParam;
+    } else if (discountAmountParam > 0) {
+      effectiveDiscountAmount = discountAmountParam;
+    } else if (discountPercentageParam > 0) {
+      effectiveDiscountAmount = subtotal * (discountPercentageParam / 100);
     }
     
     const total = Math.max(0, subtotal - effectiveDiscountAmount); 
@@ -408,9 +408,9 @@ export default function PosPage() {
         
         const { subtotal, total, discountAmount } = calculateTransactionTotals(
             updatedItemsArray, 
-            selectedTransaction.pointsRedeemedValue && selectedTransaction.pointsRedeemedValue > 0 ? 0 : selectedTransaction.discountAmount, 
-            selectedTransaction.pointsRedeemedValue && selectedTransaction.pointsRedeemedValue > 0 ? 0 : selectedTransaction.discountPercentage,
-            selectedTransaction.pointsRedeemedValue
+            selectedTransaction.discountAmount, 
+            selectedTransaction.discountPercentage,
+            selectedTransaction.pointsRedeemedValue 
         );
 
         await updateDoc(transactionDocRef, {
@@ -512,7 +512,7 @@ export default function PosPage() {
     setIsSubmittingRedemption(true);
     const discountValueFromPoints = pointsToRedeem * POINT_TO_RUPIAH_RATE;
     const subtotal = selectedTransaction.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const effectiveDiscountValue = Math.min(discountValueFromPoints, subtotal);
+    const effectiveDiscountValue = Math.min(discountValueFromPoints, subtotal); // Discount cannot exceed subtotal
 
     const { total } = calculateTransactionTotals(selectedTransaction.items, 0, 0, effectiveDiscountValue);
 
@@ -520,9 +520,9 @@ export default function PosPage() {
       const transactionDocRef = doc(db, 'transactions', selectedTransaction.id);
       await updateDoc(transactionDocRef, {
         pointsRedeemed: pointsToRedeem,
-        pointsRedeemedValue: effectiveDiscountValue,
-        discountAmount: effectiveDiscountValue, 
-        discountPercentage: 0, 
+        pointsRedeemedValue: effectiveDiscountValue, // Store the actual value of discount applied
+        discountAmount: effectiveDiscountValue, // Points discount overrides manual discount
+        discountPercentage: 0, // Reset percentage discount
         total: total,
         notes: `${selectedTransaction.notes || ''} [Tukar ${pointsToRedeem} poin senilai Rp ${effectiveDiscountValue.toLocaleString('id-ID')}]`.trim(),
         updatedAt: serverTimestamp(),
@@ -554,6 +554,7 @@ export default function PosPage() {
       
       let pointsEarnedThisTransaction = 0;
       
+      // Points are earned only if no points were redeemed in this transaction
       if (selectedTransaction.clientId && (!selectedTransaction.pointsRedeemed || selectedTransaction.pointsRedeemed === 0)) {
          pointsEarnedThisTransaction = selectedTransaction.items.reduce((sum, item) => {
             const awardedPoints = (typeof item.pointsAwardedPerUnit === 'number' && !isNaN(item.pointsAwardedPerUnit)) ? item.pointsAwardedPerUnit : 0;
@@ -587,7 +588,7 @@ export default function PosPage() {
             const today = new Date().toLocaleDateString('en-CA'); 
 
             await updateDoc(clientDocRef, {
-                loyaltyPoints: newLoyaltyPoints,
+                loyaltyPoints: Math.max(0, newLoyaltyPoints), // Ensure points don't go negative
                 lastVisit: today,
             });
             
@@ -1180,7 +1181,7 @@ export default function PosPage() {
             </DialogHeader>
             <div className="space-y-4 py-2 pb-4">
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">1 Poin = Rp {POINT_TO_RUPIAH_RATE.toLocaleString('id-ID')}</p>
+                <p className="text-sm text-muted-foreground">1 Poin = Rp {POINT_TO_RUPIAH_RATE.toLocaleString('id-ID')} diskon</p>
                 <p className="text-sm text-muted-foreground">Minimum penukaran: {MINIMUM_POINTS_TO_REDEEM.toLocaleString('id-ID')} Poin</p>
               </div>
               <div className="space-y-2">
