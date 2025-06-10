@@ -1,6 +1,6 @@
 
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, BarChartBig, Settings, Clipboard, Banknote, CalendarDays, ClipboardList, Percent, ReceiptText, Landmark, DollarSign, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, BarChartBig, Settings, Clipboard, Banknote, CalendarDays, ClipboardList, Percent, ReceiptText, Landmark, DollarSign, TrendingUp, History } from 'lucide-react';
 
 export interface NavItem {
   title: string;
@@ -28,7 +28,7 @@ export const mainNavItems: NavItem[] = [
     description: 'Kelola antrian pelanggan.',
   },
   {
-    title: 'Penjualan (POS)', // Kembali jadi menu utama
+    title: 'Penjualan (POS)',
     href: '/pos',
     icon: ShoppingCart,
     description: 'Kelola penjualan dan transaksi.',
@@ -53,9 +53,9 @@ export const mainNavItems: NavItem[] = [
     collapsible: true,
     items: [
       {
-        title: 'Pemasukan Lain', // Untuk pemasukan di luar POS
-        href: '/income', // Halaman baru akan diperlukan di sini
-        icon: DollarSign, // Ikon baru untuk pemasukan umum
+        title: 'Pemasukan Lain',
+        href: '/income',
+        icon: DollarSign,
         description: 'Catat pemasukan di luar penjualan POS.',
       },
       {
@@ -65,10 +65,25 @@ export const mainNavItems: NavItem[] = [
         description: 'Catat dan kelola pengeluaran bengkel.',
       },
       {
-        title: 'Laporan Keuangan',
-        href: '/reports',
+        title: 'Laporan',
+        href: '/reports', // Parent href for reports overview or first report
         icon: BarChartBig,
-        description: 'Lihat laporan pendapatan dan pengeluaran.',
+        description: 'Lihat berbagai laporan keuangan.',
+        collapsible: true,
+        items: [
+          {
+            title: 'Riwayat Transaksi',
+            href: '/reports', // Existing reports page becomes transaction history
+            icon: History, 
+            description: 'Lihat semua transaksi terbayar.'
+          },
+          {
+            title: 'Laba Rugi Bulanan',
+            href: '/reports/profit-loss', // New Profit & Loss page
+            icon: TrendingUp, 
+            description: 'Analisis laba rugi per bulan.'
+          }
+        ]
       },
     ],
   },
