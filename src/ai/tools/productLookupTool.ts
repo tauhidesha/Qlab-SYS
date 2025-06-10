@@ -29,50 +29,64 @@ export const getProductServiceDetailsByNameTool = ai.defineTool(
     console.log(`ProductLookupTool: Mencari produk/layanan dengan nama: "${input.productName}"`);
     try {
       const servicesRef = collection(db, 'services');
-      // Firestore case-insensitive search is tricky. For now, we'll try to match name as is,
-      // then try with capitalized words if not found. A more robust solution might involve
-      // storing a lowercased version of the name or using a third-party search service.
-      
-      // Attempt 1: Exact match (case-sensitive from client, Firestore is case-sensitive by default on equals)
-      // For a pseudo case-insensitive, we can query a range or fetch and filter client-side for small datasets.
-      // Let's try to fetch and filter for more flexibility in a small dataset context.
-      // In a larger dataset, this would be inefficient.
-      
-      const q = query(servicesRef); // Potentially add orderBy('name') if needed
+      const q = query(servicesRef); 
       const querySnapshot = await getDocs(q);
       
       let foundItem: ServiceProduct | null = null;
       const searchTermLower = input.productName.toLowerCase();
 
+      // Priority for exact matches or more specific variant matches
+      let bestMatchCandidate: ServiceProduct | null = null;
+      let bestMatchIsVariant = false;
+
       for (const doc of querySnapshot.docs) {
         const item = { id: doc.id, ...doc.data() } as ServiceProduct;
-        if (item.name.toLowerCase() === searchTermLower) {
-          foundItem = item;
-          break;
-        }
-        // Check variants as well
+        
+        // Check variants first for more specific matches
         if (item.variants) {
             for (const variant of item.variants) {
                 const fullVariantName = `${item.name} - ${variant.name}`;
-                if (fullVariantName.toLowerCase() === searchTermLower) {
-                    // If a variant matches, we return the base item but could adjust to return variant-specific info
-                    foundItem = {
-                        ...item, // Base item info
-                        name: fullVariantName, // Use full variant name
-                        price: variant.price, // Use variant price
-                        pointsAwarded: variant.pointsAwarded ?? item.pointsAwarded,
-                        estimatedDuration: variant.estimatedDuration ?? item.estimatedDuration,
-                        // Note: We are not creating a new variants array here, as the match is on a specific variant name
-                    };
-                    // To avoid returning the base item's variants array when a specific variant is matched:
-                    if (foundItem) delete foundItem.variants; 
-                    break;
+                if (fullVariantName.toLowerCase().includes(searchTermLower)) {
+                    const currentCandidateIsBetter = !bestMatchCandidate || 
+                                                     (fullVariantName.toLowerCase() === searchTermLower && (!bestMatchIsVariant || bestMatchCandidate.name.toLowerCase() !== searchTermLower)) || // Exact variant match is best
+                                                     (!bestMatchIsVariant && searchTermLower.length > (bestMatchCandidate.name?.length || 0) ); // More specific partial variant match
+
+                    if (currentCandidateIsBetter) {
+                        bestMatchCandidate = {
+                            ...item,
+                            name: fullVariantName,
+                            price: variant.price,
+                            pointsAwarded: variant.pointsAwarded ?? item.pointsAwarded,
+                            estimatedDuration: variant.estimatedDuration ?? item.estimatedDuration,
+                        };
+                        delete bestMatchCandidate.variants; 
+                        bestMatchIsVariant = true;
+                        if (fullVariantName.toLowerCase() === searchTermLower) { // Exact match, break all
+                            foundItem = bestMatchCandidate;
+                            break;
+                        }
+                    }
                 }
             }
         }
-        if (foundItem) break;
+        if (foundItem) break; // Exact variant match found
+
+        // Check base item name if no exact variant match yet
+        if (item.name.toLowerCase().includes(searchTermLower)) {
+            if (!bestMatchCandidate || // No candidate yet
+                (!bestMatchIsVariant && item.name.toLowerCase() === searchTermLower && bestMatchCandidate.name.toLowerCase() !== searchTermLower) || // Exact base name match is better than previous partial base
+                (!bestMatchIsVariant && item.name.length < (bestMatchCandidate.name?.length || Infinity)) // Shorter base name that includes term (less specific but could be what user meant)
+            ) { 
+                bestMatchCandidate = item;
+                bestMatchIsVariant = false; 
+                if (item.name.toLowerCase() === searchTermLower) { // If it's an exact base name match, this is good enough for now
+                    // Potentially could be overridden by an exact variant match later, but good for now
+                }
+            }
+        }
       }
 
+      foundItem = bestMatchCandidate || foundItem; // Ensure foundItem gets the candidate if no exact variant break
 
       if (foundItem) {
         console.log(`ProductLookupTool: Ditemukan item: ${foundItem.name}`);
@@ -85,19 +99,22 @@ export const getProductServiceDetailsByNameTool = ai.defineTool(
           description: foundItem.description || undefined,
           pointsAwarded: foundItem.pointsAwarded || undefined,
           estimatedDuration: foundItem.estimatedDuration || undefined,
-          variants: foundItem.variants?.map(v => ({
+          // If foundItem is a specific variant, its 'variants' array was already deleted.
+          // If it's a base item, include its variants.
+          variants: bestMatchIsVariant ? undefined : foundItem.variants?.map(v => ({
             name: v.name,
             price: v.price,
             pointsAwarded: v.pointsAwarded || undefined,
             estimatedDuration: v.estimatedDuration || undefined,
           })) || undefined,
         };
-        // Validate with Zod before returning
+        
         try {
             ProductServiceInfoSchema.parse(result);
             return result;
         } catch (zodError) {
-            console.error("ProductLookupTool: Zod validation error for found item:", zodError);
+            console.error("ProductLookupTool: Zod validation error for found item:", zodError.errors);
+            // console.error("ProductLookupTool: Data causing error:", JSON.stringify(result, null, 2));
             return null;
         }
       } else {
