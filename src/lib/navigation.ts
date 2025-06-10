@@ -149,13 +149,12 @@ export const settingsNavItem: NavItem = {
   collapsible: true,
   items: [ 
     { title: 'Umum', href: '/settings?tab=general', icon: SlidersHorizontal, description: 'Pengaturan umum bengkel.'}, 
-    { title: 'Loyalitas', href: '/settings?tab=loyalty', icon: Gift, description: 'Pengaturan program loyalitas.'},
-    { title: 'Reward Loyalitas', href: '/settings?tab=loyalty_rewards', icon: Award, description: 'Kelola reward untuk poin loyalitas.'},
+    { title: 'Loyalitas Dasar', href: '/settings?tab=loyalty', icon: Gift, description: 'Pengaturan program loyalitas.'},
+    { title: 'Daftar Reward', href: '/settings?tab=loyalty_rewards', icon: Award, description: 'Kelola reward untuk poin loyalitas.'},
     { title: 'Tampilan', href: '/settings?tab=appearance', icon: Palette, description: 'Sesuaikan tampilan aplikasi.'},
     { title: 'Notifikasi', href: '/settings?tab=notifications', icon: Bell, description: 'Kelola preferensi notifikasi.'},
     { title: 'Peran Pengguna', href: '/settings?tab=users', icon: Users, description: 'Kelola akun staf dan akses.'}, 
     { title: 'Tagihan', href: '/settings?tab=billing', icon: CreditCardIcon, description: 'Kelola langganan dan pembayaran.'},
   ]
 };
-
     
