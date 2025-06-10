@@ -380,19 +380,19 @@ function AssignStaffDialog({ isOpen, onClose, onSubmit, staffList, isSubmitting,
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Tugaskan Staf</DialogTitle>
-          <DialogDescription>Pilih staf yang akan menangani layanan ini.</DialogDescription>
+          <DialogDescription>Pilih staf teknisi yang akan menangani layanan ini.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
-          <Label htmlFor="staff-select">Staf yang Bertugas</Label>
+          <Label htmlFor="staff-select">Staf Teknisi yang Bertugas</Label>
           <Select value={selectedStaffName} onValueChange={setSelectedStaffName} disabled={loadingStaff}>
             <SelectTrigger id="staff-select">
-              <SelectValue placeholder={loadingStaff ? "Memuat staf..." : "Pilih staf"} />
+              <SelectValue placeholder={loadingStaff ? "Memuat staf teknisi..." : "Pilih staf teknisi"} />
             </SelectTrigger>
             <SelectContent>
               {loadingStaff ? (
                 <SelectItem value="loading" disabled>Memuat...</SelectItem>
               ) : staffList.length === 0 ? (
-                 <SelectItem value="no-staff" disabled>Tidak ada staf tersedia.</SelectItem>
+                 <SelectItem value="no-staff" disabled>Tidak ada staf teknisi tersedia.</SelectItem>
               ) : (
                 staffList.map(staff => (
                   <SelectItem key={staff.id} value={staff.name}>
@@ -474,14 +474,13 @@ export default function QueuePage() {
     setLoadingStaff(true);
     try {
       const staffCollectionRef = collection(db, 'staffMembers');
-      // Anda bisa filter berdasarkan peran di sini jika perlu, e.g., where("role", "==", "Teknisi")
-      const q = query(staffCollectionRef, orderBy("name"));
+      const q = query(staffCollectionRef, where("role", "==", "Teknisi"), orderBy("name"));
       const querySnapshot = await getDocs(q);
       const staffData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StaffMember));
       setAssignableStaffList(staffData);
     } catch (error) {
       console.error("Error fetching assignable staff: ", error);
-      toast({ title: "Error", description: "Tidak dapat mengambil daftar staf untuk penugasan.", variant: "destructive" });
+      toast({ title: "Error", description: "Tidak dapat mengambil daftar staf teknisi untuk penugasan.", variant: "destructive" });
     } finally {
       setLoadingStaff(false);
     }
