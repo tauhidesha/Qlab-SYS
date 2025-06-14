@@ -1,13 +1,12 @@
-
 'use server';
 import {genkit} from 'genkit';
-import {openAI} from '@genkit-ai/openai'; // Menggunakan @genkit-ai/openai
+// Menghapus import {openAI} from 'genkitx-openai'; karena package-nya dihapus
 
 export const ai = genkit({
   plugins: [
-    openAI(), // Menggunakan plugin OpenAI resmi
+    // Menghapus openAI() karena package-nya dihapus
   ],
-  model: 'openai/gpt-4-turbo', // Model default tetap GPT-4 Turbo
+  // Menghapus model: 'openai/gpt-4-turbo' karena plugin OpenAI dihapus
   telemetry: {
     instrumentation: {
       llm: true,

@@ -46,11 +46,12 @@ export default function AiCsAssistantPage() {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Updated fetchCustomers function
   const fetchCustomers = async (): Promise<Customer[]> => {
     console.log("Fetching actual customers from Firestore...");
     try {
       const clientsCollectionRef = collection(db, 'clients');
-      const q = query(clientsCollectionRef, orderBy("name"));
+      const q = query(clientsCollectionRef, orderBy("name")); // Order by name
       const querySnapshot = await getDocs(q);
       const clientsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
       
@@ -59,9 +60,9 @@ export default function AiCsAssistantPage() {
         id: client.id,
         name: client.name,
         avatarUrl: `https://placehold.co/40x40.png?text=${client.name.charAt(0)}`, // Placeholder avatar
-        lastMessageTimestamp: client.lastVisit || 'N/A', // Using lastVisit as placeholder
+        lastMessageTimestamp: client.lastVisit || 'N/A', // Using lastVisit as placeholder for now
         lastMessage: 'Klik untuk melihat chat...', // Placeholder
-        unreadCount: 0, // Placeholder
+        unreadCount: 0, // Placeholder, actual unread count would require chat integration
       }));
     } catch (error) {
       console.error("Error fetching customers from Firestore: ", error);
@@ -77,20 +78,23 @@ export default function AiCsAssistantPage() {
   const fetchChatHistory = async (customerId: string): Promise<ChatMessage[]> => {
     // Placeholder: Replace with actual data fetching logic for chat history
     console.log(`Fetching chat history for customer ${customerId} (placeholder)...`);
-    await new Promise(resolve => setTimeout(resolve, 300));
-    // Simulate different chat histories based on customer ID
-    if (customerId === '1' || customers.find(c=>c.id === customerId)?.name.includes("Budi")) {
+    await new Promise(resolve => setTimeout(resolve, 300)); // Simulate network delay
+    
+    const customerName = customers.find(c => c.id === customerId)?.name;
+
+    if (customerName?.toLowerCase().includes("rina")) {
       return [
         { id: 'chat1', sender: 'customer', text: 'Halo, motor saya kok suaranya kasar ya setelah servis kemarin?', timestamp: '10:25' },
-        { id: 'chat2', sender: 'user', text: 'Halo Kak Budi, bisa dijelaskan lebih detail kasarnya seperti apa?', timestamp: '10:26' },
+        { id: 'chat2', sender: 'user', text: `Halo Kak ${customerName || 'Rina'}, bisa dijelaskan lebih detail kasarnya seperti apa?`, timestamp: '10:26' },
         { id: 'chat3', sender: 'customer', text: 'Seperti ada suara "grek grek grek" gitu pas digas awal.', timestamp: '10:28' },
       ];
-    } else if (customerId === '2' || customers.find(c=>c.id === customerId)?.name.includes("Citra")) {
+    } else if (customerName?.toLowerCase().includes("bambang")) {
       return [
-        { id: 'chat4', sender: 'customer', text: 'Terima kasih banyak ya QLAB, motor saya jadi kinclong lagi!', timestamp: 'Kemarin' },
+        { id: 'chat4', sender: 'customer', text: `Terima kasih banyak ya QLAB, motor saya jadi kinclong lagi!`, timestamp: 'Kemarin' },
       ];
     }
-    return [ { id: 'chat_default', sender: 'customer', text: 'Ada yang bisa dibantu?', timestamp: 'Baru saja'} ];
+    // Default or other customers
+    return [ { id: 'chat_default', sender: 'customer', text: `Halo ${customerName || 'Pelanggan'}, ada yang bisa dibantu?`, timestamp: 'Baru saja'} ];
   };
 
   useEffect(() => {
@@ -101,19 +105,19 @@ export default function AiCsAssistantPage() {
         setCustomers(fetchedCustomers);
       } catch (error) {
         console.error("Failed to fetch customers:", error);
-        toast({ title: "Error", description: "Gagal memuat daftar pelanggan.", variant: "destructive" });
+        // Toast is handled within fetchCustomers
       } finally {
         setLoadingCustomers(false);
       }
     };
     loadInitialData();
-  }, [toast]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Removed toast from dependency array as it's stable
 
   const handleCustomerSelect = async (customer: Customer) => {
     setSelectedCustomer(customer);
     setSuggestedReply(''); 
     setCustomerMessageInput(''); // Clear input when customer changes
-    // TODO: Fetch actual chat history for the selected customer
     const history = await fetchChatHistory(customer.id);
     setChatHistory(history);
   };
@@ -131,12 +135,22 @@ export default function AiCsAssistantPage() {
     setIsLoadingSuggestion(true);
     setSuggestedReply('');
     try {
-      // Construct chat history string for the AI
-      const historyString = chatHistory.map(msg => `${msg.sender === 'user' ? 'Anda' : 'Pelanggan'}: ${msg.text}`).join('\n');
+      let messageForAI = customerMessageInput.trim();
+      if (!messageForAI && chatHistory.length > 0) {
+        const lastCustomerMsg = chatHistory.filter(msg => msg.sender === 'customer').pop();
+        if (lastCustomerMsg) {
+            messageForAI = lastCustomerMsg.text;
+        } else {
+            messageForAI = `Halo ${selectedCustomer?.name || 'Pelanggan'}, ada yang bisa saya bantu?`;
+        }
+      } else if (!messageForAI && selectedCustomer) {
+         messageForAI = `Halo ${selectedCustomer.name}, ada yang bisa saya bantu?`;
+      } else if (!messageForAI) {
+         messageForAI = "Pelanggan menghubungi, mohon berikan sapaan standar.";
+      }
       
       const input: WhatsAppReplyInput = { 
-        customerMessage: customerMessageInput || (chatHistory.length > 0 ? chatHistory[chatHistory.length -1].text : "Tolong bantu saya."), // Use last customer message if input is empty
-        chatHistory: historyString || undefined 
+        customerMessage: messageForAI,
       };
       
       const result: WhatsAppReplyOutput = await generateWhatsAppReply(input);
@@ -193,11 +207,7 @@ export default function AiCsAssistantPage() {
       timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
     };
     setChatHistory(prev => [...prev, newMessage]);
-    // Potentially, after sending, you might want to get an AI suggestion for the NEXT reply
-    // For now, just clear the input
     setCustomerMessageInput('');
-    // Or, if you want to automatically get a suggestion for customer's *next* potential message
-    // handleGetSuggestion(); // This would use the new message as context if logic is adjusted
   };
 
   const filteredCustomers = customers.filter(customer =>
@@ -359,18 +369,6 @@ export default function AiCsAssistantPage() {
                 </CardContent>
                 <CardFooter className="p-4 border-t">
                   <div className="flex w-full items-center space-x-2">
-                    {/* 
-                    <Input 
-                      type="text" 
-                      placeholder="Ketik balasan Anda atau gunakan saran AI..." 
-                      value={userReplyInput} 
-                      onChange={(e) => setUserReplyInput(e.target.value)}
-                      className="flex-1 bg-background"
-                    />
-                    <Button onClick={handleSendMessage} disabled={!userReplyInput.trim()}>
-                      <Send className="mr-2 h-4 w-4" /> Kirim
-                    </Button>
-                    */}
                      <p className="text-xs text-muted-foreground">
                         Selalu periksa kembali saran dari AI sebelum mengirimkannya.
                      </p>
@@ -385,3 +383,4 @@ export default function AiCsAssistantPage() {
   );
 }
 
+    
