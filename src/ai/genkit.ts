@@ -1,4 +1,4 @@
-'use server';
+
 import {genkit} from 'genkit';
 // Menghapus import {openAI} from 'genkitx-openai'; karena package-nya dihapus
 
