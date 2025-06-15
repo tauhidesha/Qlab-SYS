@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Palette, Bell, Users, CreditCard as CreditCardIcon, Gift, DollarSign, Loader2, Wallet, Award, PlusCircle, Edit3, Trash2, SlidersHorizontal, Settings2, Zap, MessageCircle, Info } from 'lucide-react'; // Added Zap, MessageCircle, Info
+import { Palette, Bell, Users, CreditCard as CreditCardIcon, Gift, DollarSign, Loader2, Wallet, Award, PlusCircle, Edit3, Trash2, SlidersHorizontal, Settings2, Zap, MessageCircle, Info } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, serverTimestamp, collection, addDoc, updateDoc, deleteDoc, query, orderBy, getDocs as getFirestoreDocs, where } from 'firebase/firestore'; 
@@ -22,6 +22,7 @@ import {
   DEFAULT_AI_SETTINGS,
   AI_AGENT_BEHAVIORS,
   AI_TRANSFER_CONDITIONS,
+  type FollowUpDelaysValues,
 } from '@/types/aiSettings';
 import {
   Dialog,
@@ -254,7 +255,17 @@ export default function SettingsPage() {
         const settingsDocRef = doc(db, 'appSettings', 'aiAgentConfig');
         const docSnap = await getDoc(settingsDocRef);
         if (docSnap.exists()) {
-          aiSettingsForm.reset(docSnap.data() as AiSettingsFormValues);
+          const data = docSnap.data();
+          // Ensure followUpDelays has default values if not present in Firestore
+          const followUpDelaysWithDefaults = {
+            ...DEFAULT_AI_SETTINGS.followUpDelays,
+            ...(data.followUpDelays || {}),
+          };
+          aiSettingsForm.reset({
+            ...DEFAULT_AI_SETTINGS, // Load defaults first
+            ...data, // Then override with Firestore data
+            followUpDelays: followUpDelaysWithDefaults, // Apply merged followUpDelays
+          } as AiSettingsFormValues);
         } else {
           aiSettingsForm.reset(DEFAULT_AI_SETTINGS);
         }
@@ -387,7 +398,16 @@ export default function SettingsPage() {
     setIsSavingAiSettings(true);
     try {
       const settingsDocRef = doc(db, 'appSettings', 'aiAgentConfig');
-      await setDoc(settingsDocRef, { ...data, updatedAt: serverTimestamp() }, { merge: true });
+      const dataToSave = { ...data };
+      if (!data.enableFollowUp) {
+        // If follow-up is disabled, we might want to clear or not save the delay/template fields
+        // delete dataToSave.followUpMessageTemplate; // Or set to "" or undefined
+        // delete dataToSave.followUpDelays; // Or set to empty object or undefined
+      } else {
+        // Ensure followUpDelays object exists if enableFollowUp is true
+        dataToSave.followUpDelays = data.followUpDelays || DEFAULT_AI_SETTINGS.followUpDelays;
+      }
+      await setDoc(settingsDocRef, { ...dataToSave, updatedAt: serverTimestamp() }, { merge: true });
       toast({ title: "Sukses", description: "Pengaturan Agen AI berhasil disimpan." });
     } catch (error) {
       console.error("Error saving AI agent settings: ", error);
@@ -751,8 +771,8 @@ export default function SettingsPage() {
                           render={({ field }) => (
                             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                               <div className="space-y-0.5">
-                                <FormLabel>Aktifkan Fitur Follow-up</FormLabel>
-                                <FormDescription>Agen AI akan mencoba follow-up pelanggan yang belum ada kelanjutan.</FormDescription>
+                                <FormLabel>Aktifkan Fitur Follow-up Berulang</FormLabel>
+                                <FormDescription>Agen AI akan mencoba follow-up pelanggan yang belum ada kelanjutan dengan jadwal berulang.</FormDescription>
                               </div>
                               <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                             </FormItem>
@@ -760,32 +780,80 @@ export default function SettingsPage() {
                         />
                         {watchedEnableFollowUp && (
                           <Card className="p-4 bg-muted/50 border-dashed">
+                            <CardHeader className="p-0 pb-3">
+                                <CardTitle className="text-md">Pengaturan Jadwal Follow-up</CardTitle>
+                                <CardDescription className="text-xs">Interval dihitung dari upaya follow-up sebelumnya jika tidak ada respons.</CardDescription>
+                            </CardHeader>
                             <CardContent className="p-0 space-y-4">
                               <FormField
                                 control={aiSettingsForm.control}
                                 name="followUpMessageTemplate"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel>Template Pesan Follow-up</FormLabel>
+                                    <FormLabel>Template Pesan Follow-up (Umum)</FormLabel>
                                     <FormControl><Textarea placeholder="Tulis template pesan untuk follow-up..." {...field} rows={3} /></FormControl>
                                     <FormMessage />
                                   </FormItem>
                                 )}
                               />
-                              <FormField
-                                control={aiSettingsForm.control}
-                                name="followUpDelayDays"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Penundaan Follow-up (Hari)</FormLabel>
-                                    <FormControl><Input type="number" placeholder="mis. 3" {...field} 
-                                      onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
-                                      value={field.value === undefined ? '' : String(field.value)}
-                                    /></FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <FormField
+                                    control={aiSettingsForm.control}
+                                    name="followUpDelays.firstAttemptHours"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Penundaan Pertama (Jam)</FormLabel>
+                                        <FormControl><Input type="number" placeholder="mis. 24" {...field} 
+                                        onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
+                                        value={field.value === undefined ? '' : String(field.value)}
+                                        /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={aiSettingsForm.control}
+                                    name="followUpDelays.secondAttemptDays"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Penundaan Ke-2 (Hari)</FormLabel>
+                                        <FormControl><Input type="number" placeholder="mis. 7" {...field}
+                                        onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
+                                        value={field.value === undefined ? '' : String(field.value)}
+                                        /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={aiSettingsForm.control}
+                                    name="followUpDelays.thirdAttemptDays"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Penundaan Ke-3 (Hari)</FormLabel>
+                                        <FormControl><Input type="number" placeholder="mis. 7" {...field} 
+                                        onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
+                                        value={field.value === undefined ? '' : String(field.value)}
+                                        /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={aiSettingsForm.control}
+                                    name="followUpDelays.fourthAttemptDays"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Penundaan Ke-4 (Hari)</FormLabel>
+                                        <FormControl><Input type="number" placeholder="mis. 30" {...field} 
+                                        onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
+                                        value={field.value === undefined ? '' : String(field.value)}
+                                        /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                              </div>
                             </CardContent>
                           </Card>
                         )}
@@ -823,7 +891,7 @@ export default function SettingsPage() {
                       <Label htmlFor="loyalty-program-active" className="font-medium">Aktifkan Program Loyalitas</Label>
                       <p className="text-sm text-muted-foreground">Izinkan pelanggan mendapatkan dan menukarkan poin.</p>
                     </div>
-                    <Switch id="loyalty-program-active" defaultChecked />
+                    <Switch id="loyalty-program-active" defaultChecked disabled/>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="min-points-redeem-general">Minimum Poin Umum untuk Tukar Reward</Label>
