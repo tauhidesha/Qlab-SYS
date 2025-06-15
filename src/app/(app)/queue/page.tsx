@@ -524,14 +524,13 @@ function AssignStaffDialog({ isOpen, onClose, onSubmit, staffList, isSubmitting,
 
 // Helper function to format estimated time for notifications
 function formatEstimatedTimeForNotification(timeString?: string): string {
-  if (!timeString || timeString.trim() === '' || timeString.toLowerCase() === 'n/a') {
-    return 'Estimasi belum ditentukan';
+  if (!timeString || timeString.trim() === '' || timeString.trim().toLowerCase() === 'n/a') {
+    return 'Estimasi waktu akan diinformasikan segera';
   }
 
-  const cleanedTime = timeString.trim(); // Keep original casing for existing units
-
-  // If it's purely a number, assume minutes
+  const cleanedTime = timeString.trim();
   const numericValue = parseInt(cleanedTime, 10);
+
   if (!isNaN(numericValue) && String(numericValue) === cleanedTime && numericValue > 0) {
     const totalMinutes = numericValue;
     const hours = Math.floor(totalMinutes / 60);
@@ -545,14 +544,14 @@ function formatEstimatedTimeForNotification(timeString?: string): string {
       }
     } else if (minutes > 0) {
       result += `${minutes} menit`;
-    } else { // Should not happen if numericValue > 0
-      return `sekitar ${timeString}`; // Fallback
+    } else { // Fallback if numericValue > 0 but hours and minutes are 0 (e.g. for "0")
+      return `sekitar ${cleanedTime} menit`; // Or handle as "Estimasi belum ditentukan"
     }
     return result;
   }
 
-  // For other formats (e.g., "1 jam", "30 mnt", "2 hari"), just prepend "sekitar "
-  return `sekitar ${timeString}`;
+  // If it's not a pure number, assume it's already formatted (e.g., "1 jam", "30 mnt")
+  return `sekitar ${cleanedTime}`;
 }
 
 
