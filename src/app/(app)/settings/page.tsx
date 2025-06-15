@@ -256,15 +256,14 @@ export default function SettingsPage() {
         const docSnap = await getDoc(settingsDocRef);
         if (docSnap.exists()) {
           const data = docSnap.data();
-          // Ensure followUpDelays has default values if not present in Firestore
           const followUpDelaysWithDefaults = {
             ...DEFAULT_AI_SETTINGS.followUpDelays,
             ...(data.followUpDelays || {}),
           };
           aiSettingsForm.reset({
-            ...DEFAULT_AI_SETTINGS, // Load defaults first
-            ...data, // Then override with Firestore data
-            followUpDelays: followUpDelaysWithDefaults, // Apply merged followUpDelays
+            ...DEFAULT_AI_SETTINGS, 
+            ...data, 
+            followUpDelays: followUpDelaysWithDefaults,
           } as AiSettingsFormValues);
         } else {
           aiSettingsForm.reset(DEFAULT_AI_SETTINGS);
@@ -400,11 +399,7 @@ export default function SettingsPage() {
       const settingsDocRef = doc(db, 'appSettings', 'aiAgentConfig');
       const dataToSave = { ...data };
       if (!data.enableFollowUp) {
-        // If follow-up is disabled, we might want to clear or not save the delay/template fields
-        // delete dataToSave.followUpMessageTemplate; // Or set to "" or undefined
-        // delete dataToSave.followUpDelays; // Or set to empty object or undefined
       } else {
-        // Ensure followUpDelays object exists if enableFollowUp is true
         dataToSave.followUpDelays = data.followUpDelays || DEFAULT_AI_SETTINGS.followUpDelays;
       }
       await setDoc(settingsDocRef, { ...dataToSave, updatedAt: serverTimestamp() }, { merge: true });
@@ -771,8 +766,8 @@ export default function SettingsPage() {
                           render={({ field }) => (
                             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
                               <div className="space-y-0.5">
-                                <FormLabel>Aktifkan Fitur Follow-up Berulang</FormLabel>
-                                <FormDescription>Agen AI akan mencoba follow-up pelanggan yang belum ada kelanjutan dengan jadwal berulang.</FormDescription>
+                                <FormLabel>Aktifkan Fitur Follow-up</FormLabel>
+                                <FormDescription>Agen AI akan mengirimkan pesan follow-up berkala kepada pelanggan yang pernah menghubungi via WhatsApp namun belum melakukan kunjungan atau transaksi.</FormDescription>
                               </div>
                               <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                             </FormItem>
@@ -782,7 +777,7 @@ export default function SettingsPage() {
                           <Card className="p-4 bg-muted/50 border-dashed">
                             <CardHeader className="p-0 pb-3">
                                 <CardTitle className="text-md">Pengaturan Jadwal Follow-up</CardTitle>
-                                <CardDescription className="text-xs">Interval dihitung dari upaya follow-up sebelumnya jika tidak ada respons.</CardDescription>
+                                <CardDescription className="text-xs">Interval dihitung dari upaya follow-up sebelumnya jika pelanggan belum berkunjung/bertransaksi.</CardDescription>
                             </CardHeader>
                             <CardContent className="p-0 space-y-4">
                               <FormField
@@ -790,7 +785,7 @@ export default function SettingsPage() {
                                 name="followUpMessageTemplate"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel>Template Pesan Follow-up (Umum)</FormLabel>
+                                    <FormLabel>Template Pesan Follow-up (Untuk Kontak Awal)</FormLabel>
                                     <FormControl><Textarea placeholder="Tulis template pesan untuk follow-up..." {...field} rows={3} /></FormControl>
                                     <FormMessage />
                                   </FormItem>
@@ -802,7 +797,7 @@ export default function SettingsPage() {
                                     name="followUpDelays.firstAttemptHours"
                                     render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Penundaan Pertama (Jam)</FormLabel>
+                                        <FormLabel>Penundaan Pertama (Jam setelah kontak awal)</FormLabel>
                                         <FormControl><Input type="number" placeholder="mis. 24" {...field} 
                                         onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
                                         value={field.value === undefined ? '' : String(field.value)}
@@ -816,7 +811,7 @@ export default function SettingsPage() {
                                     name="followUpDelays.secondAttemptDays"
                                     render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Penundaan Ke-2 (Hari)</FormLabel>
+                                        <FormLabel>Penundaan Ke-2 (Hari setelah upaya pertama)</FormLabel>
                                         <FormControl><Input type="number" placeholder="mis. 7" {...field}
                                         onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
                                         value={field.value === undefined ? '' : String(field.value)}
@@ -830,7 +825,7 @@ export default function SettingsPage() {
                                     name="followUpDelays.thirdAttemptDays"
                                     render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Penundaan Ke-3 (Hari)</FormLabel>
+                                        <FormLabel>Penundaan Ke-3 (Hari setelah upaya kedua)</FormLabel>
                                         <FormControl><Input type="number" placeholder="mis. 7" {...field} 
                                         onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
                                         value={field.value === undefined ? '' : String(field.value)}
@@ -844,7 +839,7 @@ export default function SettingsPage() {
                                     name="followUpDelays.fourthAttemptDays"
                                     render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Penundaan Ke-4 (Hari)</FormLabel>
+                                        <FormLabel>Penundaan Ke-4 (Hari setelah upaya ketiga)</FormLabel>
                                         <FormControl><Input type="number" placeholder="mis. 30" {...field} 
                                         onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
                                         value={field.value === undefined ? '' : String(field.value)}
