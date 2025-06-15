@@ -1,6 +1,7 @@
 
 import { NextResponse } from 'next/server';
-import { generateWhatsAppReply, type WhatsAppReplyInput, WhatsAppReplyInputSchema } from '@/ai/flows/cs-whatsapp-reply-flow';
+import { generateWhatsAppReply } from '@/ai/flows/cs-whatsapp-reply-flow';
+import { WhatsAppReplyInputSchema } from '@/types/ai/cs-whatsapp-reply'; // Updated import path
 import { ZodError } from 'zod';
 
 // Pastikan genkit diinisialisasi

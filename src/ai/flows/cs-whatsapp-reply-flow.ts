@@ -5,28 +5,15 @@
  * Dilengkapi dengan kemampuan untuk mencari informasi produk/layanan dan data klien.
  *
  * - generateWhatsAppReply - Fungsi yang menghasilkan draf balasan.
- * - WhatsAppReplyInputSchema - Skema Zod untuk validasi input.
- * - WhatsAppReplyInput - Tipe input untuk fungsi generateWhatsAppReply.
- * - WhatsAppReplyOutputSchema - Skema Zod untuk validasi output.
- * - WhatsAppReplyOutput - Tipe output untuk fungsi generateWhatsAppReply.
+ * - (Skema dan Tipe sekarang di src/types/ai/cs-whatsapp-reply.ts)
  */
 
 import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
 import { getProductServiceDetailsByNameTool } from '@/ai/tools/productLookupTool';
 import { getClientDetailsTool } from '@/ai/tools/clientLookupTool';
+import type { WhatsAppReplyInput, WhatsAppReplyOutput } from '@/types/ai/cs-whatsapp-reply';
+import { WhatsAppReplyInputSchema, WhatsAppReplyOutputSchema } from '@/types/ai/cs-whatsapp-reply';
 
-export const WhatsAppReplyInputSchema = z.object({
-  customerMessage: z.string().describe('Pesan yang diterima dari pelanggan melalui WhatsApp.'),
-  // Anda bisa tambahkan field lain di sini jika dibutuhkan oleh flow, mis. senderNumber, customerName
-  // senderNumber: z.string().optional().describe('Nomor WhatsApp pengirim pesan.'),
-});
-export type WhatsAppReplyInput = z.infer<typeof WhatsAppReplyInputSchema>;
-
-export const WhatsAppReplyOutputSchema = z.object({
-  suggestedReply: z.string().describe('Saran balasan yang dihasilkan AI untuk dikirim ke pelanggan.'),
-});
-export type WhatsAppReplyOutput = z.infer<typeof WhatsAppReplyOutputSchema>;
 
 export async function generateWhatsAppReply(input: WhatsAppReplyInput): Promise<WhatsAppReplyOutput> {
   return whatsAppReplyFlow(input);
@@ -98,5 +85,6 @@ const whatsAppReplyFlow = ai.defineFlow(
   }
 );
 
+// Komentar di bawah bisa dihapus jika tidak diperlukan lagi.
 // Tidak perlu ekspor whatsAppReplyFlow jika hanya digunakan via API route Next.js
 // export { whatsAppReplyFlow };
