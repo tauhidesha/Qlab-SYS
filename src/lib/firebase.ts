@@ -1,6 +1,6 @@
 
 import { initializeApp, getApp, getApps, type FirebaseApp } from "firebase/app";
-import { getFirestore, type Firestore, connectFirestoreEmulator } from "firebase/firestore";
+import { getFirestore, type Firestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -22,20 +22,6 @@ if (getApps().length === 0) {
 
 db = getFirestore(app);
 
-// Connect to Firestore Emulator if the flag is set to true
-// This is useful for local development.
-// Ensure your .env.local file has NEXT_PUBLIC_USE_FIREBASE_EMULATOR=true
-// and that your Firebase Emulators (especially Firestore) are running.
-if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true') {
-  console.log("Firebase.ts: Attempting to connect to Firestore Emulator (localhost:8080).");
-  try {
-    connectFirestoreEmulator(db, 'localhost', 8080);
-    console.log("🔥 Firebase.ts: Connected to Firestore Emulator.");
-  } catch (error) {
-    console.error("🔥 Firebase.ts: FAILED to connect to Firestore Emulator:", error);
-  }
-} else {
-  console.log("Firebase.ts: Connecting to Cloud Firestore (Emulator not in use or flag not set).");
-}
+console.log("Firebase.ts: Initialized and connecting to Cloud Firestore.");
 
 export { app, db };
