@@ -1,147 +1,85 @@
-
 // src/services/whatsappService.ts
-import { Client, LocalAuth, type Message } from 'whatsapp-web.js';
-import qrcode from 'qrcode-terminal';
 
-let clientInstance: Client | null = null;
-
-export function getWhatsAppClient(): Client {
-    if (!clientInstance) {
-        console.log('Initializing new WhatsApp client instance...');
-        clientInstance = new Client({
-            authStrategy: new LocalAuth({ clientId: "qlab-pos-whatsapp" }),
-            puppeteer: {
-                headless: true,
-                args: [
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--disable-accelerated-2d-canvas',
-                    '--no-first-run',
-                    '--no-zygote',
-                    // '--single-process', // Can cause issues on some systems
-                    '--disable-gpu',
-                ],
-                // Jika kamu punya Chrome/Chromium terinstal global dan ingin memakainya:
-                // executablePath: '/usr/bin/google-chrome-stable', 
-            },
-            // Untuk FFMPEG jika mengirim/menerima audio/video (tidak diperlukan untuk teks dasar)
-            // ffmpegPath: '/path/to/ffmpeg', 
-        });
-
-        clientInstance.on('qr', (qr) => {
-            console.log('QR Code Diterima. Scan dengan HP Anda:');
-            qrcode.generate(qr, { small: true });
-        });
-
-        clientInstance.on('ready', () => {
-            console.log('WhatsApp Client siap digunakan!');
-        });
-
-        clientInstance.on('authenticated', () => {
-            console.log('WhatsApp Client terautentikasi!');
-        });
-
-        clientInstance.on('auth_failure', (msg) => {
-            console.error('Kegagalan Otentikasi WhatsApp:', msg);
-            // Pertimbangkan logika pembersihan atau coba lagi di sini
-        });
-
-        clientInstance.on('disconnected', (reason) => {
-            console.log('WhatsApp Client terputus:', reason);
-            clientInstance = null; // Reset instance agar bisa diinisialisasi ulang
-            // Implementasikan logika koneksi ulang atau sistem peringatan di sini untuk layanan produksi
-        });
-
-        clientInstance.on('message', async (msg: Message) => {
-            console.log('PESAN DITERIMA DARI:', msg.from, 'ISI:', msg.body);
-            // Di sini kamu akan menangani pesan masuk, misalnya, teruskan ke flow Genkit
-            // Contoh sederhana:
-            // if (msg.body === '!ping') {
-            //   await msg.reply('pong');
-            // }
-        });
-
-    }
-    return clientInstance;
+interface SendMessageResponse {
+  success: boolean;
+  messageId?: string;
+  error?: string;
 }
 
-export async function startWhatsAppService() {
-    const client = getWhatsAppClient();
-    // Cek apakah client perlu diinisialisasi (belum punya info atau belum ready)
-    if (!client.pupPage) { // client.pupPage adalah salah satu properti yang ada setelah initialize
-        try {
-            console.log('Memulai inisialisasi layanan WhatsApp...');
-            await client.initialize();
-            console.log('Proses inisialisasi klien telah dimulai. Tunggu QR atau status ready.');
-        } catch (error) {
-            console.error('Gagal menginisialisasi WhatsApp client di startWhatsAppService:', error);
-            // Secara opsional, lempar ulang error atau tangani sesuai kebutuhan aplikasi Anda
-        }
-    } else {
-        console.log('WhatsApp client sudah diinisialisasi atau siap.');
+export async function sendWhatsAppMessage(number: string, message: string): Promise<SendMessageResponse> {
+  const whatsappServerUrl = process.env.WHATSAPP_SERVER_URL || 'http://localhost:8080/send-message'; // Default jika tidak ada di .env
+
+  // Nomor harus dalam format: [kode_negara][nomor] (mis., 6281234567890)
+  // Server WhatsApp lokal Anda yang akan menangani penambahan @c.us jika perlu.
+  const cleanedNumber = number.replace(/\D/g, '');
+
+  try {
+    console.log(`Mengirim permintaan ke server WhatsApp lokal di ${whatsappServerUrl} untuk nomor ${cleanedNumber}`);
+    const response = await fetch(whatsappServerUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        number: cleanedNumber,
+        message: message,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error(`Server WhatsApp lokal merespons dengan error ${response.status}: ${errorData}`);
+      return { success: false, error: `Server WhatsApp lokal error: ${response.status} - ${errorData || response.statusText}` };
     }
+
+    const responseData = await response.json();
+    console.log(`Pesan berhasil dikirim melalui server WhatsApp lokal ke ${cleanedNumber}`, responseData);
+    return { success: true, messageId: responseData.messageId || 'N/A' };
+  } catch (error) {
+    console.error(`Gagal mengirim pesan ke ${cleanedNumber} melalui server WhatsApp lokal:`, error);
+    if (error instanceof Error) {
+      return { success: false, error: `Error koneksi ke server WhatsApp lokal: ${error.message}` };
+    }
+    return { success: false, error: 'Error tidak diketahui saat menghubungi server WhatsApp lokal.' };
+  }
 }
 
-export async function sendWhatsAppMessage(number: string, message: string) {
-    const client = getWhatsAppClient();
-    if (!clientInstance || !clientInstance.pupPage) { 
-        console.error('WhatsApp client belum siap. Tidak bisa mengirim pesan.');
-        // Coba untuk memulai jika belum siap, atau beri tahu untuk memulainya.
-        await startWhatsAppService(); 
-        // Cek lagi setelah mencoba memulai
-        if(!clientInstance || !clientInstance.pupPage) {
-             throw new Error('WhatsApp client tidak bisa dimulai atau belum siap.');
-        }
-    }
-    
-    // Nomor harus dalam format: [kode_negara][nomor]@c.us (mis., 6281234567890@c.us)
-    const chatId = `${number.replace(/\D/g, '')}@c.us`;
-    try {
-        console.log(`Mengirim pesan ke ${chatId}: ${message}`);
-        const sentMessage = await client.sendMessage(chatId, message);
-        console.log(`Pesan berhasil dikirim ke ${chatId}`, sentMessage.id.id);
-        return { success: true, messageId: sentMessage.id.id }; // Contoh respons
-    } catch (error) {
-        console.error(`Gagal mengirim pesan ke ${chatId}:`, error);
-        throw error; // Lempar ulang error agar pemanggil bisa menangani
-    }
-}
-
-
-// --- CARA MENJALANKAN INI ---
-// File ini menyiapkan client. Untuk menjalankannya:
-// 1. Kamu butuh script Node.js terpisah yang mengimpor dan memanggil `startWhatsAppService()`.
-//    Contoh `jalankan-whatsapp.js`:
-//    --------------------------
-//    // Jika menggunakan CommonJS (misalnya file .js biasa)
-//    // const { startWhatsAppService } = require('./dist/services/whatsappService'); // Sesuaikan path setelah build jika pakai TS
-//    // Jika menggunakan ES Modules (tambahkan "type": "module" di package.json atau gunakan ekstensi .mjs)
-//    // import { startWhatsAppService } from './services/whatsappService.js'; // Atau path setelah build .ts ke .js
+// Catatan:
+// File ini sekarang mengasumsikan Anda memiliki server WhatsApp terpisah (berbasis whatsapp-web.js)
+// yang berjalan dan mendengarkan permintaan HTTP POST di WHATSAPP_SERVER_URL.
+// Server tersebut yang akan menangani logika untuk mengirim pesan via whatsapp-web.js.
 //
-//    // Untuk TypeScript langsung dengan tsx (misalnya):
-//    // import { startWhatsAppService } from './src/services/whatsappService';
+// Contoh implementasi server WhatsApp lokal sederhana (misalnya pakai Express.js):
 //
-//    async function main() {
-//        console.log("Mencoba memulai Layanan WhatsApp...");
-//        // Panggil startWhatsAppService di sini setelah mengimpornya dengan benar.
-//        // Contoh jika sudah dikompilasi ke JavaScript di folder 'dist':
-//        // const { startWhatsAppService } = require('./dist/services/whatsappService');
-//        // await startWhatsAppService();
-//        console.log("Layanan WhatsApp seharusnya berjalan. Cek konsol untuk QR code jika diperlukan.");
-//        // Script ini akan terus berjalan, menjaga WhatsApp client tetap hidup.
-//        // Kamu mungkin butuh PM2 atau sejenisnya untuk mengelola proses ini di produksi.
-//    }
-//    // main().catch(console.error); // Jalankan fungsi main
-//    --------------------------
-//    (Pastikan kamu meng-compile TypeScript ke JavaScript dulu jika tidak pakai `tsx` atau sejenisnya untuk menjalankan TS langsung)
+// const express = require('express');
+// const { Client, LocalAuth } = require('whatsapp-web.js'); // Di server WhatsApp lokalmu
+// const app = express();
+// const port = 8080; // Sesuaikan dengan WHATSAPP_SERVER_URL
 //
-// 2. Jalankan `node path/ke/script/jalankan-whatsapp.js`.
+// app.use(express.json());
 //
-// PENTING untuk Serverless (seperti Firebase App Hosting / Next.js di Vercel):
-// `whatsapp-web.js` dengan Puppeteer tidak dirancang untuk environment serverless
-// karena butuh proses yang berjalan lama dan instance browser.
-// Kamu biasanya menjalankan ini di server dedicated, VM, atau layanan seperti Cloud Run.
+// const client = new Client({ authStrategy: new LocalAuth({ clientId: "my-whatsapp-server" }) });
+// client.on('qr', qr => { console.log('Scan QR ini:', qr); });
+// client.on('ready', () => { console.log('WhatsApp Server Siap!'); });
+// client.initialize();
 //
-// Modul ini sekarang mengekspor fungsi, tapi tidak otomatis menjalankannya.
-// Anda perlu membuat script eksekusi terpisah.
+// app.post('/send-message', async (req, res) => {
+//   const { number, message } = req.body;
+//   if (!number || !message) {
+//     return res.status(400).json({ error: 'Nomor dan pesan diperlukan.' });
+//   }
+//   try {
+//     const chatId = `${number}@c.us`;
+//     const sentMessage = await client.sendMessage(chatId, message);
+//     res.status(200).json({ success: true, messageId: sentMessage.id.id });
+//   } catch (e) {
+//     console.error("Gagal kirim pesan dari server lokal:", e);
+//     res.status(500).json({ error: 'Gagal mengirim pesan WhatsApp.', details: e.message });
+//   }
+// });
+//
+// app.listen(port, () => {
+//   console.log(`Server WhatsApp lokal berjalan di http://localhost:${port}`);
+// });
+//
+// Anda perlu menjalankan script server seperti di atas di laptop Anda.

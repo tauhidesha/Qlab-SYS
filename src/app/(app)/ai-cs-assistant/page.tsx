@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Loader2, MessageSquareText, Sparkles, Copy, Send, User, Search, Bot } from 'lucide-react';
+import { Loader2, MessageSquareText, Sparkles, Copy, Send, User, Search, Bot, MessageCircle } from 'lucide-react'; // Added MessageCircle
 import { useToast } from '@/hooks/use-toast';
 import { generateWhatsAppReply, type WhatsAppReplyInput, type WhatsAppReplyOutput } from '@/ai/flows/cs-whatsapp-reply-flow';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -33,6 +33,7 @@ interface Customer {
   lastMessageTimestamp: string;
   lastMessage: string;
   unreadCount: number;
+  phone?: string; // Tambahkan phone
 }
 
 export default function AiCsAssistantPage() {
@@ -47,6 +48,8 @@ export default function AiCsAssistantPage() {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isPlaygroundMode, setIsPlaygroundMode] = useState(false);
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
+
 
   const fetchCustomers = async (): Promise<Customer[]> => {
     console.log("Fetching actual customers from Firestore...");
@@ -63,6 +66,7 @@ export default function AiCsAssistantPage() {
         lastMessageTimestamp: client.lastVisit || 'N/A',
         lastMessage: 'Klik untuk melihat chat...',
         unreadCount: 0,
+        phone: client.phone, // Tambahkan phone
       }));
     } catch (error) {
       console.error("Error fetching customers from Firestore: ", error);
@@ -247,6 +251,44 @@ export default function AiCsAssistantPage() {
       handleSendMessage();
     }
   };
+
+  const handleSendWhatsAppLocal = async () => {
+    if (!selectedCustomer || !selectedCustomer.phone || !suggestedReply) {
+      toast({
+        title: "Info Tidak Lengkap",
+        description: "Pastikan pelanggan terpilih memiliki nomor HP dan ada saran balasan dari AI.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setIsSendingWhatsApp(true);
+    try {
+      const response = await fetch('/api/whatsapp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ number: selectedCustomer.phone, message: suggestedReply }),
+      });
+      const result = await response.json();
+      if (response.ok && result.success) {
+        toast({
+          title: "Berhasil Dikirim (via Server Lokal)",
+          description: `Pesan telah dikirim ke ${selectedCustomer.name} (${selectedCustomer.phone}). ID: ${result.messageId || 'N/A'}`,
+        });
+      } else {
+        throw new Error(result.error || 'Gagal mengirim pesan via server lokal.');
+      }
+    } catch (error) {
+      console.error("Error sending WhatsApp via local server:", error);
+      toast({
+        title: "Gagal Mengirim WhatsApp",
+        description: error instanceof Error ? error.message : "Terjadi kesalahan. Pastikan server WhatsApp lokal Anda berjalan.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingWhatsApp(false);
+    }
+  };
+
 
   const filteredCustomers = customers.filter(customer =>
     customer.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -504,13 +546,27 @@ export default function AiCsAssistantPage() {
                           className="border-dashed bg-background"
                         />
                       </Card>
-                      <Button onClick={handleCopyReply} variant="outline" size="sm" className="mt-2">
-                        <Copy className="mr-2 h-4 w-4" /> Salin Balasan
-                      </Button>
+                       <div className="flex space-x-2 mt-2">
+                         <Button onClick={handleCopyReply} variant="outline" size="sm">
+                            <Copy className="mr-2 h-4 w-4" /> Salin Balasan
+                         </Button>
+                         <Button 
+                            onClick={handleSendWhatsAppLocal} 
+                            variant="outline" 
+                            size="sm" 
+                            className="border-green-500 text-green-600 hover:bg-green-500/10 hover:text-green-700"
+                            disabled={isSendingWhatsApp || !selectedCustomer?.phone}
+                         >
+                            {isSendingWhatsApp ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageCircle className="mr-2 h-4 w-4" />}
+                            Kirim via WA (Lokal)
+                         </Button>
+                       </div>
+                       {!selectedCustomer?.phone && (
+                         <p className="text-xs text-destructive mt-1">Nomor HP pelanggan tidak tersedia untuk pengiriman WhatsApp.</p>
+                       )}
                     </div>
                   )}
                 </CardContent>
-                 {/* CardFooter yang berisi teks bantuan "Tekan Enter..." dihapus */}
               </Card>
             </>
           )}
