@@ -2,29 +2,65 @@
 'use server';
 /**
  * @fileOverview Flow AI untuk membantu membuat balasan pesan WhatsApp customer service.
- * Dilengkapi dengan kemampuan untuk mencari informasi produk/layanan dan data klien.
+ * Dilengkapi dengan kemampuan untuk mencari informasi produk/layanan dan data klien,
+ * serta menggunakan pengaturan agen AI dinamis dari Firestore.
  *
  * - generateWhatsAppReply - Fungsi yang menghasilkan draf balasan.
  * - (Skema dan Tipe sekarang di src/types/ai/cs-whatsapp-reply.ts)
  */
 
-import {ai} from '@/ai/genkit';
+import { ai } from '@/ai/genkit';
 import { getProductServiceDetailsByNameTool } from '@/ai/tools/productLookupTool';
 import { getClientDetailsTool } from '@/ai/tools/clientLookupTool';
 import type { WhatsAppReplyInput, WhatsAppReplyOutput } from '@/types/ai/cs-whatsapp-reply';
 import { WhatsAppReplyInputSchema, WhatsAppReplyOutputSchema } from '@/types/ai/cs-whatsapp-reply';
 
+import { db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import type { AiSettingsFormValues } from '@/types/aiSettings';
+import { DEFAULT_AI_SETTINGS } from '@/types/aiSettings';
+
 
 export async function generateWhatsAppReply(input: WhatsAppReplyInput): Promise<WhatsAppReplyOutput> {
-  return whatsAppReplyFlow(input);
+  // Fetch AI Agent Settings from Firestore
+  let agentBehavior = DEFAULT_AI_SETTINGS.agentBehavior;
+  let knowledgeBaseDescription = DEFAULT_AI_SETTINGS.knowledgeBaseDescription;
+
+  try {
+    const settingsDocRef = doc(db, 'appSettings', 'aiAgentConfig');
+    const docSnap = await getDoc(settingsDocRef);
+    if (docSnap.exists()) {
+      const settings = docSnap.data() as AiSettingsFormValues;
+      agentBehavior = settings.agentBehavior || agentBehavior;
+      knowledgeBaseDescription = settings.knowledgeBaseDescription || knowledgeBaseDescription;
+      console.log("AI Settings loaded from Firestore:", settings);
+    } else {
+      console.log("AI Settings not found in Firestore, using defaults.");
+    }
+  } catch (error) {
+    console.error("Error fetching AI settings from Firestore, using defaults:", error);
+  }
+
+  const promptInput = {
+    customerMessage: input.customerMessage,
+    agentBehavior: agentBehavior,
+    knowledgeBase: knowledgeBaseDescription,
+  };
+
+  return whatsAppReplyFlow(promptInput);
 }
 
+// Perhatikan bahwa input schema untuk replyPrompt sekarang adalah WhatsAppReplyInputSchema
+// yang sudah menyertakan agentBehavior dan knowledgeBase.
 const replyPrompt = ai.definePrompt({
   name: 'whatsAppReplyPrompt',
-  input: {schema: WhatsAppReplyInputSchema},
-  output: {schema: WhatsAppReplyOutputSchema},
+  input: { schema: WhatsAppReplyInputSchema }, // Menggunakan skema yang sudah diperbarui
+  output: { schema: WhatsAppReplyOutputSchema },
   tools: [getProductServiceDetailsByNameTool, getClientDetailsTool],
   prompt: `Anda adalah seorang Customer Service Assistant AI untuk QLAB Auto Detailing, sebuah bengkel perawatan dan detailing motor.
+Perilaku Anda harus: {{{agentBehavior}}}.
+Gunakan deskripsi sumber pengetahuan berikut sebagai panduan utama Anda: {{{knowledgeBase}}}
+
 Tugas Anda adalah membantu staf CS membuat balasan yang sopan, ramah, informatif, dan profesional untuk pesan WhatsApp dari pelanggan.
 
 Pesan dari Pelanggan:
@@ -68,19 +104,20 @@ Pastikan balasan Anda tetap ramah dan profesional.
 `,
 });
 
+// Wrapper function ini sekarang menerima input yang sudah diperkaya dengan data dari Firestore
 const whatsAppReplyFlow = ai.defineFlow(
   {
     name: 'whatsAppReplyFlow',
-    inputSchema: WhatsAppReplyInputSchema,
+    inputSchema: WhatsAppReplyInputSchema, // Menggunakan skema yang sudah diperbarui
     outputSchema: WhatsAppReplyOutputSchema,
   },
-  async (input) => {
-    console.log("WhatsAppReplyFlow input:", input);
-    const {output} = await replyPrompt(input);
+  async (input) => { // input di sini adalah promptInput dari fungsi generateWhatsAppReply
+    console.log("WhatsAppReplyFlow (internal) input:", input);
+    const { output } = await replyPrompt(input); // Memanggil prompt dengan input yang sudah diperkaya
     if (!output) {
       throw new Error('Gagal mendapatkan saran balasan dari AI.');
     }
-    console.log("WhatsAppReplyFlow output:", output);
+    console.log("WhatsAppReplyFlow (internal) output:", output);
     return output;
   }
 );
