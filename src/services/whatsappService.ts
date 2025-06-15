@@ -26,18 +26,21 @@ function formatPhoneNumber(number: string): string {
 
 
 export async function sendWhatsAppMessage(number: string, message: string): Promise<SendMessageResponse> {
-  const whatsappServerUrl = process.env.WHATSAPP_SERVER_URL; // Sekarang ini URL lengkap termasuk /send-message
+  const whatsappServerUrl = process.env.WHATSAPP_SERVER_URL;
 
   if (!whatsappServerUrl) {
-    console.error("WHATSAPP_SERVER_URL tidak di-set di environment variables.");
-    return { success: false, error: "Konfigurasi server WhatsApp tidak ditemukan." };
+    const errorMsg = "WHATSAPP_SERVER_URL tidak di-set di environment variables.";
+    console.error(`WhatsappService: ${errorMsg}`);
+    return { success: false, error: errorMsg };
   }
   
+  console.log(`WhatsappService: WHATSAPP_SERVER_URL yang digunakan: ${whatsappServerUrl}`); // Log URL yang akan di-fetch
+
   const formattedNumber = formatPhoneNumber(number);
 
   try {
-    console.log(`WhatsappService: Mengirim permintaan ke server WhatsApp lokal di ${whatsappServerUrl} untuk nomor ${formattedNumber}`);
-    const response = await fetch(whatsappServerUrl, { // URL sudah lengkap dari .env
+    console.log(`WhatsappService: Mengirim permintaan ke server WhatsApp di ${whatsappServerUrl} untuk nomor ${formattedNumber}`);
+    const response = await fetch(whatsappServerUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -56,16 +59,17 @@ export async function sendWhatsAppMessage(number: string, message: string): Prom
       } catch (e) {
         errorData = { error: errorBody }; 
       }
-      console.error(`WhatsappService: Server WhatsApp lokal merespons dengan error ${response.status}:`, errorData);
-      return { success: false, error: `Server WhatsApp lokal error: ${response.status} - ${errorData.error || errorData.details || response.statusText}` };
+      console.error(`WhatsappService: Server WhatsApp merespons dengan error ${response.status} saat mencoba ${whatsappServerUrl}:`, errorData);
+      return { success: false, error: `Server WhatsApp error: ${response.status} - ${errorData.error || errorData.details || response.statusText}` };
     }
 
     const responseData = await response.json();
-    console.log(`WhatsappService: Pesan berhasil dikirim via server WhatsApp lokal ke ${formattedNumber}`, responseData);
+    console.log(`WhatsappService: Pesan berhasil dikirim via server WhatsApp ke ${formattedNumber}`, responseData);
     return { success: true, messageId: responseData.messageId || 'N/A' };
   } catch (error) {
-    console.error(`WhatsappService: Gagal mengirim pesan ke ${formattedNumber} via server WhatsApp lokal:`, error);
+    console.error(`WhatsappService: Gagal mengirim pesan ke ${formattedNumber} via ${whatsappServerUrl}. Error:`, error);
     if (error instanceof Error) {
+      // Pesan error 'fetch failed' biasanya dari sini.
       return { success: false, error: `Error koneksi ke server WhatsApp lokal: ${error.message}` };
     }
     return { success: false, error: 'Error tidak diketahui saat menghubungi server WhatsApp lokal.' };
@@ -103,11 +107,16 @@ export async function sendWhatsAppMessage(number: string, message: string): Prom
 //     const response = await fetch(nextjsReceiveEndpoint, {
 //       method: 'POST',
 //       headers: { 'Content-Type': 'application/json' },
-//       body: JSON.stringify({ senderNumber, customerMessage }),
+//       body: JSON.stringify({ senderNumber, customerMessage }), // Kirim senderNumber juga
 //     });
 //     const responseData = await response.json();
 //     if (response.ok && responseData.success) {
 //       console.log('Pesan berhasil diteruskan ke Next.js dan balasan AI (jika ada) sudah diproses untuk dikirim.');
+//       // Jika API Next.js membalas dengan AI reply, dan kamu mau kirim balik via whatsapp.js
+//       // if (responseData.reply && responseData.reply.suggestedReply) {
+//       //   await client.sendMessage(msg.from, responseData.reply.suggestedReply);
+//       //   console.log('Balasan AI dikirim ke pelanggan.');
+//       // }
 //     } else {
 //       console.error('Gagal meneruskan pesan ke Next.js atau Next.js gagal memproses:', responseData.error || response.statusText);
 //     }
@@ -115,3 +124,4 @@ export async function sendWhatsAppMessage(number: string, message: string): Prom
 //     console.error('Error saat mengirim pesan ke Next.js API:', fetchError);
 //   }
 // });
+
