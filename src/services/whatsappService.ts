@@ -26,15 +26,10 @@ function formatPhoneNumber(number: string): string {
 
 
 export async function sendWhatsAppMessage(number: string, message: string): Promise<SendMessageResponse> {
-  const whatsappServerUrl = process.env.WHATSAPP_SERVER_URL;
+  // Langsung menggunakan URL yang diberikan
+  const whatsappServerUrl = 'https://c2b4-103-3-220-151.ngrok-free.app/send-message';
 
-  if (!whatsappServerUrl) {
-    const errorMsg = "WHATSAPP_SERVER_URL tidak di-set di environment variables.";
-    console.error(`WhatsappService: ${errorMsg}`);
-    return { success: false, error: errorMsg };
-  }
-  
-  console.log(`WhatsappService: WHATSAPP_SERVER_URL yang digunakan: ${whatsappServerUrl}`); // Log URL yang akan di-fetch
+  console.log(`WhatsappService: WHATSAPP_SERVER_URL (hardcoded): ${whatsappServerUrl}`); // Log URL yang akan di-fetch
 
   const formattedNumber = formatPhoneNumber(number);
 
