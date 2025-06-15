@@ -99,11 +99,21 @@ const analyzeProfitLossFlow = ai.defineFlow(
     // Log input untuk debugging jika perlu
     // console.log("Input to analyzeProfitLossFlow:", JSON.stringify(input, null, 2));
     
-    const {output} = await analyzePrompt(input);
-    if (!output) {
-        throw new Error("Gagal mendapatkan output dari prompt analisis P&L.");
-    }
+    // Temporarily commented out due to no LLM model configured
+    // const {output} = await analyzePrompt(input);
+    // if (!output) {
+    //     throw new Error("Gagal mendapatkan output dari prompt analisis P&L.");
+    // }
     // console.log("Output from analyzeProfitLossFlow:", JSON.stringify(output, null, 2));
-    return output;
+    // return output;
+
+    // Return a dummy response since LLM is not configured
+    console.warn("WARN: LLM model is not configured. Returning dummy P&L analysis.");
+    return {
+      summary: "[AI Tidak Aktif] Analisis AI tidak tersedia karena model belum terkonfigurasi.",
+      keyObservations: ["Pastikan model AI Genkit telah dikonfigurasi dengan benar untuk periode: " + input.period],
+      recommendations: ["Hubungi administrator untuk mengaktifkan fitur analisa AI."],
+    };
   }
 );
+

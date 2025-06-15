@@ -86,11 +86,19 @@ const whatsAppReplyFlow = ai.defineFlow(
   },
   async (input) => {
     console.log("WhatsAppReplyFlow input:", input);
-    const {output} = await replyPrompt(input);
-    if (!output) {
-      throw new Error('Gagal mendapatkan saran balasan dari AI.');
-    }
-    console.log("WhatsAppReplyFlow output:", output);
-    return output;
+    // Temporarily commented out due to no LLM model configured
+    // const {output} = await replyPrompt(input);
+    // if (!output) {
+    //   throw new Error('Gagal mendapatkan saran balasan dari AI.');
+    // }
+    // console.log("WhatsAppReplyFlow output:", output);
+    // return output;
+
+    // Return a dummy response since LLM is not configured
+    console.warn("WARN: LLM model is not configured. Returning dummy WhatsApp reply.");
+    return {
+      suggestedReply: `[AI Tidak Aktif] Maaf, saya tidak dapat memproses permintaan Anda saat ini karena model AI belum terkonfigurasi. Pesan Anda: "${input.customerMessage}"`,
+    };
   }
 );
+
