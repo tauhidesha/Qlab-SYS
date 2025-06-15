@@ -22,7 +22,8 @@ import {
   where,
   writeBatch,
   deleteField,
-  limit
+  limit,
+  type DocumentData
 } from 'firebase/firestore';
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -57,7 +58,6 @@ import type { Transaction, TransactionItem } from '@/types/transaction';
 import { v4 as uuidv4 } from 'uuid';
 import type { StaffMember, StaffRole } from '@/types/staff';
 import Link from 'next/link';
-// import { sendWhatsAppMessage } from '@/services/whatsappService'; // TIDAK DIPERLUKAN LAGI DI SINI
 
 
 export interface QueueItem { // Exporting for Dashboard
@@ -522,6 +522,39 @@ function AssignStaffDialog({ isOpen, onClose, onSubmit, staffList, isSubmitting,
   );
 }
 
+// Helper function to format estimated time for notifications
+function formatEstimatedTimeForNotification(timeString?: string): string {
+  if (!timeString || timeString.trim() === '' || timeString.toLowerCase() === 'n/a') {
+    return 'Estimasi belum ditentukan';
+  }
+
+  const cleanedTime = timeString.trim(); // Keep original casing for existing units
+
+  // If it's purely a number, assume minutes
+  const numericValue = parseInt(cleanedTime, 10);
+  if (!isNaN(numericValue) && String(numericValue) === cleanedTime && numericValue > 0) {
+    const totalMinutes = numericValue;
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+
+    let result = "sekitar ";
+    if (hours > 0) {
+      result += `${hours} jam`;
+      if (minutes > 0) {
+        result += ` ${minutes} menit`;
+      }
+    } else if (minutes > 0) {
+      result += `${minutes} menit`;
+    } else { // Should not happen if numericValue > 0
+      return `sekitar ${timeString}`; // Fallback
+    }
+    return result;
+  }
+
+  // For other formats (e.g., "1 jam", "30 mnt", "2 hari"), just prepend "sekitar "
+  return `sekitar ${timeString}`;
+}
+
 
 export default function QueuePage() {
   const [queueItems, setQueueItems] = useState<QueueItem[]>([]);
@@ -586,7 +619,6 @@ export default function QueuePage() {
     console.log(`[QueuePage] Found client: ${client.name}, Phone: ${client.phone}. Preparing to send message: "${message}" (Phone to use: "${client.phone}")`);
 
     try {
-      // Ganti dari pemanggilan langsung sendWhatsAppMessage ke fetch API route
       const response = await fetch('/api/whatsapp/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -951,7 +983,8 @@ export default function QueuePage() {
 
       toast({ title: "Staf Ditugaskan & Transaksi Dibuat/Diperbarui", description: `${staffName} ditugaskan ke ${itemBeingAssigned.customerName}. Status diubah & transaksi diperbarui.` });
       
-      const message = `Halo ${itemBeingAssigned.customerName}, layanan ${itemBeingAssigned.service} untuk ${itemBeingAssigned.vehicleInfo} Anda sudah mulai dikerjakan oleh Teknisi ${staffName}. Estimasi selesai: ${itemBeingAssigned.estimatedTime}. - QLAB`;
+      const formattedEstimatedTime = formatEstimatedTimeForNotification(itemBeingAssigned.estimatedTime);
+      const message = `Halo ${itemBeingAssigned.customerName}, layanan ${itemBeingAssigned.service} untuk ${itemBeingAssigned.vehicleInfo} Anda sudah mulai dikerjakan oleh Teknisi ${staffName}. Estimasi selesai: ${formattedEstimatedTime}. - QLAB`;
       await sendQueueNotification(itemBeingAssigned.clientId, itemBeingAssigned.customerName, message, "mulai layanan");
       
       fetchQueueItems();
@@ -1220,6 +1253,4 @@ export default function QueuePage() {
 }
 
 export type { QueueItem as QueueItemType }; // Export for dashboard
-
-
-      
+    
