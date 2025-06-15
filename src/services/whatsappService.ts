@@ -29,14 +29,14 @@ export async function sendWhatsAppMessage(number: string, message: string): Prom
   // Langsung menggunakan URL yang diberikan
   const whatsappServerUrl = 'https://c2b4-103-3-220-151.ngrok-free.app/send-message';
 
-  console.log(`WhatsappService: WHATSAPP_SERVER_URL (hardcoded): ${whatsappServerUrl}`);
+  console.log(`WhatsappService: Menggunakan WHATSAPP_SERVER_URL (hardcoded): ${whatsappServerUrl}`);
 
   const formattedNumber = formatPhoneNumber(number);
-  const controller = new AbortController(); // Ditambahkan untuk timeout
+  const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000); // Timeout 15 detik
 
   try {
-    console.log(`WhatsappService: Mengirim permintaan ke server WhatsApp di ${whatsappServerUrl} untuk nomor ${formattedNumber}`);
+    console.log(`WhatsappService: Mengirim POST request ke ${whatsappServerUrl} untuk nomor ${formattedNumber}`);
     const response = await fetch(whatsappServerUrl, {
       method: 'POST',
       headers: {
@@ -46,9 +46,9 @@ export async function sendWhatsAppMessage(number: string, message: string): Prom
         number: formattedNumber,
         message: message,
       }),
-      signal: controller.signal, // Ditambahkan untuk timeout
+      signal: controller.signal,
     });
-    clearTimeout(timeoutId); // Hapus timeout jika fetch selesai
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorBody = await response.text();
@@ -58,24 +58,28 @@ export async function sendWhatsAppMessage(number: string, message: string): Prom
       } catch (e) {
         errorData = { error: errorBody };
       }
-      console.error(`WhatsappService: Server WhatsApp merespons dengan error ${response.status} saat mencoba ${whatsappServerUrl}:`, errorData);
+      console.error(`WhatsappService: Server WhatsApp merespons dengan error ${response.status} dari ${whatsappServerUrl}:`, errorData);
       return { success: false, error: `Server WhatsApp error: ${response.status} - ${errorData.error || errorData.details || response.statusText}` };
     }
 
     const responseData = await response.json();
     console.log(`WhatsappService: Pesan berhasil dikirim via server WhatsApp ke ${formattedNumber}`, responseData);
     return { success: true, messageId: responseData.messageId || 'N/A' };
-  } catch (error: any) { // Ubah ke 'any' untuk menangani error.name
-    clearTimeout(timeoutId); // Hapus timeout jika fetch gagal
+  } catch (error: any) {
+    clearTimeout(timeoutId);
     console.error(`WhatsappService: Gagal mengirim pesan ke ${formattedNumber} via ${whatsappServerUrl}. Error:`, error);
     let detailedErrorMessage = 'Error tidak diketahui saat menghubungi server WhatsApp lokal.';
 
     if (error.name === 'AbortError') {
-      detailedErrorMessage = `Permintaan ke server WhatsApp (${whatsappServerUrl}) timed out setelah 15 detik. Pastikan server responsif.`;
+      detailedErrorMessage = `Permintaan ke server WhatsApp (${whatsappServerUrl}) timed out setelah 15 detik. Pastikan server responsif dan tidak ada error di konsol whatsapp-server.js.`;
     } else if (error instanceof TypeError && error.message.toLowerCase().includes('failed to fetch')) {
-      detailedErrorMessage = `Gagal menghubungi server WhatsApp di ${whatsappServerUrl}. Pastikan server lokal (whatsapp-server.js) berjalan dan ngrok tunnel (${whatsappServerUrl}) aktif dengan URL yang benar dan dapat diakses dari internet. Error: ${error.message}`;
+      detailedErrorMessage = `Gagal menghubungi server WhatsApp di ${whatsappServerUrl}. Pastikan:
+1. Server lokal (whatsapp-server.js) berjalan.
+2. Ngrok tunnel (${whatsappServerUrl}) aktif dengan URL yang benar dan dapat diakses.
+3. TIDAK ADA ERROR di konsol tempat whatsapp-server.js berjalan, terutama saat menangani POST request.
+Error asli: ${error.message}`;
     } else if (error instanceof Error) {
-      detailedErrorMessage = `Error koneksi ke server WhatsApp lokal: ${error.message}`;
+      detailedErrorMessage = `Error koneksi ke server WhatsApp lokal: ${error.message}. Periksa konsol whatsapp-server.js.`;
     }
     return { success: false, error: detailedErrorMessage };
   }
@@ -85,12 +89,12 @@ export async function sendWhatsAppMessage(number: string, message: string): Prom
 // - Pastikan endpoint /send-message menerima JSON: { number: "62xxxx", message: "pesan" }
 // - Server lokalmu yang akan menambahkan "@c.us" ke nomor sebelum dikirim via whatsapp-web.js
 // - Server lokalmu juga perlu di-update untuk:
-//   1. Mendengarkan event pesan masuk (`client.on('message', async (msg) => { ... })`).
+//   1. Mendengarkan event pesan masuk (\`client.on('message', async (msg) => { ... })\`).
 //   2. Dari pesan masuk, dapatkan:
-//      - Nomor pengirim: `msg.from` (perlu dibersihkan dari "@c.us", misal jadi "62xxxx").
-//      - Isi pesan: `msg.body`.
+//      - Nomor pengirim: \`msg.from\` (perlu dibersihkan dari "@c.us", misal jadi "62xxxx").
+//      - Isi pesan: \`msg.body\`.
 //   3. Kirim data ini (nomor pengirim & isi pesan) via HTTP POST ke endpoint baru di Next.js:
-//      `https://<URL-PUBLIK-NEXTJS-APP-KAMU>/api/whatsapp/receive`.
+//      \`https://<URL-PUBLIK-NEXTJS-APP-KAMU>/api/whatsapp/receive\`.
 //      URL publik Next.js app bisa dari URL Firebase Studio atau ngrok jika Next.js juga di-tunnel.
 //
 // Contoh modifikasi di whatsapp-server.js (bagian terima pesan):
@@ -99,8 +103,8 @@ export async function sendWhatsAppMessage(number: string, message: string): Prom
 //   if (msg.fromMe) return; // Abaikan pesan dari diri sendiri
 //
 //   const contact = await msg.getContact();
-//   console.log(`Pesan diterima dari: ${contact.pushname || msg.from} (${msg.from})`);
-//   console.log(`Isi pesan: ${msg.body}`);
+//   console.log(\`Pesan diterima dari: \${contact.pushname || msg.from} (\${msg.from})\`);
+//   console.log(\`Isi pesan: \${msg.body}\`);
 //
 //   const senderNumber = msg.from.replace('@c.us', ''); // Bersihkan nomor
 //   const customerMessage = msg.body;
