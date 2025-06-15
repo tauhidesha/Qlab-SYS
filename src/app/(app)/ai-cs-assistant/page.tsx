@@ -15,30 +15,45 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, orderBy, type Timestamp } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, type Timestamp, onSnapshot, addDoc, serverTimestamp, where, limit } from 'firebase/firestore';
 import type { Client } from '@/types/client';
+import type { DirectMessage } from '@/types/directMessage';
 import { cn } from '@/lib/utils';
 
-interface ChatMessage {
-  id: string;
-  sender: 'user' | 'customer';
-  text: string;
-  timestamp: string;
+// Updated ChatMessage to align with DirectMessage
+interface ChatMessageUi extends Omit<DirectMessage, 'timestamp' | 'id'> {
+  id: string; // Keep id for React key, can be Firestore doc id
+  timestamp: string; // Formatted string for display
 }
 
 interface Customer {
   id: string;
   name: string;
   avatarUrl?: string;
-  lastMessageTimestamp: string;
+  lastMessageTimestamp: string; // Formatted string or "N/A"
   lastMessage: string;
   unreadCount: number;
-  phone?: string;
+  phone?: string; // Crucial for matching with senderNumber from WhatsApp
+}
+
+// Fungsi untuk memformat nomor telepon dari WhatsApp (jika perlu)
+// Bisa disamakan dengan yang di API atau diimpor dari helper jika ada
+function formatPhoneNumberForMatching(number: string): string {
+  let cleaned = number.replace(/\D/g, '');
+  if (cleaned.startsWith('0')) {
+    cleaned = '62' + cleaned.substring(1);
+  } else if (cleaned.startsWith('8') && cleaned.length >= 9 && cleaned.length <= 13) {
+    cleaned = '62' + cleaned;
+  } else if (!cleaned.startsWith('62') && !(cleaned.length < 9)) { // Hindari nambah 62 jika sudah kode negara lain atau terlalu pendek
+     if (cleaned.length >= 9 && cleaned.length <=13 && !cleaned.startsWith('+')) {
+        cleaned = '62' + cleaned;
+    }
+  }
+  return cleaned;
 }
 
 export default function AiCsAssistantPage() {
   const [customerMessageInput, setCustomerMessageInput] = useState('');
-  // State untuk AI Playground
   const [playgroundInput, setPlaygroundInput] = useState('');
   const [playgroundReply, setPlaygroundReply] = useState('');
   const [isLoadingPlaygroundSuggestion, setIsLoadingPlaygroundSuggestion] = useState(false);
@@ -48,12 +63,14 @@ export default function AiCsAssistantPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loadingCustomers, setLoadingCustomers] = useState(true);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [chatHistory, setChatHistory] = useState<ChatMessageUi[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isPlaygroundMode, setIsPlaygroundMode] = useState(false);
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const unsubscribeChatRef = useRef<(() => void) | null>(null);
+
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -66,7 +83,7 @@ export default function AiCsAssistantPage() {
   }, [chatHistory, selectedCustomer, isPlaygroundMode]);
 
 
-  const fetchCustomers = async (): Promise<Customer[]> => {
+  const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
     console.log("Fetching actual customers from Firestore...");
     try {
       const clientsCollectionRef = collection(db, 'clients');
@@ -78,10 +95,10 @@ export default function AiCsAssistantPage() {
         id: client.id,
         name: client.name,
         avatarUrl: `https://placehold.co/40x40.png?text=${client.name.charAt(0)}`,
-        lastMessageTimestamp: client.lastVisit || 'N/A',
-        lastMessage: 'Klik untuk melihat chat...',
-        unreadCount: 0,
-        phone: client.phone,
+        lastMessageTimestamp: client.lastVisit || 'N/A', // Placeholder, will be updated by directMessages
+        lastMessage: 'Klik untuk melihat chat...', // Placeholder
+        unreadCount: 0, // Placeholder
+        phone: client.phone ? formatPhoneNumberForMatching(client.phone) : undefined, // Store formatted phone
       }));
     } catch (error) {
       console.error("Error fetching customers from Firestore: ", error);
@@ -92,28 +109,9 @@ export default function AiCsAssistantPage() {
       });
       return [];
     }
-  };
+  }, [toast]);
 
-  const fetchChatHistory = async (customerId: string): Promise<ChatMessage[]> => {
-    console.log(`Fetching chat history for customer ${customerId} (placeholder)...`);
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
-    const customerName = customers.find(c => c.id === customerId)?.name;
-
-    if (customerName?.toLowerCase().includes("rina")) {
-      return [
-        { id: 'chat1', sender: 'customer', text: 'Halo, motor saya kok suaranya kasar ya setelah servis kemarin?', timestamp: '10:25' },
-        { id: 'chat2', sender: 'user', text: `Halo Kak ${customerName || 'Rina'}, bisa dijelaskan lebih detail kasarnya seperti apa?`, timestamp: '10:26' },
-        { id: 'chat3', sender: 'customer', text: 'Seperti ada suara "grek grek grek" gitu pas digas awal.', timestamp: '10:28' },
-      ];
-    } else if (customerName?.toLowerCase().includes("bambang")) {
-      return [
-        { id: 'chat4', sender: 'customer', text: `Terima kasih banyak ya QLAB, motor saya jadi kinclong lagi!`, timestamp: 'Kemarin' },
-      ];
-    }
-    return [ { id: 'chat_default', sender: 'customer', text: `Halo ${customerName || 'Pelanggan'}, ada yang bisa dibantu?`, timestamp: 'Baru saja'} ];
-  };
-
+  // Fetch initial customer list
   useEffect(() => {
     const loadInitialData = async () => {
       setLoadingCustomers(true);
@@ -127,13 +125,59 @@ export default function AiCsAssistantPage() {
       }
     };
     loadInitialData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchCustomers]);
+
+  // Real-time listener for chat history
+  useEffect(() => {
+    if (unsubscribeChatRef.current) {
+      unsubscribeChatRef.current(); // Unsubscribe from previous listener
+      unsubscribeChatRef.current = null;
+    }
+
+    if (selectedCustomer && selectedCustomer.phone) {
+      const formattedPhoneForQuery = selectedCustomer.phone; // Already formatted
+      const messagesRef = collection(db, 'directMessages');
+      const q = query(
+        messagesRef,
+        where("senderNumber", "==", formattedPhoneForQuery),
+        orderBy("timestamp", "asc")
+      );
+
+      unsubscribeChatRef.current = onSnapshot(q, (querySnapshot) => {
+        const history: ChatMessageUi[] = [];
+        querySnapshot.forEach((doc) => {
+          const data = doc.data() as DirectMessage;
+          history.push({
+            ...data,
+            id: doc.id,
+            timestamp: data.timestamp?.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) || 'N/A',
+          });
+        });
+        setChatHistory(history);
+      }, (error) => {
+        console.error(`Error fetching real-time chat for ${selectedCustomer.name}:`, error);
+        toast({
+          title: "Error Real-time Chat",
+          description: "Gagal memuat pesan secara real-time.",
+          variant: "destructive",
+        });
+      });
+    } else {
+      setChatHistory([]); // Clear history if no customer or no phone
+    }
+
+    return () => {
+      if (unsubscribeChatRef.current) {
+        unsubscribeChatRef.current();
+      }
+    };
+  }, [selectedCustomer, toast]);
+
 
   const handleSelectPlayground = () => {
     setIsPlaygroundMode(true);
     setSelectedCustomer(null);
-    setChatHistory([]);
+    // setChatHistory([]); // No need to clear history as it's tied to selectedCustomer
     setCustomerMessageInput(''); 
     setPlaygroundInput('');
     setPlaygroundReply('');
@@ -143,8 +187,7 @@ export default function AiCsAssistantPage() {
     setIsPlaygroundMode(false); 
     setSelectedCustomer(customer);
     setCustomerMessageInput('');
-    const history = await fetchChatHistory(customer.id);
-    setChatHistory(history);
+    // Real-time listener in useEffect will handle fetching/updating chatHistory
   };
 
   const handleGetPlaygroundSuggestion = async () => {
@@ -208,50 +251,74 @@ export default function AiCsAssistantPage() {
 
 
   const handleSendMessage = async () => {
-    if (!customerMessageInput.trim() || !selectedCustomer || isPlaygroundMode) return;
+    if (!customerMessageInput.trim() || !selectedCustomer || isPlaygroundMode || !selectedCustomer.phone) {
+        toast({
+          title: "Tidak Dapat Mengirim",
+          description: "Pesan kosong, pelanggan tidak dipilih, atau nomor HP pelanggan tidak tersedia.",
+          variant: "destructive",
+        });
+        return;
+    }
     
     const textToSend = customerMessageInput.trim();
-    const newMessage: ChatMessage = {
-      id: Date.now().toString(),
-      sender: 'user',
-      text: textToSend,
-      timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
-    };
-    setChatHistory(prev => [...prev, newMessage]);
+    // Optimistic UI update (will be replaced by Firestore real-time if successful)
+    // const newMessageUi: ChatMessageUi = {
+    //   id: Date.now().toString(), // Temporary ID
+    //   sender: 'user',
+    //   text: textToSend,
+    //   timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+    //   senderNumber: selectedCustomer.phone, // Add senderNumber
+    //   customerName: selectedCustomer.name,
+    //   customerId: selectedCustomer.id,
+    // };
+    // setChatHistory(prev => [...prev, newMessageUi]);
+    
+    const originalInput = customerMessageInput;
     setCustomerMessageInput(''); 
-
-    if (!selectedCustomer.phone) {
-      toast({
-        title: "Info Tidak Lengkap",
-        description: "Nomor HP pelanggan tidak tersedia untuk pengiriman WhatsApp.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsSendingWhatsApp(true);
+
     try {
+      // 1. Send message via local WhatsApp server
       const response = await fetch('/api/whatsapp/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ number: selectedCustomer.phone, message: textToSend }),
       });
       const result = await response.json();
+
       if (response.ok && result.success) {
         toast({
-          title: "Pesan Terkirim",
-          description: `Pesan Anda telah dikirim ke ${selectedCustomer.name}.`,
+          title: "Pesan Terkirim ke WhatsApp",
+          description: `Pesan Anda sedang dikirim ke ${selectedCustomer.name}.`,
         });
+        
+        // 2. Save CS message to 'directMessages' Firestore
+        const directMessagesRef = collection(db, 'directMessages');
+        const csMessageData: Omit<DirectMessage, 'id'> = {
+          customerId: selectedCustomer.id,
+          customerName: selectedCustomer.name,
+          senderNumber: selectedCustomer.phone, 
+          text: textToSend,
+          sender: 'user', // CS is the user here
+          timestamp: serverTimestamp() as any,
+        };
+        await addDoc(directMessagesRef, csMessageData);
+        console.log("CS manual reply saved to directMessages.");
+        // UI will update via Firestore listener
+
       } else {
         throw new Error(result.error || 'Gagal mengirim pesan via server lokal.');
       }
     } catch (error) {
-      console.error("Error sending WhatsApp message:", error);
+      console.error("Error sending WhatsApp message or saving to DB:", error);
       toast({
         title: "Gagal Mengirim Pesan",
         description: error instanceof Error ? error.message : "Terjadi kesalahan.",
         variant: "destructive",
       });
+      setCustomerMessageInput(originalInput); // Restore input if sending failed
+      // If optimistic UI was used, remove the temporary message
+      // setChatHistory(prev => prev.filter(msg => msg.id !== newMessageUi.id));
     } finally {
       setIsSendingWhatsApp(false);
     }
@@ -265,7 +332,8 @@ export default function AiCsAssistantPage() {
   };
 
   const filteredCustomers = customers.filter(customer =>
-    customer.name.toLowerCase().includes(searchTerm.toLowerCase())
+    customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (customer.phone && customer.phone.includes(searchTerm))
   );
 
 
@@ -283,7 +351,7 @@ export default function AiCsAssistantPage() {
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Cari pelanggan..."
+                placeholder="Cari pelanggan (nama/HP)..."
                 className="pl-8 w-full h-9"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -341,16 +409,9 @@ export default function AiCsAssistantPage() {
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{customer.name}</p>
-                        <p className="text-xs text-muted-foreground truncate">{customer.lastMessage}</p>
+                        <p className="text-xs text-muted-foreground truncate">{customer.phone || 'No HP tidak ada'}</p>
                       </div>
-                      <div className="text-xs text-muted-foreground text-right">
-                        {customer.lastMessageTimestamp}
-                        {customer.unreadCount > 0 && (
-                          <span className="ml-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-destructive-foreground bg-destructive rounded-full">
-                            {customer.unreadCount}
-                          </span>
-                        )}
-                      </div>
+                      {/* Unread count and last message from real data can be added here later */}
                     </div>
                   </div>
                 ))
@@ -445,18 +506,20 @@ export default function AiCsAssistantPage() {
                 {chatHistory.map((message) => (
                   <div
                     key={message.id}
-                    className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                    className={`flex ${message.sender === 'user' || message.sender === 'ai' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
                       className={`max-w-xs lg:max-w-md px-4 py-2 rounded-xl shadow ${
                         message.sender === 'user'
                           ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted text-muted-foreground'
+                          : message.sender === 'ai' 
+                            ? 'bg-secondary text-secondary-foreground'
+                            : 'bg-muted text-muted-foreground'
                       }`}
                     >
                       <p className="text-sm whitespace-pre-wrap">{message.text}</p>
-                      <p className={`text-xs mt-1 ${message.sender === 'user' ? 'text-primary-foreground/80' : 'text-muted-foreground/80'} text-right`}>
-                        {message.timestamp}
+                      <p className={`text-xs mt-1 ${message.sender === 'user' ? 'text-primary-foreground/80' : message.sender === 'ai' ? 'text-secondary-foreground/80' : 'text-muted-foreground/80'} text-right`}>
+                        {message.timestamp} {message.sender === 'ai' && '(AI)'}
                       </p>
                     </div>
                   </div>
@@ -486,13 +549,13 @@ export default function AiCsAssistantPage() {
                         onChange={(e) => setCustomerMessageInput(e.target.value)}
                         onKeyDown={handleKeyDown}
                         rows={3}
-                        disabled={isSendingWhatsApp}
+                        disabled={isSendingWhatsApp || !selectedCustomer?.phone}
                         className="bg-background flex-1 resize-none"
                       />
                       <Button 
                         size="icon" 
                         onClick={handleSendMessage}
-                        disabled={isSendingWhatsApp || !customerMessageInput.trim()}
+                        disabled={isSendingWhatsApp || !customerMessageInput.trim() || !selectedCustomer?.phone}
                         className="h-10 w-10 shrink-0"
                         aria-label="Kirim Pesan Manual"
                       >
@@ -512,4 +575,3 @@ export default function AiCsAssistantPage() {
     </div>
   );
 }
-    
