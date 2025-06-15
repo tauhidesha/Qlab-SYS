@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Palette, Bell, Users, CreditCard as CreditCardIcon, Gift, DollarSign, Loader2, Wallet, Award, PlusCircle, Edit3, Trash2, SlidersHorizontal, Settings2, Zap, ShieldCheck } from 'lucide-react'; // Added ShieldCheck
+import { Palette, Bell, Users, CreditCard as CreditCardIcon, Gift, DollarSign, Loader2, Wallet, Award, PlusCircle, Edit3, Trash2, SlidersHorizontal, Settings2, Zap, ShieldCheck } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, serverTimestamp, collection, addDoc, updateDoc, deleteDoc, query, orderBy, getDocs as getFirestoreDocs, where } from 'firebase/firestore'; 
@@ -331,7 +331,7 @@ export default function SettingsPage() {
       const minPointsStr = minPointsToRedeemGeneral.trim();
 
       const bankBalance = bankBalanceStr === '' ? 0 : parseFloat(bankBalanceStr);
-      const physicalCashBalance = physicalCashStr === '' ? 0 : parseFloat(physicalCashStr);
+      const physicalCashBalance = physicalCashStr === '' ? 0 : parseFloat(physicalCashBalance);
       const minPoints = minPointsStr === '' ? 0 : parseInt(minPointsStr, 10);
 
       if (isNaN(bankBalance) || bankBalance < 0) {
@@ -522,7 +522,6 @@ export default function SettingsPage() {
           const data = AiSettingsFormSchema.parse(docSnap.data());
           aiSettingsForm.reset(data);
         } else {
-          // If doc doesn't exist, reset to defaults (which Zod schema handles)
           aiSettingsForm.reset(AiSettingsFormSchema.parse({}));
         }
       } catch (error) {
@@ -532,14 +531,14 @@ export default function SettingsPage() {
           description: "Gagal memuat pengaturan AI. Menggunakan pengaturan default.",
           variant: "destructive",
         });
-        aiSettingsForm.reset(AiSettingsFormSchema.parse({})); // Reset to defaults on error
+        aiSettingsForm.reset(AiSettingsFormSchema.parse({}));
       } finally {
         setIsLoadingAiSettings(false);
       }
     };
     fetchAiSettings();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Dependencies aiSettingsForm, toast can cause loop. Fetch once.
+  }, []); 
 
 
   const handleSaveAiSettings = async (values: AiSettingsFormValues) => {
@@ -562,7 +561,7 @@ export default function SettingsPage() {
       <AppHeader title="Pengaturan" />
       <main className="flex-1 overflow-y-auto p-6">
         <Tabs defaultValue="general" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 md:grid-cols-7 mb-6">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 mb-6">
             <TabsTrigger value="general"><SlidersHorizontal className="mr-2 h-4 w-4 hidden md:inline" />Umum</TabsTrigger>
             <TabsTrigger value="ai"><ShieldCheck className="mr-2 h-4 w-4 hidden md:inline" />AI & Agen</TabsTrigger>
             <TabsTrigger value="loyalty"><Gift className="mr-2 h-4 w-4 hidden md:inline" />Loyalitas Dasar</TabsTrigger>
@@ -570,7 +569,6 @@ export default function SettingsPage() {
             <TabsTrigger value="direct_rewards"><Zap className="mr-2 h-4 w-4 hidden md:inline" />Reward Langsung</TabsTrigger>
             <TabsTrigger value="appearance"><Palette className="mr-2 h-4 w-4 hidden md:inline" />Tampilan</TabsTrigger>
             <TabsTrigger value="notifications"><Bell className="mr-2 h-4 w-4 hidden md:inline" />Notifikasi</TabsTrigger>
-            {/* <TabsTrigger value="billing"><CreditCardIcon className="mr-2 h-4 w-4 hidden md:inline" />Tagihan</TabsTrigger> */}
           </TabsList>
           
           <TabsContent value="general" className="space-y-6">
@@ -1018,30 +1016,6 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
           </TabsContent>
-          <TabsContent value="users">
-             <Card>
-              <CardHeader>
-                <CardTitle>Peran & Izin Pengguna</CardTitle>
-                <CardDescription>Kelola akun staf dan tingkat akses mereka.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-center text-muted-foreground py-8">Manajemen peran pengguna akan segera tersedia.</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          {/* 
-          <TabsContent value="billing">
-             <Card>
-              <CardHeader>
-                <CardTitle>Tagihan & Langganan</CardTitle>
-                <CardDescription>Kelola paket langganan dan metode pembayaran Anda.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-center text-muted-foreground py-8">Informasi tagihan akan segera tersedia.</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          */}
         </Tabs>
 
         <Dialog open={isRewardFormDialogOpen} onOpenChange={(isOpen) => {

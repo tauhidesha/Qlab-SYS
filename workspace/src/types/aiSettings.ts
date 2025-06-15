@@ -56,3 +56,4 @@ export type AiConfiguration = z.infer<typeof AiConfigurationSchema>;
 
 export const AiSettingsFormSchema = AiConfigurationSchema;
 export type AiSettingsFormValues = z.infer<typeof AiSettingsFormSchema>;
+
