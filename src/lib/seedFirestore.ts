@@ -123,7 +123,7 @@ async function seedCollection<T extends { id: string }>(collectionName: string, 
     const q = query(collectionRef, limit(1));
     const snapshot = await getDocs(q);
     if (!snapshot.empty) {
-      console.log(`Koleksi ${collectionName} tidak kosong. Melewati penyemaian.`);
+      console.log(\`Koleksi \${collectionName} tidak kosong. Melewati penyemaian.\`);
       return;
     }
   }
@@ -147,7 +147,7 @@ async function seedCollection<T extends { id: string }>(collectionName: string, 
     batch.set(docRef, itemData);
   });
   await batch.commit();
-  console.log(`Berhasil menyemai koleksi ${collectionName} dengan ${data.length} item.`);
+  console.log(\`Berhasil menyemai koleksi \${collectionName} dengan \${data.length} item.\`);
 }
 
 export async function seedAllMockData() {
@@ -161,8 +161,38 @@ export async function seedAllMockData() {
   } catch (error) {
     console.error("Error seeding data: ", error);
     const errorMessage = error instanceof Error ? error.message : 'Terjadi kesalahan tidak diketahui saat penyemaian.';
-    return { success: false, message: `Error saat menyemai data: ${errorMessage}` };
+    return { success: false, message: \`Error saat menyemai data: \${errorMessage}\` };
   }
 }
 
     
+// Untuk menjalankan seeder ini (misalnya, dari script terpisah atau tombol khusus di UI development):
+// 1. Pastikan Firebase Emulator (khususnya Firestore) berjalan.
+// 2. Pastikan file .env.local sudah di-set dengan NEXT_PUBLIC_USE_FIREBASE_EMULATOR=true.
+// 3. Import dan panggil seedAllMockData().
+//
+// Contoh penggunaan di sebuah halaman/komponen (HANYA UNTUK DEVELOPMENT):
+//
+// import { Button } from '@/components/ui/button';
+// import { seedAllMockData } from '@/lib/seedFirestore'; // Sesuaikan path jika perlu
+//
+// export default function DevSeederPage() {
+//   const handleSeed = async () => {
+//     const result = await seedAllMockData();
+//     if (result.success) {
+//       alert(result.message);
+//     } else {
+//       alert(\`Gagal seeding: \${result.message}\`);
+//     }
+//   };
+//   if (process.env.NODE_ENV !== 'development') {
+//     return <p>Seeder hanya tersedia di mode development.</p>;
+//   }
+//   return (
+//     <div>
+//       <h1>Firestore Seeder (Development Only)</h1>
+//       <Button onClick={handleSeed}>Seed Mock Data to Emulator</Button>
+//     </div>
+//   );
+// }
+
