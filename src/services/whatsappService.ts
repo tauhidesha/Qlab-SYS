@@ -63,11 +63,13 @@ export async function sendWhatsAppMessage(number: string, message: string): Prom
     return { success: true, messageId: responseData.messageId || 'N/A' };
   } catch (error) {
     console.error(`WhatsappService: Gagal mengirim pesan ke ${formattedNumber} via ${whatsappServerUrl}. Error:`, error);
-    if (error instanceof Error) {
-      // Pesan error 'fetch failed' biasanya dari sini.
-      return { success: false, error: `Error koneksi ke server WhatsApp lokal: ${error.message}` };
+    let detailedErrorMessage = 'Error tidak diketahui saat menghubungi server WhatsApp lokal.';
+    if (error instanceof TypeError && error.message === 'Failed to fetch') {
+      detailedErrorMessage = `Gagal menghubungi server WhatsApp di ${whatsappServerUrl}. Pastikan server lokal (whatsapp-server.js) berjalan dan ngrok tunnel aktif dengan URL yang benar. Error: ${error.message}`;
+    } else if (error instanceof Error) {
+      detailedErrorMessage = `Error koneksi ke server WhatsApp lokal: ${error.message}`;
     }
-    return { success: false, error: 'Error tidak diketahui saat menghubungi server WhatsApp lokal.' };
+    return { success: false, error: detailedErrorMessage };
   }
 }
 
