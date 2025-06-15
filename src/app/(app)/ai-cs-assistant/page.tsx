@@ -7,10 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Loader2, MessageSquareText, Sparkles, Copy, Send, User, Search, Bot, MessageCircle } from 'lucide-react';
+import { Loader2, MessageSquareText, Sparkles, Copy, Send, User, Search, Bot, MessageCircle, ThumbsUp, ThumbsDown, Edit2 } from 'lucide-react'; // Added ThumbsUp, ThumbsDown, Edit2
 import { useToast } from '@/hooks/use-toast';
 import { generateWhatsAppReply } from '@/ai/flows/cs-whatsapp-reply-flow';
-import type { WhatsAppReplyOutput, ChatMessage } from '@/types/ai/cs-whatsapp-reply'; // ChatMessage imported
+import type { WhatsAppReplyOutput, ChatMessage } from '@/types/ai/cs-whatsapp-reply';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -24,24 +24,28 @@ import { v4 as uuidv4 } from 'uuid';
 
 interface ChatMessageUi extends Omit<DirectMessage, 'timestamp' | 'id'> {
   id: string;
-  timestamp: string; 
+  timestamp: string;
 }
 
 interface PlaygroundMessage {
   id: string;
-  sender: 'user' | 'ai'; // 'user' for CS agent input, 'ai' for AI's reply
+  sender: 'user' | 'ai';
   text: string;
   timestamp: string;
+  feedback?: 'good' | 'bad' | null;
+  correction?: string;
+  isEditingCorrection?: boolean; // True if correction form is active for this message
+  currentCorrectionText?: string; // Text being typed in the correction form for this message
 }
 
 interface Customer {
   id: string;
   name: string;
   avatarUrl?: string;
-  lastMessageTimestamp: string; 
+  lastMessageTimestamp: string;
   lastMessage: string;
   unreadCount: number;
-  phone?: string; 
+  phone?: string;
 }
 
 function formatPhoneNumberForMatching(number: string): string {
@@ -50,7 +54,7 @@ function formatPhoneNumberForMatching(number: string): string {
     cleaned = '62' + cleaned.substring(1);
   } else if (cleaned.startsWith('8') && cleaned.length >= 9 && cleaned.length <= 13) {
     cleaned = '62' + cleaned;
-  } else if (!cleaned.startsWith('62') && !(cleaned.length < 9)) { 
+  } else if (!cleaned.startsWith('62') && !(cleaned.length < 9)) {
      if (cleaned.length >= 9 && cleaned.length <=13 && !cleaned.startsWith('+')) {
         cleaned = '62' + cleaned;
     }
@@ -59,8 +63,8 @@ function formatPhoneNumberForMatching(number: string): string {
 }
 
 export default function AiCsAssistantPage() {
-  const [customerMessageInput, setCustomerMessageInput] = useState(''); // For manual reply to customer
-  const [currentPlaygroundInput, setCurrentPlaygroundInput] = useState(''); // For AI playground input
+  const [customerMessageInput, setCustomerMessageInput] = useState('');
+  const [currentPlaygroundInput, setCurrentPlaygroundInput] = useState('');
   const [playgroundChatHistory, setPlaygroundChatHistory] = useState<PlaygroundMessage[]>([]);
   const [isLoadingPlaygroundSuggestion, setIsLoadingPlaygroundSuggestion] = useState(false);
 
@@ -69,7 +73,7 @@ export default function AiCsAssistantPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loadingCustomers, setLoadingCustomers] = useState(true);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [chatHistory, setChatHistory] = useState<ChatMessageUi[]>([]); // For selected customer's actual chat
+  const [chatHistory, setChatHistory] = useState<ChatMessageUi[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isPlaygroundMode, setIsPlaygroundMode] = useState(false);
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
@@ -103,15 +107,15 @@ export default function AiCsAssistantPage() {
       const q = query(clientsCollectionRef, orderBy("name"));
       const querySnapshot = await getDocs(q);
       const clientsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
-      
+
       return clientsData.map(client => ({
         id: client.id,
         name: client.name,
         avatarUrl: `https://placehold.co/40x40.png?text=${client.name.charAt(0)}`,
-        lastMessageTimestamp: client.lastVisit || 'N/A', 
-        lastMessage: 'Klik untuk melihat chat...', 
-        unreadCount: 0, 
-        phone: client.phone ? formatPhoneNumberForMatching(client.phone) : undefined, 
+        lastMessageTimestamp: client.lastVisit || 'N/A',
+        lastMessage: 'Klik untuk melihat chat...',
+        unreadCount: 0,
+        phone: client.phone ? formatPhoneNumberForMatching(client.phone) : undefined,
       }));
     } catch (error) {
       console.error("Error fetching customers from Firestore: ", error);
@@ -141,12 +145,12 @@ export default function AiCsAssistantPage() {
 
   useEffect(() => {
     if (unsubscribeChatRef.current) {
-      unsubscribeChatRef.current(); 
+      unsubscribeChatRef.current();
       unsubscribeChatRef.current = null;
     }
 
     if (selectedCustomer && selectedCustomer.phone) {
-      const formattedPhoneForQuery = selectedCustomer.phone; 
+      const formattedPhoneForQuery = selectedCustomer.phone;
       const messagesRef = collection(db, 'directMessages');
       const q = query(
         messagesRef,
@@ -174,7 +178,7 @@ export default function AiCsAssistantPage() {
         });
       });
     } else {
-      setChatHistory([]); 
+      setChatHistory([]);
     }
 
     return () => {
@@ -188,13 +192,13 @@ export default function AiCsAssistantPage() {
   const handleSelectPlayground = () => {
     setIsPlaygroundMode(true);
     setSelectedCustomer(null);
-    setCustomerMessageInput(''); 
+    setCustomerMessageInput('');
     setCurrentPlaygroundInput('');
     setPlaygroundChatHistory([]);
   };
 
   const handleCustomerSelect = async (customer: Customer) => {
-    setIsPlaygroundMode(false); 
+    setIsPlaygroundMode(false);
     setSelectedCustomer(customer);
     setCustomerMessageInput('');
   };
@@ -208,7 +212,7 @@ export default function AiCsAssistantPage() {
       });
       return;
     }
-    
+
     const userMessageText = currentPlaygroundInput.trim();
     const userMessage: PlaygroundMessage = {
       id: uuidv4(),
@@ -216,15 +220,14 @@ export default function AiCsAssistantPage() {
       text: userMessageText,
       timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
     };
-    
+
     const updatedPlaygroundHistory = [...playgroundChatHistory, userMessage];
     setPlaygroundChatHistory(updatedPlaygroundHistory);
     setCurrentPlaygroundInput('');
     setIsLoadingPlaygroundSuggestion(true);
 
-    // Prepare chat history for Genkit
     const genkitChatHistory: ChatMessage[] = updatedPlaygroundHistory
-      .slice(0, -1) // Exclude the current user message which will be passed as `customerMessage`
+      .slice(0, -1)
       .map(msg => ({
         role: msg.sender === 'user' ? 'user' : 'model',
         content: msg.text,
@@ -232,18 +235,20 @@ export default function AiCsAssistantPage() {
 
     try {
       const result: WhatsAppReplyOutput = await generateWhatsAppReply({
-        customerMessage: userMessageText, // The latest message from the user/CS
-        chatHistory: genkitChatHistory,   // The preceding conversation
+        customerMessage: userMessageText,
+        chatHistory: genkitChatHistory,
       });
-      
+
       const aiMessage: PlaygroundMessage = {
         id: uuidv4(),
         sender: 'ai',
         text: result.suggestedReply,
         timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+        feedback: null,
+        currentCorrectionText: result.suggestedReply, // Initialize for potential correction
       };
       setPlaygroundChatHistory(prev => [...prev, aiMessage]);
-      
+
     } catch (error) {
       console.error("Error generating AI reply for playground:", error);
       const errorMessage: PlaygroundMessage = {
@@ -262,7 +267,7 @@ export default function AiCsAssistantPage() {
       setIsLoadingPlaygroundSuggestion(false);
     }
   };
-  
+
   const handlePlaygroundKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
@@ -279,10 +284,10 @@ export default function AiCsAssistantPage() {
         });
         return;
     }
-    
+
     const textToSend = customerMessageInput.trim();
     const originalInput = customerMessageInput;
-    setCustomerMessageInput(''); 
+    setCustomerMessageInput('');
     setIsSendingWhatsApp(true);
 
     try {
@@ -298,14 +303,14 @@ export default function AiCsAssistantPage() {
           title: "Pesan Terkirim ke WhatsApp",
           description: `Pesan Anda sedang dikirim ke ${selectedCustomer.name}.`,
         });
-        
+
         const directMessagesRef = collection(db, 'directMessages');
         const csMessageData: Omit<DirectMessage, 'id'> = {
           customerId: selectedCustomer.id,
           customerName: selectedCustomer.name,
-          senderNumber: selectedCustomer.phone, 
+          senderNumber: selectedCustomer.phone,
           text: textToSend,
-          sender: 'user', 
+          sender: 'user',
           timestamp: serverTimestamp() as any,
         };
         await addDoc(directMessagesRef, csMessageData);
@@ -321,7 +326,7 @@ export default function AiCsAssistantPage() {
         description: error instanceof Error ? error.message : "Terjadi kesalahan.",
         variant: "destructive",
       });
-      setCustomerMessageInput(originalInput); 
+      setCustomerMessageInput(originalInput);
     } finally {
       setIsSendingWhatsApp(false);
     }
@@ -334,6 +339,36 @@ export default function AiCsAssistantPage() {
     }
   };
 
+  const handlePlaygroundFeedback = (messageId: string, feedback: 'good' | 'bad') => {
+    setPlaygroundChatHistory(prevHistory =>
+      prevHistory.map(msg =>
+        msg.id === messageId
+          ? { ...msg, feedback, isEditingCorrection: feedback === 'bad' && !msg.correction, currentCorrectionText: msg.currentCorrectionText ?? msg.text }
+          : msg
+      )
+    );
+  };
+
+  const handlePlaygroundCorrectionChange = (messageId: string, text: string) => {
+    setPlaygroundChatHistory(prevHistory =>
+      prevHistory.map(msg =>
+        msg.id === messageId ? { ...msg, currentCorrectionText: text } : msg
+      )
+    );
+  };
+
+  const handleSavePlaygroundCorrection = (messageId: string) => {
+    setPlaygroundChatHistory(prevHistory =>
+      prevHistory.map(msg =>
+        msg.id === messageId
+          ? { ...msg, correction: msg.currentCorrectionText, isEditingCorrection: false }
+          : msg
+      )
+    );
+    toast({ title: "Koreksi Disimpan", description: "Feedback Anda telah dicatat.", variant: "default" });
+  };
+
+
   const filteredCustomers = customers.filter(customer =>
     customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (customer.phone && customer.phone.includes(searchTerm))
@@ -344,7 +379,7 @@ export default function AiCsAssistantPage() {
     <div className="flex flex-col h-full bg-background">
       <AppHeader title="Asisten CS AI untuk WhatsApp" />
       <div className="flex-1 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 overflow-hidden">
-        
+
         <div className="col-span-1 md:col-span-1 lg:col-span-1 border-r border-border bg-card flex flex-col">
           <CardHeader className="p-4">
             <CardTitle className="text-lg flex items-center">
@@ -361,7 +396,7 @@ export default function AiCsAssistantPage() {
               />
             </div>
           </CardHeader>
-          
+
           <div
             key="ai-playground"
             className={cn(
@@ -383,7 +418,7 @@ export default function AiCsAssistantPage() {
               </div>
             </div>
           </div>
-          <ScrollArea className="flex-grow"> 
+          <ScrollArea className="flex-grow">
             <CardContent className="p-0">
               {loadingCustomers ? (
                 <div className="p-4 text-center text-muted-foreground">
@@ -422,32 +457,73 @@ export default function AiCsAssistantPage() {
           </ScrollArea>
         </div>
 
-        
+
         <div className="col-span-1 md:col-span-2 lg:col-span-3 flex flex-col bg-background">
           {isPlaygroundMode ? (
             <>
               <CardHeader className="p-4 border-b bg-card">
                 <CardTitle className="text-lg flex items-center"><Bot className="mr-2 h-6 w-6 text-primary" /> AI Playground</CardTitle>
-                <CardDescription>Uji coba langsung kemampuan AI. Ketik pertanyaan Anda di bawah.</CardDescription>
+                <CardDescription>Uji coba langsung kemampuan AI. Berikan feedback untuk membantu AI belajar.</CardDescription>
               </CardHeader>
               <ScrollArea className="flex-1 p-4 space-y-4 bg-card/50">
                 {playgroundChatHistory.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                  >
+                  <div key={message.id}>
                     <div
-                      className={`max-w-xs lg:max-w-md px-4 py-2 rounded-xl shadow ${
-                        message.sender === 'user'
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-secondary text-secondary-foreground'
-                      }`}
+                      className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
-                      <p className="text-sm whitespace-pre-wrap">{message.text}</p>
-                      <p className={`text-xs mt-1 ${message.sender === 'user' ? 'text-primary-foreground/80' : 'text-secondary-foreground/80'} text-right`}>
-                        {message.timestamp}
-                      </p>
+                      <div
+                        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-xl shadow ${
+                          message.sender === 'user'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-secondary text-secondary-foreground'
+                        }`}
+                      >
+                        <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+                        <p className={`text-xs mt-1 ${message.sender === 'user' ? 'text-primary-foreground/80' : 'text-secondary-foreground/80'} text-right`}>
+                          {message.timestamp}
+                        </p>
+                      </div>
                     </div>
+                    {message.sender === 'ai' && (
+                      <div className="flex justify-start mt-1.5 ml-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={cn("h-7 w-7 hover:bg-green-100 dark:hover:bg-green-800", message.feedback === 'good' && "bg-green-100 text-green-700 dark:bg-green-800 dark:text-green-300")}
+                          onClick={() => handlePlaygroundFeedback(message.id, 'good')}
+                        >
+                          <ThumbsUp className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={cn("h-7 w-7 ml-1 hover:bg-red-100 dark:hover:bg-red-800", message.feedback === 'bad' && "bg-red-100 text-red-700 dark:bg-red-800 dark:text-red-300")}
+                          onClick={() => handlePlaygroundFeedback(message.id, 'bad')}
+                        >
+                          <ThumbsDown className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                    {message.sender === 'ai' && message.feedback === 'bad' && message.isEditingCorrection && !message.correction && (
+                      <div className="mt-2 ml-1 space-y-2 max-w-md">
+                        <Textarea
+                          placeholder="Tulis koreksi Anda di sini..."
+                          value={message.currentCorrectionText || ''}
+                          onChange={(e) => handlePlaygroundCorrectionChange(message.id, e.target.value)}
+                          rows={3}
+                          className="text-sm bg-background"
+                        />
+                        <Button size="sm" onClick={() => handleSavePlaygroundCorrection(message.id)} className="bg-accent text-accent-foreground hover:bg-accent/90">
+                          <Edit2 className="mr-2 h-4 w-4" /> Simpan Koreksi
+                        </Button>
+                      </div>
+                    )}
+                    {message.sender === 'ai' && message.correction && (
+                      <Card className="mt-2 ml-1 p-3 border-green-500 bg-green-50 dark:bg-green-900/30 max-w-md">
+                        <p className="text-xs font-medium text-green-700 dark:text-green-300">Koreksi Anda:</p>
+                        <p className="text-sm text-green-800 dark:text-green-200 whitespace-pre-wrap">{message.correction}</p>
+                      </Card>
+                    )}
                   </div>
                 ))}
                  {playgroundChatHistory.length === 0 && (
@@ -469,8 +545,8 @@ export default function AiCsAssistantPage() {
                       disabled={isLoadingPlaygroundSuggestion}
                       className="bg-background flex-1 resize-none"
                     />
-                    <Button 
-                      size="icon" 
+                    <Button
+                      size="icon"
                       onClick={handleSendPlaygroundMessage}
                       disabled={isLoadingPlaygroundSuggestion || !currentPlaygroundInput.trim()}
                       className="h-10 w-10 shrink-0"
@@ -506,14 +582,14 @@ export default function AiCsAssistantPage() {
                       className={`max-w-xs lg:max-w-md px-4 py-2 rounded-xl shadow ${
                         message.sender === 'user'
                           ? 'bg-primary text-primary-foreground'
-                          : message.sender === 'ai' 
+                          : message.sender === 'ai'
                             ? 'bg-secondary text-secondary-foreground'
                             : 'bg-muted text-muted-foreground'
                       }`}
                     >
                       <p className="text-sm whitespace-pre-wrap">{message.text}</p>
                       <p className={`text-xs mt-1 ${message.sender === 'user' ? 'text-primary-foreground/80' : message.sender === 'ai' ? 'text-secondary-foreground/80' : 'text-muted-foreground/80'} text-right`}>
-                        {message.timestamp} {message.sender === 'ai' && '(AI)'}
+                        {message.timestamp} {message.sender === 'ai' && '(AI Otomatis)'}
                       </p>
                     </div>
                   </div>
@@ -523,7 +599,7 @@ export default function AiCsAssistantPage() {
                 )}
                 <div ref={messagesEndRef} />
               </ScrollArea>
-              
+
               <Separator />
               <Card className="rounded-none border-0 border-t shadow-none">
                 <CardHeader className="p-4">
@@ -544,8 +620,8 @@ export default function AiCsAssistantPage() {
                       disabled={isSendingWhatsApp || !selectedCustomer?.phone}
                       className="bg-background flex-1 resize-none"
                     />
-                    <Button 
-                      size="icon" 
+                    <Button
+                      size="icon"
                       onClick={handleSendMessage}
                       disabled={isSendingWhatsApp || !customerMessageInput.trim() || !selectedCustomer?.phone}
                       className="h-10 w-10 shrink-0"
