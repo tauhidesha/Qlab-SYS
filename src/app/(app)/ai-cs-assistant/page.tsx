@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Loader2, MessageSquareText, Sparkles, Copy, Send, User, Search, Bot, MessageCircle } from 'lucide-react'; // Added MessageCircle
+import { Loader2, MessageSquareText, Sparkles, Copy, Send, User, Search, Bot, MessageCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { generateWhatsAppReply, type WhatsAppReplyInput, type WhatsAppReplyOutput } from '@/ai/flows/cs-whatsapp-reply-flow';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -33,7 +33,7 @@ interface Customer {
   lastMessageTimestamp: string;
   lastMessage: string;
   unreadCount: number;
-  phone?: string; // Tambahkan phone
+  phone?: string;
 }
 
 export default function AiCsAssistantPage() {
@@ -66,7 +66,7 @@ export default function AiCsAssistantPage() {
         lastMessageTimestamp: client.lastVisit || 'N/A',
         lastMessage: 'Klik untuk melihat chat...',
         unreadCount: 0,
-        phone: client.phone, // Tambahkan phone
+        phone: client.phone,
       }));
     } catch (error) {
       console.error("Error fetching customers from Firestore: ", error);
@@ -169,17 +169,18 @@ export default function AiCsAssistantPage() {
       if (isPlaygroundMode) {
         messageForAI = customerMessageInput.trim();
       } else {
+        // Prioritaskan input CS jika ada, jika tidak, gunakan pesan terakhir pelanggan
         messageForAI = customerMessageInput.trim();
         if (!messageForAI && chatHistory.length > 0) {
           const lastCustomerMsg = chatHistory.filter(msg => msg.sender === 'customer').pop();
           if (lastCustomerMsg) {
               messageForAI = lastCustomerMsg.text;
-          } else {
+          } else { // Jika tidak ada pesan customer di history
               messageForAI = `Halo ${selectedCustomer?.name || 'Pelanggan'}, ada yang bisa saya bantu?`;
           }
-        } else if (!messageForAI && selectedCustomer) {
+        } else if (!messageForAI && selectedCustomer) { // Jika input kosong & customer terpilih tapi history kosong
            messageForAI = `Halo ${selectedCustomer.name}, ada yang bisa saya bantu?`;
-        } else if (!messageForAI) {
+        } else if (!messageForAI) { // Fallback (seharusnya tidak tercapai jika validasi di atas jalan)
            messageForAI = "Pelanggan menghubungi, mohon berikan sapaan standar.";
         }
       }
@@ -189,11 +190,22 @@ export default function AiCsAssistantPage() {
       };
       
       const result: WhatsAppReplyOutput = await generateWhatsAppReply(input);
-      setSuggestedReply(result.suggestedReply);
-      toast({
-        title: isPlaygroundMode ? "Respon AI Dihasilkan!" : "Saran Dihasilkan!",
-        description: isPlaygroundMode ? "AI telah merespons input Anda." : "AI telah membuat draf balasan untuk Anda.",
-      });
+      
+      if (result.suggestedReply.toLowerCase().includes("[transfer_ke_manusia]")) {
+          toast({
+              title: "Transfer ke Agen Manusia Disarankan",
+              description: "AI mendeteksi bahwa pelanggan mungkin memerlukan bantuan langsung dari Anda. Silakan ketik balasan Anda.",
+              variant: "default",
+              duration: 10000,
+          });
+          setSuggestedReply(result.suggestedReply.replace(/\[transfer_ke_manusia\]/gi, "").trim());
+      } else {
+        setSuggestedReply(result.suggestedReply);
+        toast({
+          title: isPlaygroundMode ? "Respon AI Dihasilkan!" : "Saran Dihasilkan!",
+          description: isPlaygroundMode ? "AI telah merespons input Anda." : "AI telah membuat draf balasan untuk Anda.",
+        });
+      }
     } catch (error) {
       console.error("Error generating AI reply:", error);
       toast({
@@ -233,16 +245,55 @@ export default function AiCsAssistantPage() {
       });
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!customerMessageInput.trim() || !selectedCustomer || isPlaygroundMode) return;
+    
+    const textToSend = customerMessageInput.trim();
     const newMessage: ChatMessage = {
       id: Date.now().toString(),
       sender: 'user',
-      text: customerMessageInput.trim(),
+      text: textToSend,
       timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
     };
     setChatHistory(prev => [...prev, newMessage]);
-    setCustomerMessageInput('');
+    setCustomerMessageInput(''); // Clear input first
+
+    if (!selectedCustomer.phone) {
+      toast({
+        title: "Info Tidak Lengkap",
+        description: "Nomor HP pelanggan tidak tersedia untuk pengiriman WhatsApp.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSendingWhatsApp(true);
+    try {
+      const response = await fetch('/api/whatsapp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ number: selectedCustomer.phone, message: textToSend }),
+      });
+      const result = await response.json();
+      if (response.ok && result.success) {
+        toast({
+          title: "Pesan Manual Terkirim",
+          description: `Pesan Anda telah dikirim ke ${selectedCustomer.name}.`,
+        });
+      } else {
+        throw new Error(result.error || 'Gagal mengirim pesan manual via server lokal.');
+      }
+    } catch (error) {
+      console.error("Error sending manual WhatsApp message:", error);
+      toast({
+        title: "Gagal Mengirim Pesan Manual",
+        description: error instanceof Error ? error.message : "Terjadi kesalahan.",
+        variant: "destructive",
+      });
+      // Optionally, remove the message from chatHistory if sending failed, or mark it as failed
+    } finally {
+      setIsSendingWhatsApp(false);
+    }
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -252,7 +303,7 @@ export default function AiCsAssistantPage() {
     }
   };
 
-  const handleSendWhatsAppLocal = async () => {
+  const handleSendAiAssistedReply = async () => {
     if (!selectedCustomer || !selectedCustomer.phone || !suggestedReply) {
       toast({
         title: "Info Tidak Lengkap",
@@ -271,16 +322,25 @@ export default function AiCsAssistantPage() {
       const result = await response.json();
       if (response.ok && result.success) {
         toast({
-          title: "Berhasil Dikirim (via Server Lokal)",
-          description: `Pesan telah dikirim ke ${selectedCustomer.name} (${selectedCustomer.phone}). ID: ${result.messageId || 'N/A'}`,
+          title: "Saran AI Berhasil Dikirim",
+          description: `Pesan AI telah dikirim ke ${selectedCustomer.name}. ID: ${result.messageId || 'N/A'}`,
         });
+        // Add AI's reply to chat history as a user-sent message
+        const aiReplyAsUserMessage: ChatMessage = {
+          id: Date.now().toString() + '_ai_reply',
+          sender: 'user',
+          text: suggestedReply,
+          timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+        };
+        setChatHistory(prev => [...prev, aiReplyAsUserMessage]);
+        // setSuggestedReply(''); // Optionally clear after sending
       } else {
-        throw new Error(result.error || 'Gagal mengirim pesan via server lokal.');
+        throw new Error(result.error || 'Gagal mengirim pesan AI via server lokal.');
       }
     } catch (error) {
-      console.error("Error sending WhatsApp via local server:", error);
+      console.error("Error sending AI-assisted WhatsApp reply:", error);
       toast({
-        title: "Gagal Mengirim WhatsApp",
+        title: "Gagal Mengirim Saran AI",
         description: error instanceof Error ? error.message : "Terjadi kesalahan. Pastikan server WhatsApp lokal Anda berjalan.",
         variant: "destructive",
       });
@@ -388,7 +448,6 @@ export default function AiCsAssistantPage() {
         
         <div className="col-span-1 md:col-span-2 lg:col-span-3 flex flex-col bg-background">
           {isPlaygroundMode ? (
-            
             <>
               <div className="p-4 border-b bg-card">
                 <h2 className="text-xl font-semibold flex items-center"><Bot className="mr-2 h-6 w-6 text-primary" /> AI Playground</h2>
@@ -418,13 +477,13 @@ export default function AiCsAssistantPage() {
                       className="bg-background"
                     />
                   </div>
-                  <Button onClick={handleGetSuggestion} disabled={isLoadingSuggestion} className="w-full sm:w-auto">
+                  <Button onClick={handleGetSuggestion} disabled={isLoadingSuggestion || isSendingWhatsApp} className="w-full sm:w-auto">
                     {isLoadingSuggestion ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
-                      <Send className="mr-2 h-4 w-4" />
+                      <Sparkles className="mr-2 h-4 w-4" />
                     )}
-                    Kirim ke AI
+                    Minta Respon AI
                   </Button>
 
                   {suggestedReply && !isLoadingSuggestion && (
@@ -462,7 +521,12 @@ export default function AiCsAssistantPage() {
             </div>
           ) : (
             <>
-              
+              <CardHeader className="p-4 border-b bg-card">
+                <CardTitle className="text-lg flex items-center">
+                   Percakapan dengan: {selectedCustomer.name}
+                </CardTitle>
+                <CardDescription>{selectedCustomer.phone || "Nomor HP tidak tersedia"}</CardDescription>
+              </CardHeader>
               <ScrollArea className="flex-1 p-4 space-y-4 bg-card/50">
                 {chatHistory.map((message) => (
                   <div
@@ -476,7 +540,7 @@ export default function AiCsAssistantPage() {
                           : 'bg-muted text-muted-foreground'
                       }`}
                     >
-                      <p className="text-sm">{message.text}</p>
+                      <p className="text-sm whitespace-pre-wrap">{message.text}</p>
                       <p className={`text-xs mt-1 ${message.sender === 'user' ? 'text-primary-foreground/80' : 'text-muted-foreground/80'} text-right`}>
                         {message.timestamp}
                       </p>
@@ -489,41 +553,39 @@ export default function AiCsAssistantPage() {
               </ScrollArea>
               
               <Separator />
-
-              
               <Card className="rounded-none border-0 border-t shadow-none">
                 <CardHeader className="p-4">
                   <CardTitle className="text-lg flex items-center">
                     <Sparkles className="mr-2 h-5 w-5 text-accent" />
-                    Bantuan Balasan AI & Kirim Pesan
+                    Balas Pesan & Bantuan AI
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 space-y-4">
                   <div className="space-y-1">
-                    <Label htmlFor="customer-message-input">Ketik pesan atau konteks untuk AI:</Label>
+                    <Label htmlFor="customer-message-input">Ketik balasan atau pertanyaan untuk AI:</Label>
                     <div className="flex items-end space-x-2">
                       <Textarea
                         id="customer-message-input"
-                        placeholder="Ketik pesan Anda di sini, atau tempel pesan pelanggan untuk AI..."
+                        placeholder="Ketik pesan Anda di sini..."
                         value={customerMessageInput}
                         onChange={(e) => setCustomerMessageInput(e.target.value)}
                         onKeyDown={handleKeyDown}
-                        rows={1}
-                        disabled={isLoadingSuggestion}
-                        className="bg-background flex-1 resize-none min-h-[40px]"
+                        rows={2}
+                        disabled={isLoadingSuggestion || isSendingWhatsApp}
+                        className="bg-background flex-1 resize-none"
                       />
                       <Button 
                         size="icon" 
                         onClick={handleSendMessage}
-                        disabled={isLoadingSuggestion || !customerMessageInput.trim()}
+                        disabled={isLoadingSuggestion || isSendingWhatsApp || !customerMessageInput.trim()}
                         className="h-10 w-10 shrink-0"
-                        aria-label="Kirim Pesan"
+                        aria-label="Kirim Pesan Manual"
                       >
-                        <Send className="h-5 w-5" />
+                        {isSendingWhatsApp && !isLoadingSuggestion ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
                       </Button>
                     </div>
                   </div>
-                  <Button onClick={handleGetSuggestion} disabled={isLoadingSuggestion || !selectedCustomer} className="w-full sm:w-auto">
+                  <Button onClick={handleGetSuggestion} disabled={isLoadingSuggestion || isSendingWhatsApp || !selectedCustomer} className="w-full sm:w-auto">
                     {isLoadingSuggestion ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
@@ -551,14 +613,14 @@ export default function AiCsAssistantPage() {
                             <Copy className="mr-2 h-4 w-4" /> Salin Balasan
                          </Button>
                          <Button 
-                            onClick={handleSendWhatsAppLocal} 
+                            onClick={handleSendAiAssistedReply} 
                             variant="outline" 
                             size="sm" 
                             className="border-green-500 text-green-600 hover:bg-green-500/10 hover:text-green-700"
                             disabled={isSendingWhatsApp || !selectedCustomer?.phone}
                          >
-                            {isSendingWhatsApp ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageCircle className="mr-2 h-4 w-4" />}
-                            Kirim via WA (Lokal)
+                            {isSendingWhatsApp && isLoadingSuggestion ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageCircle className="mr-2 h-4 w-4" />}
+                            Kirim Saran AI via WA
                          </Button>
                        </div>
                        {!selectedCustomer?.phone && (
@@ -576,3 +638,4 @@ export default function AiCsAssistantPage() {
   );
 }
     
+
