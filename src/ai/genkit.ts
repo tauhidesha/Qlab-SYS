@@ -1,12 +1,10 @@
-
 import {genkit} from 'genkit';
-// Menghapus import {openAI} from 'genkitx-openai'; karena package-nya dihapus
 
 export const ai = genkit({
   plugins: [
-    // Menghapus openAI() karena package-nya dihapus
+    // googleAI() plugin removed as genkitx-googleai could not be resolved
   ],
-  // Menghapus model: 'openai/gpt-4-turbo' karena plugin OpenAI dihapus
+  // Default model removed as googleAI plugin is not available
   telemetry: {
     instrumentation: {
       llm: true,
