@@ -12,13 +12,24 @@
 import { ai } from '@/ai/genkit';
 import { getProductServiceDetailsByNameTool } from '@/ai/tools/productLookupTool';
 import { getClientDetailsTool } from '@/ai/tools/clientLookupTool';
-import type { WhatsAppReplyInput, WhatsAppReplyOutput, ChatMessage } from '@/types/ai/cs-whatsapp-reply'; // Added ChatMessage
-import { WhatsAppReplyInputSchema, WhatsAppReplyOutputSchema } from '@/types/ai/cs-whatsapp-reply';
+import type { WhatsAppReplyInput, WhatsAppReplyOutput, ChatMessage } from '@/types/ai/cs-whatsapp-reply';
+import { ChatMessageSchema, WhatsAppReplyInputSchema, WhatsAppReplyOutputSchema } from '@/types/ai/cs-whatsapp-reply';
+import { z } from 'genkit';
 
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import type { AiSettingsFormValues } from '@/types/aiSettings';
 import { DEFAULT_AI_SETTINGS } from '@/types/aiSettings';
+
+// Skema internal untuk data yang diproses sebelum ke prompt
+const ProcessedChatMessageSchema = ChatMessageSchema.extend({
+  isUser: z.boolean(),
+  isModel: z.boolean(),
+});
+
+const PromptInternalInputSchema = WhatsAppReplyInputSchema.omit({ chatHistory: true }).extend({
+  processedChatHistory: z.array(ProcessedChatMessageSchema).optional(),
+});
 
 
 export async function generateWhatsAppReply({ customerMessage, chatHistory }: { customerMessage: string; chatHistory?: ChatMessage[] }): Promise<WhatsAppReplyOutput> {
@@ -41,36 +52,38 @@ export async function generateWhatsAppReply({ customerMessage, chatHistory }: { 
     console.error("Error fetching AI settings from Firestore, using defaults:", error);
   }
 
-  const promptInput: WhatsAppReplyInput = { // Explicitly type to match the schema
+  // Input untuk flow utama (WhatsAppReplyInputSchema)
+  const flowInput: WhatsAppReplyInput = {
     customerMessage: customerMessage,
-    chatHistory: chatHistory,
+    chatHistory: chatHistory, // Kirim chatHistory original ke flow
     agentBehavior: agentBehavior,
     knowledgeBase: knowledgeBaseDescription,
   };
 
-  return whatsAppReplyFlow(promptInput);
+  return whatsAppReplyFlow(flowInput);
 }
 
 const replyPrompt = ai.definePrompt({
   name: 'whatsAppReplyPrompt',
-  input: { schema: WhatsAppReplyInputSchema }, 
+  input: { schema: PromptInternalInputSchema }, // Prompt menggunakan skema internal
   output: { schema: WhatsAppReplyOutputSchema },
   tools: [getProductServiceDetailsByNameTool, getClientDetailsTool],
   prompt: `Anda adalah seorang Customer Service Assistant AI untuk QLAB Auto Detailing, sebuah bengkel perawatan dan detailing motor.
 Perilaku Anda harus: {{{agentBehavior}}}.
 Gunakan deskripsi sumber pengetahuan berikut sebagai panduan utama Anda: {{{knowledgeBase}}}
 
-{{#if chatHistory.length}}
+{{#if processedChatHistory.length}}
 Berikut adalah riwayat percakapan sebelumnya:
-{{#each chatHistory}}
-  {{#if (eq this.role "user")}}
+{{#each processedChatHistory}}
+  {{#if this.isUser}}
 Pelanggan/Staf CS: {{{this.content}}}
-  {{else if (eq this.role "model")}}
+  {{/if}}
+  {{#if this.isModel}}
 Anda (AI): {{{this.content}}}
   {{/if}}
 {{/each}}
-
 {{/if}}
+
 Pesan BARU dari Pelanggan (atau pertanyaan dari Staf CS yang perlu Anda bantu jawab berdasarkan riwayat di atas jika ada):
 {{{customerMessage}}}
 
@@ -115,12 +128,29 @@ Pastikan balasan Anda tetap ramah dan profesional.
 const whatsAppReplyFlow = ai.defineFlow(
   {
     name: 'whatsAppReplyFlow',
-    inputSchema: WhatsAppReplyInputSchema, 
+    inputSchema: WhatsAppReplyInputSchema, // Flow menerima skema input standar
     outputSchema: WhatsAppReplyOutputSchema,
   },
-  async (input) => { 
-    console.log("WhatsAppReplyFlow (internal) input with history:", input);
-    const { output } = await replyPrompt(input); 
+  async (input: WhatsAppReplyInput) => { // `input` di sini adalah tipe WhatsAppReplyInput
+    console.log("WhatsAppReplyFlow (internal) input received by flow:", JSON.stringify(input, null, 2));
+
+    const processedChatHistory = input.chatHistory?.map(msg => ({
+      ...msg,
+      isUser: msg.role === 'user',
+      isModel: msg.role === 'model',
+    }));
+
+    // Siapkan data untuk prompt, sesuai dengan PromptInternalInputSchema
+    const promptDataForInternalCall: z.infer<typeof PromptInternalInputSchema> = {
+      customerMessage: input.customerMessage,
+      agentBehavior: input.agentBehavior,
+      knowledgeBase: input.knowledgeBase,
+      processedChatHistory: processedChatHistory,
+    };
+    
+    console.log("WhatsAppReplyFlow (internal) input being passed to prompt:", JSON.stringify(promptDataForInternalCall, null, 2));
+    const { output } = await replyPrompt(promptDataForInternalCall); 
+    
     if (!output) {
       throw new Error('Gagal mendapatkan saran balasan dari AI.');
     }
@@ -128,3 +158,4 @@ const whatsAppReplyFlow = ai.defineFlow(
     return output;
   }
 );
+
