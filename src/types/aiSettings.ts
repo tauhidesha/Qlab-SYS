@@ -43,7 +43,7 @@ export const AiSettingsFormSchema = z.object({
   }),
   welcomeMessage: z.string().min(10, "Pesan selamat datang minimal 10 karakter.").max(300, "Pesan selamat datang maksimal 300 karakter."),
   transferConditions: z.array(z.enum(AI_TRANSFER_CONDITIONS)).min(1, "Minimal satu kondisi transfer harus dipilih."),
-  knowledgeBaseDescription: z.string().max(1000, "Deskripsi sumber pengetahuan maksimal 1000 karakter.").optional().describe("Deskripsikan sumber pengetahuan utama agen AI, mis. URL FAQ, dokumen produk, dll."),
+  knowledgeBaseDescription: z.string().max(5000, "Deskripsi sumber pengetahuan maksimal 5000 karakter.").optional().describe("Deskripsikan sumber pengetahuan utama agen AI, mis. URL FAQ, dokumen produk, dll."),
   enableFollowUp: z.boolean().default(false).describe("Aktifkan fitur follow-up otomatis untuk pelanggan yang pernah menghubungi via WhatsApp namun belum melakukan kunjungan atau transaksi. Follow-up berhenti jika pelanggan tercatat datang/bertransaksi."),
   followUpMessageTemplate: z.string().max(300, "Template pesan follow-up maksimal 300 karakter.").optional(),
   followUpDelays: FollowUpDelaysSchema.optional(),
