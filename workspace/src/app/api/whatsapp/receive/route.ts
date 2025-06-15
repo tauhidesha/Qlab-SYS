@@ -1,104 +1,76 @@
 
 // src/app/api/whatsapp/receive/route.ts
 import { NextResponse } from 'next/server';
-import { generateWhatsAppReply, type WhatsAppReplyInput, type WhatsAppReplyOutput } from '@/ai/flows/cs-whatsapp-reply-flow';
-import { sendWhatsAppMessage } from '@/services/whatsappService';
+// Comment out AI and WhatsApp service imports for now to isolate the issue
+// import { generateWhatsAppReply, type WhatsAppReplyInput, type WhatsAppReplyOutput } from '@/ai/flows/cs-whatsapp-reply-flow';
+// import { sendWhatsAppMessage } from '@/services/whatsappService';
 
 export async function POST(request: Request) {
-  console.log('API Route /api/whatsapp/receive: Received POST request.');
+  console.log('API Route /api/whatsapp/receive: Received POST request (Bare Minimum Test).');
 
-  // Cek API Key untuk Google AI
+  // Cek API Key Google (ini mungkin tidak akan tereksekusi jika error terjadi sebelumnya)
   const googleApiKey = process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (!googleApiKey || googleApiKey === "MASUKKAN_API_KEY_GOOGLE_AI_KAMU_DI_SINI") {
-    console.error('API Route /api/whatsapp/receive: Error - GOOGLE_API_KEY tidak di-set di environment variables atau masih menggunakan placeholder.');
+    console.error('API Route /api/whatsapp/receive: CRITICAL - GOOGLE_API_KEY tidak di-set atau placeholder. Ini bisa menyebabkan error sebelum handler ini berjalan penuh.');
+    // Mengembalikan JSON error bahkan di sini, meskipun mungkin tidak akan sampai jika error sudah terjadi
     return NextResponse.json({ 
       success: false, 
-      error: 'Konfigurasi server error: API Key untuk layanan AI tidak ditemukan atau tidak valid. Mohon cek file .env.' 
+      error: 'Konfigurasi server error: API Key untuk layanan AI tidak ditemukan atau tidak valid. Mohon cek file .env (Bare Minimum Test).' 
     }, { status: 500 });
   }
-  console.log('API Route /api/whatsapp/receive: GOOGLE_API_KEY terdeteksi.');
+  console.log('API Route /api/whatsapp/receive (Bare Minimum Test): GOOGLE_API_KEY terdeteksi.');
+
 
   try {
     const body = await request.json();
     const { senderNumber, customerMessage } = body;
 
-    console.log(`API Route /api/whatsapp/receive: Parsed body: senderNumber=${senderNumber}, customerMessage="${customerMessage}"`);
+    console.log(`API Route /api/whatsapp/receive (Bare Minimum Test): Parsed body: senderNumber=${senderNumber}, customerMessage="${customerMessage}"`);
 
     if (!senderNumber || !customerMessage) {
-      console.error('API Route /api/whatsapp/receive: Missing senderNumber or customerMessage.');
-      return NextResponse.json({ success: false, error: 'Nomor pengirim dan isi pesan diperlukan.' }, { status: 400 });
+      console.error('API Route /api/whatsapp/receive (Bare Minimum Test): Missing senderNumber or customerMessage.');
+      return NextResponse.json({ success: false, error: 'Nomor pengirim dan isi pesan diperlukan (Bare Minimum Test).' }, { status: 400 });
     }
 
-    // 1. Dapatkan balasan dari AI
-    const aiInput: WhatsAppReplyInput = { customerMessage };
-    let aiReplyText = "Maaf, saya belum bisa memproses permintaan Anda saat ini."; // Default reply
-    let aiSuccess = false;
-
-    try {
-      console.log('API Route /api/whatsapp/receive: Calling AI flow generateWhatsAppReply...');
-      const aiResult: WhatsAppReplyOutput = await generateWhatsAppReply(aiInput);
-      if (aiResult && aiResult.suggestedReply) {
-        aiReplyText = aiResult.suggestedReply;
-        aiSuccess = true;
-        console.log(`API Route /api/whatsapp/receive: AI suggested reply: "${aiReplyText}"`);
-      } else {
-        console.warn('API Route /api/whatsapp/receive: AI did not provide a valid reply. Menggunakan balasan default.');
-      }
-    } catch (aiError: any) {
-      console.error('API Route /api/whatsapp/receive: Error calling AI flow:', aiError);
-      // Tetap gunakan default reply jika AI error, tapi log errornya
-      aiReplyText = `Error pada AI: ${aiError.message || 'Terjadi kesalahan internal pada AI.'}. Balasan default akan digunakan.`;
-    }
-
-    // 2. Kirim balasan AI kembali ke pelanggan via server WhatsApp lokal
-    console.log(`API Route /api/whatsapp/receive: Attempting to send AI reply ("${aiReplyText}") to ${senderNumber} via local WhatsApp server.`);
-    const sendResult = await sendWhatsAppMessage(senderNumber, aiReplyText);
-
-    if (sendResult.success) {
-      console.log(`API Route /api/whatsapp/receive: AI reply successfully sent to ${senderNumber}. Message ID: ${sendResult.messageId}`);
-      return NextResponse.json({ 
-        success: true, 
-        message: 'Pesan diterima, AI memproses, dan balasan dikirim.', 
-        aiGeneratedReply: aiReplyText, 
-        aiSuccess: aiSuccess,
-        localServerResponseStatus: sendResult 
-      });
-    } else {
-      console.error(`API Route /api/whatsapp/receive: Failed to send AI reply to ${senderNumber} via local server. Error: ${sendResult.error}`);
-      return NextResponse.json({ 
-        success: false, 
-        error: `Pesan diterima dan AI diproses, tapi gagal mengirim balasan ke pelanggan: ${sendResult.error}`,
-        aiGeneratedReply: aiReplyText, 
-        aiSuccess: aiSuccess,
-        localServerResponseStatus: sendResult 
-      }, { status: 500 });
-    }
+    // Just acknowledge receipt and send a dummy success response
+    const dummyAiReply = `Pesan diterima dari ${senderNumber}: "${customerMessage}". Ini adalah tes dari endpoint minimal Next.js.`;
+    console.log(`API Route /api/whatsapp/receive (Bare Minimum Test): Sending dummy success response.`);
+    
+    // We are NOT sending a WhatsApp message back in this bare minimum test.
+    // We are just checking if this endpoint can be called and return JSON.
+    
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Pesan diterima oleh endpoint minimal Next.js.', 
+      aiGeneratedReply: dummyAiReply, 
+      aiSuccess: true, // Faking AI success for this test
+      localServerResponseStatus: { success: true, message: "Not sending back to WhatsApp in this test." }
+    });
 
   } catch (error: any) {
-    console.error('API Route /api/whatsapp/receive: Top-level internal server error:', error);
-    let errorMessage = 'Kesalahan internal server.';
+    console.error('API Route /api/whatsapp/receive (Bare Minimum Test): Top-level internal server error:', error);
+    let errorMessage = 'Kesalahan internal server (Bare Minimum Test).';
     if (error instanceof SyntaxError && error.message.includes("JSON")) {
-        errorMessage = 'Gagal mem-parsing JSON dari body request. Pastikan format request benar.';
-        console.error('API Route /api/whatsapp/receive: Error detail: Gagal parsing JSON request body.');
+        errorMessage = 'Gagal mem-parsing JSON dari body request (Bare Minimum Test). Pastikan format request benar.';
+        console.error('API Route /api/whatsapp/receive (Bare Minimum Test): Error detail: Gagal parsing JSON request body.');
         return NextResponse.json({ success: false, error: errorMessage }, { status: 400 });
     } else if (error.name === 'AbortError') {
-        errorMessage = 'Request timeout atau dibatalkan.';
-        console.error('API Route /api/whatsapp/receive: Error detail: Request Aborted.');
+        errorMessage = 'Request timeout atau dibatalkan (Bare Minimum Test).';
+        console.error('API Route /api/whatsapp/receive (Bare Minimum Test): Error detail: Request Aborted.');
         return NextResponse.json({ success: false, error: errorMessage }, { status: 504 }); // Gateway Timeout
     } else if (error instanceof Error) {
         errorMessage = error.message;
     }
-    return NextResponse.json({ success: false, error: `Internal server error in /api/whatsapp/receive: ${errorMessage}` }, { status: 500 });
+    return NextResponse.json({ success: false, error: `Internal server error in /api/whatsapp/receive (Bare Minimum Test): ${errorMessage}` }, { status: 500 });
   }
 }
 
-// Tambahkan handler untuk method GET, OPTIONS, dll jika diperlukan, atau default 405
 export async function GET(request: Request) {
-  console.log('API Route /api/whatsapp/receive: Received GET request. Method not allowed.');
-  return NextResponse.json({ success: false, error: 'Method Not Allowed' }, { status: 405 });
+  console.log('API Route /api/whatsapp/receive: Received GET request (Bare Minimum Test). Method not allowed.');
+  return NextResponse.json({ success: false, error: 'Method Not Allowed (Bare Minimum Test)' }, { status: 405 });
 }
 
 export async function PUT(request: Request) {
-  console.log('API Route /api/whatsapp/receive: Received PUT request. Method not allowed.');
-  return NextResponse.json({ success: false, error: 'Method Not Allowed' }, { status: 405 });
+  console.log('API Route /api/whatsapp/receive: Received PUT request (Bare Minimum Test). Method not allowed.');
+  return NextResponse.json({ success: false, error: 'Method Not Allowed (Bare Minimum Test)' }, { status: 405 });
 }
