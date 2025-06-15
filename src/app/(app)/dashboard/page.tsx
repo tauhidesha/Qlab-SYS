@@ -259,7 +259,7 @@ export default function DashboardPage() {
   const dailyIncomeChartConfig = {
     Pemasukan: {
       label: "Pemasukan",
-      color: "hsl(var(--chart-1))",
+      color: "hsl(var(--accent))", // Menggunakan warna aksen (oranye)
     },
   } satisfies ChartConfig;
 
@@ -448,5 +448,6 @@ export default function DashboardPage() {
     </div>
   );
 }
+
 
 
