@@ -331,7 +331,7 @@ export default function SettingsPage() {
       const minPointsStr = minPointsToRedeemGeneral.trim();
 
       const bankBalance = bankBalanceStr === '' ? 0 : parseFloat(bankBalanceStr);
-      const physicalCashBalance = physicalCashStr === '' ? 0 : parseFloat(physicalCashBalance);
+      const physicalCashBalance = physicalCashStr === '' ? 0 : parseFloat(physicalCashStr);
       const minPoints = minPointsStr === '' ? 0 : parseInt(minPointsStr, 10);
 
       if (isNaN(bankBalance) || bankBalance < 0) {
@@ -538,7 +538,7 @@ export default function SettingsPage() {
     };
     fetchAiSettings();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); 
+  }, []);
 
 
   const handleSaveAiSettings = async (values: AiSettingsFormValues) => {
@@ -1234,3 +1234,4 @@ export default function SettingsPage() {
     </div>
   );
 }
+
