@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Palette, Bell, Users, CreditCard as CreditCardIcon, Gift, DollarSign, Loader2, Wallet, Award, PlusCircle, Edit3, Trash2, SlidersHorizontal, Settings2, Zap, ShieldCheck } from 'lucide-react';
+import { Palette, Bell, Users, CreditCard as CreditCardIcon, Gift, DollarSign, Loader2, Wallet, Award, PlusCircle, Edit3, Trash2, SlidersHorizontal, Settings2, Zap } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, serverTimestamp, collection, addDoc, updateDoc, deleteDoc, query, orderBy, getDocs as getFirestoreDocs, where } from 'firebase/firestore'; 
@@ -44,16 +44,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import {
-  AiSettingsFormSchema,
-  type AiSettingsFormValues,
-  HARM_CATEGORIES,
-  BLOCK_THRESHOLDS,
-  HARM_CATEGORY_LABELS,
-  BLOCK_THRESHOLD_LABELS,
-  DEFAULT_SAFETY_SETTINGS,
-  type SafetySetting,
-} from '@/types/aiSettings';
 
 const loyaltyRewardFormSchema = z.object({
   name: z.string().min(3, "Nama reward minimal 3 karakter").max(100, "Nama reward maksimal 100 karakter"),
@@ -127,19 +117,6 @@ export default function SettingsPage() {
   const [availableServicesForDropdown, setAvailableServicesForDropdown] = useState<ServiceProduct[]>([]);
   const [availableProductsForDropdown, setAvailableProductsForDropdown] = useState<ServiceProduct[]>([]);
   const [isLoadingServicesForDropdown, setIsLoadingServicesForDropdown] = useState(true);
-
-  const [isLoadingAiSettings, setIsLoadingAiSettings] = useState(true);
-  const [isSavingAiSettings, setIsSavingAiSettings] = useState(false);
-
-  const aiSettingsForm = useForm<AiSettingsFormValues>({
-    resolver: zodResolver(AiSettingsFormSchema),
-    defaultValues: {
-      globalSafetySettings: DEFAULT_SAFETY_SETTINGS,
-      csAssistantCustomInstruction: '',
-      profitLossCustomInstruction: '',
-    }
-  });
-
 
   const rewardForm = useForm<LoyaltyRewardFormValues>({
     resolver: zodResolver(loyaltyRewardFormSchema),
@@ -512,61 +489,17 @@ export default function SettingsPage() {
     }
   };
 
-  useEffect(() => {
-    const fetchAiSettings = async () => {
-      setIsLoadingAiSettings(true);
-      try {
-        const settingsDocRef = doc(db, 'appSettings', 'aiConfiguration');
-        const docSnap = await getDoc(settingsDocRef);
-        if (docSnap.exists()) {
-          const data = AiSettingsFormSchema.parse(docSnap.data());
-          aiSettingsForm.reset(data);
-        } else {
-          aiSettingsForm.reset(AiSettingsFormSchema.parse({}));
-        }
-      } catch (error) {
-        console.error("Error fetching AI settings: ", error);
-        toast({
-          title: "Error",
-          description: "Gagal memuat pengaturan AI. Menggunakan pengaturan default.",
-          variant: "destructive",
-        });
-        aiSettingsForm.reset(AiSettingsFormSchema.parse({}));
-      } finally {
-        setIsLoadingAiSettings(false);
-      }
-    };
-    fetchAiSettings();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-
-  const handleSaveAiSettings = async (values: AiSettingsFormValues) => {
-    setIsSavingAiSettings(true);
-    try {
-      const settingsDocRef = doc(db, 'appSettings', 'aiConfiguration');
-      await setDoc(settingsDocRef, { ...values, updatedAt: serverTimestamp() }, { merge: true });
-      toast({ title: "Sukses", description: "Pengaturan AI berhasil disimpan." });
-    } catch (error) {
-      console.error("Error saving AI settings: ", error);
-      toast({ title: "Error", description: "Gagal menyimpan pengaturan AI.", variant: "destructive" });
-    } finally {
-      setIsSavingAiSettings(false);
-    }
-  };
-
-
   return (
     <div className="flex flex-col h-full">
       <AppHeader title="Pengaturan" />
       <main className="flex-1 overflow-y-auto p-6">
         <Tabs defaultValue="general" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 mb-6">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-5 mb-6"> {/* Adjusted for 5 tabs */}
             <TabsTrigger value="general"><SlidersHorizontal className="mr-2 h-4 w-4 hidden md:inline" />Umum</TabsTrigger>
-            <TabsTrigger value="ai"><ShieldCheck className="mr-2 h-4 w-4 hidden md:inline" />AI & Agen</TabsTrigger>
             <TabsTrigger value="loyalty"><Gift className="mr-2 h-4 w-4 hidden md:inline" />Loyalitas Dasar</TabsTrigger>
             <TabsTrigger value="loyalty_rewards"><Award className="mr-2 h-4 w-4 hidden md:inline" />Daftar Reward Poin</TabsTrigger>
             <TabsTrigger value="direct_rewards"><Zap className="mr-2 h-4 w-4 hidden md:inline" />Reward Langsung</TabsTrigger>
+            {/* AI Settings Tab Removed */}
             <TabsTrigger value="appearance"><Palette className="mr-2 h-4 w-4 hidden md:inline" />Tampilan</TabsTrigger>
             <TabsTrigger value="notifications"><Bell className="mr-2 h-4 w-4 hidden md:inline" />Notifikasi</TabsTrigger>
           </TabsList>
@@ -664,114 +597,6 @@ export default function SettingsPage() {
               </CardFooter>
             </Card>
           </TabsContent>
-
-          <TabsContent value="ai" className="space-y-6">
-            <Form {...aiSettingsForm}>
-              <form onSubmit={aiSettingsForm.handleSubmit(handleSaveAiSettings)} className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center"><ShieldCheck className="mr-2 h-5 w-5 text-primary"/>Pengaturan Keamanan AI Global (Gemini)</CardTitle>
-                    <CardDescription>Atur tingkat keamanan untuk berbagai kategori konten yang mungkin diblokir oleh AI.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {isLoadingAiSettings ? (
-                      <div className="flex items-center space-x-2">
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                        <span>Memuat pengaturan AI...</span>
-                      </div>
-                    ) : (
-                      HARM_CATEGORIES.map((category, index) => (
-                        <FormField
-                          key={category}
-                          control={aiSettingsForm.control}
-                          name={`globalSafetySettings.${index}.threshold`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>{HARM_CATEGORY_LABELS[category]}</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Pilih tingkat blokir" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {BLOCK_THRESHOLDS.map(threshold => (
-                                    <SelectItem key={threshold} value={threshold}>
-                                      {BLOCK_THRESHOLD_LABELS[threshold]}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      ))
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Kustomisasi Asisten CS AI</CardTitle>
-                    <CardDescription>Berikan instruksi tambahan untuk gaya bahasa atau persona Asisten CS AI.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    {isLoadingAiSettings ? (
-                       <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : (
-                    <FormField
-                      control={aiSettingsForm.control}
-                      name="csAssistantCustomInstruction"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Instruksi Tambahan untuk CS AI</FormLabel>
-                          <FormControl>
-                            <Textarea placeholder="Contoh: Selalu gunakan sapaan 'Juragan', jangan terlalu formal." {...field} rows={4} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Kustomisasi Analisa Laporan Laba Rugi</CardTitle>
-                    <CardDescription>Berikan instruksi tambahan untuk AI saat menganalisa laporan laba rugi.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                     {isLoadingAiSettings ? (
-                       <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : (
-                    <FormField
-                      control={aiSettingsForm.control}
-                      name="profitLossCustomInstruction"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Instruksi Tambahan untuk Analis AI</FormLabel>
-                          <FormControl>
-                            <Textarea placeholder="Contoh: Fokus pada perbandingan pendapatan dari layanan vs produk. Gunakan bahasa yang sangat sederhana." {...field} rows={4} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    )}
-                  </CardContent>
-                </Card>
-                <div className="flex justify-end">
-                    <Button type="submit" disabled={isSavingAiSettings || isLoadingAiSettings}>
-                        {isSavingAiSettings ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4"/>}
-                        Simpan Pengaturan AI
-                    </Button>
-                </div>
-              </form>
-            </Form>
-          </TabsContent>
-
 
           <TabsContent value="loyalty">
             <Card>
