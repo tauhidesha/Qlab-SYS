@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, MessageSquareText, Sparkles, Copy, Send, User, Search, Bot, MessageCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { generateWhatsAppReply } from '@/ai/flows/cs-whatsapp-reply-flow';
-import type { WhatsAppReplyInput, WhatsAppReplyOutput } from '@/types/ai/cs-whatsapp-reply';
+import type { WhatsAppReplyOutput, ChatMessage } from '@/types/ai/cs-whatsapp-reply'; // ChatMessage imported
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -29,7 +29,7 @@ interface ChatMessageUi extends Omit<DirectMessage, 'timestamp' | 'id'> {
 
 interface PlaygroundMessage {
   id: string;
-  sender: 'user' | 'ai';
+  sender: 'user' | 'ai'; // 'user' for CS agent input, 'ai' for AI's reply
   text: string;
   timestamp: string;
 }
@@ -59,8 +59,8 @@ function formatPhoneNumberForMatching(number: string): string {
 }
 
 export default function AiCsAssistantPage() {
-  const [customerMessageInput, setCustomerMessageInput] = useState('');
-  const [currentPlaygroundInput, setCurrentPlaygroundInput] = useState('');
+  const [customerMessageInput, setCustomerMessageInput] = useState(''); // For manual reply to customer
+  const [currentPlaygroundInput, setCurrentPlaygroundInput] = useState(''); // For AI playground input
   const [playgroundChatHistory, setPlaygroundChatHistory] = useState<PlaygroundMessage[]>([]);
   const [isLoadingPlaygroundSuggestion, setIsLoadingPlaygroundSuggestion] = useState(false);
 
@@ -69,7 +69,7 @@ export default function AiCsAssistantPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loadingCustomers, setLoadingCustomers] = useState(true);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [chatHistory, setChatHistory] = useState<ChatMessageUi[]>([]);
+  const [chatHistory, setChatHistory] = useState<ChatMessageUi[]>([]); // For selected customer's actual chat
   const [searchTerm, setSearchTerm] = useState('');
   const [isPlaygroundMode, setIsPlaygroundMode] = useState(false);
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
@@ -209,22 +209,32 @@ export default function AiCsAssistantPage() {
       return;
     }
     
+    const userMessageText = currentPlaygroundInput.trim();
     const userMessage: PlaygroundMessage = {
       id: uuidv4(),
       sender: 'user',
-      text: currentPlaygroundInput.trim(),
+      text: userMessageText,
       timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
     };
-    setPlaygroundChatHistory(prev => [...prev, userMessage]);
-    const aiInput = currentPlaygroundInput.trim();
+    
+    const updatedPlaygroundHistory = [...playgroundChatHistory, userMessage];
+    setPlaygroundChatHistory(updatedPlaygroundHistory);
     setCurrentPlaygroundInput('');
     setIsLoadingPlaygroundSuggestion(true);
 
+    // Prepare chat history for Genkit
+    const genkitChatHistory: ChatMessage[] = updatedPlaygroundHistory
+      .slice(0, -1) // Exclude the current user message which will be passed as `customerMessage`
+      .map(msg => ({
+        role: msg.sender === 'user' ? 'user' : 'model',
+        content: msg.text,
+      }));
+
     try {
-      const input: WhatsAppReplyInput = { 
-        customerMessage: aiInput,
-      };
-      const result: WhatsAppReplyOutput = await generateWhatsAppReply(input);
+      const result: WhatsAppReplyOutput = await generateWhatsAppReply({
+        customerMessage: userMessageText, // The latest message from the user/CS
+        chatHistory: genkitChatHistory,   // The preceding conversation
+      });
       
       const aiMessage: PlaygroundMessage = {
         id: uuidv4(),
