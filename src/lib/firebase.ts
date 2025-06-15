@@ -43,7 +43,6 @@ if (useEmulator) {
   } catch (error) {
     console.error("🔥 Firebase.ts: FAILED to connect to Firestore Emulator:", error);
     // This error might indicate the emulator isn't running or is on a different port.
-    // Firestore SDK might still attempt to fall back to cloud if this fails.
   }
 } else {
   console.log("Firebase.ts: Condition 'useEmulator' is FALSE.");
