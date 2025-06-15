@@ -51,6 +51,7 @@ export const AiConfigurationSchema = z.object({
   globalSafetySettings: z.array(SafetySettingSchema).default(DEFAULT_SAFETY_SETTINGS),
   csAssistantCustomInstruction: z.string().max(1000, "Instruksi kustom maksimal 1000 karakter.").optional().default(''),
   profitLossCustomInstruction: z.string().max(1000, "Instruksi kustom maksimal 1000 karakter.").optional().default(''),
+  updatedAt: z.any().optional(), // Untuk serverTimestamp
 });
 export type AiConfiguration = z.infer<typeof AiConfigurationSchema>;
 
