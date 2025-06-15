@@ -1,3 +1,4 @@
+
 // src/services/whatsappService.ts
 
 interface SendMessageResponse {
@@ -6,57 +7,64 @@ interface SendMessageResponse {
   error?: string;
 }
 
-export async function sendWhatsAppMessage(number: string, message: string): Promise<SendMessageResponse> {
-  const whatsappServerUrl = process.env.WHATSAPP_SERVER_URL || 'http://localhost:8080/send-message';
+// Fungsi untuk memformat nomor telepon ke format internasional (mis. 62xxxx)
+function formatPhoneNumber(number: string): string {
+  let cleaned = number.replace(/\D/g, ''); // Hapus semua karakter non-digit
 
-  // 1. Hapus semua karakter non-digit
-  let formattedNumber = number.replace(/\D/g, '');
-
-  // 2. Jika nomor dimulai dengan '0', ganti dengan '62'
-  if (formattedNumber.startsWith('0')) {
-    formattedNumber = '62' + formattedNumber.substring(1);
-  } 
-  // 3. Jika nomor dimulai dengan '8' (misalnya '812...'), dan panjangnya sesuai nomor Indonesia, tambahkan '62'
-  // Ini untuk kasus nomor Indonesia yang tidak diawali '0' atau '62'
-  else if (
-    formattedNumber.startsWith('8') &&
-    formattedNumber.length >= 9 && // Panjang minimal nomor HP Indonesia tanpa kode negara dan 0 (mis. 812345678 -> 9 digit)
-    formattedNumber.length <= 13   // Panjang maksimal
-  ) {
-    formattedNumber = '62' + formattedNumber;
+  if (cleaned.startsWith('0')) {
+    // Ganti '0' di awal dengan '62'
+    cleaned = '62' + cleaned.substring(1);
+  } else if (cleaned.startsWith('8') && cleaned.length >= 9 && cleaned.length <= 13) {
+    // Untuk nomor Indonesia yang langsung dimulai dengan '8' (mis. 8123456789)
+    // dan memiliki panjang yang wajar untuk nomor HP Indonesia.
+    cleaned = '62' + cleaned;
   }
-  // Jika nomor sudah diawali '62' atau kode negara lain, biarkan apa adanya.
+  // Jika sudah diawali '62' atau kode negara lain, biarkan.
+  // Jika format lain, mungkin perlu penyesuaian lebih lanjut atau validasi lebih ketat.
+  return cleaned;
+}
+
+
+export async function sendWhatsAppMessage(number: string, message: string): Promise<SendMessageResponse> {
+  const whatsappServerUrl = process.env.WHATSAPP_SERVER_URL; // Sekarang ini URL lengkap termasuk /send-message
+
+  if (!whatsappServerUrl) {
+    console.error("WHATSAPP_SERVER_URL tidak di-set di environment variables.");
+    return { success: false, error: "Konfigurasi server WhatsApp tidak ditemukan." };
+  }
+  
+  const formattedNumber = formatPhoneNumber(number);
 
   try {
-    console.log(`Mengirim permintaan ke server WhatsApp lokal di ${whatsappServerUrl} untuk nomor ${formattedNumber}`);
-    const response = await fetch(whatsappServerUrl, {
+    console.log(`WhatsappService: Mengirim permintaan ke server WhatsApp lokal di ${whatsappServerUrl} untuk nomor ${formattedNumber}`);
+    const response = await fetch(whatsappServerUrl, { // URL sudah lengkap dari .env
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        number: formattedNumber, // Kirim nomor yang sudah diformat
+        number: formattedNumber, 
         message: message,
       }),
     });
 
     if (!response.ok) {
-      const errorBody = await response.text(); // Coba baca body error sebagai teks dulu
+      const errorBody = await response.text(); 
       let errorData;
       try {
-        errorData = JSON.parse(errorBody); // Coba parse sebagai JSON
+        errorData = JSON.parse(errorBody); 
       } catch (e) {
-        errorData = { error: errorBody }; // Jika bukan JSON, gunakan teksnya sebagai error
+        errorData = { error: errorBody }; 
       }
-      console.error(`Server WhatsApp lokal merespons dengan error ${response.status}:`, errorData);
+      console.error(`WhatsappService: Server WhatsApp lokal merespons dengan error ${response.status}:`, errorData);
       return { success: false, error: `Server WhatsApp lokal error: ${response.status} - ${errorData.error || errorData.details || response.statusText}` };
     }
 
     const responseData = await response.json();
-    console.log(`Pesan berhasil dikirim melalui server WhatsApp lokal ke ${formattedNumber}`, responseData);
+    console.log(`WhatsappService: Pesan berhasil dikirim via server WhatsApp lokal ke ${formattedNumber}`, responseData);
     return { success: true, messageId: responseData.messageId || 'N/A' };
   } catch (error) {
-    console.error(`Gagal mengirim pesan ke ${formattedNumber} melalui server WhatsApp lokal:`, error);
+    console.error(`WhatsappService: Gagal mengirim pesan ke ${formattedNumber} via server WhatsApp lokal:`, error);
     if (error instanceof Error) {
       return { success: false, error: `Error koneksi ke server WhatsApp lokal: ${error.message}` };
     }
@@ -64,42 +72,46 @@ export async function sendWhatsAppMessage(number: string, message: string): Prom
   }
 }
 
-// Catatan:
-// File ini sekarang mengasumsikan Anda memiliki server WhatsApp terpisah (berbasis whatsapp-web.js)
-// yang berjalan dan mendengarkan permintaan HTTP POST di WHATSAPP_SERVER_URL.
-// Server tersebut yang akan menangani logika untuk mengirim pesan via whatsapp-web.js.
+// Catatan untuk server WhatsApp lokal (whatsapp-server.js di laptopmu):
+// - Pastikan endpoint /send-message menerima JSON: { number: "62xxxx", message: "pesan" }
+// - Server lokalmu yang akan menambahkan "@c.us" ke nomor sebelum dikirim via whatsapp-web.js
+// - Server lokalmu juga perlu di-update untuk:
+//   1. Mendengarkan event pesan masuk (`client.on('message', async (msg) => { ... })`).
+//   2. Dari pesan masuk, dapatkan:
+//      - Nomor pengirim: `msg.from` (perlu dibersihkan dari "@c.us", misal jadi "62xxxx").
+//      - Isi pesan: `msg.body`.
+//   3. Kirim data ini (nomor pengirim & isi pesan) via HTTP POST ke endpoint baru di Next.js:
+//      `https://<URL-PUBLIK-NEXTJS-APP-KAMU>/api/whatsapp/receive`.
+//      URL publik Next.js app bisa dari URL Firebase Studio atau ngrok jika Next.js juga di-tunnel.
 //
-// Contoh implementasi server WhatsApp lokal sederhana (misalnya pakai Express.js):
+// Contoh modifikasi di whatsapp-server.js (bagian terima pesan):
 //
-// const express = require('express');
-// const { Client, LocalAuth } = require('whatsapp-web.js'); // Di server WhatsApp lokalmu
-// const app = express();
-// const port = 8080; // Sesuaikan dengan WHATSAPP_SERVER_URL
+// client.on('message', async (msg) => {
+//   if (msg.fromMe) return; // Abaikan pesan dari diri sendiri
 //
-// app.use(express.json());
+//   const contact = await msg.getContact();
+//   console.log(`Pesan diterima dari: ${contact.pushname || msg.from} (${msg.from})`);
+//   console.log(`Isi pesan: ${msg.body}`);
 //
-// const client = new Client({ authStrategy: new LocalAuth({ clientId: "my-whatsapp-server" }) });
-// client.on('qr', qr => { console.log('Scan QR ini:', qr); });
-// client.on('ready', () => { console.log('WhatsApp Server Siap!'); });
-// client.initialize();
+//   const senderNumber = msg.from.replace('@c.us', ''); // Bersihkan nomor
+//   const customerMessage = msg.body;
 //
-// app.post('/send-message', async (req, res) => {
-//   const { number, message } = req.body; // number di sini seharusnya sudah "62..."
-//   if (!number || !message) {
-//     return res.status(400).json({ error: 'Nomor dan pesan diperlukan.' });
-//   }
+//   // GANTI INI dengan URL publik Next.js app kamu (mis. dari Firebase Studio atau ngrok untuk Next.js)
+//   const nextjsReceiveEndpoint = 'https://<URL-PUBLIK-NEXTJS-APP-KAMU>/api/whatsapp/receive';
+//
 //   try {
-//     const chatId = `${number}@c.us`; // Langsung pakai number karena sudah diformat oleh client (Next.js)
-//     const sentMessage = await client.sendMessage(chatId, message);
-//     res.status(200).json({ success: true, messageId: sentMessage.id.id });
-//   } catch (e) {
-//     console.error("Gagal kirim pesan dari server lokal:", e);
-//     res.status(500).json({ error: 'Gagal mengirim pesan WhatsApp.', details: e.message });
+//     const response = await fetch(nextjsReceiveEndpoint, {
+//       method: 'POST',
+//       headers: { 'Content-Type': 'application/json' },
+//       body: JSON.stringify({ senderNumber, customerMessage }),
+//     });
+//     const responseData = await response.json();
+//     if (response.ok && responseData.success) {
+//       console.log('Pesan berhasil diteruskan ke Next.js dan balasan AI (jika ada) sudah diproses untuk dikirim.');
+//     } else {
+//       console.error('Gagal meneruskan pesan ke Next.js atau Next.js gagal memproses:', responseData.error || response.statusText);
+//     }
+//   } catch (fetchError) {
+//     console.error('Error saat mengirim pesan ke Next.js API:', fetchError);
 //   }
 // });
-//
-// app.listen(port, () => {
-//   console.log(`Server WhatsApp lokal berjalan di http://localhost:${port}`);
-// });
-//
-// Anda perlu menjalankan script server seperti di atas di laptop Anda.
