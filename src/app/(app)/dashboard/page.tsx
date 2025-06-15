@@ -4,15 +4,18 @@ import AppHeader from '@/components/layout/AppHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { BarChartBig, Users, ShoppingCart, ListOrdered, CreditCard, Star as StarIcon, Loader2 } from 'lucide-react';
+import { BarChartBig, Users, ShoppingCart, ListOrdered, CreditCard, Star as StarIcon, Loader2, TrendingUp } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, Timestamp, onSnapshot, orderBy, limit } from 'firebase/firestore';
-import { startOfDay, endOfDay, format as formatDateFns } from 'date-fns';
+import { startOfDay, endOfDay, format as formatDateFns, getDaysInMonth, getDate } from 'date-fns';
 import { id as indonesiaLocale } from 'date-fns/locale';
 import { useToast } from '@/hooks/use-toast';
 import type { Transaction, TransactionItem } from '@/types/transaction';
-import type { QueueItem } from '@/app/(app)/queue/page'; // Assuming QueueItem type is exported from queue page
+import type { QueueItem } from '@/app/(app)/queue/page'; 
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { ChartContainer, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+
 
 interface DashboardSummary {
   todaysRevenue: number;
@@ -37,6 +40,11 @@ interface BestsellingItem {
   quantitySold: number;
 }
 
+interface DailyIncomeChartData {
+  date: string; // e.g., "01", "02", ... "31"
+  Pemasukan: number; // Total income for that day
+}
+
 export default function DashboardPage() {
   const [summaryData, setSummaryData] = useState<DashboardSummary>({
     todaysRevenue: 0,
@@ -53,6 +61,8 @@ export default function DashboardPage() {
   const [loadingPaymentMethods, setLoadingPaymentMethods] = useState(true);
   const [bestsellingItems, setBestsellingItems] = useState<BestsellingItem[]>([]);
   const [loadingBestsellers, setLoadingBestsellers] = useState(true);
+  const [dailyIncomeData, setDailyIncomeData] = useState<DailyIncomeChartData[]>([]);
+  const [loadingDailyIncome, setLoadingDailyIncome] = useState(true);
 
   const { toast } = useToast();
 
@@ -61,6 +71,7 @@ export default function DashboardPage() {
     setLoadingRecentTransactions(true);
     setLoadingPaymentMethods(true);
     setLoadingBestsellers(true);
+    setLoadingDailyIncome(true);
 
     try {
       const today = new Date();
@@ -86,7 +97,7 @@ export default function DashboardPage() {
         todaysRevenue: revenue,
         transactionsToday: paidTransactionsTodaySnap.size,
       }));
-      setLoadingSummary(false); // Summary part done
+      setLoadingSummary(false); 
 
       // Recent Transactions (last 5 paid)
       const recentTransQuery = query(transactionsRef, where('status', '==', 'paid'), orderBy('paidAt', 'desc'), limit(5));
@@ -117,7 +128,7 @@ export default function DashboardPage() {
           paymentMethodCounts[transaction.paymentMethod] = (paymentMethodCounts[transaction.paymentMethod] || 0) + 1;
         }
         transaction.items.forEach(item => {
-          if (item.type !== 'reward_merchandise') { // Exclude rewards
+          if (item.type !== 'reward_merchandise') { 
             const current = itemCounts[item.catalogItemId] || { name: item.name, quantity: 0 };
             itemCounts[item.catalogItemId] = { 
               name: item.name, 
@@ -149,22 +160,52 @@ export default function DashboardPage() {
       setBestsellingItems(bestsellers);
       setLoadingBestsellers(false);
 
+      // Daily Income for Current Month
+      const currentMonthStart = startOfDay(new Date(today.getFullYear(), today.getMonth(), 1));
+      const currentMonthEnd = endOfDay(new Date(today.getFullYear(), today.getMonth() + 1, 0));
+      const daysInMonth = getDaysInMonth(today);
+      const initialDailyData: DailyIncomeChartData[] = Array.from({ length: daysInMonth }, (_, i) => ({
+        date: formatDateFns(new Date(today.getFullYear(), today.getMonth(), i + 1), 'dd'),
+        Pemasukan: 0,
+      }));
+
+      const monthlyIncomeQuery = query(
+        transactionsRef,
+        where('status', '==', 'paid'),
+        where('paidAt', '>=', Timestamp.fromDate(currentMonthStart)),
+        where('paidAt', '<=', Timestamp.fromDate(currentMonthEnd)),
+        orderBy('paidAt', 'asc')
+      );
+      const monthlyIncomeSnap = await getDocs(monthlyIncomeQuery);
+      monthlyIncomeSnap.forEach(doc => {
+        const transaction = doc.data() as Transaction;
+        if (transaction.paidAt) {
+          const dayOfMonth = getDate(transaction.paidAt.toDate()); // 1-31
+          const dayIndex = dayOfMonth - 1;
+          if (initialDailyData[dayIndex]) {
+            initialDailyData[dayIndex].Pemasukan += transaction.total;
+          }
+        }
+      });
+      setDailyIncomeData(initialDailyData);
+      setLoadingDailyIncome(false);
+
+
     } catch (error) {
       console.error("Error fetching dashboard data: ", error);
       toast({ title: "Error", description: "Gagal memuat data dasbor.", variant: "destructive" });
-      // Set all loading states to false on error
       setLoadingSummary(false);
       setLoadingRecentTransactions(false);
-      setLoadingQueueDetailed(false); // Ensure this is also handled
+      setLoadingQueueDetailed(false); 
       setLoadingPaymentMethods(false);
       setLoadingBestsellers(false);
+      setLoadingDailyIncome(false);
     }
   }, [toast]);
 
   useEffect(() => {
-    fetchDashboardData(); // Initial fetch for non-realtime data
+    fetchDashboardData(); 
 
-    // Real-time listener for queue counts (summary) and detailed queue
     setLoadingQueueDetailed(true);
     const queueRef = collection(db, 'queueItems');
     const unsubscribeQueue = onSnapshot(queueRef, async (snapshot) => {
@@ -183,8 +224,8 @@ export default function DashboardPage() {
         const detailedQueueData: QueueItem[] = [
           ...waitingSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as QueueItem)),
           ...inServiceSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as QueueItem))
-        ].sort((a, b) => (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0)) // Ensure combined sort
-         .slice(0, 5); // Limit for display
+        ].sort((a, b) => (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0)) 
+         .slice(0, 5); 
 
         setCurrentQueueDetailed(detailedQueueData);
 
@@ -193,7 +234,6 @@ export default function DashboardPage() {
         toast({ title: "Error Update Antrian", description: "Gagal mendapatkan update antrian real-time.", variant: "warning" });
       } finally {
         setLoadingQueueDetailed(false);
-        // Ensure summary loading is false if it was depending on initial queue fetch
         if (loadingSummary && !summaryData.todaysRevenue) setLoadingSummary(false);
       }
     }, (error) => {
@@ -206,7 +246,7 @@ export default function DashboardPage() {
     return () => {
       unsubscribeQueue();
     };
-  }, [fetchDashboardData, toast]); // fetchDashboardData removed from deps to prevent re-triggering its full fetch on queue update
+  }, [toast]); // Removed fetchDashboardData from here as it should only run once typically
 
 
   const summaryCardsConfig = [
@@ -215,6 +255,16 @@ export default function DashboardPage() {
     { title: "Antrian Menunggu", getValue: () => summaryData.queueWaiting.toString(), icon: ListOrdered, dataAiHint: "daftar tunggu", isLoading: loadingSummary || loadingQueueDetailed },
     { title: "Antrian Dalam Layanan", getValue: () => summaryData.queueInService.toString(), icon: BarChartBig, dataAiHint: "progres tugas", isLoading: loadingSummary || loadingQueueDetailed },
   ];
+  
+  const dailyIncomeChartConfig = {
+    Pemasukan: {
+      label: "Pemasukan",
+      color: "hsl(var(--chart-1))",
+    },
+  } satisfies ChartConfig;
+
+  const formatYAxis = (tickItem: number) => `Rp ${(tickItem / 1000000).toFixed(1)} Jt`;
+
 
   return (
     <div className="flex flex-col h-full">
@@ -233,6 +283,52 @@ export default function DashboardPage() {
             </Card>
           ))}
         </div>
+
+        <Card className="mb-6">
+            <CardHeader>
+                <CardTitle className="flex items-center">
+                    <TrendingUp className="mr-2 h-5 w-5 text-primary" />
+                    Pendapatan Harian (Bulan Ini)
+                </CardTitle>
+                <CardDescription>Total pendapatan dari transaksi terbayar per hari dalam bulan ini.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                {loadingDailyIncome ? (
+                    <div className="flex items-center justify-center h-[350px]"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
+                ) : dailyIncomeData.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-10 h-[350px] flex items-center justify-center">Belum ada data pendapatan untuk bulan ini.</p>
+                ) : (
+                <ChartContainer config={dailyIncomeChartConfig} className="h-[350px] w-full">
+                    <BarChart accessibilityLayer data={dailyIncomeData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                        <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                        <XAxis 
+                            dataKey="date" 
+                            tickLine={false} 
+                            axisLine={false} 
+                            tickMargin={8}
+                            tickFormatter={(value) => value} // Display day number e.g. "01", "15"
+                        />
+                        <YAxis 
+                            tickFormatter={formatYAxis} 
+                            tickLine={false} 
+                            axisLine={false} 
+                            tickMargin={8}
+                        />
+                        <ChartTooltip 
+                            cursor={false} 
+                            content={<ChartTooltipContent 
+                                        labelFormatter={(value, payload) => `Tgl ${value}/${formatDateFns(new Date(), 'MM', {locale: indonesiaLocale})}`}
+                                        formatter={(value) => `Rp ${Number(value).toLocaleString('id-ID')}`} 
+                                        indicator="dot" 
+                                     />} 
+                        />
+                        <Bar dataKey="Pemasukan" fill="var(--color-Pemasukan)" radius={4} />
+                    </BarChart>
+                </ChartContainer>
+                )}
+            </CardContent>
+        </Card>
+
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card>
@@ -352,3 +448,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
