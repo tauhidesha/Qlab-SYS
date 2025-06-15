@@ -11,39 +11,41 @@ interface SendMessageResponse {
 function formatPhoneNumber(number: string): string {
   let cleaned = number.replace(/\D/g, ''); // Hapus semua karakter non-digit
 
-  if (cleaned.startsWith('0')) {
-    // Ganti '0' di awal dengan '62'
+  if (cleaned.startsWith('620')) { // Prioritas untuk format aneh "620..." -> "62..."
+    cleaned = '62' + cleaned.substring(3);
+  } else if (cleaned.startsWith('0')) { // Jika diawali '0', mis. "0812..." -> "62812..."
     cleaned = '62' + cleaned.substring(1);
-  } else if (cleaned.startsWith('8') && cleaned.length >= 9 && cleaned.length <= 13) {
-    // Untuk nomor Indonesia yang langsung dimulai dengan '8' (mis. 8123456789)
-    // dan memiliki panjang yang wajar untuk nomor HP Indonesia.
+  } else if (cleaned.startsWith('8') && cleaned.length >= 9 && cleaned.length <= 13) { // Jika diawali '8' dan panjangnya sesuai nomor HP Indo, mis. "812..." -> "62812..."
+    cleaned = '62' + cleaned;
+  } else if (!cleaned.startsWith('62') && cleaned.length >= 9 && cleaned.length <= 13) {
+    // Jika tidak diawali "62" tapi panjangnya sesuai nomor HP Indo (mis. "1234567890" yang mungkin maksudnya "081234567890")
+    // Ini adalah asumsi, umum untuk konteks lokal.
     cleaned = '62' + cleaned;
   }
-  // Jika sudah diawali '62' atau kode negara lain, biarkan.
-  // Jika format lain, mungkin perlu penyesuaian lebih lanjut atau validasi lebih ketat.
+  // Jika sudah '62...' atau format internasional lain yang valid, tidak diubah lagi oleh kondisi di atas.
   return cleaned;
 }
 
 
 export async function sendWhatsAppMessage(number: string, message: string): Promise<SendMessageResponse> {
-  // Langsung menggunakan URL yang diberikan
   const whatsappServerUrl = 'https://c2b4-103-3-220-151.ngrok-free.app/send-message';
-
-  console.log(`WhatsappService: Menggunakan WHATSAPP_SERVER_URL (hardcoded): ${whatsappServerUrl}`);
-
+  
+  console.log(`WhatsappService: Menerima nomor asli: "${number}"`);
   const formattedNumber = formatPhoneNumber(number);
+  console.log(`WhatsappService: Nomor setelah format: "${formattedNumber}"`);
+
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000); // Timeout 15 detik
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
 
   try {
-    console.log(`WhatsappService: Mengirim POST request ke ${whatsappServerUrl} untuk nomor ${formattedNumber}`);
+    console.log(`WhatsappService: Mengirim permintaan ke server WhatsApp di ${whatsappServerUrl} untuk nomor ${formattedNumber}`);
     const response = await fetch(whatsappServerUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        number: formattedNumber,
+        number: formattedNumber, // Kirim nomor yang sudah diformat
         message: message,
       }),
       signal: controller.signal,
@@ -85,52 +87,4 @@ Error asli: ${error.message}`;
   }
 }
 
-// Catatan untuk server WhatsApp lokal (whatsapp-server.js di laptopmu):
-// - Pastikan endpoint /send-message menerima JSON: { number: "62xxxx", message: "pesan" }
-// - Server lokalmu yang akan menambahkan "@c.us" ke nomor sebelum dikirim via whatsapp-web.js
-// - Server lokalmu juga perlu di-update untuk:
-//   1. Mendengarkan event pesan masuk (\`client.on('message', async (msg) => { ... })\`).
-//   2. Dari pesan masuk, dapatkan:
-//      - Nomor pengirim: \`msg.from\` (perlu dibersihkan dari "@c.us", misal jadi "62xxxx").
-//      - Isi pesan: \`msg.body\`.
-//   3. Kirim data ini (nomor pengirim & isi pesan) via HTTP POST ke endpoint baru di Next.js:
-//      \`https://<URL-PUBLIK-NEXTJS-APP-KAMU>/api/whatsapp/receive\`.
-//      URL publik Next.js app bisa dari URL Firebase Studio atau ngrok jika Next.js juga di-tunnel.
-//
-// Contoh modifikasi di whatsapp-server.js (bagian terima pesan):
-//
-// client.on('message', async (msg) => {
-//   if (msg.fromMe) return; // Abaikan pesan dari diri sendiri
-//
-//   const contact = await msg.getContact();
-//   console.log(\`Pesan diterima dari: \${contact.pushname || msg.from} (\${msg.from})\`);
-//   console.log(\`Isi pesan: \${msg.body}\`);
-//
-//   const senderNumber = msg.from.replace('@c.us', ''); // Bersihkan nomor
-//   const customerMessage = msg.body;
-//
-//   // GANTI INI dengan URL publik Next.js app kamu (mis. dari Firebase Studio atau ngrok untuk Next.js)
-//   const nextjsReceiveEndpoint = 'https://<URL-PUBLIK-NEXTJS-APP-KAMU>/api/whatsapp/receive';
-//
-//   try {
-//     const response = await fetch(nextjsReceiveEndpoint, {
-//       method: 'POST',
-//       headers: { 'Content-Type': 'application/json' },
-//       body: JSON.stringify({ senderNumber, customerMessage }), // Kirim senderNumber juga
-//     });
-//     const responseData = await response.json();
-//     if (response.ok && responseData.success) {
-//       console.log('Pesan berhasil diteruskan ke Next.js dan balasan AI (jika ada) sudah diproses untuk dikirim.');
-//       // Jika API Next.js membalas dengan AI reply, dan kamu mau kirim balik via whatsapp.js
-//       // if (responseData.reply && responseData.reply.suggestedReply) {
-//       //   await client.sendMessage(msg.from, responseData.reply.suggestedReply);
-//       //   console.log('Balasan AI dikirim ke pelanggan.');
-//       // }
-//     } else {
-//       console.error('Gagal meneruskan pesan ke Next.js atau Next.js gagal memproses:', responseData.error || response.statusText);
-//     }
-//   } catch (fetchError) {
-//     console.error('Error saat mengirim pesan ke Next.js API:', fetchError);
-//   }
-// });
-
+// (Sisa catatan dari file asli bisa tetap di sini jika diperlukan)
