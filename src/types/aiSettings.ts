@@ -1,4 +1,3 @@
-
 import { z } from 'zod';
 
 export const HARM_CATEGORIES = [
@@ -6,7 +5,7 @@ export const HARM_CATEGORIES = [
   'HARM_CATEGORY_SEXUALLY_EXPLICIT',
   'HARM_CATEGORY_HARASSMENT',
   'HARM_CATEGORY_DANGEROUS_CONTENT',
-  'HARM_CATEGORY_CIVIC_INTEGRITY' // Pastikan TIDAK ADA KOMA di sini
+  'HARM_CATEGORY_CIVIC_INTEGRITY' // Pastikan TIDAK ADA KOMA di akhir baris ini
 ] as const;
 export type HarmCategory = typeof HARM_CATEGORIES[number];
 

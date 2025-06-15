@@ -331,7 +331,7 @@ export default function SettingsPage() {
       const minPointsStr = minPointsToRedeemGeneral.trim();
 
       const bankBalance = bankBalanceStr === '' ? 0 : parseFloat(bankBalanceStr);
-      const physicalCashBalance = physicalCashStr === '' ? 0 : parseFloat(physicalCashBalance);
+      const physicalCashBalance = physicalCashStr === '' ? 0 : parseFloat(physicalCashStr);
       const minPoints = minPointsStr === '' ? 0 : parseInt(minPointsStr, 10);
 
       if (isNaN(bankBalance) || bankBalance < 0) {
@@ -537,7 +537,8 @@ export default function SettingsPage() {
       }
     };
     fetchAiSettings();
-  }, [aiSettingsForm, toast]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
 
   const handleSaveAiSettings = async (values: AiSettingsFormValues) => {
@@ -562,13 +563,12 @@ export default function SettingsPage() {
         <Tabs defaultValue="general" className="w-full">
           <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 mb-6">
             <TabsTrigger value="general"><SlidersHorizontal className="mr-2 h-4 w-4 hidden md:inline" />Umum</TabsTrigger>
-            <TabsTrigger value="ai"><ShieldCheck className="mr-2 h-4 w-4 hidden md:inline" />AI &amp; Agen</TabsTrigger>
+            <TabsTrigger value="ai"><ShieldCheck className="mr-2 h-4 w-4 hidden md:inline" />AI & Agen</TabsTrigger>
             <TabsTrigger value="loyalty"><Gift className="mr-2 h-4 w-4 hidden md:inline" />Loyalitas Dasar</TabsTrigger>
             <TabsTrigger value="loyalty_rewards"><Award className="mr-2 h-4 w-4 hidden md:inline" />Daftar Reward Poin</TabsTrigger>
             <TabsTrigger value="direct_rewards"><Zap className="mr-2 h-4 w-4 hidden md:inline" />Reward Langsung</TabsTrigger>
             <TabsTrigger value="appearance"><Palette className="mr-2 h-4 w-4 hidden md:inline" />Tampilan</TabsTrigger>
             <TabsTrigger value="notifications"><Bell className="mr-2 h-4 w-4 hidden md:inline" />Notifikasi</TabsTrigger>
-            {/* <TabsTrigger value="billing"><CreditCardIcon className="mr-2 h-4 w-4 hidden md:inline" />Tagihan</TabsTrigger> */}
           </TabsList>
           
           <TabsContent value="general" className="space-y-6">
@@ -809,7 +809,7 @@ export default function SettingsPage() {
                 </>
                 )}
                 <p className="text-sm text-muted-foreground">
-                  Pengaturan detail poin yang diberikan per layanan/produk dapat diatur di halaman "Layanan &amp; Produk".
+                  Pengaturan detail poin yang diberikan per layanan/produk dapat diatur di halaman "Layanan & Produk".
                   Pengaturan reward spesifik (item merchandise, diskon, dll.) ada di tab "Daftar Reward Poin".
                 </p>
               </CardContent>
@@ -1016,19 +1016,6 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
           </TabsContent>
-          {/* 
-          <TabsContent value="billing">
-             <Card>
-              <CardHeader>
-                <CardTitle>Tagihan & Langganan</CardTitle>
-                <CardDescription>Kelola paket langganan dan metode pembayaran Anda.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-center text-muted-foreground py-8">Informasi tagihan akan segera tersedia.</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          */}
         </Tabs>
 
         <Dialog open={isRewardFormDialogOpen} onOpenChange={(isOpen) => {
@@ -1247,6 +1234,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-    
-
-    
