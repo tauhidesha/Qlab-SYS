@@ -234,11 +234,18 @@ export default function AiCsAssistantPage() {
     const newMessage: ChatMessage = {
       id: Date.now().toString(),
       sender: 'user',
-      text: customerMessageInput,
+      text: customerMessageInput.trim(),
       timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
     };
     setChatHistory(prev => [...prev, newMessage]);
     setCustomerMessageInput('');
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === 'Enter' && !event.shiftKey && !isPlaygroundMode && selectedCustomer) {
+      event.preventDefault();
+      handleSendMessage();
+    }
   };
 
   const filteredCustomers = customers.filter(customer =>
@@ -457,6 +464,7 @@ export default function AiCsAssistantPage() {
                       placeholder="Tempel pesan terakhir pelanggan di sini, atau tambahkan konteks untuk AI..."
                       value={customerMessageInput}
                       onChange={(e) => setCustomerMessageInput(e.target.value)}
+                      onKeyDown={handleKeyDown}
                       rows={3}
                       disabled={isLoadingSuggestion}
                       className="bg-background"
@@ -494,7 +502,7 @@ export default function AiCsAssistantPage() {
                 <CardFooter className="p-4 border-t">
                   <div className="flex w-full items-center space-x-2">
                      <p className="text-xs text-muted-foreground">
-                        Selalu periksa kembali saran dari AI sebelum mengirimkannya.
+                        Tekan Enter untuk mengirim pesan (Shift+Enter untuk baris baru). Selalu periksa kembali saran dari AI sebelum mengirimkannya.
                      </p>
                   </div>
                 </CardFooter>
