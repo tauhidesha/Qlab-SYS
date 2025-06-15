@@ -12,7 +12,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, arrayUnion, serverTimestamp, addDoc, type Timestamp, getDocs, getDoc, deleteDoc, deleteField as firestoreDeleteField } from 'firebase/firestore';
 import type { Transaction, TransactionItem } from '@/types/transaction';
-import type { ServiceProduct, ServiceProductVariant } from '@/app/(app)/services/page'; 
+import type { ServiceProduct, ServiceProductVariant } from '@/app/(app)/services/page';
 import type { Client } from '@/types/client';
 import type { StaffMember } from '@/types/staff';
 import type { LoyaltyReward } from '@/types/loyalty';
@@ -54,13 +54,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 
 
-const SHOP_NAME = "QLAB Auto Detailing"; 
+const SHOP_NAME = "QLAB Auto Detailing";
 
 // --- KONFIGURASI BONUS ITEM OTOMATIS ---
 // Ganti dengan ID layanan yang akan memicu bonus (misalnya, "Advance Formula")
-const TRIGGER_SERVICE_ID = 'SVC_ADVANCE_FORMULA_PLACEHOLDER'; 
+const TRIGGER_SERVICE_ID = 'SVC_ADVANCE_FORMULA_PLACEHOLDER';
 // Ganti dengan ID produk sticker reward yang sudah dibuat di katalog dengan harga 0
-const BONUS_STICKER_PRODUCT_ID = 'PROD_STICKER_REWARD_PLACEHOLDER'; 
+const BONUS_STICKER_PRODUCT_ID = 'PROD_STICKER_REWARD_PLACEHOLDER';
 // --- END KONFIGURASI BONUS ITEM OTOMATIS ---
 
 
@@ -68,10 +68,10 @@ export default function PosPage() {
   const [openTransactions, setOpenTransactions] = useState<Transaction[]>([]);
   const [loadingTransactions, setLoadingTransactions] = useState(true);
   const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(null);
-  
+
   const [isAddItemDialogOpen, setIsAddItemDialogOpen] = useState(false);
   const [isSubmittingItem, setIsSubmittingItem] = useState(false);
-  
+
   const [availableItems, setAvailableItems] = useState<ServiceProduct[]>([]);
   const [loadingCatalogItems, setLoadingCatalogItems] = useState(true);
   const [selectedCatalogItemId, setSelectedCatalogItemId] = useState<string>('');
@@ -99,10 +99,10 @@ export default function PosPage() {
   const [selectedClientDetails, setSelectedClientDetails] = useState<Client | null>(null);
   const [isRedeemPointsDialogOpen, setIsRedeemPointsDialogOpen] = useState(false);
   const [isSubmittingRedemption, setIsSubmittingRedemption] = useState(false);
-  
+
   const [availableLoyaltyRewards, setAvailableLoyaltyRewards] = useState<LoyaltyReward[]>([]);
   const [loadingLoyaltyRewards, setLoadingLoyaltyRewards] = useState(true);
-  const [minPointsToRedeemConfig, setMinPointsToRedeemConfig] = useState(100); 
+  const [minPointsToRedeemConfig, setMinPointsToRedeemConfig] = useState(100);
   const [availableRewardsForClient, setAvailableRewardsForClient] = useState<LoyaltyReward[]>([]);
   const [selectedRewardToRedeem, setSelectedRewardToRedeem] = useState<LoyaltyReward | null>(null);
 
@@ -110,10 +110,11 @@ export default function PosPage() {
   const [isWhatsAppDialogOpen, setIsWhatsAppDialogOpen] = useState(false);
   const [whatsAppNumberInput, setWhatsAppNumberInput] = useState('');
   const [lastPaidTransactionDetails, setLastPaidTransactionDetails] = useState<Transaction | null>(null);
+  const [isSendingWhatsAppReceipt, setIsSendingWhatsAppReceipt] = useState(false); // State for sending receipt loading
 
   const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
   const [isDeletingTransaction, setIsDeletingTransaction] = useState<boolean>(false);
-  
+
   const [assignableStaffList, setAssignableStaffList] = useState<StaffMember[]>([]);
   const [loadingAssignableStaff, setLoadingAssignableStaff] = useState(true);
 
@@ -152,7 +153,7 @@ export default function PosPage() {
       const matchedTransaction = openTransactions.find(t => t.queueItemId === qid);
       if (matchedTransaction) {
         setSelectedTransactionId(matchedTransaction.id);
-        
+
         // Clean the URL by removing the qid query parameter
         const newUrl = new URL(window.location.href);
         newUrl.searchParams.delete('qid');
@@ -171,7 +172,7 @@ export default function PosPage() {
             const querySnapshot = await getDocs(q);
             const itemsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceProduct));
             setAvailableItems(itemsData);
-            
+
             const uniqueCategories = Array.from(new Set(itemsData.map(item => item.category).filter(Boolean)));
             setItemCategories(["Semua", ...uniqueCategories]);
 
@@ -219,7 +220,7 @@ export default function PosPage() {
 
   const handleCategoryTabChange = (category: string) => {
     setSelectedItemCategoryTab(category);
-    setSelectedCatalogItemId(''); 
+    setSelectedCatalogItemId('');
     setSelectedVariantId(undefined);
     setItemQuantity(1);
     setSelectedStaffForNewItemToAdd(undefined);
@@ -300,20 +301,20 @@ export default function PosPage() {
     setSelectedCatalogItemId('');
     setSelectedVariantId(undefined);
     setItemQuantity(1);
-    setSelectedItemCategoryTab("Semua"); 
+    setSelectedItemCategoryTab("Semua");
     setSelectedStaffForNewItemToAdd(undefined);
   };
-  
+
   const handleSelectGalleryItem = (item: ServiceProduct) => {
     setSelectedCatalogItemId(item.id);
     setSelectedVariantId(undefined); // Reset variant when new item selected
-    setSelectedStaffForNewItemToAdd(undefined); 
+    setSelectedStaffForNewItemToAdd(undefined);
   };
 
   const selectedGalleryItemDetails = useMemo(() => {
     return availableItems.find(item => item.id === selectedCatalogItemId);
   }, [availableItems, selectedCatalogItemId]);
-  
+
   const selectedVariantDetails = useMemo(() => {
     if (!selectedGalleryItemDetails || !selectedVariantId) return null;
     return selectedGalleryItemDetails.variants?.find(v => v.id === selectedVariantId) || null;
@@ -331,7 +332,7 @@ export default function PosPage() {
         toast({ title: "Error", description: "Item katalog tidak ditemukan.", variant: "destructive" });
         return;
     }
-    
+
     if (catalogItem.variants && catalogItem.variants.length > 0 && !selectedVariantId) {
         toast({ title: "Input Tidak Lengkap", description: "Pilih varian untuk item ini.", variant: "destructive" });
         return;
@@ -342,7 +343,7 @@ export default function PosPage() {
         toast({ title: "Input Tidak Valid", description: "Jumlah harus angka positif.", variant: "destructive" });
         return;
     }
-    
+
     if (catalogItem.type === 'Layanan' && !selectedStaffForNewItemToAdd) {
       toast({ title: "Input Tidak Lengkap", description: "Pilih staf teknisi untuk layanan ini.", variant: "destructive" });
       return;
@@ -352,7 +353,7 @@ export default function PosPage() {
     let itemName = catalogItem.name;
     let itemPrice = catalogItem.price;
     let itemPoints = catalogItem.pointsAwarded || 0;
-    
+
     if (selectedVariantId && catalogItem.variants) {
         const variant = catalogItem.variants.find(v => v.id === selectedVariantId);
         if (variant) {
@@ -367,13 +368,13 @@ export default function PosPage() {
     }
 
     const mainTransactionItem: TransactionItem = {
-      id: uuidv4(), 
+      id: uuidv4(),
       catalogItemId: catalogItem.id,
       variantId: selectedVariantId,
       name: itemName,
       price: itemPrice,
       quantity: quantity,
-      type: catalogItem.type === 'Layanan' ? 'service' : 'product', 
+      type: catalogItem.type === 'Layanan' ? 'service' : 'product',
       pointsAwardedPerUnit: itemPoints,
       ...(catalogItem.type === 'Layanan' && selectedStaffForNewItemToAdd && { staffName: selectedStaffForNewItemToAdd }),
     };
@@ -410,9 +411,9 @@ export default function PosPage() {
     try {
       const transactionDocRef = doc(db, 'transactions', selectedTransaction.id);
       const currentItems = selectedTransaction.items || [];
-      
+
       const updatedItemsForCalc = [...currentItems, ...itemsToActuallyAdd];
-      
+
       const { subtotal: newSubtotal, total: newTotal } = calculateTransactionTotals(
         updatedItemsForCalc,
         selectedTransaction.discountAmount,
@@ -440,7 +441,7 @@ export default function PosPage() {
       setIsSubmittingItem(false);
     }
   };
-  
+
   const resetNewBillDialogState = () => {
     setNewBillType('walk-in');
     setSelectedClientIdForNewBill(undefined);
@@ -451,7 +452,7 @@ export default function PosPage() {
       toast({ title: "Input Kurang", description: "Silakan pilih klien terdaftar.", variant: "destructive" });
       return;
     }
-    
+
     setIsSubmittingNewBill(true);
     try {
       let customerNameForBill = "Pelanggan Walk-in #" + (openTransactions.filter(t => t.customerName.startsWith("Pelanggan Walk-in")).length + 1 + Math.floor(Math.random()*100));
@@ -482,7 +483,7 @@ export default function PosPage() {
         createdAt: serverTimestamp() as Timestamp,
         updatedAt: serverTimestamp() as Timestamp,
       };
-      
+
       const newTransactionData: Partial<Omit<Transaction, 'id'>> & { createdAt: any, updatedAt: any } = {
         ...newTransactionBaseData,
       };
@@ -490,10 +491,10 @@ export default function PosPage() {
       if (clientIdForBill) {
         newTransactionData.clientId = clientIdForBill;
       }
-      
+
 
       const docRef = await addDoc(collection(db, 'transactions'), newTransactionData);
-      setSelectedTransactionId(docRef.id); 
+      setSelectedTransactionId(docRef.id);
       toast({ title: "Sukses", description: `Transaksi baru untuk ${customerNameForBill} berhasil dibuat.` });
       setIsCreateBillDialogOpen(false);
       resetNewBillDialogState();
@@ -507,8 +508,8 @@ export default function PosPage() {
 
 
   const calculateTransactionTotals = (
-    items: TransactionItem[], 
-    discountAmountParam: number = 0, 
+    items: TransactionItem[],
+    discountAmountParam: number = 0,
     discountPercentageParam: number = 0,
     pointsRedeemedValueParam: number = 0
   ) => {
@@ -522,11 +523,11 @@ export default function PosPage() {
     } else if (discountPercentageParam > 0) {
       effectiveDiscountAmount = subtotal * (discountPercentageParam / 100);
     }
-    
-    const total = Math.max(0, subtotal - effectiveDiscountAmount); 
+
+    const total = Math.max(0, subtotal - effectiveDiscountAmount);
     return { subtotal, total, discountAmountApplied: effectiveDiscountAmount };
   };
-  
+
   const handleRemoveItemFromTransaction = async (itemIdToRemove: string) => {
     if (!selectedTransaction) return;
 
@@ -547,12 +548,12 @@ export default function PosPage() {
              // For now, just removes the specific item that was part of a loyalty reward.
              // Also, if it was an auto-added bonus sticker, it's just removed like any other item.
         }
-        
+
         const { subtotal, total, discountAmountApplied } = calculateTransactionTotals(
-            updatedItemsArray, 
-            newRedeemedReward && newRedeemedReward.type === 'discount_transaction' ? 0 : selectedTransaction.discountAmount, 
+            updatedItemsArray,
+            newRedeemedReward && newRedeemedReward.type === 'discount_transaction' ? 0 : selectedTransaction.discountAmount,
             newRedeemedReward && newRedeemedReward.type === 'discount_transaction' ? 0 : selectedTransaction.discountPercentage,
-            newPointsRedeemedValue 
+            newPointsRedeemedValue
         );
 
         await updateDoc(transactionDocRef, {
@@ -577,7 +578,7 @@ export default function PosPage() {
 
   const handleDiscountChange = async (transactionId: string, items: TransactionItem[], newDiscountAmountInput: string, newDiscountPercentageInput: string) => {
     if (!selectedTransaction) return;
-    
+
     if (selectedTransaction.redeemedReward) {
         toast({title: "Info Diskon", description: "Reward sedang aktif. Hapus reward untuk menerapkan diskon manual.", variant: "default"});
         return;
@@ -596,7 +597,7 @@ export default function PosPage() {
     }
 
     const { total, discountAmountApplied } = calculateTransactionTotals(items, appliedDiscountAmount, appliedDiscountPercentage, 0);
-    
+
     try {
         const transactionDocRef = doc(db, 'transactions', transactionId);
         await updateDoc(transactionDocRef, {
@@ -628,10 +629,10 @@ export default function PosPage() {
       });
     }
   };
-  
+
   const handleOpenRedeemPointsDialog = () => {
     if (selectedClientDetails && selectedTransaction && (selectedClientDetails.loyaltyPoints || 0) >= minPointsToRedeemConfig) {
-      const affordableRewards = availableLoyaltyRewards.filter(reward => 
+      const affordableRewards = availableLoyaltyRewards.filter(reward =>
         reward.isActive && (selectedClientDetails.loyaltyPoints || 0) >= reward.pointsRequired
       );
       setAvailableRewardsForClient(affordableRewards);
@@ -644,7 +645,7 @@ export default function PosPage() {
 
   const handleRedeemReward = async () => {
     if (!selectedTransaction || !selectedClientDetails || !selectedRewardToRedeem) return;
-    
+
     if ((selectedClientDetails.loyaltyPoints || 0) < selectedRewardToRedeem.pointsRequired) {
         toast({ title: "Poin Tidak Cukup", description: "Poin klien tidak cukup untuk menukarkan reward ini.", variant: "destructive" });
         return;
@@ -678,12 +679,12 @@ export default function PosPage() {
     }
 
     const { subtotal, total } = calculateTransactionTotals(
-        updatedItems, 
-        0, 
+        updatedItems,
+        0,
         0,
         discountValueFromReward
     );
-    
+
     try {
       await updateDoc(transactionDocRef, {
         items: updatedItems,
@@ -721,18 +722,18 @@ export default function PosPage() {
     setIsProcessingPayment(true);
     try {
       const transactionDocRef = doc(db, 'transactions', selectedTransaction.id);
-      
+
       let pointsEarnedThisTransaction = 0;
-      
+
       if (selectedTransaction.clientId && (!selectedTransaction.pointsRedeemed || selectedTransaction.pointsRedeemed === 0)) {
          pointsEarnedThisTransaction = selectedTransaction.items.reduce((sum, item) => {
             if (item.type === 'reward_merchandise') return sum; // Item reward tidak menghasilkan poin
             const awardedPoints = (typeof item.pointsAwardedPerUnit === 'number' && !isNaN(item.pointsAwardedPerUnit)) ? item.pointsAwardedPerUnit : 0;
-            const qty = (typeof item.quantity === 'number' && !isNaN(item.quantity) && item.quantity > 0) ? item.quantity : 1; 
+            const qty = (typeof item.quantity === 'number' && !isNaN(item.quantity) && item.quantity > 0) ? item.quantity : 1;
             return sum + (awardedPoints * qty);
         }, 0);
       }
-      
+
       if (selectedTransaction.clientId) {
         const clientDocRef = doc(db, 'clients', selectedTransaction.clientId);
         const clientDocSnap = await getDoc(clientDocRef);
@@ -740,7 +741,7 @@ export default function PosPage() {
         if (clientDocSnap.exists()) {
             const clientData = clientDocSnap.data() as Client;
             let currentLoyaltyPoints = (typeof clientData.loyaltyPoints === 'number' && !isNaN(clientData.loyaltyPoints)) ? clientData.loyaltyPoints : 0;
-            
+
             const pointsRedeemedThisTransaction = (typeof selectedTransaction.pointsRedeemed === 'number' && !isNaN(selectedTransaction.pointsRedeemed)) ? selectedTransaction.pointsRedeemed : 0;
             let newLoyaltyPoints = currentLoyaltyPoints;
             const clientUpdateMessageParts: string[] = [];
@@ -748,20 +749,20 @@ export default function PosPage() {
             if (pointsRedeemedThisTransaction > 0) {
                 newLoyaltyPoints -= pointsRedeemedThisTransaction;
                 clientUpdateMessageParts.push(`${pointsRedeemedThisTransaction} poin ditukar`);
-            } else { 
+            } else {
                 newLoyaltyPoints += pointsEarnedThisTransaction;
                 if (pointsEarnedThisTransaction > 0) {
                     clientUpdateMessageParts.push(`${pointsEarnedThisTransaction} poin baru diperoleh`);
                 }
             }
-            
-            const today = new Date().toLocaleDateString('en-CA'); 
+
+            const today = new Date().toLocaleDateString('en-CA');
 
             await updateDoc(clientDocRef, {
                 loyaltyPoints: Math.max(0, newLoyaltyPoints),
                 lastVisit: today,
             });
-            
+
             let clientUpdateMessage = `Kunjungan terakhir untuk ${clientData.name} telah diperbarui.`;
             if (clientUpdateMessageParts.length > 0) {
                 clientUpdateMessage += ` ${clientUpdateMessageParts.join(', ')}.`;
@@ -771,9 +772,9 @@ export default function PosPage() {
             toast({ title: "Info Klien Diperbarui", description: clientUpdateMessage.trim() });
         }
       }
-      
-      const finalTransactionData: Transaction = { 
-        ...selectedTransaction, 
+
+      const finalTransactionData: Transaction = {
+        ...selectedTransaction,
         paymentMethod: selectedPaymentMethod,
         pointsEarnedInThisTx: pointsEarnedThisTransaction,
       };
@@ -781,19 +782,19 @@ export default function PosPage() {
       await updateDoc(transactionDocRef, {
         status: 'paid',
         paymentMethod: selectedPaymentMethod,
-        notes: paymentNotes || selectedTransaction.notes || '', 
+        notes: paymentNotes || selectedTransaction.notes || '',
         paidAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         pointsEarnedInThisTx: pointsEarnedThisTransaction,
       });
       toast({ title: "Pembayaran Sukses", description: `Transaksi untuk ${selectedTransaction.customerName} berhasil dibayar.`});
-      
-      setLastPaidTransactionDetails(finalTransactionData); 
-      setWhatsAppNumberInput(selectedClientDetails?.phone || ''); 
+
+      setLastPaidTransactionDetails(finalTransactionData);
+      setWhatsAppNumberInput(selectedClientDetails?.phone || '');
       setIsWhatsAppDialogOpen(true);
 
       setIsPaymentDialogOpen(false);
-      setSelectedTransactionId(null); 
+      setSelectedTransactionId(null);
       setSelectedClientDetails(null);
 
     } catch (error) {
@@ -813,7 +814,7 @@ export default function PosPage() {
     } else {
         text += `Tanggal: ${new Date().toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'})}\n\n`;
     }
-    
+
     text += `Item:\n`;
     transaction.items.forEach(item => {
       text += `- ${item.name} (${item.quantity} x Rp ${item.price.toLocaleString('id-ID')})`;
@@ -822,7 +823,7 @@ export default function PosPage() {
       text += ` = Rp ${(item.quantity * item.price).toLocaleString('id-ID')}\n`;
     });
     text += `\nSubtotal: Rp ${transaction.subtotal.toLocaleString('id-ID')}\n`;
-    
+
     if (transaction.redeemedReward && transaction.redeemedReward.type === 'discount_transaction' && transaction.pointsRedeemedValue && transaction.pointsRedeemedValue > 0) {
       text += `Diskon Reward (${transaction.redeemedReward.name}): - Rp ${transaction.pointsRedeemedValue.toLocaleString('id-ID')}\n`;
     } else if (transaction.discountAmount > 0 && (!transaction.redeemedReward || transaction.redeemedReward.type !== 'discount_transaction')) {
@@ -838,43 +839,65 @@ export default function PosPage() {
     } else if (transaction.pointsEarnedInThisTx && transaction.pointsEarnedInThisTx > 0) {
         text += `Poin Baru Diperoleh: ${transaction.pointsEarnedInThisTx.toLocaleString('id-ID')} poin\n`;
     }
-    
+
     text += `\nTerima kasih atas kunjungan Anda!`;
     return text;
   }
 
   const formatWhatsAppNumber = (phone: string): string => {
-    let cleaned = phone.replace(/\D/g, ''); 
+    let cleaned = phone.replace(/\D/g, '');
     if (cleaned.startsWith('0')) {
       cleaned = '62' + cleaned.substring(1);
-    } else if (cleaned.startsWith('8') && cleaned.length >= 9 && cleaned.length <=13) { 
+    } else if (cleaned.startsWith('8') && cleaned.length >= 9 && cleaned.length <=13) {
       cleaned = '62' + cleaned;
     } else if (!cleaned.startsWith('62')) {
-      cleaned = '62' + cleaned; 
+      cleaned = '62' + cleaned;
     }
     return cleaned;
   };
 
-  const handleSendWhatsAppReceipt = () => {
+  const handleSendWhatsAppReceipt = async () => {
     if (!lastPaidTransactionDetails || !whatsAppNumberInput) {
       toast({ title: "Error", description: "Detail transaksi atau nomor WhatsApp tidak valid.", variant: "destructive" });
       return;
     }
     const formattedNumber = formatWhatsAppNumber(whatsAppNumberInput);
-    if (!/^\d+$/.test(formattedNumber) || formattedNumber.length < 10) { 
+    if (!/^\d+$/.test(formattedNumber) || formattedNumber.length < 10) {
         toast({ title: "Nomor Tidak Valid", description: "Format nomor WhatsApp tidak benar.", variant: "destructive" });
         return;
     }
 
     const receiptText = generateWhatsAppReceiptText(lastPaidTransactionDetails);
-    const encodedText = encodeURIComponent(receiptText);
-    const whatsappUrl = `https://wa.me/${formattedNumber}?text=${encodedText}`;
-    
-    window.open(whatsappUrl, '_blank');
-    
-    toast({ title: "Struk Dikirim (via WhatsApp)", description: `Membuka WhatsApp untuk ${formattedNumber}.` });
-    setIsWhatsAppDialogOpen(false);
-    setLastPaidTransactionDetails(null); 
+    setIsSendingWhatsAppReceipt(true);
+
+    try {
+      const response = await fetch('/api/whatsapp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ number: formattedNumber, message: receiptText }),
+      });
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        toast({
+          title: "Struk Terkirim via API",
+          description: `Struk digital sedang dikirim ke ${formattedNumber}. ID Pesan: ${result.messageId || 'N/A'}`,
+        });
+      } else {
+        throw new Error(result.error || 'Gagal mengirim struk via API server.');
+      }
+    } catch (error) {
+      console.error("Error sending WhatsApp receipt via API:", error);
+      toast({
+        title: "Gagal Mengirim Struk",
+        description: error instanceof Error ? error.message : "Terjadi kesalahan saat mengirim struk.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingWhatsAppReceipt(false);
+      setIsWhatsAppDialogOpen(false);
+      setLastPaidTransactionDetails(null);
+    }
   };
 
   const handleDeleteOpenTransaction = async () => {
@@ -905,17 +928,17 @@ export default function PosPage() {
 
   const handleClearReward = async () => {
     if (!selectedTransaction || !selectedTransaction.redeemedReward) return;
-    
+
     setIsSubmittingRedemption(true);
     try {
         const transactionDocRef = doc(db, 'transactions', selectedTransaction.id);
         let updatedItemsArray = selectedTransaction.items.filter(item => item.type !== 'reward_merchandise');
 
         const { subtotal, total } = calculateTransactionTotals(
-            updatedItemsArray, 
-            0, 
+            updatedItemsArray,
             0,
-            0 
+            0,
+            0
         );
 
         await updateDoc(transactionDocRef, {
@@ -951,7 +974,7 @@ export default function PosPage() {
     );
   }
 
-  const isAddItemButtonDisabled = isSubmittingItem || !selectedCatalogItemId || loadingCatalogItems || 
+  const isAddItemButtonDisabled = isSubmittingItem || !selectedCatalogItemId || loadingCatalogItems ||
                                 (selectedGalleryItemDetails?.type === 'Layanan' && loadingAssignableStaff) ||
                                 (selectedGalleryItemDetails?.variants && selectedGalleryItemDetails.variants.length > 0 && !selectedVariantId);
 
@@ -964,9 +987,9 @@ export default function PosPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between p-4">
                   <CardTitle className="text-lg flex-grow mr-4">Transaksi Terbuka</CardTitle>
-                  <Button 
-                    onClick={() => { resetNewBillDialogState(); setIsCreateBillDialogOpen(true); }} 
-                    size="sm" 
+                  <Button
+                    onClick={() => { resetNewBillDialogState(); setIsCreateBillDialogOpen(true); }}
+                    size="sm"
                     className="bg-accent text-accent-foreground hover:bg-accent/90 flex-shrink-0"
                   >
                       <PlusCircle className="mr-2 h-4 w-4" /> Bill Baru
@@ -995,9 +1018,9 @@ export default function PosPage() {
                           </div>
                         </Button>
                         <AlertDialogTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             className="text-destructive hover:text-destructive flex-shrink-0"
                             onClick={() => setTransactionToDelete(trans)}
                           >
@@ -1019,8 +1042,8 @@ export default function PosPage() {
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => setTransactionToDelete(null)} disabled={isDeletingTransaction}>Batal</AlertDialogCancel>
-                <AlertDialogAction 
-                  onClick={handleDeleteOpenTransaction} 
+                <AlertDialogAction
+                  onClick={handleDeleteOpenTransaction}
                   disabled={isDeletingTransaction}
                   className={buttonVariants({ variant: "destructive" })}
                 >
@@ -1051,8 +1074,8 @@ export default function PosPage() {
                         )}
                     </div>
                     {selectedClientDetails && (selectedClientDetails.loyaltyPoints || 0) >= minPointsToRedeemConfig && !selectedTransaction.redeemedReward && (
-                        <Button 
-                          size="sm" 
+                        <Button
+                          size="sm"
                           variant="default"
                           onClick={handleOpenRedeemPointsDialog}
                           className="bg-accent text-accent-foreground hover:bg-accent/90"
@@ -1062,8 +1085,8 @@ export default function PosPage() {
                         </Button>
                     )}
                     {selectedTransaction.redeemedReward && (
-                         <Button 
-                            size="sm" 
+                         <Button
+                            size="sm"
                             variant="outline"
                             className="border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive"
                             onClick={handleClearReward}
@@ -1075,8 +1098,8 @@ export default function PosPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex justify-end mb-2">
-                     <Button 
-                        size="sm" 
+                     <Button
+                        size="sm"
                         onClick={() => { resetAddItemForm(); setIsAddItemDialogOpen(true); }}
                         className="bg-accent text-accent-foreground hover:bg-accent/90"
                      >
@@ -1094,7 +1117,7 @@ export default function PosPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {selectedTransaction.items.map((item) => ( 
+                      {selectedTransaction.items.map((item) => (
                         <TableRow key={item.id}>
                           <TableCell>
                             {item.name}
@@ -1105,11 +1128,11 @@ export default function PosPage() {
                           <TableCell className="text-right">Rp {item.price.toLocaleString('id-ID')}</TableCell>
                           <TableCell className="text-right">Rp {(item.price * item.quantity).toLocaleString('id-ID')}</TableCell>
                           <TableCell>
-                            <Button 
-                                variant="ghost" 
-                                size="icon" 
+                            <Button
+                                variant="ghost"
+                                size="icon"
                                 className="text-destructive hover:text-destructive h-8 w-8"
-                                onClick={() => handleRemoveItemFromTransaction(item.id)} 
+                                onClick={() => handleRemoveItemFromTransaction(item.id)}
                                 disabled={isSubmittingItem || (item.type === 'reward_merchandise' && selectedTransaction.redeemedReward?.name === item.name)}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -1124,7 +1147,7 @@ export default function PosPage() {
                   </Table>
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardHeader>
                   <CardTitle>Ringkasan Pembayaran</CardTitle>
@@ -1148,10 +1171,10 @@ export default function PosPage() {
                     <div className="flex justify-between items-center">
                         <span>Diskon Manual</span>
                         <div className="flex items-center gap-2">
-                            <Input 
-                                type="number" 
-                                placeholder="Rp" 
-                                className="w-24 h-8 text-right" 
+                            <Input
+                                type="number"
+                                placeholder="Rp"
+                                className="w-24 h-8 text-right"
                                 defaultValue={selectedTransaction.discountPercentage > 0 ? '' : (selectedTransaction.discountAmount || "")}
                                 onBlur={(e) => {
                                     handleDiscountChange(selectedTransaction.id, selectedTransaction.items, e.target.value, '0');
@@ -1159,10 +1182,10 @@ export default function PosPage() {
                                 disabled={selectedTransaction.discountPercentage > 0 || !!selectedTransaction.redeemedReward}
                             />
                             <span className="text-sm">atau</span>
-                            <Input 
-                                type="number" 
-                                placeholder="%" 
-                                className="w-16 h-8 text-right" 
+                            <Input
+                                type="number"
+                                placeholder="%"
+                                className="w-16 h-8 text-right"
                                 defaultValue={selectedTransaction.discountAmount > 0 ? '' : (selectedTransaction.discountPercentage || "")}
                                 onBlur={(e) => {
                                     handleDiscountChange(selectedTransaction.id, selectedTransaction.items, '0', e.target.value);
@@ -1179,8 +1202,8 @@ export default function PosPage() {
                   </div>
                 </CardContent>
                 <CardFooter className="flex-col space-y-2">
-                    <Button 
-                      className="w-full bg-accent text-accent-foreground hover:bg-accent/90" 
+                    <Button
+                      className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
                       onClick={handleOpenPaymentDialog}
                       disabled={!selectedTransaction || selectedTransaction.items.length === 0 || isProcessingPayment}
                     >
@@ -1202,7 +1225,7 @@ export default function PosPage() {
         </div>
       </main>
 
-      
+
       <Dialog open={isCreateBillDialogOpen} onOpenChange={setIsCreateBillDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -1224,7 +1247,7 @@ export default function PosPage() {
             {newBillType === 'existing-client' && (
               <div className="space-y-2">
                 <Label htmlFor="client-select-for-bill">Pilih Klien</Label>
-                <Select 
+                <Select
                   value={selectedClientIdForNewBill}
                   onValueChange={setSelectedClientIdForNewBill}
                   disabled={loadingClients}
@@ -1250,8 +1273,8 @@ export default function PosPage() {
             <DialogClose asChild>
               <Button variant="outline" onClick={resetNewBillDialogState} disabled={isSubmittingNewBill}>Batal</Button>
             </DialogClose>
-            <Button 
-              onClick={handleConfirmCreateBill} 
+            <Button
+              onClick={handleConfirmCreateBill}
               disabled={isSubmittingNewBill || (newBillType === 'existing-client' && !selectedClientIdForNewBill && !loadingClients)}
               className="bg-accent text-accent-foreground hover:bg-accent/90"
             >
@@ -1263,7 +1286,7 @@ export default function PosPage() {
       </Dialog>
 
 
-      
+
       {selectedTransaction && (
         <Dialog open={isAddItemDialogOpen} onOpenChange={(isOpen) => {
             setIsAddItemDialogOpen(isOpen);
@@ -1305,8 +1328,8 @@ export default function PosPage() {
                             <CardDescription className="text-xs md:text-sm">Rp {item.price.toLocaleString('id-ID')}</CardDescription>
                           </CardHeader>
                           <CardContent className="p-3 pt-0 text-xs">
-                            <Badge 
-                              variant={item.type === 'Layanan' ? 'default' : 'secondary'} 
+                            <Badge
+                              variant={item.type === 'Layanan' ? 'default' : 'secondary'}
                               className="mb-1 capitalize text-xs px-1.5 py-0.5 h-auto"
                             >
                               {item.type}
@@ -1333,7 +1356,7 @@ export default function PosPage() {
                   </ScrollArea>
                 </Tabs>
               )}
-              
+
               {selectedCatalogItemId && selectedGalleryItemDetails && (
                  <div className="mt-4 p-3 border rounded-md bg-muted/30 space-y-2">
                     <p className="font-medium text-sm">Item Terpilih: {selectedGalleryItemDetails.name}</p>
@@ -1362,13 +1385,13 @@ export default function PosPage() {
                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                   <div className="space-y-2">
                     <Label htmlFor="item-quantity">Jumlah</Label>
-                    <Input 
-                        id="item-quantity" 
-                        type="number" 
-                        value={itemQuantity} 
-                        onChange={(e) => setItemQuantity(e.target.value)} 
-                        placeholder="1" 
-                        min="1" 
+                    <Input
+                        id="item-quantity"
+                        type="number"
+                        value={itemQuantity}
+                        onChange={(e) => setItemQuantity(e.target.value)}
+                        placeholder="1"
+                        min="1"
                         disabled={!selectedCatalogItemId || loadingCatalogItems}
                         className="w-full"
                     />
@@ -1378,7 +1401,7 @@ export default function PosPage() {
                         <Label htmlFor="staff-assign-select" className="flex items-center">
                             <UserCog className="mr-2 h-4 w-4 text-muted-foreground" />Staf Pelaksana
                         </Label>
-                        <Select 
+                        <Select
                             value={selectedStaffForNewItemToAdd}
                             onValueChange={setSelectedStaffForNewItemToAdd}
                             disabled={loadingAssignableStaff || !selectedCatalogItemId}
@@ -1403,8 +1426,8 @@ export default function PosPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => { setIsAddItemDialogOpen(false); resetAddItemForm(); }} disabled={isSubmittingItem}>Batal</Button>
-              <Button 
-                onClick={handleAddItemToTransaction} 
+              <Button
+                onClick={handleAddItemToTransaction}
                 disabled={isAddItemButtonDisabled}
                 className="bg-accent text-accent-foreground hover:bg-accent/90"
               >
@@ -1416,7 +1439,7 @@ export default function PosPage() {
         </Dialog>
       )}
 
-      
+
       {selectedTransaction && selectedClientDetails && (
         <Dialog open={isRedeemPointsDialogOpen} onOpenChange={(isOpen) => {
             setIsRedeemPointsDialogOpen(isOpen);
@@ -1435,8 +1458,8 @@ export default function PosPage() {
               ) : availableRewardsForClient.length === 0 ? (
                 <p className="text-center text-muted-foreground">Tidak ada reward yang bisa ditukarkan dengan poin Anda saat ini.</p>
               ) : (
-                <RadioGroup 
-                    value={selectedRewardToRedeem?.id} 
+                <RadioGroup
+                    value={selectedRewardToRedeem?.id}
                     onValueChange={(value) => {
                         const reward = availableRewardsForClient.find(r => r.id === value);
                         setSelectedRewardToRedeem(reward || null);
@@ -1461,8 +1484,8 @@ export default function PosPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsRedeemPointsDialogOpen(false)} disabled={isSubmittingRedemption}>Batal</Button>
-              <Button 
-                onClick={handleRedeemReward} 
+              <Button
+                onClick={handleRedeemReward}
                 disabled={isSubmittingRedemption || !selectedRewardToRedeem || availableRewardsForClient.length === 0 || loadingLoyaltyRewards}
                 className="bg-accent text-accent-foreground hover:bg-accent/90"
               >
@@ -1475,7 +1498,7 @@ export default function PosPage() {
       )}
 
 
-      
+
       {selectedTransaction && (
          <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
           <DialogContent>
@@ -1502,11 +1525,11 @@ export default function PosPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="payment-notes">Catatan (Opsional)</Label>
-                <Textarea 
-                  id="payment-notes" 
-                  value={paymentNotes} 
+                <Textarea
+                  id="payment-notes"
+                  value={paymentNotes}
                   onChange={(e) => setPaymentNotes(e.target.value)}
-                  placeholder="Mis. Pembayaran DP, Lunas dengan diskon khusus, dll." 
+                  placeholder="Mis. Pembayaran DP, Lunas dengan diskon khusus, dll."
                 />
               </div>
             </div>
@@ -1514,8 +1537,8 @@ export default function PosPage() {
               <DialogClose asChild>
                 <Button variant="outline" disabled={isProcessingPayment}>Batal</Button>
               </DialogClose>
-              <Button 
-                onClick={handleConfirmPayment} 
+              <Button
+                onClick={handleConfirmPayment}
                 disabled={isProcessingPayment || !selectedPaymentMethod}
                 className="bg-accent text-accent-foreground hover:bg-accent/90"
               >
@@ -1527,10 +1550,10 @@ export default function PosPage() {
         </Dialog>
       )}
 
-       
+
       <Dialog open={isWhatsAppDialogOpen} onOpenChange={(isOpen) => {
         setIsWhatsAppDialogOpen(isOpen);
-        if (!isOpen) setLastPaidTransactionDetails(null); 
+        if (!isOpen) setLastPaidTransactionDetails(null);
       }}>
         <DialogContent>
           <DialogHeader>
@@ -1551,6 +1574,7 @@ export default function PosPage() {
                 value={whatsAppNumberInput}
                 onChange={(e) => setWhatsAppNumberInput(e.target.value)}
                 type="tel"
+                disabled={isSendingWhatsAppReceipt}
               />
               <p className="text-xs text-muted-foreground">
                 Akan diformat ke standar internasional (mis. 62xxxx).
@@ -1558,15 +1582,16 @@ export default function PosPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setIsWhatsAppDialogOpen(false); setLastPaidTransactionDetails(null); }}>
+            <Button variant="outline" onClick={() => { setIsWhatsAppDialogOpen(false); setLastPaidTransactionDetails(null); }} disabled={isSendingWhatsAppReceipt}>
               Lewati
             </Button>
             <Button
               onClick={handleSendWhatsAppReceipt}
-              disabled={!whatsAppNumberInput || !lastPaidTransactionDetails}
+              disabled={!whatsAppNumberInput || !lastPaidTransactionDetails || isSendingWhatsAppReceipt}
               className="bg-green-600 hover:bg-green-700 text-white"
             >
-              <Send className="mr-2 h-4 w-4" /> Kirim Struk
+              {isSendingWhatsAppReceipt ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+              Kirim Struk
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1574,5 +1599,3 @@ export default function PosPage() {
     </div>
   );
 }
-
-    
