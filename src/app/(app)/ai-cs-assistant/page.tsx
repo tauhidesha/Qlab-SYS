@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import AppHeader from '@/components/layout/AppHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -52,6 +52,18 @@ export default function AiCsAssistantPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isPlaygroundMode, setIsPlaygroundMode] = useState(false);
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    if (!isPlaygroundMode && selectedCustomer && chatHistory.length > 0) {
+      scrollToBottom();
+    }
+  }, [chatHistory, selectedCustomer, isPlaygroundMode]);
 
 
   const fetchCustomers = async (): Promise<Customer[]> => {
@@ -452,6 +464,7 @@ export default function AiCsAssistantPage() {
                 {chatHistory.length === 0 && (
                     <p className="text-center text-muted-foreground py-10">Belum ada riwayat chat untuk pelanggan ini.</p>
                 )}
+                <div ref={messagesEndRef} />
               </ScrollArea>
               
               <Separator />
