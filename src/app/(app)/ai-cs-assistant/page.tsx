@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Loader2, MessageSquareText, Sparkles, Copy, Send, User, Search, Bot } from 'lucide-react'; // Added Bot
+import { Loader2, MessageSquareText, Sparkles, Copy, Send, User, Search, Bot } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { generateWhatsAppReply, type WhatsAppReplyInput, type WhatsAppReplyOutput } from '@/ai/flows/cs-whatsapp-reply-flow';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -116,11 +116,11 @@ export default function AiCsAssistantPage() {
     setSelectedCustomer(null);
     setChatHistory([]);
     setSuggestedReply('');
-    setCustomerMessageInput(''); // Clear or set a default playground prompt
+    setCustomerMessageInput(''); 
   };
 
   const handleCustomerSelect = async (customer: Customer) => {
-    setIsPlaygroundMode(false); // Turn off playground mode
+    setIsPlaygroundMode(false); 
     setSelectedCustomer(customer);
     setSuggestedReply(''); 
     setCustomerMessageInput('');
@@ -257,7 +257,7 @@ export default function AiCsAssistantPage() {
     <div className="flex flex-col h-full bg-background">
       <AppHeader title="Asisten CS AI untuk WhatsApp" />
       <div className="flex-1 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 overflow-hidden">
-        {/* Customer List Sidebar */}
+        
         <div className="col-span-1 md:col-span-1 lg:col-span-1 border-r border-border bg-card flex flex-col">
           <CardHeader className="p-4">
             <CardTitle className="text-lg flex items-center">
@@ -274,7 +274,7 @@ export default function AiCsAssistantPage() {
               />
             </div>
           </CardHeader>
-          {/* Playground Access Item - Not scrollable, always at top of list content */}
+          
           <div
             key="ai-playground"
             className={cn(
@@ -296,7 +296,7 @@ export default function AiCsAssistantPage() {
               </div>
             </div>
           </div>
-          <ScrollArea className="flex-grow"> {/* flex-grow makes scrollarea take remaining space */}
+          <ScrollArea className="flex-grow"> 
             <CardContent className="p-0">
               {loadingCustomers ? (
                 <div className="p-4 text-center text-muted-foreground">
@@ -343,10 +343,10 @@ export default function AiCsAssistantPage() {
           </ScrollArea>
         </div>
 
-        {/* Chat and AI Suggestion Area */}
+        
         <div className="col-span-1 md:col-span-2 lg:col-span-3 flex flex-col bg-background">
           {isPlaygroundMode ? (
-            // Playground Mode View
+            
             <>
               <div className="p-4 border-b bg-card">
                 <h2 className="text-xl font-semibold flex items-center"><Bot className="mr-2 h-6 w-6 text-primary" /> AI Playground</h2>
@@ -420,7 +420,7 @@ export default function AiCsAssistantPage() {
             </div>
           ) : (
             <>
-              {/* Chat History Display */}
+              
               <ScrollArea className="flex-1 p-4 space-y-4 bg-card/50">
                 {chatHistory.map((message) => (
                   <div
@@ -448,27 +448,38 @@ export default function AiCsAssistantPage() {
               
               <Separator />
 
-              {/* AI Suggestion Area */}
+              
               <Card className="rounded-none border-0 border-t shadow-none">
                 <CardHeader className="p-4">
                   <CardTitle className="text-lg flex items-center">
                     <Sparkles className="mr-2 h-5 w-5 text-accent" />
-                    Bantuan Balasan AI
+                    Bantuan Balasan AI & Kirim Pesan
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 space-y-4">
                   <div className="space-y-1">
-                    <Label htmlFor="customer-message-input">Tulis Pesan Pelanggan (jika baru) / Konteks Tambahan:</Label>
-                    <Textarea
-                      id="customer-message-input"
-                      placeholder="Tempel pesan terakhir pelanggan di sini, atau tambahkan konteks untuk AI..."
-                      value={customerMessageInput}
-                      onChange={(e) => setCustomerMessageInput(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      rows={3}
-                      disabled={isLoadingSuggestion}
-                      className="bg-background"
-                    />
+                    <Label htmlFor="customer-message-input">Ketik pesan atau konteks untuk AI:</Label>
+                    <div className="flex items-end space-x-2">
+                      <Textarea
+                        id="customer-message-input"
+                        placeholder="Ketik pesan Anda di sini, atau tempel pesan pelanggan untuk AI..."
+                        value={customerMessageInput}
+                        onChange={(e) => setCustomerMessageInput(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        rows={1}
+                        disabled={isLoadingSuggestion}
+                        className="bg-background flex-1 resize-none min-h-[40px]"
+                      />
+                      <Button 
+                        size="icon" 
+                        onClick={handleSendMessage}
+                        disabled={isLoadingSuggestion || !customerMessageInput.trim()}
+                        className="h-10 w-10 shrink-0"
+                        aria-label="Kirim Pesan"
+                      >
+                        <Send className="h-5 w-5" />
+                      </Button>
+                    </div>
                   </div>
                   <Button onClick={handleGetSuggestion} disabled={isLoadingSuggestion || !selectedCustomer} className="w-full sm:w-auto">
                     {isLoadingSuggestion ? (
@@ -482,7 +493,7 @@ export default function AiCsAssistantPage() {
                   {suggestedReply && !isLoadingSuggestion && (
                     <div className="space-y-2 pt-3">
                       <Label htmlFor="suggested-reply" className="flex items-center text-md font-semibold">
-                        Saran Balasan:
+                        Saran Balasan AI:
                       </Label>
                       <Card className="bg-muted/80 p-3 shadow-sm">
                         <Textarea
@@ -499,13 +510,7 @@ export default function AiCsAssistantPage() {
                     </div>
                   )}
                 </CardContent>
-                <CardFooter className="p-4 border-t">
-                  <div className="flex w-full items-center space-x-2">
-                     <p className="text-xs text-muted-foreground">
-                        Tekan Enter untuk mengirim pesan (Shift+Enter untuk baris baru). Selalu periksa kembali saran dari AI sebelum mengirimkannya.
-                     </p>
-                  </div>
-                </CardFooter>
+                 {/* CardFooter yang berisi teks bantuan "Tekan Enter..." dihapus */}
               </Card>
             </>
           )}
