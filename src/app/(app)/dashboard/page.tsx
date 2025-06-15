@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { Transaction, TransactionItem } from '@/types/transaction';
 import type { QueueItem } from '@/app/(app)/queue/page'; 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { ChartContainer, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 
 
 interface DashboardSummary {
@@ -448,4 +448,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
 
