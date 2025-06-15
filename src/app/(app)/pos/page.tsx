@@ -544,9 +544,6 @@ export default function PosPage() {
              newRedeemedReward = undefined;
              newPointsRedeemed = 0;
              newPointsRedeemedValue = 0;
-             // If this was a loyalty reward, also remove other reward_merchandise items if they were part of the same reward bundle (not handled yet)
-             // For now, just removes the specific item that was part of a loyalty reward.
-             // Also, if it was an auto-added bonus sticker, it's just removed like any other item.
         }
 
         const { subtotal, total, discountAmountApplied } = calculateTransactionTotals(
@@ -666,8 +663,8 @@ export default function PosPage() {
     if (selectedRewardToRedeem.type === 'merchandise') {
         const merchandiseItem: TransactionItem = {
             id: uuidv4(),
-            catalogItemId: `reward_${selectedRewardToRedeem.id}`, // This might need adjustment if we want it to be a real product ID
-            name: selectedRewardToRedeem.rewardValue as string, // The merchandise name is the value here
+            catalogItemId: `reward_${selectedRewardToRedeem.id}`, 
+            name: selectedRewardToRedeem.rewardValue as string, 
             price: 0,
             quantity: 1,
             type: 'reward_merchandise',
@@ -690,8 +687,8 @@ export default function PosPage() {
         items: updatedItems,
         pointsRedeemed: selectedRewardToRedeem.pointsRequired,
         pointsRedeemedValue: discountValueFromReward,
-        discountAmount: discountValueFromReward, // If discount reward, this is the discount.
-        discountPercentage: 0, // Manual percentage discount cleared if reward applied
+        discountAmount: discountValueFromReward, 
+        discountPercentage: 0, 
         redeemedReward: rewardDetailsToStore,
         total: total,
         subtotal: subtotal,
@@ -727,7 +724,7 @@ export default function PosPage() {
 
       if (selectedTransaction.clientId && (!selectedTransaction.pointsRedeemed || selectedTransaction.pointsRedeemed === 0)) {
          pointsEarnedThisTransaction = selectedTransaction.items.reduce((sum, item) => {
-            if (item.type === 'reward_merchandise') return sum; // Item reward tidak menghasilkan poin
+            if (item.type === 'reward_merchandise') return sum; 
             const awardedPoints = (typeof item.pointsAwardedPerUnit === 'number' && !isNaN(item.pointsAwardedPerUnit)) ? item.pointsAwardedPerUnit : 0;
             const qty = (typeof item.quantity === 'number' && !isNaN(item.quantity) && item.quantity > 0) ? item.quantity : 1;
             return sum + (awardedPoints * qty);
@@ -839,8 +836,15 @@ export default function PosPage() {
     } else if (transaction.pointsEarnedInThisTx && transaction.pointsEarnedInThisTx > 0) {
         text += `Poin Baru Diperoleh: ${transaction.pointsEarnedInThisTx.toLocaleString('id-ID')} poin\n`;
     }
-
-    text += `\nTerima kasih atas kunjungan Anda!`;
+    
+    const feedbackBaseUrl = process.env.NEXT_PUBLIC_APP_BASE_URL || '';
+    // Fallback to relative URL if base URL is not set, which might not work perfectly from WhatsApp
+    const feedbackUrl = feedbackBaseUrl 
+      ? `${feedbackBaseUrl}/public/feedback/${transaction.id}` 
+      : `/public/feedback/${transaction.id}`;
+      
+    text += `\nKami sangat menghargai masukan Anda! Isi survei singkat di: ${feedbackUrl}`;
+    text += `\n\nTerima kasih atas kunjungan Anda!`;
     return text;
   }
 
@@ -990,7 +994,7 @@ export default function PosPage() {
                   <Button
                     onClick={() => { resetNewBillDialogState(); setIsCreateBillDialogOpen(true); }}
                     size="sm"
-                    className="bg-accent text-accent-foreground hover:bg-accent/90 flex-shrink-0"
+                    className="bg-primary text-primary-foreground hover:bg-primary/90 flex-shrink-0"
                   >
                       <PlusCircle className="mr-2 h-4 w-4" /> Bill Baru
                   </Button>
@@ -1078,7 +1082,7 @@ export default function PosPage() {
                           size="sm"
                           variant="default"
                           onClick={handleOpenRedeemPointsDialog}
-                          className="bg-accent text-accent-foreground hover:bg-accent/90"
+                          className="bg-primary text-primary-foreground hover:bg-primary/90"
                           disabled={loadingLoyaltyRewards}
                         >
                             {loadingLoyaltyRewards ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Tags className="mr-2 h-4 w-4" />} Tukar Reward
@@ -1101,7 +1105,7 @@ export default function PosPage() {
                      <Button
                         size="sm"
                         onClick={() => { resetAddItemForm(); setIsAddItemDialogOpen(true); }}
-                        className="bg-accent text-accent-foreground hover:bg-accent/90"
+                        className="bg-primary text-primary-foreground hover:bg-primary/90"
                      >
                         <PlusCircle className="mr-2 h-4 w-4"/> Tambah Item
                     </Button>
@@ -1203,7 +1207,7 @@ export default function PosPage() {
                 </CardContent>
                 <CardFooter className="flex-col space-y-2">
                     <Button
-                      className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
+                      className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
                       onClick={handleOpenPaymentDialog}
                       disabled={!selectedTransaction || selectedTransaction.items.length === 0 || isProcessingPayment}
                     >
@@ -1276,7 +1280,7 @@ export default function PosPage() {
             <Button
               onClick={handleConfirmCreateBill}
               disabled={isSubmittingNewBill || (newBillType === 'existing-client' && !selectedClientIdForNewBill && !loadingClients)}
-              className="bg-accent text-accent-foreground hover:bg-accent/90"
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               {isSubmittingNewBill ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
               Buat Transaksi
@@ -1429,7 +1433,7 @@ export default function PosPage() {
               <Button
                 onClick={handleAddItemToTransaction}
                 disabled={isAddItemButtonDisabled}
-                className="bg-accent text-accent-foreground hover:bg-accent/90"
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 {isSubmittingItem && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Tambah Item
@@ -1487,7 +1491,7 @@ export default function PosPage() {
               <Button
                 onClick={handleRedeemReward}
                 disabled={isSubmittingRedemption || !selectedRewardToRedeem || availableRewardsForClient.length === 0 || loadingLoyaltyRewards}
-                className="bg-accent text-accent-foreground hover:bg-accent/90"
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 {isSubmittingRedemption && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Tukarkan Reward
@@ -1540,7 +1544,7 @@ export default function PosPage() {
               <Button
                 onClick={handleConfirmPayment}
                 disabled={isProcessingPayment || !selectedPaymentMethod}
-                className="bg-accent text-accent-foreground hover:bg-accent/90"
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 {isProcessingPayment && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Konfirmasi Pembayaran
