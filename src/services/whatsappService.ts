@@ -7,36 +7,56 @@ interface SendMessageResponse {
 }
 
 export async function sendWhatsAppMessage(number: string, message: string): Promise<SendMessageResponse> {
-  const whatsappServerUrl = process.env.WHATSAPP_SERVER_URL || 'http://localhost:8080/send-message'; // Default jika tidak ada di .env
+  const whatsappServerUrl = process.env.WHATSAPP_SERVER_URL || 'http://localhost:8080/send-message';
 
-  // Nomor harus dalam format: [kode_negara][nomor] (mis., 6281234567890)
-  // Server WhatsApp lokal Anda yang akan menangani penambahan @c.us jika perlu.
-  const cleanedNumber = number.replace(/\D/g, '');
+  // 1. Hapus semua karakter non-digit
+  let formattedNumber = number.replace(/\D/g, '');
+
+  // 2. Jika nomor dimulai dengan '0', ganti dengan '62'
+  if (formattedNumber.startsWith('0')) {
+    formattedNumber = '62' + formattedNumber.substring(1);
+  } 
+  // 3. Jika nomor dimulai dengan '8' (misalnya '812...'), dan panjangnya sesuai nomor Indonesia, tambahkan '62'
+  // Ini untuk kasus nomor Indonesia yang tidak diawali '0' atau '62'
+  else if (
+    formattedNumber.startsWith('8') &&
+    formattedNumber.length >= 9 && // Panjang minimal nomor HP Indonesia tanpa kode negara dan 0 (mis. 812345678 -> 9 digit)
+    formattedNumber.length <= 13   // Panjang maksimal
+  ) {
+    formattedNumber = '62' + formattedNumber;
+  }
+  // Jika nomor sudah diawali '62' atau kode negara lain, biarkan apa adanya.
 
   try {
-    console.log(`Mengirim permintaan ke server WhatsApp lokal di ${whatsappServerUrl} untuk nomor ${cleanedNumber}`);
+    console.log(`Mengirim permintaan ke server WhatsApp lokal di ${whatsappServerUrl} untuk nomor ${formattedNumber}`);
     const response = await fetch(whatsappServerUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        number: cleanedNumber,
+        number: formattedNumber, // Kirim nomor yang sudah diformat
         message: message,
       }),
     });
 
     if (!response.ok) {
-      const errorData = await response.text();
-      console.error(`Server WhatsApp lokal merespons dengan error ${response.status}: ${errorData}`);
-      return { success: false, error: `Server WhatsApp lokal error: ${response.status} - ${errorData || response.statusText}` };
+      const errorBody = await response.text(); // Coba baca body error sebagai teks dulu
+      let errorData;
+      try {
+        errorData = JSON.parse(errorBody); // Coba parse sebagai JSON
+      } catch (e) {
+        errorData = { error: errorBody }; // Jika bukan JSON, gunakan teksnya sebagai error
+      }
+      console.error(`Server WhatsApp lokal merespons dengan error ${response.status}:`, errorData);
+      return { success: false, error: `Server WhatsApp lokal error: ${response.status} - ${errorData.error || errorData.details || response.statusText}` };
     }
 
     const responseData = await response.json();
-    console.log(`Pesan berhasil dikirim melalui server WhatsApp lokal ke ${cleanedNumber}`, responseData);
+    console.log(`Pesan berhasil dikirim melalui server WhatsApp lokal ke ${formattedNumber}`, responseData);
     return { success: true, messageId: responseData.messageId || 'N/A' };
   } catch (error) {
-    console.error(`Gagal mengirim pesan ke ${cleanedNumber} melalui server WhatsApp lokal:`, error);
+    console.error(`Gagal mengirim pesan ke ${formattedNumber} melalui server WhatsApp lokal:`, error);
     if (error instanceof Error) {
       return { success: false, error: `Error koneksi ke server WhatsApp lokal: ${error.message}` };
     }
@@ -64,12 +84,12 @@ export async function sendWhatsAppMessage(number: string, message: string): Prom
 // client.initialize();
 //
 // app.post('/send-message', async (req, res) => {
-//   const { number, message } = req.body;
+//   const { number, message } = req.body; // number di sini seharusnya sudah "62..."
 //   if (!number || !message) {
 //     return res.status(400).json({ error: 'Nomor dan pesan diperlukan.' });
 //   }
 //   try {
-//     const chatId = `${number}@c.us`;
+//     const chatId = `${number}@c.us`; // Langsung pakai number karena sudah diformat oleh client (Next.js)
 //     const sentMessage = await client.sendMessage(chatId, message);
 //     res.status(200).json({ success: true, messageId: sentMessage.id.id });
 //   } catch (e) {
