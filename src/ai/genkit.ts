@@ -1,10 +1,11 @@
 import {genkit} from 'genkit';
+import {googleAI} from '@genkit-ai/googleai'; // Impor googleAI dari paket yang benar
 
 export const ai = genkit({
   plugins: [
-    // googleAI() plugin removed as genkitx-googleai could not be resolved
+    googleAI(),
   ],
-  // Default model removed as googleAI plugin is not available
+  model: 'googleai/gemini-1.5-flash-latest', // Mengatur model default
   telemetry: {
     instrumentation: {
       llm: true,
