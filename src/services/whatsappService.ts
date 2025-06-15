@@ -10,6 +10,7 @@ interface SendMessageResponse {
 // Fungsi untuk memformat nomor telepon ke format internasional (mis. 62xxxx)
 function formatPhoneNumber(number: string): string {
   let cleaned = number.replace(/\D/g, ''); // Hapus semua karakter non-digit
+  console.log(`WhatsappService (formatPhoneNumber): Nomor setelah dibersihkan dari non-digit: "${cleaned}" (dari input: "${number}")`);
 
   if (cleaned.startsWith('620')) { // Prioritas untuk format aneh "620..." -> "62..."
     cleaned = '62' + cleaned.substring(3);
@@ -34,8 +35,14 @@ export async function sendWhatsAppMessage(number: string, message: string): Prom
   const formattedNumber = formatPhoneNumber(number);
   console.log(`WhatsappService: Nomor setelah format: "${formattedNumber}"`);
 
+  if (!formattedNumber || formattedNumber.length < 10) { // Tambahan validasi setelah format
+    const errorMsg = `Nomor setelah format tidak valid: "${formattedNumber}". Tidak bisa mengirim pesan.`;
+    console.error(`WhatsappService: ${errorMsg}`);
+    return { success: false, error: errorMsg };
+  }
+
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 detik timeout
 
   try {
     console.log(`WhatsappService: Mengirim permintaan ke server WhatsApp di ${whatsappServerUrl} untuk nomor ${formattedNumber}`);
@@ -45,7 +52,7 @@ export async function sendWhatsAppMessage(number: string, message: string): Prom
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        number: formattedNumber, // Kirim nomor yang sudah diformat
+        number: formattedNumber, 
         message: message,
       }),
       signal: controller.signal,
@@ -86,5 +93,3 @@ Error asli: ${error.message}`;
     return { success: false, error: detailedErrorMessage };
   }
 }
-
-// (Sisa catatan dari file asli bisa tetap di sini jika diperlukan)
