@@ -1,5 +1,8 @@
-
+"use strict";
 'use server';
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.WhatsAppReplyOutputSchema = exports.WhatsAppReplyInputSchema = void 0;
+exports.generateWhatsAppReply = generateWhatsAppReply;
 /**
  * @fileOverview Flow AI untuk membantu membuat balasan pesan WhatsApp customer service.
  * Dilengkapi dengan kemampuan untuk mencari informasi produk/layanan dan data klien.
@@ -10,34 +13,26 @@
  * - WhatsAppReplyOutputSchema - Skema Zod untuk validasi output.
  * - WhatsAppReplyOutput - Tipe output untuk fungsi generateWhatsAppReply.
  */
-
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
-import { getProductServiceDetailsByNameTool } from '@/ai/tools/productLookupTool';
-import { getClientDetailsTool } from '@/ai/tools/clientLookupTool';
-
-export const WhatsAppReplyInputSchema = z.object({
-  customerMessage: z.string().describe('Pesan yang diterima dari pelanggan melalui WhatsApp.'),
-  // Anda bisa tambahkan field lain di sini jika dibutuhkan oleh flow, mis. senderNumber, customerName
-  // senderNumber: z.string().optional().describe('Nomor WhatsApp pengirim pesan.'),
+const genkit_1 = require("@/ai/genkit");
+const genkit_2 = require("genkit");
+const productLookupTool_1 = require("@/ai/tools/productLookupTool");
+const clientLookupTool_1 = require("@/ai/tools/clientLookupTool");
+exports.WhatsAppReplyInputSchema = genkit_2.z.object({
+    customerMessage: genkit_2.z.string().describe('Pesan yang diterima dari pelanggan melalui WhatsApp.'),
+    // clientId: z.string().optional().describe('Opsional: ID klien jika sudah teridentifikasi oleh staf CS.'),
 });
-export type WhatsAppReplyInput = z.infer<typeof WhatsAppReplyInputSchema>;
-
-export const WhatsAppReplyOutputSchema = z.object({
-  suggestedReply: z.string().describe('Saran balasan yang dihasilkan AI untuk dikirim ke pelanggan.'),
+exports.WhatsAppReplyOutputSchema = genkit_2.z.object({
+    suggestedReply: genkit_2.z.string().describe('Saran balasan yang dihasilkan AI untuk dikirim ke pelanggan.'),
 });
-export type WhatsAppReplyOutput = z.infer<typeof WhatsAppReplyOutputSchema>;
-
-export async function generateWhatsAppReply(input: WhatsAppReplyInput): Promise<WhatsAppReplyOutput> {
-  return whatsAppReplyFlow(input);
+async function generateWhatsAppReply(input) {
+    return whatsAppReplyFlow(input);
 }
-
-const replyPrompt = ai.definePrompt({
-  name: 'whatsAppReplyPrompt',
-  input: {schema: WhatsAppReplyInputSchema},
-  output: {schema: WhatsAppReplyOutputSchema},
-  tools: [getProductServiceDetailsByNameTool, getClientDetailsTool],
-  prompt: `Anda adalah seorang Customer Service Assistant AI untuk QLAB Auto Detailing, sebuah bengkel perawatan dan detailing motor.
+const replyPrompt = genkit_1.ai.definePrompt({
+    name: 'whatsAppReplyPrompt',
+    input: { schema: exports.WhatsAppReplyInputSchema },
+    output: { schema: exports.WhatsAppReplyOutputSchema },
+    tools: [productLookupTool_1.getProductServiceDetailsByNameTool, clientLookupTool_1.getClientDetailsTool],
+    prompt: `Anda adalah seorang Customer Service Assistant AI untuk QLAB Auto Detailing, sebuah bengkel perawatan dan detailing motor.
 Tugas Anda adalah membantu staf CS membuat balasan yang sopan, ramah, informatif, dan profesional untuk pesan WhatsApp dari pelanggan.
 
 Pesan dari Pelanggan:
@@ -80,23 +75,19 @@ Hasilkan hanya teks balasannya saja. Jangan menyebutkan nama tool yang Anda guna
 Pastikan balasan Anda tetap ramah dan profesional.
 `,
 });
-
-const whatsAppReplyFlow = ai.defineFlow(
-  {
+const whatsAppReplyFlow = genkit_1.ai.defineFlow({
     name: 'whatsAppReplyFlow',
-    inputSchema: WhatsAppReplyInputSchema,
-    outputSchema: WhatsAppReplyOutputSchema,
-  },
-  async (input) => {
+    inputSchema: exports.WhatsAppReplyInputSchema,
+    outputSchema: exports.WhatsAppReplyOutputSchema,
+}, async (input) => {
     console.log("WhatsAppReplyFlow input:", input);
-    const {output} = await replyPrompt(input);
+    const { output } = await replyPrompt(input);
     if (!output) {
-      throw new Error('Gagal mendapatkan saran balasan dari AI.');
+        throw new Error('Gagal mendapatkan saran balasan dari AI.');
     }
     console.log("WhatsAppReplyFlow output:", output);
     return output;
-  }
-);
-
-// Tidak perlu ekspor whatsAppReplyFlow jika hanya digunakan via API route Next.js
+});
+// Ekspor whatsAppReplyFlow jika ingin diakses langsung oleh Genkit CLI untuk deploy
 // export { whatsAppReplyFlow };
+//# sourceMappingURL=cs-whatsapp-reply-flow.js.map
