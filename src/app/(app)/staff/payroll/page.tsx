@@ -58,7 +58,7 @@ const payrollFormSchema = z.object({
     (val) => val ? parseFloat(String(val)) : undefined,
     z.number({ invalid_type_error: "Total jam harus angka" }).nonnegative("Total jam tidak boleh negatif").optional()
   ),
-  manualDeductions: z.preprocess( 
+  manualDeductions: z.preprocess(
     (val) => val ? parseFloat(String(val)) : undefined,
     z.number({ invalid_type_error: "Potongan harus angka" }).nonnegative("Potongan tidak boleh negatif").optional()
   ),
@@ -261,8 +261,8 @@ interface DetailPayrollDialogProps {
 }
 
 interface ParsedCalculationDetail {
-  date: string; 
-  formattedDate: string; 
+  date: string;
+  formattedDate: string;
   events: string[];
 }
 
@@ -272,12 +272,12 @@ const parseCalculationDetails = (details?: string): ParsedCalculationDetail[] =>
   }
 
   const lines = details.trim().split('\n'); // Use single newline character
-  const groupedByDate: Record<string, string[]> = {}; 
+  const groupedByDate: Record<string, string[]> = {};
 
   lines.forEach(line => {
     const match = line.match(/^(\d{4}-\d{2}-\d{2}):\s*(.*)$/); // Regex to capture date and event
     if (match) {
-      const date = match[1]; 
+      const date = match[1];
       const event = match[2];
       if (!groupedByDate[date]) {
         groupedByDate[date] = [];
@@ -290,8 +290,8 @@ const parseCalculationDetails = (details?: string): ParsedCalculationDetail[] =>
   });
 
   const parsedEntries = Object.entries(groupedByDate).map(([date, events]) => ({
-    date, 
-    formattedDate: date === "GeneralNotes" ? "Catatan Umum" : formatDateFns(parseISO(date), 'dd MMM yyyy, EEEE', { locale: indonesiaLocale }), 
+    date,
+    formattedDate: date === "GeneralNotes" ? "Catatan Umum" : formatDateFns(parseISO(date), 'dd MMM yyyy, EEEE', { locale: indonesiaLocale }),
     events,
   }));
 
@@ -313,13 +313,13 @@ function DetailPayrollDialog({ isOpen, onClose, entry }: DetailPayrollDialogProp
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="sm:max-w-2xl md:max-w-3xl"> 
+      <DialogContent className="sm:max-w-2xl md:max-w-3xl">
         <DialogHeader>
           <DialogTitle>Detail Penggajian: {entry.staffName}</DialogTitle>
           <DialogDescription>Periode: {entry.period}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3 py-2 text-sm">
-          
+
           <div className="font-medium text-lg">Ringkasan Gaji</div>
           <div className="flex justify-between items-center">
             <span>Gaji Pokok:</span>
@@ -339,10 +339,10 @@ function DetailPayrollDialog({ isOpen, onClose, entry }: DetailPayrollDialogProp
             <span>GAJI BERSIH (DITRANSFER):</span>
             <span className="text-primary">Rp {entry.netPay.toLocaleString('id-ID')}</span>
           </div>
-          
+
           {typeof entry.totalHours === 'number' && (
              <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
-                <span>Total Jam Kerja Tercatat:</span> 
+                <span>Total Jam Kerja Tercatat:</span>
                 <span>{entry.totalHours} jam</span>
             </div>
           )}
@@ -402,7 +402,7 @@ function DetailPayrollDialog({ isOpen, onClose, entry }: DetailPayrollDialogProp
               </AccordionItem>
             )}
           </Accordion>
-          
+
           <Separator className="my-3" />
 
           <div className="space-y-1">
@@ -419,7 +419,7 @@ function DetailPayrollDialog({ isOpen, onClose, entry }: DetailPayrollDialogProp
               </div>
             )}
           </div>
-          
+
           <div className="mt-3 pt-2 border-t text-xs text-muted-foreground space-y-0.5">
              <div className="flex justify-between"><span>Dibuat:</span> <span>{entry.createdAt?.toDate().toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</span></div>
              <div className="flex justify-between"><span>Diperbarui:</span> <span>{entry.updatedAt?.toDate().toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}</span></div>
@@ -439,7 +439,7 @@ function DetailPayrollDialog({ isOpen, onClose, entry }: DetailPayrollDialogProp
 const parsePeriodToDateRange = (period: string): { startDate: Date, endDate: Date } | null => {
     const parts = period.split(" ");
     if (parts.length !== 2) return null;
-    
+
     const monthName = parts[0];
     const year = parseInt(parts[1], 10);
 
@@ -449,7 +449,7 @@ const parsePeriodToDateRange = (period: string): { startDate: Date, endDate: Dat
     if (monthIndex === -1 || isNaN(year)) return null;
 
     const startDate = new Date(year, monthIndex, 1);
-    const endDate = endOfDay(new Date(year, monthIndex + 1, 0)); 
+    const endDate = endOfDay(new Date(year, monthIndex + 1, 0));
     return { startDate, endDate };
 };
 
@@ -488,7 +488,7 @@ export default function PayrollPage() {
   const [isPayButtonEnabled, setIsPayButtonEnabled] = useState(false);
 
   useEffect(() => {
-    setIsPayButtonEnabled(true); 
+    setIsPayButtonEnabled(true);
   }, []);
 
   const fetchStaffList = useCallback(async () => {
@@ -538,7 +538,7 @@ export default function PayrollPage() {
 
     const attendanceRecords: Record<string, AttendanceRecord> = {};
     const attendanceCollectionRef = collection(db, 'attendanceRecords');
-    const attendanceQuery = query(attendanceCollectionRef, 
+    const attendanceQuery = query(attendanceCollectionRef,
       where("staffId", "==", staff.id),
       where("date", ">=", formatDateFns(startDate, 'yyyy-MM-dd')),
       where("date", "<=", formatDateFns(endDate, 'yyyy-MM-dd'))
@@ -550,42 +550,42 @@ export default function PayrollPage() {
     });
 
     const shopLateOpeningDays = new Set<string>();
-    if (staffList.length > 0) { 
+    if (Array.isArray(staffList) && staffList.length > 0) {
         for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
             const dateStr = formatDateFns(d, 'yyyy-MM-dd');
-            const dayOfWeek = getDay(d); 
-            
-            let allStaffPresentAndLate = true; 
-            let anyStaffScheduledAndPresent = false; 
+            const dayOfWeek = getDay(d);
 
-            const dailyAttendancePromises = staffList.map(async (sMember) => {
-                const staffMemberDaysOff = sMember.daysOff || []; 
-                if (staffMemberDaysOff.includes(dayOfWeek)) return null; 
-                
-                const attQuery = query(collection(db, 'attendanceRecords'), 
-                                        where("staffId", "==", sMember.id), 
+            let allStaffPresentAndLate = true;
+            let anyStaffScheduledAndPresent = false;
+
+            const dailyAttendancePromises = Array.isArray(staffList) ? staffList.map(async (sMember) => {
+                const staffMemberDaysOff = sMember.daysOff || [];
+                if (staffMemberDaysOff.includes(dayOfWeek)) return null;
+
+                const attQuery = query(collection(db, 'attendanceRecords'),
+                                        where("staffId", "==", sMember.id),
                                         where("date", "==", dateStr),
-                                        limit(1)); 
+                                        limit(1));
                 const attSnap = await getDocs(attQuery);
                 return attSnap.empty ? null : attSnap.docs[0].data() as AttendanceRecord;
-            });
+            }) : [];
             const dailyAttendances = (await Promise.all(dailyAttendancePromises)).filter(Boolean) as AttendanceRecord[];
 
             if (dailyAttendances.length > 0) {
                 anyStaffScheduledAndPresent = true;
                 for (const att of dailyAttendances) {
                     if (att.status === 'Cuti' || att.status === 'Absen') {
-                        continue; 
+                        continue;
                     }
                     if (!att.clockIn || att.clockIn < "09:05") {
-                        allStaffPresentAndLate = false; 
+                        allStaffPresentAndLate = false;
                         break;
                     }
                 }
-            } else { 
-                allStaffPresentAndLate = false; 
+            } else {
+                allStaffPresentAndLate = false;
             }
-            
+
             if (anyStaffScheduledAndPresent && allStaffPresentAndLate) {
                 shopLateOpeningDays.add(dateStr);
             }
@@ -594,7 +594,7 @@ export default function PayrollPage() {
 
     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
         const dateStr = formatDateFns(d, 'yyyy-MM-dd');
-        const dayOfWeek = getDay(d); 
+        const dayOfWeek = getDay(d);
         const staffDaysOff = staff.daysOff || [];
         let dailyLatenessDeduction = 0;
         let alreadyDeductedForTelatBukaThisDay = false;
@@ -614,14 +614,14 @@ export default function PayrollPage() {
             if (attendance.status === 'Absen') {
                 absenceDeduction += 50000;
                 calculationDetails += `${dateStr}: Absen (-Rp 50.000).\n`;
-            } else if (attendance.clockIn) { 
+            } else if (attendance.clockIn) {
                 let isTelatParah = false;
                 if (attendance.clockIn >= "10:00") {
                     dailyLatenessDeduction = 50000;
                     calculationDetails += `${dateStr}: Telat >=10:00 (-Rp 50.000).\n`;
                     isTelatParah = true;
                 }
-                
+
                 if (!isTelatParah && shopLateOpeningDays.has(dateStr) && (attendance.status !== 'Cuti' && attendance.status !== 'Absen')) {
                     telatBukaDeductionTotalForStaff += 25000;
                     calculationDetails += `${dateStr}: Potongan Telat Buka Toko (-Rp 25.000).\n`;
@@ -635,16 +635,16 @@ export default function PayrollPage() {
                     calculationDetails += `${dateStr}: Telat >=09:05 (digugurkan oleh Telat Buka Toko).\n`;
                 }
                 latenessDeduction += dailyLatenessDeduction;
-            } else { 
-                absenceDeduction += 50000; 
+            } else {
+                absenceDeduction += 50000;
                 calculationDetails += `${dateStr}: ${attendance.status} tanpa clockIn, dianggap Absen (-Rp 50.000).\n`;
             }
-        } else { 
+        } else {
             absenceDeduction += 50000;
             calculationDetails += `${dateStr}: Tidak ada catatan absensi (-Rp 50.000).\n`;
         }
     }
-    
+
     const totalCalculatedDeductions = latenessDeduction + absenceDeduction + telatBukaDeductionTotalForStaff;
     const totalDeductions = totalCalculatedDeductions + (manualDeductionsInput || 0);
     const netPay = (staff.baseSalary || 0) - totalDeductions;
@@ -675,15 +675,15 @@ export default function PayrollPage() {
           updatedAt: docSnap.data().updatedAt || Timestamp.now()
         } as PayrollEntry));
 
-      if (staffList.length > 0) {
+      if (Array.isArray(staffList) && staffList.length > 0) {
         const batch = writeBatch(db);
         let entriesModified = false;
 
         for (const staff of staffList) {
           const existingEntry = data.find(p => p.staffId === staff.id);
           const calculatedData = await calculateDeductionsAndNetPay(staff, period, existingEntry?.manualDeductions || 0);
-          
-          const corePayrollValues: Partial<PayrollEntry> = { 
+
+          const corePayrollValues: Partial<PayrollEntry> = {
             baseSalary: calculatedData.baseSalary ?? 0,
             latenessDeduction: calculatedData.latenessDeduction ?? 0,
             absenceDeduction: calculatedData.absenceDeduction ?? 0,
@@ -697,7 +697,7 @@ export default function PayrollPage() {
           };
 
           if (existingEntry) {
-            if (existingEntry.status !== 'Dibayar' || 
+            if (existingEntry.status !== 'Dibayar' ||
                 existingEntry.latenessDeduction !== corePayrollValues.latenessDeduction ||
                 existingEntry.absenceDeduction !== corePayrollValues.absenceDeduction ||
                 existingEntry.telatBukaDeduction !== corePayrollValues.telatBukaDeduction ||
@@ -708,7 +708,7 @@ export default function PayrollPage() {
               const entryDocRef = doc(db, 'payrollData', existingEntry.id);
               const updateDataForFirestore: any = {
                 ...corePayrollValues,
-                staffId: staff.id, 
+                staffId: staff.id,
                 staffName: staff.name,
                 period: period,
                 status: (existingEntry.status === 'Dibayar' ? 'Dibayar' : 'Tertunda') as PayrollEntry['status'],
@@ -757,10 +757,10 @@ export default function PayrollPage() {
     } finally {
       setLoadingPayroll(false);
     }
-  }, [toast, staffList]); 
+  }, [toast, staffList]);
 
   useEffect(() => {
-    if (selectedPeriod && selectedPeriod !== 'Periode Tidak Tersedia' && !loadingStaff) { 
+    if (selectedPeriod && selectedPeriod !== 'Periode Tidak Tersedia' && !loadingStaff) {
         fetchPayrollData(selectedPeriod);
     } else {
       setPayrollData([]);
@@ -793,10 +793,10 @@ export default function PayrollPage() {
         profitShareReceivedThisPeriod: calculatedData.profitShareReceivedThisPeriod ?? 0,
         totalDeductions: calculatedData.totalDeductions ?? 0,
         netPay: calculatedData.netPay ?? 0,
-        status: 'Tertunda', 
+        status: 'Tertunda',
         calculationDetails: calculatedData.calculationDetails,
       };
-      
+
       const finalDataForFirestore: any = {...finalData};
       if (finalDataForFirestore.totalHours === undefined) finalDataForFirestore.totalHours = deleteField();
       if (finalDataForFirestore.profitShareReceivedThisPeriod === undefined) finalDataForFirestore.profitShareReceivedThisPeriod = 0;
@@ -819,7 +819,7 @@ export default function PayrollPage() {
         toast({ title: "Sukses", description: `Entri penggajian untuk ${data.staffName} berhasil dibuat.` });
       }
       setIsCreateDialogOpen(false);
-      fetchPayrollData(selectedPeriod); 
+      fetchPayrollData(selectedPeriod);
     } catch (error) {
       console.error("Error creating/updating payroll entry: ", error);
       toast({ title: "Error", description: "Gagal memproses entri penggajian.", variant: "destructive" });
@@ -844,10 +844,10 @@ export default function PayrollPage() {
     try {
       const paidTimestamp = Timestamp.now();
       const entryDocRef = doc(db, 'payrollData', entryToPay.id);
-      
+
       const staffMember = staffList.find(s => s.id === entryToPay.staffId);
       if (!staffMember) throw new Error("Staf tidak ditemukan untuk kalkulasi final.");
-      
+
       const finalCalculatedData = await calculateDeductionsAndNetPay(staffMember, entryToPay.period, entryToPay.manualDeductions || 0);
 
       const dataForUpdate: any = {
@@ -877,8 +877,8 @@ export default function PayrollPage() {
         date: paidTimestamp,
         category: "Gaji & Komisi Staf",
         description: `Pembayaran Gaji ${entryToPay.staffName} - Periode ${entryToPay.period}`,
-        amount: finalCalculatedData.netPay ?? 0, 
-        paymentSource: "Transfer Bank", 
+        amount: finalCalculatedData.netPay ?? 0,
+        paymentSource: "Transfer Bank",
         notes: `Pembayaran gaji otomatis dari modul penggajian. Detail: ${finalCalculatedData.calculationDetails || ''}`,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -887,7 +887,7 @@ export default function PayrollPage() {
 
       toast({ title: "Sukses", description: `Penggajian untuk ${entryToPay.staffName} telah ditandai Dibayar dan dicatat sebagai pengeluaran.` });
       setIsConfirmPaidOpen(false);
-      fetchPayrollData(selectedPeriod); 
+      fetchPayrollData(selectedPeriod);
     } catch (error) {
       console.error("Error marking as paid or creating expense: ", error);
       toast({ title: "Error", description: "Gagal memperbarui status penggajian atau mencatat pengeluaran.", variant: "destructive" });
@@ -948,7 +948,7 @@ export default function PayrollPage() {
                 </div>
             ) : payrollData.length === 0 || selectedPeriod === 'Periode Tidak Tersedia' ? (
                 <div className="text-center py-10 text-muted-foreground">
-                    {selectedPeriod === 'Periode Tidak Tersedia' ? 'Silakan pilih periode untuk melihat data penggajian.' 
+                    {selectedPeriod === 'Periode Tidak Tersedia' ? 'Silakan pilih periode untuk melihat data penggajian.'
                      : staffList.length === 0 && !loadingStaff ? 'Tidak ada staf terdaftar. Silakan tambahkan data staf terlebih dahulu.'
                      : `Tidak ada data penggajian untuk periode ${selectedPeriod}. Sistem akan mencoba membuat entri dasar saat daftar staf dimuat.`}
                 </div>
@@ -992,7 +992,7 @@ export default function PayrollPage() {
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => handleConfirmPay(entry)}
-                                  disabled={!isPayButtonEnabled} 
+                                  disabled={!isPayButtonEnabled}
                                   className={isPayButtonEnabled ? "text-green-600 hover:text-green-700" : "text-muted-foreground cursor-not-allowed"}
                                 >
                                   <CheckCircle className="h-4 w-4" />
