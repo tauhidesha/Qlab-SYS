@@ -551,36 +551,56 @@ export default function QueuePage() {
     message: string,
     actionDescription: string
   ) => {
+    console.log(`[QueuePage] Attempting to send notification for: ${actionDescription} to ${customerName} (Client ID: ${clientId})`);
     if (!clientId || clientId === WALK_IN_CLIENT_VALUE) {
-      console.log(`Notifikasi untuk ${actionDescription} tidak dikirim, pelanggan walk-in atau tidak ada ID klien.`);
-      return;
-    }
-
-    const client = clientsList.find(c => c.id === clientId);
-    if (!client || !client.phone) {
+      console.log(`[QueuePage] Notification for ${actionDescription} SKIPPED: Walk-in customer or no client ID.`);
       toast({
         title: "Info Notifikasi",
-        description: `Notifikasi ${actionDescription} untuk ${customerName} tidak dikirim (nomor HP tidak ditemukan).`,
+        description: `Notifikasi "${actionDescription}" untuk ${customerName} tidak dikirim (pelanggan walk-in atau ID tidak ada).`,
         variant: "default",
       });
       return;
     }
 
+    const client = clientsList.find(c => c.id === clientId);
+    if (!client) {
+        console.log(`[QueuePage] Notification for ${actionDescription} FAILED: Client with ID ${clientId} not found in clientsList.`);
+        toast({
+            title: "Info Notifikasi",
+            description: `Notifikasi "${actionDescription}" untuk ${customerName} tidak dikirim (data klien tidak ditemukan).`,
+            variant: "default",
+        });
+        return;
+    }
+
+    if (!client.phone || client.phone.trim() === '') {
+      console.log(`[QueuePage] Notification for ${actionDescription} SKIPPED for ${customerName}: No phone number found for client ID ${clientId}.`);
+      toast({
+        title: "Info Notifikasi",
+        description: `Notifikasi "${actionDescription}" untuk ${customerName} tidak dikirim (nomor HP tidak ditemukan pada data klien).`,
+        variant: "default",
+      });
+      return;
+    }
+    
+    console.log(`[QueuePage] Found client: ${client.name}, Phone: ${client.phone}. Preparing to send message: "${message}"`);
+
     try {
       const result = await sendWhatsAppMessage(client.phone, message);
       if (result.success) {
+        console.log(`[QueuePage] Notification for ${actionDescription} to ${customerName} (->${client.phone}) SENT successfully. Message ID: ${result.messageId}`);
         toast({
           title: "Notifikasi Terkirim",
-          description: `Notifikasi ${actionDescription} untuk ${customerName} telah dikirim via WhatsApp.`,
+          description: `Notifikasi "${actionDescription}" untuk ${customerName} telah dikirim via WhatsApp.`,
         });
       } else {
-        throw new Error(result.error || "Gagal mengirim notifikasi WhatsApp.");
+        throw new Error(result.error || "Gagal mengirim notifikasi WhatsApp dari service.");
       }
     } catch (error) {
-      console.error(`Error sending WhatsApp notification for ${actionDescription}:`, error);
+      console.error(`[QueuePage] Error sending WhatsApp notification for ${actionDescription} to ${customerName} (->${client.phone}):`, error);
       toast({
         title: "Gagal Kirim Notifikasi",
-        description: `Gagal mengirim notifikasi ${actionDescription} untuk ${customerName}. ${error instanceof Error ? error.message : ''}`,
+        description: `Gagal mengirim notifikasi "${actionDescription}" untuk ${customerName}. ${error instanceof Error ? error.message : 'Error tidak diketahui.'}`,
         variant: "destructive",
       });
     }
@@ -1193,3 +1213,4 @@ export default function QueuePage() {
 }
 
 export type { QueueItem as QueueItemType }; // Export for dashboard
+
