@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, MessageSquareText, Sparkles, Copy, Send, User, Search, Bot, MessageCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { generateWhatsAppReply } from '@/ai/flows/cs-whatsapp-reply-flow';
-import type { WhatsAppReplyInput, WhatsAppReplyOutput } from '@/types/ai/cs-whatsapp-reply'; // Updated import path
+import type { WhatsAppReplyInput, WhatsAppReplyOutput } from '@/types/ai/cs-whatsapp-reply';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -20,32 +20,37 @@ import { collection, getDocs, query, orderBy, type Timestamp, onSnapshot, addDoc
 import type { Client } from '@/types/client';
 import type { DirectMessage } from '@/types/directMessage';
 import { cn } from '@/lib/utils';
+import { v4 as uuidv4 } from 'uuid';
 
-// Updated ChatMessage to align with DirectMessage
 interface ChatMessageUi extends Omit<DirectMessage, 'timestamp' | 'id'> {
-  id: string; // Keep id for React key, can be Firestore doc id
-  timestamp: string; // Formatted string for display
+  id: string;
+  timestamp: string; 
+}
+
+interface PlaygroundMessage {
+  id: string;
+  sender: 'user' | 'ai';
+  text: string;
+  timestamp: string;
 }
 
 interface Customer {
   id: string;
   name: string;
   avatarUrl?: string;
-  lastMessageTimestamp: string; // Formatted string or "N/A"
+  lastMessageTimestamp: string; 
   lastMessage: string;
   unreadCount: number;
-  phone?: string; // Crucial for matching with senderNumber from WhatsApp
+  phone?: string; 
 }
 
-// Fungsi untuk memformat nomor telepon dari WhatsApp (jika perlu)
-// Bisa disamakan dengan yang di API atau diimpor dari helper jika ada
 function formatPhoneNumberForMatching(number: string): string {
   let cleaned = number.replace(/\D/g, '');
   if (cleaned.startsWith('0')) {
     cleaned = '62' + cleaned.substring(1);
   } else if (cleaned.startsWith('8') && cleaned.length >= 9 && cleaned.length <= 13) {
     cleaned = '62' + cleaned;
-  } else if (!cleaned.startsWith('62') && !(cleaned.length < 9)) { // Hindari nambah 62 jika sudah kode negara lain atau terlalu pendek
+  } else if (!cleaned.startsWith('62') && !(cleaned.length < 9)) { 
      if (cleaned.length >= 9 && cleaned.length <=13 && !cleaned.startsWith('+')) {
         cleaned = '62' + cleaned;
     }
@@ -55,8 +60,8 @@ function formatPhoneNumberForMatching(number: string): string {
 
 export default function AiCsAssistantPage() {
   const [customerMessageInput, setCustomerMessageInput] = useState('');
-  const [playgroundInput, setPlaygroundInput] = useState('');
-  const [playgroundReply, setPlaygroundReply] = useState('');
+  const [currentPlaygroundInput, setCurrentPlaygroundInput] = useState('');
+  const [playgroundChatHistory, setPlaygroundChatHistory] = useState<PlaygroundMessage[]>([]);
   const [isLoadingPlaygroundSuggestion, setIsLoadingPlaygroundSuggestion] = useState(false);
 
   const { toast } = useToast();
@@ -70,18 +75,25 @@ export default function AiCsAssistantPage() {
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const playgroundMessagesEndRef = useRef<HTMLDivElement>(null);
   const unsubscribeChatRef = useRef<(() => void) | null>(null);
 
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToBottom = (ref: React.RefObject<HTMLDivElement>) => {
+    ref.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(() => {
     if (!isPlaygroundMode && selectedCustomer && chatHistory.length > 0) {
-      scrollToBottom();
+      scrollToBottom(messagesEndRef);
     }
   }, [chatHistory, selectedCustomer, isPlaygroundMode]);
+
+  useEffect(() => {
+    if (isPlaygroundMode && playgroundChatHistory.length > 0) {
+      scrollToBottom(playgroundMessagesEndRef);
+    }
+  }, [playgroundChatHistory, isPlaygroundMode]);
 
 
   const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
@@ -96,10 +108,10 @@ export default function AiCsAssistantPage() {
         id: client.id,
         name: client.name,
         avatarUrl: `https://placehold.co/40x40.png?text=${client.name.charAt(0)}`,
-        lastMessageTimestamp: client.lastVisit || 'N/A', // Placeholder, will be updated by directMessages
-        lastMessage: 'Klik untuk melihat chat...', // Placeholder
-        unreadCount: 0, // Placeholder
-        phone: client.phone ? formatPhoneNumberForMatching(client.phone) : undefined, // Store formatted phone
+        lastMessageTimestamp: client.lastVisit || 'N/A', 
+        lastMessage: 'Klik untuk melihat chat...', 
+        unreadCount: 0, 
+        phone: client.phone ? formatPhoneNumberForMatching(client.phone) : undefined, 
       }));
     } catch (error) {
       console.error("Error fetching customers from Firestore: ", error);
@@ -112,7 +124,6 @@ export default function AiCsAssistantPage() {
     }
   }, [toast]);
 
-  // Fetch initial customer list
   useEffect(() => {
     const loadInitialData = async () => {
       setLoadingCustomers(true);
@@ -128,15 +139,14 @@ export default function AiCsAssistantPage() {
     loadInitialData();
   }, [fetchCustomers]);
 
-  // Real-time listener for chat history
   useEffect(() => {
     if (unsubscribeChatRef.current) {
-      unsubscribeChatRef.current(); // Unsubscribe from previous listener
+      unsubscribeChatRef.current(); 
       unsubscribeChatRef.current = null;
     }
 
     if (selectedCustomer && selectedCustomer.phone) {
-      const formattedPhoneForQuery = selectedCustomer.phone; // Already formatted
+      const formattedPhoneForQuery = selectedCustomer.phone; 
       const messagesRef = collection(db, 'directMessages');
       const q = query(
         messagesRef,
@@ -164,7 +174,7 @@ export default function AiCsAssistantPage() {
         });
       });
     } else {
-      setChatHistory([]); // Clear history if no customer or no phone
+      setChatHistory([]); 
     }
 
     return () => {
@@ -178,45 +188,64 @@ export default function AiCsAssistantPage() {
   const handleSelectPlayground = () => {
     setIsPlaygroundMode(true);
     setSelectedCustomer(null);
-    // setChatHistory([]); // No need to clear history as it's tied to selectedCustomer
     setCustomerMessageInput(''); 
-    setPlaygroundInput('');
-    setPlaygroundReply('');
+    setCurrentPlaygroundInput('');
+    setPlaygroundChatHistory([]);
   };
 
   const handleCustomerSelect = async (customer: Customer) => {
     setIsPlaygroundMode(false); 
     setSelectedCustomer(customer);
     setCustomerMessageInput('');
-    // Real-time listener in useEffect will handle fetching/updating chatHistory
   };
 
-  const handleGetPlaygroundSuggestion = async () => {
-    if (!playgroundInput.trim()) {
+  const handleSendPlaygroundMessage = async () => {
+    if (!currentPlaygroundInput.trim()) {
       toast({
         title: "Input Kosong",
-        description: "Mohon masukkan skenario atau pertanyaan untuk AI.",
+        description: "Mohon masukkan pertanyaan untuk AI.",
         variant: "destructive",
       });
       return;
     }
+    
+    const userMessage: PlaygroundMessage = {
+      id: uuidv4(),
+      sender: 'user',
+      text: currentPlaygroundInput.trim(),
+      timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+    };
+    setPlaygroundChatHistory(prev => [...prev, userMessage]);
+    const aiInput = currentPlaygroundInput.trim();
+    setCurrentPlaygroundInput('');
     setIsLoadingPlaygroundSuggestion(true);
-    setPlaygroundReply('');
+
     try {
       const input: WhatsAppReplyInput = { 
-        customerMessage: playgroundInput.trim(),
+        customerMessage: aiInput,
       };
       const result: WhatsAppReplyOutput = await generateWhatsAppReply(input);
-      setPlaygroundReply(result.suggestedReply);
-      toast({
-        title: "Respon AI Dihasilkan!",
-        description: "AI telah merespons input Anda.",
-      });
+      
+      const aiMessage: PlaygroundMessage = {
+        id: uuidv4(),
+        sender: 'ai',
+        text: result.suggestedReply,
+        timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+      };
+      setPlaygroundChatHistory(prev => [...prev, aiMessage]);
+      
     } catch (error) {
       console.error("Error generating AI reply for playground:", error);
+      const errorMessage: PlaygroundMessage = {
+        id: uuidv4(),
+        sender: 'ai',
+        text: "Maaf, terjadi kesalahan saat menghubungi AI. Silakan coba lagi.",
+        timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+      };
+      setPlaygroundChatHistory(prev => [...prev, errorMessage]);
       toast({
         title: "Error AI",
-        description: "Gagal mendapatkan respon dari AI. Silakan coba lagi.",
+        description: "Gagal mendapatkan respon dari AI.",
         variant: "destructive",
       });
     } finally {
@@ -224,32 +253,12 @@ export default function AiCsAssistantPage() {
     }
   };
   
-  const handleCopyPlaygroundReply = () => {
-    if (!playgroundReply) {
-      toast({
-        title: "Tidak Ada Respons",
-        description: "Tidak ada respons AI untuk disalin.",
-        variant: "destructive",
-      });
-      return;
+  const handlePlaygroundKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      handleSendPlaygroundMessage();
     }
-    navigator.clipboard.writeText(playgroundReply)
-      .then(() => {
-        toast({
-          title: "Respons Disalin!",
-          description: "Respons AI telah disalin ke clipboard.",
-        });
-      })
-      .catch(err => {
-        console.error("Failed to copy text: ", err);
-        toast({
-          title: "Gagal Menyalin",
-          description: "Tidak dapat menyalin teks ke clipboard.",
-          variant: "destructive",
-        });
-      });
   };
-
 
   const handleSendMessage = async () => {
     if (!customerMessageInput.trim() || !selectedCustomer || isPlaygroundMode || !selectedCustomer.phone) {
@@ -262,24 +271,11 @@ export default function AiCsAssistantPage() {
     }
     
     const textToSend = customerMessageInput.trim();
-    // Optimistic UI update (will be replaced by Firestore real-time if successful)
-    // const newMessageUi: ChatMessageUi = {
-    //   id: Date.now().toString(), // Temporary ID
-    //   sender: 'user',
-    //   text: textToSend,
-    //   timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-    //   senderNumber: selectedCustomer.phone, // Add senderNumber
-    //   customerName: selectedCustomer.name,
-    //   customerId: selectedCustomer.id,
-    // };
-    // setChatHistory(prev => [...prev, newMessageUi]);
-    
     const originalInput = customerMessageInput;
     setCustomerMessageInput(''); 
     setIsSendingWhatsApp(true);
 
     try {
-      // 1. Send message via local WhatsApp server
       const response = await fetch('/api/whatsapp/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -293,19 +289,17 @@ export default function AiCsAssistantPage() {
           description: `Pesan Anda sedang dikirim ke ${selectedCustomer.name}.`,
         });
         
-        // 2. Save CS message to 'directMessages' Firestore
         const directMessagesRef = collection(db, 'directMessages');
         const csMessageData: Omit<DirectMessage, 'id'> = {
           customerId: selectedCustomer.id,
           customerName: selectedCustomer.name,
           senderNumber: selectedCustomer.phone, 
           text: textToSend,
-          sender: 'user', // CS is the user here
+          sender: 'user', 
           timestamp: serverTimestamp() as any,
         };
         await addDoc(directMessagesRef, csMessageData);
         console.log("CS manual reply saved to directMessages.");
-        // UI will update via Firestore listener
 
       } else {
         throw new Error(result.error || 'Gagal mengirim pesan via server lokal.');
@@ -317,9 +311,7 @@ export default function AiCsAssistantPage() {
         description: error instanceof Error ? error.message : "Terjadi kesalahan.",
         variant: "destructive",
       });
-      setCustomerMessageInput(originalInput); // Restore input if sending failed
-      // If optimistic UI was used, remove the temporary message
-      // setChatHistory(prev => prev.filter(msg => msg.id !== newMessageUi.id));
+      setCustomerMessageInput(originalInput); 
     } finally {
       setIsSendingWhatsApp(false);
     }
@@ -412,7 +404,6 @@ export default function AiCsAssistantPage() {
                         <p className="text-sm font-medium truncate">{customer.name}</p>
                         <p className="text-xs text-muted-foreground truncate">{customer.phone || 'No HP tidak ada'}</p>
                       </div>
-                      {/* Unread count and last message from real data can be added here later */}
                     </div>
                   </div>
                 ))
@@ -425,68 +416,60 @@ export default function AiCsAssistantPage() {
         <div className="col-span-1 md:col-span-2 lg:col-span-3 flex flex-col bg-background">
           {isPlaygroundMode ? (
             <>
-              <div className="p-4 border-b bg-card">
-                <h2 className="text-xl font-semibold flex items-center"><Bot className="mr-2 h-6 w-6 text-primary" /> AI Playground</h2>
-                <p className="text-sm text-muted-foreground">Uji coba langsung kemampuan AI untuk berbagai skenario.</p>
-              </div>
+              <CardHeader className="p-4 border-b bg-card">
+                <CardTitle className="text-lg flex items-center"><Bot className="mr-2 h-6 w-6 text-primary" /> AI Playground</CardTitle>
+                <CardDescription>Uji coba langsung kemampuan AI. Ketik pertanyaan Anda di bawah.</CardDescription>
+              </CardHeader>
               <ScrollArea className="flex-1 p-4 space-y-4 bg-card/50">
-                  <p className="text-center text-muted-foreground py-10">Masukkan pertanyaan atau skenario Anda di bawah dan dapatkan respons dari AI.</p>
+                {playgroundChatHistory.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-xs lg:max-w-md px-4 py-2 rounded-xl shadow ${
+                        message.sender === 'user'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-secondary text-secondary-foreground'
+                      }`}
+                    >
+                      <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+                      <p className={`text-xs mt-1 ${message.sender === 'user' ? 'text-primary-foreground/80' : 'text-secondary-foreground/80'} text-right`}>
+                        {message.timestamp}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+                 {playgroundChatHistory.length === 0 && (
+                    <p className="text-center text-muted-foreground py-10">Mulai percakapan dengan AI di bawah.</p>
+                )}
+                <div ref={playgroundMessagesEndRef} />
               </ScrollArea>
               <Separator />
               <Card className="rounded-none border-0 border-t shadow-none">
-                <CardHeader className="p-4">
-                  <CardTitle className="text-lg flex items-center">
-                    <Sparkles className="mr-2 h-5 w-5 text-accent" />
-                    Interaksi dengan AI
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 space-y-4">
-                  <div className="space-y-1">
-                    <Label htmlFor="playground-input">Masukkan Pertanyaan/Skenario Anda:</Label>
+                <CardContent className="p-4">
+                  <div className="flex items-end space-x-2">
                     <Textarea
-                      id="playground-input"
-                      placeholder="Contoh: Buatkan saya email penawaran diskon untuk layanan detailing motor..."
-                      value={playgroundInput}
-                      onChange={(e) => setPlaygroundInput(e.target.value)}
-                      rows={5}
+                      id="playground-chat-input"
+                      placeholder="Ketik pertanyaan atau skenario Anda..."
+                      value={currentPlaygroundInput}
+                      onChange={(e) => setCurrentPlaygroundInput(e.target.value)}
+                      onKeyDown={handlePlaygroundKeyDown}
+                      rows={2}
                       disabled={isLoadingPlaygroundSuggestion}
-                      className="bg-background"
+                      className="bg-background flex-1 resize-none"
                     />
+                    <Button 
+                      size="icon" 
+                      onClick={handleSendPlaygroundMessage}
+                      disabled={isLoadingPlaygroundSuggestion || !currentPlaygroundInput.trim()}
+                      className="h-10 w-10 shrink-0"
+                      aria-label="Kirim Pesan ke AI"
+                    >
+                      {isLoadingPlaygroundSuggestion ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                    </Button>
                   </div>
-                  <Button onClick={handleGetPlaygroundSuggestion} disabled={isLoadingPlaygroundSuggestion} className="w-full sm:w-auto">
-                    {isLoadingPlaygroundSuggestion ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Sparkles className="mr-2 h-4 w-4" />
-                    )}
-                    Minta Respon AI
-                  </Button>
-
-                  {playgroundReply && !isLoadingPlaygroundSuggestion && (
-                    <div className="space-y-2 pt-3">
-                      <Label htmlFor="ai-response" className="flex items-center text-md font-semibold">
-                        Respons AI:
-                      </Label>
-                      <Card className="bg-muted/80 p-3 shadow-sm">
-                        <Textarea
-                          id="ai-response"
-                          value={playgroundReply}
-                          readOnly
-                          rows={8}
-                          className="border-dashed bg-background"
-                        />
-                      </Card>
-                      <Button onClick={handleCopyPlaygroundReply} variant="outline" size="sm" className="mt-2">
-                        <Copy className="mr-2 h-4 w-4" /> Salin Respons
-                      </Button>
-                    </div>
-                  )}
                 </CardContent>
-                <CardFooter className="p-4 border-t">
-                    <p className="text-xs text-muted-foreground">
-                    Mode playground: AI akan mencoba menjawab berdasarkan input Anda saja.
-                    </p>
-                </CardFooter>
               </Card>
             </>
           ) : !selectedCustomer ? (
@@ -539,34 +522,31 @@ export default function AiCsAssistantPage() {
                     Balas Pesan Pelanggan
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="p-4 space-y-4">
-                  <div className="space-y-1">
-                    <Label htmlFor="customer-message-input">Ketik balasan Anda:</Label>
-                    <div className="flex items-end space-x-2">
-                      <Textarea
-                        id="customer-message-input"
-                        placeholder="Ketik pesan Anda di sini..."
-                        value={customerMessageInput}
-                        onChange={(e) => setCustomerMessageInput(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        rows={3}
-                        disabled={isSendingWhatsApp || !selectedCustomer?.phone}
-                        className="bg-background flex-1 resize-none"
-                      />
-                      <Button 
-                        size="icon" 
-                        onClick={handleSendMessage}
-                        disabled={isSendingWhatsApp || !customerMessageInput.trim() || !selectedCustomer?.phone}
-                        className="h-10 w-10 shrink-0"
-                        aria-label="Kirim Pesan Manual"
-                      >
-                        {isSendingWhatsApp ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-                      </Button>
-                    </div>
-                     {!selectedCustomer?.phone && (
+                <CardContent className="p-4">
+                  <div className="flex items-end space-x-2">
+                    <Textarea
+                      id="customer-message-input"
+                      placeholder="Ketik balasan Anda di sini..."
+                      value={customerMessageInput}
+                      onChange={(e) => setCustomerMessageInput(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      rows={3}
+                      disabled={isSendingWhatsApp || !selectedCustomer?.phone}
+                      className="bg-background flex-1 resize-none"
+                    />
+                    <Button 
+                      size="icon" 
+                      onClick={handleSendMessage}
+                      disabled={isSendingWhatsApp || !customerMessageInput.trim() || !selectedCustomer?.phone}
+                      className="h-10 w-10 shrink-0"
+                      aria-label="Kirim Pesan Manual"
+                    >
+                      {isSendingWhatsApp ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                    </Button>
+                  </div>
+                   {!selectedCustomer?.phone && (
                          <p className="text-xs text-destructive mt-1">Nomor HP pelanggan tidak tersedia untuk pengiriman WhatsApp.</p>
                        )}
-                  </div>
                 </CardContent>
               </Card>
             </>
