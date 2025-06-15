@@ -16,30 +16,44 @@ let db: Firestore;
 
 if (getApps().length === 0) {
   app = initializeApp(firebaseConfig);
+  console.log("Firebase.ts: Firebase App initialized.");
 } else {
   app = getApp();
+  console.log("Firebase.ts: Existing Firebase App retrieved.");
 }
 
 db = getFirestore(app);
+console.log("Firebase.ts: Firestore instance obtained.");
 
-// Logging untuk debugging
-console.log("Firebase.ts: NODE_ENV:", process.env.NODE_ENV);
-console.log("Firebase.ts: NEXT_PUBLIC_USE_FIREBASE_EMULATOR:", process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR);
+// Enhanced logging for debugging emulator connection
+const nodeEnv = process.env.NODE_ENV;
+const emulatorFlag = process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR;
 
-// Connect to Firestore emulator if in development and the flag is set
-const useEmulator = process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true';
+console.log(`Firebase.ts: Current NODE_ENV: ${nodeEnv}`);
+console.log(`Firebase.ts: Current NEXT_PUBLIC_USE_FIREBASE_EMULATOR: ${emulatorFlag}`);
+
+const useEmulator = nodeEnv === 'development' && emulatorFlag === 'true';
 
 if (useEmulator) {
-  console.log("Firebase.ts: Attempting to connect to Firestore Emulator...");
+  console.log("Firebase.ts: Condition 'useEmulator' is TRUE. Attempting to connect to Firestore Emulator...");
   try {
     // Default Firestore emulator port is 8080
     connectFirestoreEmulator(db, 'localhost', 8080);
-    console.log("🔥 Terhubung ke Firestore Emulator di localhost:8080");
+    console.log("🔥 Firebase.ts: SUCCESSFULLY connected to Firestore Emulator at localhost:8080");
   } catch (error) {
-    console.error("🔥 Gagal terhubung ke Firestore Emulator:", error);
+    console.error("🔥 Firebase.ts: FAILED to connect to Firestore Emulator:", error);
+    // This error might indicate the emulator isn't running or is on a different port.
+    // Firestore SDK might still attempt to fall back to cloud if this fails.
   }
 } else {
-  console.log("Firebase.ts: Connecting to Cloud Firestore (Emulator not in use or not in development).");
+  console.log("Firebase.ts: Condition 'useEmulator' is FALSE.");
+  if (nodeEnv !== 'development') {
+    console.log("Firebase.ts: Reason: NODE_ENV is not 'development'. (Actual: " + nodeEnv + ")");
+  }
+  if (emulatorFlag !== 'true') {
+    console.log("Firebase.ts: Reason: NEXT_PUBLIC_USE_FIREBASE_EMULATOR is not 'true'. (Actual: " + emulatorFlag + ")");
+  }
+  console.log("Firebase.ts: Connecting to Cloud Firestore (Emulator not in use).");
 }
 
 export { app, db };
