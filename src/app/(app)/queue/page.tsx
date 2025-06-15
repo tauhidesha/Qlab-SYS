@@ -57,7 +57,7 @@ import type { Transaction, TransactionItem } from '@/types/transaction';
 import { v4 as uuidv4 } from 'uuid';
 import type { StaffMember, StaffRole } from '@/types/staff';
 import Link from 'next/link';
-import { sendWhatsAppMessage } from '@/services/whatsappService'; // Import sendWhatsAppMessage
+// import { sendWhatsAppMessage } from '@/services/whatsappService'; // TIDAK DIPERLUKAN LAGI DI SINI
 
 
 export interface QueueItem { // Exporting for Dashboard
@@ -583,21 +583,28 @@ export default function QueuePage() {
       return;
     }
     
-    console.log(`[QueuePage] Found client: ${client.name}, Phone: ${client.phone}. Preparing to send message: "${message}"`);
+    console.log(`[QueuePage] Found client: ${client.name}, Phone: ${client.phone}. Preparing to send message: "${message}" (Phone to use: "${client.phone}")`);
 
     try {
-      const result = await sendWhatsAppMessage(client.phone, message);
-      if (result.success) {
-        console.log(`[QueuePage] Notification for ${actionDescription} to ${customerName} (->${client.phone}) SENT successfully. Message ID: ${result.messageId}`);
+      // Ganti dari pemanggilan langsung sendWhatsAppMessage ke fetch API route
+      const response = await fetch('/api/whatsapp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ number: client.phone, message: message }),
+      });
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        console.log(`[QueuePage] Notification for ${actionDescription} to ${customerName} (->${client.phone}) SENT successfully via API. Message ID: ${result.messageId}`);
         toast({
           title: "Notifikasi Terkirim",
           description: `Notifikasi "${actionDescription}" untuk ${customerName} telah dikirim via WhatsApp.`,
         });
       } else {
-        throw new Error(result.error || "Gagal mengirim notifikasi WhatsApp dari service.");
+        throw new Error(result.error || `Gagal mengirim notifikasi WhatsApp dari API route. Status: ${response.status}`);
       }
     } catch (error) {
-      console.error(`[QueuePage] Error sending WhatsApp notification for ${actionDescription} to ${customerName} (->${client.phone}):`, error);
+      console.error(`[QueuePage] Error sending WhatsApp notification for ${actionDescription} to ${customerName} (->${client.phone}) via API:`, error);
       toast({
         title: "Gagal Kirim Notifikasi",
         description: `Gagal mengirim notifikasi "${actionDescription}" untuk ${customerName}. ${error instanceof Error ? error.message : 'Error tidak diketahui.'}`,
@@ -1214,3 +1221,5 @@ export default function QueuePage() {
 
 export type { QueueItem as QueueItemType }; // Export for dashboard
 
+
+      
