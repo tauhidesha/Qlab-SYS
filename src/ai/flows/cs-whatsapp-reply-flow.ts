@@ -13,41 +13,46 @@ import { ai } from '@/ai/genkit';
 import { getProductServiceDetailsByNameTool } from '@/ai/tools/productLookupTool';
 import { getClientDetailsTool } from '@/ai/tools/clientLookupTool';
 import type { WhatsAppReplyInput, WhatsAppReplyOutput, ChatMessage } from '@/types/ai/cs-whatsapp-reply';
-import { ChatMessageSchema, ProcessedChatMessageSchema, WhatsAppReplyInputSchema, WhatsAppReplyOutputSchema, PromptInternalInputSchema } from '@/types/ai/cs-whatsapp-reply';
+import { ProcessedChatMessageSchema, WhatsAppReplyInputSchema, WhatsAppReplyOutputSchema, PromptInternalInputSchema } from '@/types/ai/cs-whatsapp-reply';
 import { z } from 'genkit';
 
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import type { AiSettingsFormValues } from '@/types/aiSettings';
-import { DEFAULT_AI_SETTINGS } from '@/types/aiSettings';
+import { AiSettingsFormSchema, DEFAULT_AI_SETTINGS, type AiSettingsFormValues } from '@/types/aiSettings';
 
 
 export async function generateWhatsAppReply({ customerMessage, chatHistory }: { customerMessage: string; chatHistory?: ChatMessage[] }): Promise<WhatsAppReplyOutput> {
-  // Fetch AI Agent Settings from Firestore
-  let agentBehavior = DEFAULT_AI_SETTINGS.agentBehavior;
-  let knowledgeBaseDescription = DEFAULT_AI_SETTINGS.knowledgeBaseDescription;
+  let agentSettings = { ...DEFAULT_AI_SETTINGS }; // Start with defaults
 
   try {
     const settingsDocRef = doc(db, 'appSettings', 'aiAgentConfig');
     const docSnap = await getDoc(settingsDocRef);
     if (docSnap.exists()) {
-      const settings = docSnap.data() as AiSettingsFormValues;
-      agentBehavior = settings.agentBehavior || agentBehavior;
-      knowledgeBaseDescription = settings.knowledgeBaseDescription || knowledgeBaseDescription;
-      console.log("AI Settings loaded from Firestore:", settings);
+      const rawSettingsData = docSnap.data();
+      const parsedSettings = AiSettingsFormSchema.safeParse(rawSettingsData);
+      
+      if (parsedSettings.success) {
+        agentSettings = { ...DEFAULT_AI_SETTINGS, ...parsedSettings.data }; // Merge parsed data with defaults to ensure all fields exist
+        console.log("AI Settings loaded and validated from Firestore:", agentSettings);
+      } else {
+        console.warn("AI Settings in Firestore are invalid, using defaults. Validation errors:", parsedSettings.error.format());
+        // agentSettings remains DEFAULT_AI_SETTINGS
+      }
     } else {
       console.log("AI Settings not found in Firestore, using defaults.");
+      // agentSettings remains DEFAULT_AI_SETTINGS
     }
   } catch (error) {
     console.error("Error fetching AI settings from Firestore, using defaults:", error);
+    // agentSettings remains DEFAULT_AI_SETTINGS
   }
 
-  // Input untuk flow utama (WhatsAppReplyInputSchema)
   const flowInput: WhatsAppReplyInput = {
     customerMessage: customerMessage,
-    chatHistory: chatHistory, // Kirim chatHistory original ke flow
-    agentBehavior: agentBehavior,
-    knowledgeBase: knowledgeBaseDescription,
+    chatHistory: chatHistory,
+    agentBehavior: agentSettings.agentBehavior,
+    knowledgeBase: agentSettings.knowledgeBaseDescription,
+    // Pass other relevant parsed settings to the flow if needed, e.g., for transfer conditions if handled by the flow directly
   };
 
   return whatsAppReplyFlow(flowInput);
@@ -126,10 +131,10 @@ Pastikan balasan Anda tetap ramah dan profesional.
 const whatsAppReplyFlow = ai.defineFlow(
   {
     name: 'whatsAppReplyFlow',
-    inputSchema: WhatsAppReplyInputSchema, // Flow menerima skema input standar
+    inputSchema: WhatsAppReplyInputSchema, 
     outputSchema: WhatsAppReplyOutputSchema,
   },
-  async (input: WhatsAppReplyInput) => { // \`input\` di sini adalah tipe WhatsAppReplyInput
+  async (input: WhatsAppReplyInput) => { 
     console.log("WhatsAppReplyFlow (internal) input received by flow:", JSON.stringify(input, null, 2));
 
     let processedChatHistoryForPrompt: z.infer<typeof ProcessedChatMessageSchema>[] | undefined;
@@ -142,19 +147,14 @@ const whatsAppReplyFlow = ai.defineFlow(
         isModel: msg.role === 'model',
       }));
     } else if (input.chatHistory) {
-      // Ini terjadi jika input.chatHistory ada tapi bukan array.
-      // Ini seharusnya tidak terjadi jika input dari client sudah benar.
       console.warn(
         'WhatsAppReplyFlow: input.chatHistory provided but was not an array.', 
         'Type:', typeof input.chatHistory, 
         'Value:', JSON.stringify(input.chatHistory)
       );
-      // Defaultnya, anggap tidak ada history untuk mencegah error .map.
       processedChatHistoryForPrompt = undefined; 
     }
-    // Jika input.chatHistory memang undefined, processedChatHistoryForPrompt juga akan undefined.
-
-    // Siapkan data untuk prompt, sesuai dengan PromptInternalInputSchema
+    
     const promptDataForInternalCall: z.infer<typeof PromptInternalInputSchema> = {
       customerMessage: input.customerMessage,
       agentBehavior: input.agentBehavior,
@@ -172,3 +172,4 @@ const whatsAppReplyFlow = ai.defineFlow(
     return output;
   }
 );
+
