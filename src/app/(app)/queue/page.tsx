@@ -4,7 +4,7 @@ import AppHeader from '@/components/layout/AppHeader';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, Edit3, CheckCircle, Clock, Loader2, Trash2, UserPlus, PackageSearch, FileText } from 'lucide-react';
+import { PlusCircle, Edit3, CheckCircle, Clock, Loader2, Trash2, UserPlus, PackageSearch, FileText, MessageSquareText } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
@@ -57,6 +57,7 @@ import type { Transaction, TransactionItem } from '@/types/transaction';
 import { v4 as uuidv4 } from 'uuid';
 import type { StaffMember, StaffRole } from '@/types/staff';
 import Link from 'next/link';
+import { sendWhatsAppMessage } from '@/services/whatsappService'; // Import sendWhatsAppMessage
 
 
 export interface QueueItem { // Exporting for Dashboard
@@ -223,13 +224,9 @@ function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting, client
           if (variant) {
             form.setValue('estimatedTime', variant.estimatedDuration || service.estimatedDuration || '');
           } else {
-             // If variantId is cleared (e.g. user deselects a variant or no variant is chosen yet for a service that has variants)
-             // We should probably set estimatedTime to empty or base service's time if a variant selection is expected.
-             // For now, let's set to empty if a variant is expected but not chosen, or base service time if no variant chosen for a service with variants
-            form.setValue('estimatedTime', ''); // Or service.estimatedDuration if that's preferred when no variant selected for a service with variants
+            form.setValue('estimatedTime', ''); 
           }
         } else {
-          // No variants for this service, use service's estimated duration
           form.setValue('estimatedTime', service.estimatedDuration || '');
         }
       }
@@ -363,7 +360,6 @@ function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting, client
               <Select 
                 onValueChange={(value) => {
                   field.onChange(value);
-                  // Logic to update variants and estimatedTime is in useEffect for selectedServiceId
                 }} 
                 value={field.value}
               >
@@ -537,7 +533,7 @@ export default function QueuePage() {
   
   const [clientsList, setClientsList] = useState<ClientForSelect[]>([]);
   const [loadingClients, setLoadingClients] = useState(true);
-  const [allServicesList, setAllServicesList] = useState<ServiceForSelect[]>([]); // Stores all services/products
+  const [allServicesList, setAllServicesList] = useState<ServiceForSelect[]>([]); 
   const [loadingServices, setLoadingServices] = useState(true);
   
   const [assignableStaffList, setAssignableStaffList] = useState<StaffMember[]>([]);
@@ -549,6 +545,47 @@ export default function QueuePage() {
 
   const { toast } = useToast();
   
+  const sendQueueNotification = async (
+    clientId: string | undefined,
+    customerName: string,
+    message: string,
+    actionDescription: string
+  ) => {
+    if (!clientId || clientId === WALK_IN_CLIENT_VALUE) {
+      console.log(`Notifikasi untuk ${actionDescription} tidak dikirim, pelanggan walk-in atau tidak ada ID klien.`);
+      return;
+    }
+
+    const client = clientsList.find(c => c.id === clientId);
+    if (!client || !client.phone) {
+      toast({
+        title: "Info Notifikasi",
+        description: `Notifikasi ${actionDescription} untuk ${customerName} tidak dikirim (nomor HP tidak ditemukan).`,
+        variant: "default",
+      });
+      return;
+    }
+
+    try {
+      const result = await sendWhatsAppMessage(client.phone, message);
+      if (result.success) {
+        toast({
+          title: "Notifikasi Terkirim",
+          description: `Notifikasi ${actionDescription} untuk ${customerName} telah dikirim via WhatsApp.`,
+        });
+      } else {
+        throw new Error(result.error || "Gagal mengirim notifikasi WhatsApp.");
+      }
+    } catch (error) {
+      console.error(`Error sending WhatsApp notification for ${actionDescription}:`, error);
+      toast({
+        title: "Gagal Kirim Notifikasi",
+        description: `Gagal mengirim notifikasi ${actionDescription} untuk ${customerName}. ${error instanceof Error ? error.message : ''}`,
+        variant: "destructive",
+      });
+    }
+  };
+
   const fetchClients = useCallback(async () => {
     setLoadingClients(true);
     try {
@@ -572,7 +609,7 @@ export default function QueuePage() {
       const q = query(servicesCollectionRef, orderBy("name"));
       const querySnapshot = await getDocs(q);
       const servicesData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceForSelect));
-      setAllServicesList(servicesData); // Store all services and products
+      setAllServicesList(servicesData); 
     } catch (error) {
       console.error("Error fetching services for dropdown: ", error);
       toast({ title: "Error", description: "Tidak dapat mengambil data layanan.", variant: "destructive" });
@@ -606,7 +643,7 @@ export default function QueuePage() {
 
   const fetchQueueItems = useCallback(async () => {
     setLoadingQueue(true);
-    const AUTO_HIDE_DELAY_MS = 5 * 60 * 1000; // 5 minutes
+    const AUTO_HIDE_DELAY_MS = 5 * 60 * 1000; 
     try {
       const queueCollectionRef = collection(db, 'queueItems');
       const q = query(queueCollectionRef, orderBy("createdAt", "asc"));
@@ -664,7 +701,7 @@ export default function QueuePage() {
     return () => clearInterval(intervalId);
   }, [fetchQueueItems]); 
 
-  const defaultQueueItemValues: Partial<QueueItemFormData> = { // Adjusted to Partial
+  const defaultQueueItemValues: Partial<QueueItemFormData> = { 
     customerName: '',
     clientId: WALK_IN_CLIENT_VALUE, 
     vehicleInfo: '',
@@ -680,7 +717,7 @@ export default function QueuePage() {
   };
 
   const handleEditItem = (item: QueueItem) => {
-    setCurrentEditingItem(item); // item is full QueueItem
+    setCurrentEditingItem(item); 
     setIsFormDialogOpen(true);
   };
 
@@ -693,7 +730,7 @@ export default function QueuePage() {
       const firestoreData: Partial<Omit<QueueItem, 'id' | 'createdAt' | 'staff' | 'completedAt' | 'serviceStartTime'>> & { clientId?: string } = {
           customerName: otherFormData.customerName,
           vehicleInfo: otherFormData.vehicleInfo,
-          service: serviceNameDisplay, // Use the combined name
+          service: serviceNameDisplay,
           serviceId: otherFormData.serviceId,
           variantId: otherFormData.variantId,
           estimatedTime: otherFormData.estimatedTime,
@@ -704,6 +741,7 @@ export default function QueuePage() {
       if (!actualClientId) { delete firestoreData.clientId; }
       if (!otherFormData.variantId) { delete firestoreData.variantId; }
 
+      let itemWasJustAdded = false;
 
       if (currentEditingItem) { 
         const itemDocRef = doc(db, 'queueItems', currentEditingItem.id);
@@ -731,7 +769,14 @@ export default function QueuePage() {
           ...(formData.status === 'Dalam Layanan' && { serviceStartTime: serverTimestamp() }),
         });
         toast({ title: "Sukses", description: "Item baru berhasil ditambahkan ke antrian." });
+        itemWasJustAdded = true;
       }
+      
+      if (itemWasJustAdded && formData.status === 'Menunggu') {
+        const message = `Halo ${formData.customerName}, motor ${formData.vehicleInfo} Anda telah terdaftar dalam antrian kami untuk layanan ${serviceNameDisplay}. Estimasi waktu akan diinformasikan segera. Terima kasih! - QLAB`;
+        await sendQueueNotification(actualClientId, formData.customerName, message, "penambahan antrian");
+      }
+
       setIsFormDialogOpen(false);
       setCurrentEditingItem(null);
       fetchQueueItems(); 
@@ -760,6 +805,10 @@ export default function QueuePage() {
         }
         await updateDoc(itemDocRef, updateData);
         toast({ title: "Status Diperbarui", description: `Status untuk ${item.customerName} diubah menjadi ${newStatus}.` });
+        
+        const message = `Halo ${item.customerName}, layanan ${item.service} untuk ${item.vehicleInfo} Anda telah SELESAI. Silakan datang ke kasir untuk proses selanjutnya. Terima kasih! - QLAB`;
+        await sendQueueNotification(item.clientId, item.customerName, message, "penyelesaian layanan");
+
         fetchQueueItems(); 
       } catch (error) {
         console.error("Error updating status to Selesai: ", error);
@@ -774,10 +823,11 @@ export default function QueuePage() {
     try {
       const batch = writeBatch(db);
       const itemDocRef = doc(db, 'queueItems', itemBeingAssigned.id);
+      const serviceStartTime = serverTimestamp();
       batch.update(itemDocRef, { 
         status: 'Dalam Layanan',
         staff: staffName,
-        serviceStartTime: serverTimestamp(), 
+        serviceStartTime: serviceStartTime, 
         completedAt: deleteField() 
       });
 
@@ -802,7 +852,7 @@ export default function QueuePage() {
       }
 
       const newTransactionItem: TransactionItem = {
-        id: uuidv4(), // Unique ID for this transaction item instance
+        id: uuidv4(), 
         catalogItemId: serviceDetails.id,
         variantId: itemBeingAssigned.variantId,
         name: itemName,
@@ -846,7 +896,7 @@ export default function QueuePage() {
         batch.update(transactionDocRef, {
           items: updatedItems,
           serviceStaffName: staffName, 
-          queueItemId: itemBeingAssigned.id, // Ensure queueItemId is set/updated
+          queueItemId: itemBeingAssigned.id, 
           updatedAt: serverTimestamp(),
           subtotal: subtotal,
           total: total,
@@ -873,6 +923,10 @@ export default function QueuePage() {
       await batch.commit();
 
       toast({ title: "Staf Ditugaskan & Transaksi Dibuat/Diperbarui", description: `${staffName} ditugaskan ke ${itemBeingAssigned.customerName}. Status diubah & transaksi diperbarui.` });
+      
+      const message = `Halo ${itemBeingAssigned.customerName}, layanan ${itemBeingAssigned.service} untuk ${itemBeingAssigned.vehicleInfo} Anda sudah mulai dikerjakan oleh Teknisi ${staffName}. Estimasi selesai: ${itemBeingAssigned.estimatedTime}. - QLAB`;
+      await sendQueueNotification(itemBeingAssigned.clientId, itemBeingAssigned.customerName, message, "mulai layanan");
+      
       fetchQueueItems();
       setIsAssignStaffDialogOpen(false);
       setItemBeingAssigned(null);
@@ -1139,4 +1193,3 @@ export default function QueuePage() {
 }
 
 export type { QueueItem as QueueItemType }; // Export for dashboard
-
