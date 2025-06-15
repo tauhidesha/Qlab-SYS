@@ -43,7 +43,7 @@ export const getProductServiceDetailsByNameTool = ai.defineTool(
         const item = { id: doc.id, ...doc.data() } as ServiceProduct;
         
         // Check variants first for more specific matches
-        if (item.variants) {
+        if (item.variants && Array.isArray(item.variants)) { // Ensure variants is an array
             for (const variant of item.variants) {
                 const fullVariantName = `${item.name} - ${variant.name}`;
                 if (fullVariantName.toLowerCase().includes(searchTermLower)) {
@@ -90,6 +90,19 @@ export const getProductServiceDetailsByNameTool = ai.defineTool(
 
       if (foundItem) {
         console.log(`ProductLookupTool: Ditemukan item: ${foundItem.name}`);
+        
+        let mappedVariants: ProductServiceInfo['variants'] = undefined;
+        if (!bestMatchIsVariant && foundItem.variants && Array.isArray(foundItem.variants)) {
+            mappedVariants = foundItem.variants.map(v => ({
+                name: v.name,
+                price: v.price,
+                pointsAwarded: v.pointsAwarded || undefined,
+                estimatedDuration: v.estimatedDuration || undefined,
+            }));
+        } else if (!bestMatchIsVariant && foundItem.variants && !Array.isArray(foundItem.variants)) {
+            console.warn(`ProductLookupTool: Item ${foundItem.id} memiliki field 'variants' tapi bukan array. Diabaikan.`);
+        }
+
         const result: ProductServiceInfo = {
           id: foundItem.id,
           name: foundItem.name,
@@ -99,14 +112,7 @@ export const getProductServiceDetailsByNameTool = ai.defineTool(
           description: foundItem.description || undefined,
           pointsAwarded: foundItem.pointsAwarded || undefined,
           estimatedDuration: foundItem.estimatedDuration || undefined,
-          // If foundItem is a specific variant, its 'variants' array was already deleted.
-          // If it's a base item, include its variants.
-          variants: bestMatchIsVariant ? undefined : foundItem.variants?.map(v => ({
-            name: v.name,
-            price: v.price,
-            pointsAwarded: v.pointsAwarded || undefined,
-            estimatedDuration: v.estimatedDuration || undefined,
-          })) || undefined,
+          variants: mappedVariants,
         };
         
         try {
@@ -127,3 +133,4 @@ export const getProductServiceDetailsByNameTool = ai.defineTool(
     }
   }
 );
+

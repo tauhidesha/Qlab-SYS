@@ -19,3 +19,14 @@ export const WhatsAppReplyOutputSchema = z.object({
   suggestedReply: z.string().describe('Saran balasan yang dihasilkan AI untuk dikirim ke pelanggan.'),
 });
 export type WhatsAppReplyOutput = z.infer<typeof WhatsAppReplyOutputSchema>;
+
+// Skema internal untuk data yang diproses sebelum ke prompt
+export const ProcessedChatMessageSchema = ChatMessageSchema.extend({
+  isUser: z.boolean(),
+  isModel: z.boolean(),
+});
+
+export const PromptInternalInputSchema = WhatsAppReplyInputSchema.omit({ chatHistory: true }).extend({
+  processedChatHistory: z.array(ProcessedChatMessageSchema).optional(),
+});
+

@@ -13,23 +13,13 @@ import { ai } from '@/ai/genkit';
 import { getProductServiceDetailsByNameTool } from '@/ai/tools/productLookupTool';
 import { getClientDetailsTool } from '@/ai/tools/clientLookupTool';
 import type { WhatsAppReplyInput, WhatsAppReplyOutput, ChatMessage } from '@/types/ai/cs-whatsapp-reply';
-import { ChatMessageSchema, WhatsAppReplyInputSchema, WhatsAppReplyOutputSchema } from '@/types/ai/cs-whatsapp-reply';
+import { ChatMessageSchema, ProcessedChatMessageSchema, WhatsAppReplyInputSchema, WhatsAppReplyOutputSchema, PromptInternalInputSchema } from '@/types/ai/cs-whatsapp-reply';
 import { z } from 'genkit';
 
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import type { AiSettingsFormValues } from '@/types/aiSettings';
 import { DEFAULT_AI_SETTINGS } from '@/types/aiSettings';
-
-// Skema internal untuk data yang diproses sebelum ke prompt
-const ProcessedChatMessageSchema = ChatMessageSchema.extend({
-  isUser: z.boolean(),
-  isModel: z.boolean(),
-});
-
-const PromptInternalInputSchema = WhatsAppReplyInputSchema.omit({ chatHistory: true }).extend({
-  processedChatHistory: z.array(ProcessedChatMessageSchema).optional(),
-});
 
 
 export async function generateWhatsAppReply({ customerMessage, chatHistory }: { customerMessage: string; chatHistory?: ChatMessage[] }): Promise<WhatsAppReplyOutput> {
@@ -65,7 +55,7 @@ export async function generateWhatsAppReply({ customerMessage, chatHistory }: { 
 
 const replyPrompt = ai.definePrompt({
   name: 'whatsAppReplyPrompt',
-  input: { schema: PromptInternalInputSchema }, // Prompt menggunakan skema internal
+  input: { schema: PromptInternalInputSchema }, 
   output: { schema: WhatsAppReplyOutputSchema },
   tools: [getProductServiceDetailsByNameTool, getClientDetailsTool],
   prompt: `Anda adalah seorang Customer Service Assistant AI untuk QLAB Auto Detailing, sebuah bengkel perawatan dan detailing motor.
@@ -142,22 +132,38 @@ const whatsAppReplyFlow = ai.defineFlow(
   async (input: WhatsAppReplyInput) => { // \`input\` di sini adalah tipe WhatsAppReplyInput
     console.log("WhatsAppReplyFlow (internal) input received by flow:", JSON.stringify(input, null, 2));
 
-    const processedChatHistory = input.chatHistory?.map(msg => ({
-      ...msg,
-      isUser: msg.role === 'user',
-      isModel: msg.role === 'model',
-    }));
+    let processedChatHistoryForPrompt: z.infer<typeof ProcessedChatMessageSchema>[] | undefined;
+    
+    if (input.chatHistory && Array.isArray(input.chatHistory)) {
+      processedChatHistoryForPrompt = input.chatHistory.map(msg => ({
+        content: msg.content,
+        role: msg.role,
+        isUser: msg.role === 'user',
+        isModel: msg.role === 'model',
+      }));
+    } else if (input.chatHistory) {
+      // Ini terjadi jika input.chatHistory ada tapi bukan array.
+      // Ini seharusnya tidak terjadi jika input dari client sudah benar.
+      console.warn(
+        'WhatsAppReplyFlow: input.chatHistory provided but was not an array.', 
+        'Type:', typeof input.chatHistory, 
+        'Value:', JSON.stringify(input.chatHistory)
+      );
+      // Defaultnya, anggap tidak ada history untuk mencegah error .map.
+      processedChatHistoryForPrompt = undefined; 
+    }
+    // Jika input.chatHistory memang undefined, processedChatHistoryForPrompt juga akan undefined.
 
     // Siapkan data untuk prompt, sesuai dengan PromptInternalInputSchema
     const promptDataForInternalCall: z.infer<typeof PromptInternalInputSchema> = {
       customerMessage: input.customerMessage,
       agentBehavior: input.agentBehavior,
       knowledgeBase: input.knowledgeBase,
-      processedChatHistory: processedChatHistory,
+      processedChatHistory: processedChatHistoryForPrompt,
     };
     
     console.log("WhatsAppReplyFlow (internal) input being passed to prompt:", JSON.stringify(promptDataForInternalCall, null, 2));
-    const { output } = await replyPrompt(promptDataForInternalCall); 
+    const {output} = await replyPrompt(promptDataForInternalCall); 
     
     if (!output) {
       throw new Error('Gagal mendapatkan saran balasan dari AI.');

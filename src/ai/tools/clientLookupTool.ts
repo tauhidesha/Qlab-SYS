@@ -37,10 +37,6 @@ export const getClientDetailsTool = ai.defineTool(
       // Basic check if it's a phone number (contains mostly digits)
       if (/^\+?[0-9\s-]{7,}$/.test(searchTerm)) {
         // Try to match phone number
-        // Firestore doesn't support partial matches on phone numbers easily.
-        // We might need to fetch and filter or rely on exact matches if phone format is consistent.
-        // For now, let's try an exact match on the 'phone' field.
-        // This assumes phone numbers are stored consistently.
         const phoneQuery = query(clientsRef, where("phone", "==", searchTerm), limit(1));
         const phoneSnapshot = await getDocs(phoneQuery);
         if (!phoneSnapshot.empty) {
@@ -50,31 +46,37 @@ export const getClientDetailsTool = ai.defineTool(
       
       // If not found by phone or if it wasn't a phone-like query, try by name
       if (!foundClient) {
-        // Case-insensitive name search is also tricky. Let's do a simple equality for now.
-        // A more robust solution would be needed for partial/fuzzy name matching.
-        const nameQuery = query(clientsRef); // Fetch all and filter for demo purposes
+        const nameQuery = query(clientsRef); 
         const nameSnapshot = await getDocs(nameQuery);
         const searchTermLower = searchTerm.toLowerCase();
         for (const doc of nameSnapshot.docs) {
             const clientData = { id: doc.id, ...doc.data() } as Client;
             if (clientData.name.toLowerCase().includes(searchTermLower)) {
                 foundClient = clientData;
-                break; // Take the first match
+                break; 
             }
         }
       }
 
       if (foundClient) {
         console.log(`ClientLookupTool: Ditemukan klien: ${foundClient.name}`);
+        
+        let mappedMotorcycles: ClientInfo['motorcycles'] = undefined;
+        if (foundClient.motorcycles && Array.isArray(foundClient.motorcycles)) {
+            mappedMotorcycles = foundClient.motorcycles.map(m => ({ name: m.name, licensePlate: m.licensePlate }));
+        } else if (foundClient.motorcycles && !Array.isArray(foundClient.motorcycles)) {
+            console.warn(`ClientLookupTool: Klien ${foundClient.id} memiliki field 'motorcycles' tapi bukan array. Diabaikan.`);
+        }
+
         const result: ClientInfo = {
           id: foundClient.id,
           name: foundClient.name,
           phone: foundClient.phone,
           loyaltyPoints: foundClient.loyaltyPoints || 0,
-          motorcycles: foundClient.motorcycles?.map(m => ({ name: m.name, licensePlate: m.licensePlate })) || undefined,
+          motorcycles: mappedMotorcycles,
           lastVisit: foundClient.lastVisit || undefined,
         };
-        // Validate with Zod before returning
+        
         try {
             ClientInfoSchema.parse(result);
             return result;
@@ -92,3 +94,4 @@ export const getClientDetailsTool = ai.defineTool(
     }
   }
 );
+
