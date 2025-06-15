@@ -5,7 +5,9 @@
  * Dilengkapi dengan kemampuan untuk mencari informasi produk/layanan dan data klien.
  *
  * - generateWhatsAppReply - Fungsi yang menghasilkan draf balasan.
+ * - WhatsAppReplyInputSchema - Skema Zod untuk validasi input.
  * - WhatsAppReplyInput - Tipe input untuk fungsi generateWhatsAppReply.
+ * - WhatsAppReplyOutputSchema - Skema Zod untuk validasi output.
  * - WhatsAppReplyOutput - Tipe output untuk fungsi generateWhatsAppReply.
  */
 
@@ -14,13 +16,13 @@ import {z} from 'genkit';
 import { getProductServiceDetailsByNameTool } from '@/ai/tools/productLookupTool';
 import { getClientDetailsTool } from '@/ai/tools/clientLookupTool';
 
-const WhatsAppReplyInputSchema = z.object({
+export const WhatsAppReplyInputSchema = z.object({
   customerMessage: z.string().describe('Pesan yang diterima dari pelanggan melalui WhatsApp.'),
   // clientId: z.string().optional().describe('Opsional: ID klien jika sudah teridentifikasi oleh staf CS.'),
 });
 export type WhatsAppReplyInput = z.infer<typeof WhatsAppReplyInputSchema>;
 
-const WhatsAppReplyOutputSchema = z.object({
+export const WhatsAppReplyOutputSchema = z.object({
   suggestedReply: z.string().describe('Saran balasan yang dihasilkan AI untuk dikirim ke pelanggan.'),
 });
 export type WhatsAppReplyOutput = z.infer<typeof WhatsAppReplyOutputSchema>;
@@ -94,3 +96,6 @@ const whatsAppReplyFlow = ai.defineFlow(
     return output;
   }
 );
+
+// Ekspor whatsAppReplyFlow jika ingin diakses langsung oleh Genkit CLI untuk deploy
+// export { whatsAppReplyFlow };
