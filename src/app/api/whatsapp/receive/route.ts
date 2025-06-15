@@ -30,7 +30,16 @@ export async function POST(request: Request) {
     }
     
     const { customerMessage, chatHistory, senderNumber } = apiInputValidation.data;
-    console.log("API Input validated. Customer message:", customerMessage, "Chat history provided:", !!chatHistory, "Sender:", senderNumber);
+    console.log("API Input validated. Customer message:", customerMessage, "Sender:", senderNumber);
+    if (chatHistory) {
+      console.log(`Chat history received with ${chatHistory.length} message(s).`);
+      // Anda bisa log beberapa pesan terakhir jika perlu untuk debugging:
+      // if (chatHistory.length > 0) {
+      //   console.log("Last message in history:", chatHistory[chatHistory.length - 1]);
+      // }
+    } else {
+      console.log("No chat history received.");
+    }
     
     console.log("Calling generateWhatsAppReply flow...");
     
