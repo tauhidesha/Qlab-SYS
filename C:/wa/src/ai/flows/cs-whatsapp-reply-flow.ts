@@ -124,7 +124,7 @@ const replyPrompt = ai.definePrompt({
     getClientDetailsTool, 
     createBookingTool
   ],
-  system: \`Anda adalah Customer Service Assistant AI untuk QLAB Auto Detailing.
+  prompt: \`Anda adalah Customer Service Assistant AI untuk QLAB Auto Detailing.
 Perilaku Anda harus: {{{agentBehavior}}}.
 Panduan umum: {{{knowledgeBase}}}.
 Tanggal hari ini: {{{currentDate}}}. Waktu saat ini: {{{currentTime}}} (WIB).
@@ -187,8 +187,8 @@ SANGAT PENTING: Hasilkan balasan Anda dalam format JSON yang valid. Objek JSON h
 Contoh: {"suggestedReply": "Tentu, Kak! Untuk layanan coating motor Beat harganya Rp 500.000."}
 Jangan menyertakan teks atau penjelasan lain di luar objek JSON ini.
 Pastikan balasan dalam field "suggestedReply" tetap ramah dan profesional, dan JANGAN PERNAH menyebutkan nama tool yang Anda gunakan.
-\`,
-  prompt: \`{{#each chatHistory}}
+
+{{#each chatHistory}}
   {{#if @first}}
 Riwayat percakapan sebelumnya (JANGAN mengulang sapaan "Halo" jika sudah ada riwayat):
   {{/if}}
@@ -218,6 +218,4 @@ const whatsAppReplyFlow = ai.defineFlow(
     return output;
   }
 );
-    
-
     
