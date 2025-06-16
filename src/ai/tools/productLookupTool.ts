@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview Genkit tool for looking up product or service details from Firestore.
@@ -11,13 +10,14 @@ import type { ServiceProduct, ServiceProductVariant } from '@/app/(app)/services
 import { ProductServiceInfoSchema, type ProductServiceInfo } from '@/types/aiToolSchemas';
 
 const ProductLookupInputSchema = z.object({
-  productName: z.string().describe("Nama produk atau layanan yang ingin dicari detailnya. Bisa umum seperti 'coating' atau spesifik seperti 'Cuci Motor Premium'. "),
+  productName: z.string().describe("Nama produk atau layanan yang ingin dicari detailnya. Bisa umum seperti 'coating', 'paket detailing', atau spesifik seperti 'Cuci Motor Premium Vario'. Tool akan mencoba mencocokkan dengan nama item, varian, atau kategori."),
 });
 
 export const getProductServiceDetailsByNameTool = ai.defineTool(
   {
     name: 'getProductServiceDetailsByNameTool',
     description: 'Mencari dan mengembalikan detail spesifik dari sebuah produk atau layanan berdasarkan namanya. Jika nama umum, bisa mengembalikan beberapa item yang relevan atau item dasar dengan variannya. Berguna untuk menjawab pertanyaan pelanggan tentang harga, durasi, ketersediaan, atau deskripsi item tertentu.',
+    inputSchema: ProductLookupInputSchema, // Menggunakan ProductLookupInputSchema yang sudah didefinisikan
     outputSchema: z.union([ProductServiceInfoSchema, z.array(ProductServiceInfoSchema), z.null()]).describe("Objek berisi detail produk/layanan, array objek jika beberapa item relevan, atau null jika tidak ditemukan."),
   },
   async (input) => {
@@ -171,5 +171,3 @@ export const getProductServiceDetailsByNameTool = ai.defineTool(
     }
   }
 );
-
-    

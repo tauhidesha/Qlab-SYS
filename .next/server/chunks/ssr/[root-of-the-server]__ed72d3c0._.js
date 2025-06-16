@@ -336,104 +336,149 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 ;
 ;
 const ProductLookupInputSchema = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$common$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["z"].object({
-    productName: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$common$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["z"].string().describe("Nama produk atau layanan yang ingin dicari detailnya. Harus spesifik.")
+    productName: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$common$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["z"].string().describe("Nama produk atau layanan yang ingin dicari detailnya. Bisa umum seperti 'coating' atau spesifik seperti 'Cuci Motor Premium'. ")
 });
 const getProductServiceDetailsByNameTool = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].defineTool({
     name: 'getProductServiceDetailsByNameTool',
-    description: 'Mencari dan mengembalikan detail spesifik dari sebuah produk atau layanan berdasarkan namanya. Berguna untuk menjawab pertanyaan pelanggan tentang harga, durasi, ketersediaan, atau deskripsi item tertentu.',
-    inputSchema: ProductLookupInputSchema,
+    description: 'Mencari dan mengembalikan detail spesifik dari sebuah produk atau layanan berdasarkan namanya. Jika nama umum, bisa mengembalikan beberapa item yang relevan atau item dasar dengan variannya. Berguna untuk menjawab pertanyaan pelanggan tentang harga, durasi, ketersediaan, atau deskripsi item tertentu.',
     outputSchema: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$common$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["z"].union([
         __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiToolSchemas$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ProductServiceInfoSchema"],
+        __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$common$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["z"].array(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiToolSchemas$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ProductServiceInfoSchema"]),
         __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$common$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["z"].null()
-    ]).describe("Objek berisi detail produk/layanan, atau null jika tidak ditemukan.")
+    ]).describe("Objek berisi detail produk/layanan, array objek jika beberapa item relevan, atau null jika tidak ditemukan.")
 }, async (input)=>{
     if (!input.productName || input.productName.trim() === '') {
         console.log("ProductLookupTool: Nama produk kosong.");
         return null;
     }
-    console.log(`ProductLookupTool: Mencari produk/layanan dengan nama: "${input.productName}"`);
+    const searchTerm = input.productName.trim().toLowerCase();
+    console.log(`ProductLookupTool: Mencari produk/layanan dengan nama/keyword: "${searchTerm}"`);
     try {
         const servicesRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'services');
-        const q = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["query"])(servicesRef);
+        const q = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["query"])(servicesRef); // Ambil semua dulu, lalu filter di client-side untuk fleksibilitas
         const querySnapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(q);
-        let foundItem = null;
-        const searchTermLower = input.productName.toLowerCase();
-        let bestMatchCandidate = null;
-        let bestMatchIsVariant = false;
-        for (const doc of querySnapshot.docs){
-            const item = {
+        if (querySnapshot.empty) {
+            console.log("ProductLookupTool: Tidak ada item layanan/produk di database.");
+            return null;
+        }
+        const allItems = querySnapshot.docs.map((doc)=>({
                 id: doc.id,
                 ...doc.data()
-            };
-            if (Array.isArray(item.variants)) {
+            }));
+        let matchedItems = [];
+        // Fase 1: Cari kecocokan persis atau sangat dekat
+        for (const item of allItems){
+            const itemNameLower = item.name.toLowerCase();
+            // Cocok persis dengan nama item dasar
+            if (itemNameLower === searchTerm) {
+                matchedItems.push(item);
+                continue;
+            }
+            // Cocok persis dengan nama varian
+            if (item.variants) {
                 for (const variant of item.variants){
-                    const fullVariantName = `${item.name} - ${variant.name}`;
-                    if (fullVariantName.toLowerCase().includes(searchTermLower)) {
-                        const currentCandidateIsBetter = !bestMatchCandidate || fullVariantName.toLowerCase() === searchTermLower && (!bestMatchIsVariant || bestMatchCandidate.name && bestMatchCandidate.name.toLowerCase() !== searchTermLower) || !bestMatchIsVariant && searchTermLower.length > (bestMatchCandidate.name?.length || 0);
-                        if (currentCandidateIsBetter) {
-                            bestMatchCandidate = {
-                                ...item,
-                                name: fullVariantName,
-                                price: variant.price,
-                                pointsAwarded: variant.pointsAwarded ?? item.pointsAwarded,
-                                estimatedDuration: variant.estimatedDuration ?? item.estimatedDuration
-                            };
-                            delete bestMatchCandidate.variants; // Ensure variants array from base item is removed
-                            bestMatchIsVariant = true;
-                            if (fullVariantName.toLowerCase() === searchTermLower) {
-                                foundItem = bestMatchCandidate;
-                                break;
+                    const fullVariantNameLower = `${item.name} - ${variant.name}`.toLowerCase();
+                    if (fullVariantNameLower === searchTerm) {
+                        // Buat "item" baru yang merepresentasikan varian ini
+                        const variantAsItem = {
+                            ...item,
+                            name: `${item.name} - ${variant.name}`,
+                            price: variant.price,
+                            pointsAwarded: variant.pointsAwarded ?? item.pointsAwarded,
+                            estimatedDuration: variant.estimatedDuration ?? item.estimatedDuration,
+                            variants: undefined
+                        };
+                        matchedItems.push(variantAsItem);
+                        break;
+                    }
+                }
+            }
+        }
+        // Fase 2: Jika belum ada kecocokan persis, cari kecocokan parsial
+        if (matchedItems.length === 0) {
+            for (const item of allItems){
+                const itemNameLower = item.name.toLowerCase();
+                // Query terkandung dalam nama item (mis. query "coating", item "Nano Coating")
+                if (itemNameLower.includes(searchTerm)) {
+                    matchedItems.push(item);
+                    continue;
+                }
+                // Nama item terkandung dalam query (mis. query "harga coating xmax", item "Coating XMAX")
+                if (searchTerm.includes(itemNameLower)) {
+                    matchedItems.push(item);
+                    continue;
+                }
+                // Query cocok dengan salah satu nama varian secara parsial
+                if (item.variants) {
+                    for (const variant of item.variants){
+                        const fullVariantNameLower = `${item.name} - ${variant.name}`.toLowerCase();
+                        if (fullVariantNameLower.includes(searchTerm) || searchTerm.includes(variant.name.toLowerCase())) {
+                            // Jika query cocok parsial dengan varian, kembalikan item dasarnya dengan semua variannya
+                            // agar AI bisa memilih atau menyajikan.
+                            if (!matchedItems.find((m)=>m.id === item.id)) {
+                                matchedItems.push(item);
                             }
+                            break;
                         }
                     }
                 }
             }
-            if (foundItem) break; // Exact variant match found
-            // Check base item name if no exact variant match yet
-            if (item.name.toLowerCase().includes(searchTermLower)) {
-                if (!bestMatchCandidate || !bestMatchIsVariant && item.name.toLowerCase() === searchTermLower && bestMatchCandidate.name && bestMatchCandidate.name.toLowerCase() !== searchTermLower || !bestMatchIsVariant && item.name.length < (bestMatchCandidate.name?.length || Infinity) // Shorter base name that includes term (less specific but could be what user meant)
-                ) {
-                    bestMatchCandidate = item;
-                    bestMatchIsVariant = false; // Mark that this candidate is a base item
+        }
+        // Fase 3: Jika masih belum ada, coba cari berdasarkan kategori
+        if (matchedItems.length === 0) {
+            for (const item of allItems){
+                if (item.category.toLowerCase().includes(searchTerm)) {
+                    matchedItems.push(item);
                 }
             }
         }
-        foundItem = bestMatchCandidate || foundItem; // Ensure foundItem gets the candidate if no exact variant break
-        if (foundItem) {
-            console.log(`ProductLookupTool: Ditemukan item: ${foundItem.name}`);
-            let mappedVariants = undefined;
-            // If the found item IS a base item (not a pre-selected variant) AND it has variants, map them.
-            if (!bestMatchIsVariant && Array.isArray(foundItem.variants)) {
-                mappedVariants = foundItem.variants.map((v)=>({
+        if (matchedItems.length === 0) {
+            console.log(`ProductLookupTool: Tidak ada produk/layanan yang cocok dengan "${input.productName}".`);
+            return null;
+        }
+        // Ubah hasil menjadi format ProductServiceInfoSchema
+        const resultsForAI = matchedItems.map((item)=>{
+            let effectiveName = item.name;
+            let effectivePrice = item.price;
+            let effectivePoints = item.pointsAwarded;
+            let effectiveDuration = item.estimatedDuration;
+            let itemIsSpecificVariantRepresentation = false;
+            // Cek apakah 'item' ini adalah representasi varian yang kita buat di Fase 1
+            if (item.variants === undefined && allItems.some((originalItem)=>originalItem.id === item.id && originalItem.name !== item.name)) {
+                itemIsSpecificVariantRepresentation = true;
+            }
+            return {
+                id: item.id,
+                name: effectiveName,
+                type: item.type,
+                category: item.category,
+                price: effectivePrice,
+                description: item.description || undefined,
+                pointsAwarded: effectivePoints || undefined,
+                estimatedDuration: effectiveDuration || undefined,
+                // Jika item adalah representasi varian, kita tidak sertakan array 'variants' lagi
+                // Jika item adalah item dasar dan Punya varian, sertakan
+                variants: itemIsSpecificVariantRepresentation ? undefined : item.variants?.map((v)=>({
                         name: v.name,
                         price: v.price,
                         pointsAwarded: v.pointsAwarded || undefined,
                         estimatedDuration: v.estimatedDuration || undefined
-                    }));
-            }
-            const result = {
-                id: foundItem.id,
-                name: foundItem.name,
-                type: foundItem.type,
-                category: foundItem.category,
-                price: foundItem.price,
-                description: foundItem.description || undefined,
-                pointsAwarded: foundItem.pointsAwarded || undefined,
-                estimatedDuration: foundItem.estimatedDuration || undefined,
-                variants: mappedVariants
+                    })) || undefined
             };
-            try {
-                __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiToolSchemas$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ProductServiceInfoSchema"].parse(result);
-                return result;
-            } catch (zodError) {
-                console.error("ProductLookupTool: Zod validation error for found item:", zodError.errors);
-                // console.error("ProductLookupTool: Data causing error:", JSON.stringify(result, null, 2));
-                return null;
-            }
-        } else {
-            console.log(`ProductLookupTool: Tidak ada produk/layanan yang cocok dengan nama "${input.productName}".`);
-            return null;
+        });
+        // Validasi semua hasil
+        try {
+            resultsForAI.forEach((res)=>__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiToolSchemas$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ProductServiceInfoSchema"].parse(res));
+        } catch (zodError) {
+            console.error("ProductLookupTool: Zod validation error untuk salah satu item hasil:", zodError.errors);
+            return null; // Atau handle error dengan cara lain, misal filter item yang tidak valid
         }
+        console.log(`ProductLookupTool: Ditemukan ${resultsForAI.length} item(s) yang cocok.`);
+        // Jika hanya 1 hasil, kembalikan sebagai objek tunggal. Jika >1, sebagai array.
+        // Ini untuk membantu prompt LLM, agar tidak bingung jika inputnya berupa array tunggal.
+        // Tapi, instruksi di prompt LLM harus disesuaikan agar bisa menangani output array juga.
+        // Untuk sekarang, kita konsistenkan untuk mengembalikan array saja, lalu di prompt flow-nya dihandle.
+        return resultsForAI; // Selalu kembalikan array
     } catch (error) {
         console.error('ProductLookupTool: Error saat mengambil data dari Firestore:', error);
         return null;
