@@ -128,9 +128,9 @@ Nomor WhatsApp Pelanggan: {{{senderNumber}}}.
 
 Alur Kerja Utama:
 1.  **Analisa Pesan Pelanggan:** Pahami maksud pelanggan.
-2.  **Info Umum/Kebijakan:** Jika pertanyaan umum (jam buka, alamat, kebijakan garansi, dll.), gunakan \`getKnowledgeBaseInfoTool\`.
-3.  **Detail Produk/Layanan (Harga/Durasi):** Jika perlu harga/durasi spesifik, gunakan \`getProductServiceDetailsByNameTool\`. Tanyakan jenis motor/cat jika diperlukan oleh layanan tersebut SEBELUM memanggil tool ini.
-    *   **Khusus untuk layanan seperti 'repaint' atau layanan custom lainnya yang harganya sangat bervariasi:**
+2.  **Info Umum/Kebijakan:** Jika pertanyaan umum (jam buka, alamat, kebijakan garansi, dll.), SELALU gunakan \`getKnowledgeBaseInfoTool\` untuk mendapatkan informasi. JANGAN menebak atau memberikan informasi yang tidak ada di output tool.
+3.  **Detail Produk/Layanan (Harga/Durasi):** Jika perlu harga/durasi spesifik, SELALU gunakan \`getProductServiceDetailsByNameTool\`. Tanyakan jenis motor/cat JIKA diperlukan oleh layanan tersebut SEBELUM memanggil tool ini.
+    *   **SANGAT PENTING untuk layanan dengan harga variabel (mis. 'repaint', 'custom', dll.):**
         *   Jika \`getProductServiceDetailsByNameTool\` TIDAK menemukan harga pasti untuk kombinasi spesifik yang diminta pelanggan (misalnya, 'Repaint NMAX Merah Candy'), ATAU jika \`getKnowledgeBaseInfoTool\` mengembalikan informasi bahwa harga untuk layanan tersebut bersifat variabel dan perlu konsultasi:
         *   MAKA, JANGAN memberikan estimasi harga atau durasi sendiri. JANGAN MENEBAK.
         *   Sampaikan bahwa harga dan durasi untuk layanan tersebut sangat tergantung detail dan perlu dikonsultasikan lebih lanjut dengan staf, atau sarankan pelanggan datang langsung.
@@ -139,8 +139,8 @@ Alur Kerja Utama:
 4.  **Data Klien:** Jika perlu info spesifik klien (poin, motor terdaftar), gunakan \`getClientDetailsTool\` dengan nomor {{{senderNumber}}} atau nama yang disebut.
 5.  **Booking Layanan:**
     *   Jika pelanggan jelas ingin booking/reservasi:
-        *   **Layanan:** Pastikan LAYANAN APA yang diinginkan. Jika tidak jelas, tanyakan. Jika perlu, gunakan \`getProductServiceDetailsByNameTool\` untuk mencari dan mengkonfirmasi layanan berdasarkan deskripsi pelanggan. Dapatkan **ID Layanan** dan **Nama Layanan Lengkap** (termasuk varian jika ada). Ambil juga **Estimasi Durasi** dari hasil tool produk.
-        *   **Tanggal & Waktu:** Tanyakan TANGGAL (YYYY-MM-DD) dan WAKTU (HH:MM format 24 jam) yang diinginkan. Bantu pelanggan mengkonversi jika mereka menyebut "besok" (gunakan {{{tomorrowDate}}}), "lusa" (gunakan {{{dayAfterTomorrowDate}}}), atau jam tidak spesifik (mis. "siang" menjadi "13:00").
+        *   **Layanan:** Pastikan LAYANAN APA yang diinginkan. Jika tidak jelas, tanyakan. Jika perlu, gunakan \`getProductServiceDetailsByNameTool\` untuk mencari dan mengkonfirmasi layanan berdasarkan deskripsi pelanggan. Dapatkan **ID Layanan**, **Nama Layanan Lengkap** (termasuk varian jika ada), dan **Estimasi Durasi** dari hasil tool produk. Jika tool tidak mengembalikan durasi, Anda boleh memberikan perkiraan umum yang sangat konservatif atau tidak menyebutkannya.
+        *   **Tanggal & Waktu:** Tanyakan TANGGAL (format YYYY-MM-DD) dan WAKTU (format HH:MM 24 jam) yang diinginkan. Bantu pelanggan mengkonversi jika mereka menyebut "besok" (gunakan {{{tomorrowDate}}}), "lusa" (gunakan {{{dayAfterTomorrowDate}}}), atau jam tidak spesifik (mis. "siang" menjadi "13:00").
         *   **Kendaraan:** Tanyakan INFORMASI KENDARAAN (mis. "Honda Vario B 1234 XYZ", "Yamaha NMAX Merah").
         *   **Nama Pelanggan:** Tanyakan NAMA LENGKAP PELANGGAN jika belum tahu dari histori atau \`getClientDetailsTool\`.
         *   **Konfirmasi Slot (SANGAT PENTING):** SEBELUM MEMANGGIL \`createBookingTool\`, JIKA pelanggan meminta waktu yang SANGAT SPESIFIK (mis. "besok jam 10 pagi pas"), Anda HARUS bertanya kepada staf (dengan mengindikasikan Anda tidak bisa cek slot) atau menyarankan pelanggan untuk fleksibel. JANGAN berasumsi slot pasti ada untuk permintaan waktu spesifik tanpa pengecekan. Jika pelanggan hanya bertanya "besok bisa?", asumsikan bisa dan lanjutkan.
@@ -151,8 +151,8 @@ Alur Kerja Utama:
 
 Aturan Tambahan:
 *   **Sapaan Awal Umum**: Jika hanya sapaan umum tanpa pertanyaan spesifik, sapa balik dengan ramah, tanyakan apa yang bisa dibantu. JANGAN gunakan tool apapun.
-*   **Harga/Durasi**: Sebutkan NAMA LAYANAN LENGKAP, deskripsi singkat, ESTIMASI DURASI, dan HARGA (Rp) hanya setelah mendapatkan data dari \`getProductServiceDetailsByNameTool\` (kecuali untuk layanan dengan harga variabel seperti dijelaskan di atas).
-*   **Tool Gagal**: Jika tool tidak menemukan informasi, sampaikan dengan sopan. Jangan menebak.
+*   **Harga/Durasi**: Sebutkan NAMA LAYANAN LENGKAP, deskripsi singkat, ESTIMASI DURASI, dan HARGA (Rp) HANYA JIKA informasi tersebut tersedia di output tool \`getProductServiceDetailsByNameTool\` atau \`getKnowledgeBaseInfoTool\`. Jika tidak ada, jangan menebak dan ikuti aturan untuk layanan harga variabel.
+*   **Tool Gagal/Info Tidak Ada**: Jika tool tidak menemukan informasi yang diminta, sampaikan dengan sopan. Jangan menebak. Sarankan pelanggan untuk menghubungi langsung atau datang ke bengkel untuk info lebih lanjut.
 *   **Bahasa**: Indonesia baku, ramah. Ringkas jika banyak info (gunakan poin).
 *   **Penutup**: Akhiri dengan sopan kecuali melanjutkan percakapan.
 
@@ -191,7 +191,4 @@ const whatsAppReplyFlow = ai.defineFlow(
     return output;
   }
 );
-
-    
-
     

@@ -32,7 +32,7 @@ export const getProductServiceDetailsByNameTool = ai.defineTool(
 
     try {
       const servicesRef = collection(db, 'services');
-      const q = query(servicesRef); // Get all services for now, can be optimized later if needed
+      const q = query(servicesRef); 
       const querySnapshot = await getDocs(q);
 
       let bestMatchCandidate: ServiceProduct | null = null;
@@ -44,14 +44,19 @@ export const getProductServiceDetailsByNameTool = ai.defineTool(
 
         // Check for exact match with base item name
         if (itemNameLower === searchTermLower) {
-          if (bestMatchScore < 2) { // Prefer exact base match over partial
+          if (bestMatchScore < 2) { 
             bestMatchCandidate = item;
             bestMatchScore = 2;
           }
         }
         // Check for partial match with base item name
-        else if (itemNameLower.includes(searchTermLower)) {
-          if (bestMatchScore < 1) {
+        else if (itemNameLower.includes(searchTermLower) || searchTermLower.includes(itemNameLower)) { // Added reverse check
+          let currentPartialScore = 0;
+          if (itemNameLower.includes(searchTermLower)) currentPartialScore = searchTermLower.length / itemNameLower.length;
+          if (searchTermLower.includes(itemNameLower)) currentPartialScore = Math.max(currentPartialScore, itemNameLower.length / searchTermLower.length);
+          
+          // Prioritize if current partial score is higher than existing partial base match (score 1)
+          if (bestMatchScore < 1 || (bestMatchScore === 1 && currentPartialScore > (bestMatchCandidate ? ( (bestMatchCandidate.name.toLowerCase().includes(searchTermLower) ? searchTermLower.length / bestMatchCandidate.name.toLowerCase().length : 0) || (searchTermLower.includes(bestMatchCandidate.name.toLowerCase()) ? bestMatchCandidate.name.toLowerCase().length / searchTermLower.length : 0) ) : 0)  ) ) {
             bestMatchCandidate = item;
             bestMatchScore = 1;
           }
@@ -63,18 +68,18 @@ export const getProductServiceDetailsByNameTool = ai.defineTool(
             const fullVariantName = `${item.name} - ${variant.name}`;
             const fullVariantNameLower = fullVariantName.toLowerCase();
 
-            if (fullVariantNameLower === searchTermLower) { // Exact variant match is highest priority
+            if (fullVariantNameLower === searchTermLower) { 
               bestMatchCandidate = {
                 ...item,
                 name: fullVariantName,
                 price: variant.price,
                 pointsAwarded: variant.pointsAwarded ?? item.pointsAwarded,
                 estimatedDuration: variant.estimatedDuration ?? item.estimatedDuration,
-                variants: undefined, // This is now a specific variant, not a base item with variants
+                variants: undefined, 
               };
               bestMatchScore = 4;
-              break; // Found exact variant match, stop checking other variants for this item
-            } else if (fullVariantNameLower.includes(searchTermLower)) {
+              break; 
+            } else if (fullVariantNameLower.includes(searchTermLower) || searchTermLower.includes(fullVariantNameLower)) {
               if (bestMatchScore < 3) {
                 bestMatchCandidate = {
                   ...item,
@@ -89,36 +94,34 @@ export const getProductServiceDetailsByNameTool = ai.defineTool(
             }
           }
         }
-        if (bestMatchScore === 4) break; // Found exact variant match, no need to check other items
+        if (bestMatchScore === 4) break; 
       }
 
       if (bestMatchCandidate) {
         console.log(`ProductLookupTool: Ditemukan kandidat terbaik: "${bestMatchCandidate.name}" dengan skor: ${bestMatchScore}`);
 
         let mappedVariantsForOutput: ProductServiceInfo['variants'] = undefined;
-        // If the best match was a BASE item (score 1 or 2) AND it originally had variants, map them for output.
-        // If bestMatchScore is 3 or 4, it means a variant was selected, and bestMatchCandidate.variants is already undefined.
-        if ((bestMatchScore === 1 || bestMatchScore === 2) && Array.isArray(bestMatchCandidate.variants)) {
+        if ((bestMatchScore === 1 || bestMatchScore === 2) && Array.isArray(bestMatchCandidate.variants) && bestMatchCandidate.variants.length > 0) {
             mappedVariantsForOutput = bestMatchCandidate.variants.map(v => ({
                 name: v.name,
                 price: v.price,
-                pointsAwarded: v.pointsAwarded || undefined,
-                estimatedDuration: v.estimatedDuration || undefined,
+                pointsAwarded: v.pointsAwarded,
+                estimatedDuration: v.estimatedDuration,
             }));
         }
 
         const result: ProductServiceInfo = {
           id: bestMatchCandidate.id,
-          name: bestMatchCandidate.name, // This will be the full variant name if a variant was the best match
+          name: bestMatchCandidate.name, 
           type: bestMatchCandidate.type,
           category: bestMatchCandidate.category,
-          price: bestMatchCandidate.price, // This will be the variant price if a variant was the best match
-          description: bestMatchCandidate.description || undefined,
-          pointsAwarded: bestMatchCandidate.pointsAwarded || undefined,
-          estimatedDuration: bestMatchCandidate.estimatedDuration || undefined,
+          price: bestMatchCandidate.price, 
+          description: bestMatchCandidate.description,
+          pointsAwarded: bestMatchCandidate.pointsAwarded,
+          estimatedDuration: bestMatchCandidate.estimatedDuration, // Always include base or variant duration
           variants: mappedVariantsForOutput,
         };
-
+        
         try {
             ProductServiceInfoSchema.parse(result);
             return result;
