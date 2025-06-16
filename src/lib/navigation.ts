@@ -1,6 +1,6 @@
 
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, BarChartBig, Settings, Clipboard, Banknote, CalendarDays, ClipboardList, Percent, ReceiptText, Landmark, DollarSign, TrendingUp, History, ArrowRightLeft, FileText, Wallet, Palette, Bell, CreditCard as CreditCardIcon, Award, Gift, SlidersHorizontal, Settings2, Package, MessageSquareText, Zap } from 'lucide-react'; // Added Package, MessageSquareText, Zap
+import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, BarChartBig, Settings, Clipboard, Banknote, CalendarDays, ClipboardList, Percent, ReceiptText, Landmark, DollarSign, TrendingUp, History, ArrowRightLeft, FileText, Wallet, Palette, Bell, CreditCard as CreditCardIcon, Award, Gift, SlidersHorizontal, Settings2, Package, MessageSquareText, Zap, CalendarPlus } from 'lucide-react'; // Added Package, MessageSquareText, Zap, CalendarPlus
 
 export interface NavItem {
   title: string;
@@ -23,9 +23,24 @@ export const mainNavItems: NavItem[] = [
   },
   {
     title: 'Manajemen Antrian',
-    href: '/queue',
+    href: '#', // Menjadi grup
     icon: ListOrdered,
-    description: 'Kelola antrian pelanggan.',
+    description: 'Kelola antrian pelanggan dan jadwal booking.',
+    collapsible: true,
+    items: [
+      {
+        title: 'Daftar Antrian',
+        href: '/queue',
+        icon: ListOrdered, // Bisa sama atau beda
+        description: 'Kelola antrian pelanggan saat ini.',
+      },
+      {
+        title: 'Kalender Booking',
+        href: '/bookings',
+        icon: CalendarDays, // Icon baru untuk kalender
+        description: 'Lihat dan kelola jadwal booking.',
+      },
+    ]
   },
   {
     title: 'Penjualan (POS)',
@@ -146,7 +161,5 @@ export const settingsNavItem: NavItem = {
   href: '/settings', 
   icon: Settings, 
   description: 'Konfigurasi pengaturan aplikasi.',
-  // collapsible: false, // Dihapus atau set ke false
-  // items: undefined // Dihapus
 };
     
