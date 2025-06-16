@@ -556,7 +556,7 @@ const SheetOverlay = /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$projec
         ref: ref
     }, void 0, false, {
         fileName: "[project]/src/components/ui/sheet.tsx",
-        lineNumber: 22,
+        lineNumber: 23,
         columnNumber: 3
     }, this));
 SheetOverlay.displayName = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$radix$2d$ui$2f$react$2d$dialog$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Overlay"].displayName;
@@ -577,7 +577,7 @@ const SheetContent = /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$projec
         children: [
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(SheetOverlay, {}, void 0, false, {
                 fileName: "[project]/src/components/ui/sheet.tsx",
-                lineNumber: 61,
+                lineNumber: 62,
                 columnNumber: 5
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$radix$2d$ui$2f$react$2d$dialog$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Content"], {
@@ -587,6 +587,14 @@ const SheetContent = /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$projec
                 }), className),
                 ...props,
                 children: [
+                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$radix$2d$ui$2f$react$2d$dialog$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Title"], {
+                        className: "sr-only",
+                        children: "Sheet Panel"
+                    }, void 0, false, {
+                        fileName: "[project]/src/components/ui/sheet.tsx",
+                        lineNumber: 69,
+                        columnNumber: 7
+                    }, this),
                     children,
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$radix$2d$ui$2f$react$2d$dialog$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Close"], {
                         className: "absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary",
@@ -595,7 +603,7 @@ const SheetContent = /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$projec
                                 className: "h-4 w-4"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/ui/sheet.tsx",
-                                lineNumber: 69,
+                                lineNumber: 72,
                                 columnNumber: 9
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -603,25 +611,25 @@ const SheetContent = /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$projec
                                 children: "Close"
                             }, void 0, false, {
                                 fileName: "[project]/src/components/ui/sheet.tsx",
-                                lineNumber: 70,
+                                lineNumber: 73,
                                 columnNumber: 9
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/src/components/ui/sheet.tsx",
-                        lineNumber: 68,
+                        lineNumber: 71,
                         columnNumber: 7
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/src/components/ui/sheet.tsx",
-                lineNumber: 62,
+                lineNumber: 63,
                 columnNumber: 5
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/components/ui/sheet.tsx",
-        lineNumber: 60,
+        lineNumber: 61,
         columnNumber: 3
     }, this));
 SheetContent.displayName = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$radix$2d$ui$2f$react$2d$dialog$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Content"].displayName;
@@ -630,7 +638,7 @@ const SheetHeader = ({ className, ...props })=>/*#__PURE__*/ (0, __TURBOPACK__im
         ...props
     }, void 0, false, {
         fileName: "[project]/src/components/ui/sheet.tsx",
-        lineNumber: 81,
+        lineNumber: 84,
         columnNumber: 3
     }, this);
 SheetHeader.displayName = "SheetHeader";
@@ -639,7 +647,7 @@ const SheetFooter = ({ className, ...props })=>/*#__PURE__*/ (0, __TURBOPACK__im
         ...props
     }, void 0, false, {
         fileName: "[project]/src/components/ui/sheet.tsx",
-        lineNumber: 95,
+        lineNumber: 98,
         columnNumber: 3
     }, this);
 SheetFooter.displayName = "SheetFooter";
@@ -649,7 +657,7 @@ const SheetTitle = /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$
         ...props
     }, void 0, false, {
         fileName: "[project]/src/components/ui/sheet.tsx",
-        lineNumber: 109,
+        lineNumber: 112,
         columnNumber: 3
     }, this));
 SheetTitle.displayName = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$radix$2d$ui$2f$react$2d$dialog$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Title"].displayName;
@@ -659,7 +667,7 @@ const SheetDescription = /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$pr
         ...props
     }, void 0, false, {
         fileName: "[project]/src/components/ui/sheet.tsx",
-        lineNumber: 121,
+        lineNumber: 124,
         columnNumber: 3
     }, this));
 SheetDescription.displayName = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$radix$2d$ui$2f$react$2d$dialog$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Description"].displayName;
