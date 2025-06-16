@@ -8,3 +8,4 @@ import '@/ai/flows/cs-whatsapp-reply-flow.ts';
 
 import '@/ai/tools/productLookupTool.ts';
 import '@/ai/tools/clientLookupTool.ts';
+import '@/ai/tools/knowledgeLookupTool.ts'; // Import tool baru

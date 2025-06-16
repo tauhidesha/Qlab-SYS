@@ -11,7 +11,7 @@ export const WhatsAppReplyInputSchema = z.object({
   customerMessage: z.string().describe('Pesan yang diterima dari pelanggan melalui WhatsApp, atau pertanyaan dari staf CS.'),
   chatHistory: z.array(ChatMessageSchema).optional().describe('Riwayat percakapan sebelumnya antara pelanggan dan AI/staf CS.'),
   agentBehavior: z.string().optional().describe('Perilaku agen AI yang diinginkan, mis. "Ramah & Membantu".'),
-  knowledgeBase: z.string().optional().describe('Deskripsi sumber pengetahuan yang harus digunakan AI.'),
+  knowledgeBase: z.string().optional().describe('Panduan tingkat tinggi untuk AI. Detail pengetahuan spesifik akan diambil melalui tools.'),
 });
 export type WhatsAppReplyInput = z.infer<typeof WhatsAppReplyInputSchema>;
 
@@ -19,7 +19,3 @@ export const WhatsAppReplyOutputSchema = z.object({
   suggestedReply: z.string().describe('Saran balasan yang dihasilkan AI untuk dikirim ke pelanggan.'),
 });
 export type WhatsAppReplyOutput = z.infer<typeof WhatsAppReplyOutputSchema>;
-
-// Reverted: Removed ProcessedChatMessageSchema and PromptInternalInputSchema
-// These are no longer used by the reverted cs-whatsapp-reply-flow.ts
-
