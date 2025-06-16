@@ -76,7 +76,7 @@ export const DEFAULT_AI_SETTINGS: AiSettingsFormValues = {
   transferConditions: ["Pelanggan Meminta Secara Eksplisit", "AI Tidak Menemukan Jawaban (Setelah 2x Coba)"],
   knowledgeBaseDescription: "Website resmi QLAB Auto Detailing (qlab.com), daftar layanan dan harga, FAQ umum.",
   enableFollowUp: false,
-  followUpMessageTemplate: "Halo Kak, kami perhatikan Anda sempat menghubungi kami beberapa waktu lalu. Apakah ada rencana untuk berkunjung ke bengkel kami? Ada promo menarik lho!",
+  followUpMessageTemplate: "Halo Kak, kami ingin memastikan apakah ada pertanyaan lebih lanjut atau bantuan yang Anda perlukan terkait layanan kami setelah percakapan kita sebelumnya? Jangan ragu untuk bertanya ya.",
   followUpDelays: {
     firstAttemptHours: 24, // 24 jam
     secondAttemptDays: 7,  // 7 hari setelah upaya pertama

@@ -14,7 +14,7 @@ import { getProductServiceDetailsByNameTool } from '@/ai/tools/productLookupTool
 import { getClientDetailsTool } from '@/ai/tools/clientLookupTool';
 import type { WhatsAppReplyInput, WhatsAppReplyOutput, ChatMessage } from '@/types/ai/cs-whatsapp-reply';
 import { WhatsAppReplyInputSchema, WhatsAppReplyOutputSchema } from '@/types/ai/cs-whatsapp-reply';
-import { z } from 'genkit'; 
+import { z } from 'genkit';
 
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
@@ -22,16 +22,16 @@ import { AiSettingsFormSchema, DEFAULT_AI_SETTINGS, type AiSettingsFormValues } 
 
 
 export async function generateWhatsAppReply({ customerMessage, chatHistory }: { customerMessage: string; chatHistory?: ChatMessage[] }): Promise<WhatsAppReplyOutput> {
-  let agentSettings = { ...DEFAULT_AI_SETTINGS }; 
+  let agentSettings = { ...DEFAULT_AI_SETTINGS };
 
   try {
     const settingsDocRef = doc(db, 'appSettings', 'aiAgentConfig');
     const docSnap = await getDoc(settingsDocRef);
     if (docSnap.exists()) {
       const rawSettingsData = docSnap.data();
-      
-      const parsedSettings = AiSettingsFormSchema.safeParse(rawSettingsData); 
-      
+
+      const parsedSettings = AiSettingsFormSchema.safeParse(rawSettingsData);
+
       if (parsedSettings.success) {
         agentSettings = { ...DEFAULT_AI_SETTINGS, ...parsedSettings.data };
         console.log("AI Settings loaded and validated from Firestore:", agentSettings);
@@ -45,7 +45,7 @@ export async function generateWhatsAppReply({ customerMessage, chatHistory }: { 
     console.error("Error fetching AI settings from Firestore, using defaults:", error);
   }
 
-  const flowInput: WhatsAppReplyInput = { 
+  const flowInput: WhatsAppReplyInput = {
     customerMessage: customerMessage,
     chatHistory: chatHistory,
     agentBehavior: agentSettings.agentBehavior,
@@ -57,22 +57,17 @@ export async function generateWhatsAppReply({ customerMessage, chatHistory }: { 
 
 const replyPrompt = ai.definePrompt({
   name: 'whatsAppReplyPrompt',
-  input: { schema: WhatsAppReplyInputSchema }, 
+  input: { schema: WhatsAppReplyInputSchema },
   output: { schema: WhatsAppReplyOutputSchema },
   tools: [getProductServiceDetailsByNameTool, getClientDetailsTool],
   prompt: `Anda adalah seorang Customer Service Assistant AI untuk QLAB Auto Detailing, sebuah bengkel perawatan dan detailing motor.
 Perilaku Anda harus: {{{agentBehavior}}}.
 Gunakan deskripsi sumber pengetahuan berikut sebagai panduan utama Anda: {{{knowledgeBase}}}
 
-{{#if chatHistory}}
+{{#if chatHistory.length}}
 Berikut adalah riwayat percakapan sebelumnya:
 {{#each chatHistory}}
-  {{#if (eq this.role "user")}}
-Pelanggan/Staf CS: {{{this.content}}}
-  {{/if}}
-  {{#if (eq this.role "model")}}
-Anda (AI): {{{this.content}}}
-  {{/if}}
+  {{this.role}}: {{{this.content}}}
 {{/each}}
 {{/if}}
 
@@ -115,7 +110,7 @@ Contoh Interaksi Sukses (jika ini pertama kali bahas item):
 - Pelanggan: "Harga coating XMAX berapa?"
   - Anda (AI): (Memanggil getProductServiceDetailsByNameTool dengan productName: "Coating XMAX" atau "Coating Motor Besar")
   - Tool mengembalikan: { name: "Coating Motor XMAX - Paket Full", price: 1200000, description: "Perlindungan cat menyeluruh dengan lapisan keramik premium untuk efek kilap dan tahan gores.", estimatedDuration: "6-8 jam", ... }
-  - Balasan Anda (RESPONS PERTAMA, FOKUS EDUKASI, TANPA HARGA): "Untuk Coating Motor XMAX - Paket Full, itu layanan perlindungan cat menyeluruh dengan lapisan keramik premium Kak, jadi motor XMAX-nya nanti dapat efek kilap yang tahan lama dan lebih tahan goresan halus. Estimasi pengerjaannya sekitar 6-8 jam. Apakah detail ini sudah sesuai dengan yang Kakak cari?"
+  - Balasan Anda (RESPONS PERTAMA, FOKUS EDUKASI, TANPA HARGA): "Untuk Coating Motor XMAX - Paket Full, itu layanan perlindungan cat menyeluruh dengan lapisan keramik premium Kak, jadi motor XMAX-nya nanti dapat efek kilap yang tahan lama dan lebih tahan goresan halus. Estimasi pengerjaannya sekitar 6-8 jam. Mau tahu lebih detail lagi tentang jenis coating ini dan harganya? Atau ada pertanyaan lain?"
 
 Contoh Interaksi Lanjutan (setelah pelanggan tanya harga lagi):
 - Pelanggan (setelah respons edukasi di atas): "Oke, harganya berapa ya?"
@@ -129,14 +124,14 @@ Pastikan balasan Anda tetap ramah dan profesional.
 const whatsAppReplyFlow = ai.defineFlow(
   {
     name: 'whatsAppReplyFlow',
-    inputSchema: WhatsAppReplyInputSchema, 
+    inputSchema: WhatsAppReplyInputSchema,
     outputSchema: WhatsAppReplyOutputSchema,
   },
-  async (input: WhatsAppReplyInput) => { 
+  async (input: WhatsAppReplyInput) => {
     console.log("WhatsAppReplyFlow input received by flow (reverted):", JSON.stringify(input, null, 2));
-    
-    const {output} = await replyPrompt(input); 
-    
+
+    const {output} = await replyPrompt(input);
+
     if (!output) {
       throw new Error('Gagal mendapatkan saran balasan dari AI.');
     }

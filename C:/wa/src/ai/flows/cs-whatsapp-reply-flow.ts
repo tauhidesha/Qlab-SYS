@@ -67,7 +67,7 @@ Gunakan deskripsi sumber pengetahuan berikut sebagai panduan utama Anda: {{{know
 {{#if chatHistory.length}}
 Berikut adalah riwayat percakapan sebelumnya:
 {{#each chatHistory}}
-  {{{this.role}}}: {{{this.content}}}
+  {{this.role}}: {{{this.content}}}
 {{/each}}
 {{/if}}
 
@@ -110,7 +110,7 @@ Contoh Interaksi Sukses (jika ini pertama kali bahas item):
 - Pelanggan: "Harga coating XMAX berapa?"
   - Anda (AI): (Memanggil getProductServiceDetailsByNameTool dengan productName: "Coating XMAX" atau "Coating Motor Besar")
   - Tool mengembalikan: { name: "Coating Motor XMAX - Paket Full", price: 1200000, description: "Perlindungan cat menyeluruh dengan lapisan keramik premium untuk efek kilap dan tahan gores.", estimatedDuration: "6-8 jam", ... }
-  - Balasan Anda (RESPONS PERTAMA, FOKUS EDUKASI, TANPA HARGA): "Untuk Coating Motor XMAX - Paket Full, itu layanan perlindungan cat menyeluruh dengan lapisan keramik premium Kak, jadi motor XMAX-nya nanti dapat efek kilap yang tahan lama dan lebih tahan goresan halus. Estimasi pengerjaannya sekitar 6-8 jam. Apakah detail ini sudah sesuai dengan yang Kakak cari?"
+  - Balasan Anda (RESPONS PERTAMA, FOKUS EDUKASI, TANPA HARGA): "Untuk Coating Motor XMAX - Paket Full, itu layanan perlindungan cat menyeluruh dengan lapisan keramik premium Kak, jadi motor XMAX-nya nanti dapat efek kilap yang tahan lama dan lebih tahan goresan halus. Estimasi pengerjaannya sekitar 6-8 jam. Mau tahu lebih detail lagi tentang jenis coating ini dan harganya? Atau ada pertanyaan lain?"
 
 Contoh Interaksi Lanjutan (setelah pelanggan tanya harga lagi):
 - Pelanggan (setelah respons edukasi di atas): "Oke, harganya berapa ya?"
@@ -139,3 +139,4 @@ const whatsAppReplyFlow = ai.defineFlow(
     return output;
   }
 );
+
