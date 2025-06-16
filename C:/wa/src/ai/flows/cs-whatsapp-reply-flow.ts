@@ -47,8 +47,8 @@ export async function generateWhatsAppReply({ customerMessage, chatHistory }: { 
   const flowInput: WhatsAppReplyInput = {
     customerMessage: customerMessage,
     chatHistory: chatHistory || [], // Pastikan chatHistory selalu array
-    agentBehavior: agentSettings.agentBehavior,
-    knowledgeBase: agentSettings.knowledgeBaseDescription, // Ini sekarang adalah panduan tingkat tinggi
+    agentBehavior: agentSettings.agentBehavior || '', // Fallback ke string kosong
+    knowledgeBase: agentSettings.knowledgeBaseDescription || '', // Fallback ke string kosong
   };
 
   return whatsAppReplyFlow(flowInput);
