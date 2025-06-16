@@ -19,24 +19,16 @@ Untuk menjalankan aplikasi QLAB POS secara lokal di PC Anda:
 2.  **Buka Terminal di Direktori Root Project Next.js:**
     *   Buka Command Prompt (CMD) atau PowerShell atau terminal lainnya.
     *   Navigasi (gunakan perintah `cd`) ke **direktori root project QLAB POS Anda**, yaitu folder yang berisi file `package.json`, `next.config.ts`, folder `src`, dll.
-    *   **PENTING:** Perintah `npm run dev` atau `yarn dev` HARUS dijalankan dari direktori root project ini.
+    *   **PENTING:** Perintah `npm run dev` HARUS dijalankan dari direktori root project ini.
 
 3.  **Install Dependencies (jika belum):**
     *   Jika ini pertama kali atau Anda baru clone project, jalankan:
-        ```bash
-        yarn install
-        ```
-        atau jika Anda menggunakan npm:
         ```bash
         npm install
         ```
 
 4.  **Jalankan Server Next.js Development:**
     *   Dari direktori root project QLAB POS di terminal, jalankan:
-        ```bash
-        yarn dev
-        ```
-        atau jika Anda menggunakan npm (dan script "dev" ada di `package.json`):
         ```bash
         npm run dev
         ```
