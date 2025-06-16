@@ -54,13 +54,13 @@ export async function generateWhatsAppReply({ customerMessage, senderNumber, cha
     dayAfterTomorrowDate: formatDateFns(addDays(now, 2), 'yyyy-MM-dd'),
   };
   
-  console.log("generateWhatsAppReply input to flow (using merged settings, combined prompt test):", JSON.stringify(flowInput, null, 2));
+  console.log("generateWhatsAppReply input to flow (using merged settings, combined prompt):", JSON.stringify(flowInput, null, 2));
   const aiResponse = await whatsAppReplyFlowCombined(flowInput);
   return aiResponse;
 }
 
 const replyPromptCombined = ai.definePrompt({
-  name: 'whatsAppReplyPrompt_Combined_v2', // New name for the prompt
+  name: 'whatsAppReplyPrompt_Combined_v4', // Updated version for clarity
   input: { schema: WhatsAppReplyInputSchema },
   output: { schema: WhatsAppReplyOutputSchema },
   tools: [getKnowledgeBaseInfoTool, getProductServiceDetailsByNameTool, getClientDetailsTool, createBookingTool],
@@ -72,7 +72,19 @@ INSTRUKSI UTAMA:
 1.  Gunakan tool yang tersedia jika diperlukan untuk mendapatkan informasi akurat atau melakukan tindakan booking.
 2.  Informasi umum atau kebijakan dapat dicari menggunakan 'getKnowledgeBaseInfoTool'.
 3.  Detail spesifik produk/layanan seperti harga, durasi, atau ketersediaan gunakan 'getProductServiceDetailsByNameTool'.
-    *   Jika pelanggan menyebutkan layanan secara umum (misalnya "coating motor", "cuci xmax") atau bertanya "ada apa aja?", coba gunakan tool 'getProductServiceDetailsByNameTool' dengan query yang lebih umum (misalnya, "coating", "paket detailing", "cuci motor"). Jika tool mengembalikan beberapa pilihan, sebutkan beberapa pilihan utama yang relevan jika memungkinkan. Jangan hanya bertanya balik nama layanan spesifik tanpa memberikan informasi awal jika Anda bisa menemukannya.
+    *   Tool 'getProductServiceDetailsByNameTool' bisa mengembalikan satu item atau array beberapa item jika query-nya umum.
+    *   Jika pelanggan menyebutkan layanan secara umum (misalnya "coating motor", "cuci xmax") atau bertanya "ada apa aja?", gunakan tool 'getProductServiceDetailsByNameTool' dengan query yang lebih umum (misalnya, "coating", "paket detailing", "cuci motor").
+    *   Jika tool mengembalikan **ARRAY BEBERAPA ITEM** (misalnya, hasil dari query umum seperti "coating" atau "paket detailing"):
+        *   Ambil 2-3 item yang paling relevan dari array tersebut.
+        *   Untuk setiap item yang dipilih, sebutkan **nama itemnya (dari field 'name' output tool)** dan **harganya (dari field 'price' output tool, atau harga varian pertama jika ada varian dan harga dasar 0)**.
+        *   Contoh: "Untuk coating XMAX, kami ada beberapa pilihan Kak: (1) [NAMA_ITEM_1_DARI_TOOL] harganya Rp [HARGA_ITEM_1_DARI_TOOL], dan (2) [NAMA_ITEM_2_DARI_TOOL] harganya Rp [HARGA_ITEM_2_DARI_TOOL]. Kakak tertarik yang mana?"
+        *   Jika item punya 'variants', sebutkan nama item dasar dan mungkin satu atau dua harga varian sebagai contoh.
+        *   JANGAN membuat nama layanan sendiri, gunakan nama yang dikembalikan oleh tool.
+    *   Jika tool mengembalikan **SATU ITEM**:
+        *   Gunakan field 'price' dari output tool untuk menyebutkan harga dasar. Format harga sebagai Rupiah (Rp).
+        *   Jika item tersebut memiliki array 'variants', periksa array 'variants' tersebut. Jika ada, sebutkan beberapa pilihan varian beserta harganya. Contoh: "Untuk Coating Motor XMAX harganya mulai dari Rp 500.000 (varian Standar). Ada juga varian Premium Rp 700.000. Mau yang mana Kak?"
+        *   Jika tidak ada 'variants' atau pelanggan sudah spesifik memilih varian, gunakan harga dari item utama atau varian tersebut.
+        *   Gunakan detail lain seperti 'estimatedDuration' dan 'description' jika relevan dan tersedia.
     *   Jika pelanggan bertanya tentang kategori layanan (misalnya "layanan detailing apa saja?"), Anda bisa gunakan 'getKnowledgeBaseInfoTool' dengan query tentang kategori tersebut atau 'getProductServiceDetailsByNameTool' dengan nama kategori sebagai productName.
 4.  Untuk data pelanggan (poin, motor terdaftar), gunakan 'getClientDetailsTool'.
 5.  Jika pelanggan meminta booking, gunakan 'createBookingTool'. Pastikan Anda telah mengkonfirmasi layanan yang diinginkan, nama pelanggan, info kendaraan, dan tanggal/waktu sebelum memanggil tool booking. Untuk tanggal dan waktu, jika pelanggan tidak spesifik, Anda bisa menawarkan slot tersedia atau menanyakan preferensi mereka. Konfirmasi KETERSEDIAAN SLOT jika pelanggan meminta waktu spesifik SEBELUM memanggil tool ini (gunakan pengetahuan umum Anda atau getKnowledgeBaseInfoTool jika ada info ketersediaan umum).
@@ -108,20 +120,20 @@ Hasilkan hanya objek JSON sebagai balasan Anda.
 
 const whatsAppReplyFlowCombined = ai.defineFlow(
   {
-    name: 'whatsAppReplyFlow_Combined_v2', // New name for the flow
+    name: 'whatsAppReplyFlow_Combined_v4', // Updated version
     inputSchema: WhatsAppReplyInputSchema,
     outputSchema: WhatsAppReplyOutputSchema,
   },
   async (input: WhatsAppReplyInput) => {
-    console.log("whatsAppReplyFlow_Combined_v2 input received by flow:", JSON.stringify(input, null, 2));
+    console.log("whatsAppReplyFlow_Combined_v4 input received by flow:", JSON.stringify(input, null, 2));
     
     const {output} = await replyPromptCombined(input); 
     if (!output) {
-      throw new Error('Gagal mendapatkan saran balasan dari AI (combined prompt flow v2).');
+      throw new Error('Gagal mendapatkan saran balasan dari AI (combined prompt flow v4).');
     }
-    console.log("whatsAppReplyFlow_Combined_v2 output:", output);
+    console.log("whatsAppReplyFlow_Combined_v4 output:", output);
     return output;
   }
 );
-
     
+
