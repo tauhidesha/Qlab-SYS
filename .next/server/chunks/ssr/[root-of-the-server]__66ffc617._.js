@@ -1037,7 +1037,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$client
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$knowledgeLookupTool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/ai/tools/knowledgeLookupTool.ts [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$createBookingTool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/ai/tools/createBookingTool.ts [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$ai$2f$cs$2d$whatsapp$2d$reply$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/types/ai/cs-whatsapp-reply.ts [app-rsc] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/types/aiSettings.ts [app-rsc] (ecmascript)"); // Minimal settings for now
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/types/aiSettings.ts [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__ = __turbopack_context__.i("[project]/node_modules/date-fns/format.mjs [app-rsc] (ecmascript) <locals>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$addDays$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/date-fns/addDays.mjs [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$action$2d$validate$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/build/webpack/loaders/next-flight-loader/action-validate.js [app-rsc] (ecmascript)");
@@ -1054,24 +1054,25 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 async function generateWhatsAppReply({ customerMessage, senderNumber, chatHistory }) {
     const agentSettings = {
         ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"]
-    }; // Use default settings
+    };
     const now = new Date();
     const flowInput = {
         customerMessage: customerMessage,
         senderNumber: senderNumber,
         chatHistory: chatHistory || [],
-        agentBehavior: agentSettings.agentBehavior || '',
-        knowledgeBase: agentSettings.knowledgeBaseDescription || '',
+        agentBehavior: agentSettings.agentBehavior || 'Ramah & Membantu',
+        knowledgeBase: agentSettings.knowledgeBaseDescription || 'Anda adalah AI bengkel QLAB Auto Detailing. Gunakan knowledge base jika pertanyaan bersifat umum atau kebijakan.',
         currentDate: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(now, 'yyyy-MM-dd'),
         currentTime: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(now, 'HH:mm'),
         tomorrowDate: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$addDays$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["addDays"])(now, 1), 'yyyy-MM-dd'),
         dayAfterTomorrowDate: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$addDays$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["addDays"])(now, 2), 'yyyy-MM-dd')
     };
+    console.log("generateWhatsAppReply input to flow:", JSON.stringify(flowInput, null, 2));
     const aiResponse = await whatsAppReplyFlow(flowInput);
     return aiResponse;
 }
 const replyPrompt = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].definePrompt({
-    name: 'whatsAppReplyPromptMinimal',
+    name: 'whatsAppReplyPromptSuperMinimal',
     input: {
         schema: __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$ai$2f$cs$2d$whatsapp$2d$reply$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["WhatsAppReplyInputSchema"]
     },
@@ -1084,29 +1085,51 @@ const replyPrompt = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f
         __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$clientLookupTool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getClientDetailsTool"],
         __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$createBookingTool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["createBookingTool"]
     ],
-    system: `Anda adalah asisten AI yang membantu. Selalu balas dalam format JSON dengan satu field bernama "suggestedReply". Gunakan tool yang tersedia jika diperlukan untuk menjawab pertanyaan pelanggan. Perilaku Anda: {{{agentBehavior}}}.`,
-    prompt: `Pesan Pelanggan:
-{{{customerMessage}}}
+    prompt: `ANDA ADALAH AGEN AI.
+Perilaku Anda: {{{agentBehavior}}}
+Deskripsi Knowledge Base: {{{knowledgeBase}}}
+Tanggal Saat Ini: {{{currentDate}}}
+Waktu Saat Ini: {{{currentTime}}}
+
+TUGAS ANDA:
+Bantu pengguna dengan menjawab pertanyaan atau memproses permintaan mereka.
+Gunakan tool yang tersedia ('getKnowledgeBaseInfoTool', 'getProductServiceDetailsByNameTool', 'getClientDetailsTool', 'createBookingTool') jika diperlukan untuk mendapatkan informasi atau melakukan tindakan.
+Balas SELALU dalam format JSON dengan satu field bernama "suggestedReply".
 
 {{#if chatHistory.length}}
-Riwayat Percakapan Sebelumnya:
+RIWAYAT PERCAKAPAN SEBELUMNYA (dari yang paling lama ke terbaru):
 {{#each chatHistory}}
   {{this.role}}: {{{this.content}}}
 {{/each}}
 {{/if}}
+
+PESAN PELANGGAN TERBARU:
+user: {{{customerMessage}}}
 `
 });
 const whatsAppReplyFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].defineFlow({
-    name: 'whatsAppReplyFlowMinimal',
+    name: 'whatsAppReplyFlowSuperMinimal',
     inputSchema: __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$ai$2f$cs$2d$whatsapp$2d$reply$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["WhatsAppReplyInputSchema"],
     outputSchema: __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$ai$2f$cs$2d$whatsapp$2d$reply$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["WhatsAppReplyOutputSchema"]
 }, async (input)=>{
-    console.log("WhatsAppReplyFlow (minimal) input received by flow:", JSON.stringify(input, null, 2));
-    const { output } = await replyPrompt(input);
+    console.log("WhatsAppReplyFlow (super minimal) input received by flow:", JSON.stringify(input, null, 2));
+    // Persiapkan input untuk prompt, pastikan semua field Handlebars ada
+    const promptInput = {
+        customerMessage: input.customerMessage,
+        chatHistory: input.chatHistory || [],
+        agentBehavior: input.agentBehavior || __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"].agentBehavior,
+        knowledgeBase: input.knowledgeBase || __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"].knowledgeBaseDescription,
+        currentDate: input.currentDate || (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(new Date(), 'yyyy-MM-dd'),
+        currentTime: input.currentTime || (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(new Date(), 'HH:mm'),
+        tomorrowDate: input.tomorrowDate || (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$addDays$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["addDays"])(new Date(), 1), 'yyyy-MM-dd'),
+        dayAfterTomorrowDate: input.dayAfterTomorrowDate || (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$addDays$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["addDays"])(new Date(), 2), 'yyyy-MM-dd'),
+        senderNumber: input.senderNumber
+    };
+    const { output } = await replyPrompt(promptInput);
     if (!output) {
-        throw new Error('Gagal mendapatkan saran balasan dari AI (minimal flow).');
+        throw new Error('Gagal mendapatkan saran balasan dari AI (super minimal flow).');
     }
-    console.log("WhatsAppReplyFlow (minimal) output:", output);
+    console.log("WhatsAppReplyFlow (super minimal) output:", output);
     return output;
 });
 ;
