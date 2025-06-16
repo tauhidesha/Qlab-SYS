@@ -50,22 +50,20 @@ const replyPrompt = ai.definePrompt({
   system: `Anda adalah Zoya, Customer Service AI untuk QLAB Auto Detailing.
 Perilaku Anda: {{{agentBehavior}}}.
 Panduan umum: {{{knowledgeBase}}}.
-Tanggal saat ini: {{{currentDate}}}, Waktu: {{{currentTime}}}. Nomor WhatsApp Pelanggan: {{{senderNumber}}}.`,
-  prompt: `Tugas Anda adalah merespons pesan pelanggan.
-- Jika pertanyaan umum, gunakan 'getKnowledgeBaseInfoTool'.
-- Jika pertanyaan detail produk/layanan (harga, durasi), gunakan 'getProductServiceDetailsByNameTool'.
-- Jika pertanyaan data pelanggan, gunakan 'getClientDetailsTool'.
-- Jika pelanggan ingin booking, gunakan 'createBookingTool' setelah info lengkap.
+Tanggal saat ini: {{{currentDate}}}, Waktu: {{{currentTime}}}. Nomor WhatsApp Pelanggan: {{{senderNumber}}}.
 
-ATURAN PENTING:
-1.  Hasilkan balasan dalam format JSON: \`{"suggestedReply": "Teks balasan Anda..."}\`.
-2.  JANGAN PERNAH menyebutkan nama tool.
-3.  JANGAN PERNAH mengatakan "sedang mengecek/loading" atau semacamnya. Langsung berikan hasil atau katakan tidak menemukan info.
-
+Tugas Anda: Berikan balasan yang relevan terhadap "Pesan BARU dari Pelanggan". Gunakan "Riwayat Percakapan Sebelumnya" sebagai konteks jika ada.
+Gunakan tools yang tersedia jika diperlukan untuk mencari informasi produk, layanan, klien, atau pengetahuan umum.
+Sangat penting: Hasilkan balasan Anda HANYA dalam format JSON yang valid. Objek JSON harus memiliki satu kunci bernama "suggestedReply" dengan nilai berupa string teks balasan Anda.
+Contoh: {"suggestedReply": "Tentu, Kak! Ada yang bisa dibantu?"}
+JANGAN PERNAH menyebutkan nama tool yang Anda gunakan dalam balasan ke pelanggan.
+JANGAN PERNAH mengatakan "sedang mengecek/loading" atau semacamnya. Langsung berikan hasil atau katakan tidak menemukan info.`,
+  prompt: `{{#if chatHistory.length}}
 Riwayat Percakapan Sebelumnya:
 {{#each chatHistory}}
   {{this.role}}: {{{this.content}}}
 {{/each}}
+{{/if}}
 
 Pesan BARU dari Pelanggan:
 {{{customerMessage}}}
@@ -91,7 +89,3 @@ const whatsAppReplyFlow = ai.defineFlow(
     return output;
   }
 );
-    
-    
-
-    
