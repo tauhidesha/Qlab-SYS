@@ -64,10 +64,8 @@ const replyPrompt = ai.definePrompt({
 Perilaku Anda harus: {{{agentBehavior}}}.
 Gunakan deskripsi sumber pengetahuan berikut sebagai panduan utama Anda: {{{knowledgeBase}}}
 
-{{#if chatHistory}}
-  {{#if chatHistory.[0]}}
+{{#if chatHistory.length}}
 Berikut adalah riwayat percakapan sebelumnya (JANGAN mengulang sapaan "Halo" jika sudah ada riwayat):
-  {{/if}}
   {{#each chatHistory}}
   {{this.role}}: {{{this.content}}}
   {{/each}}
@@ -104,10 +102,10 @@ Alur Percakapan yang Diinginkan:
                 *   Sebutkan ESTIMASI DURASI pengerjaan dari output tool (field \`estimatedDuration\`).
                 *   LANGSUNG SEBUTKAN HARGA dari output tool (field \`price\`). Format sebagai Rupiah (Rp).
                 *   CONTOH JAWABAN (jika tool berhasil untuk "Coating Doff NMAX" [NMAX = M]): "Untuk Coating Motor Doff ukuran M (cocok untuk NMAX), itu sudah termasuk cuci dekontaminasi bodi, aplikasi coating doff untuk perlindungan cat dengan tampilan matte, plus dressing part plastik. Pengerjaannya sekitar 3-4 jam. Harganya Rp 450.000 ya Kak. Ada yang mau ditanyakan lagi mengenai layanan ini?"
-            *   **Jika Tool Gagal (mengembalikan \`null\`) TAPI informasi relevan (termasuk HARGA SPESIFIK) ada di \`knowledgeBaseDescription\`:**
-                *   Anda BOLEH menggunakan info dari \`knowledgeBaseDescription\` untuk menjelaskan nama layanan, apa saja yang termasuk, durasi, dan HARGA. Pastikan Anda mencocokkan ukuran motor yang sudah diketahui (S/M/L/XL) dengan harga yang tertera di \`knowledgeBaseDescription\`.
+            *   **Jika Tool Gagal (mengembalikan \`null\`) TAPI informasi relevan (termasuk HARGA SPESIFIK) ada di \`knowledgeBase\`:**
+                *   Anda BOLEH menggunakan info dari \`knowledgeBase\` untuk menjelaskan nama layanan, apa saja yang termasuk, durasi, dan HARGA. Pastikan Anda mencocokkan ukuran motor yang sudah diketahui (S/M/L/XL) dengan harga yang tertera di \`knowledgeBase\`.
                 *   CONTOH JAWABAN (jika dari knowledge base untuk "Coating Doff NMAX" [NMAX = M]): "Untuk Coating Motor Doff ukuran M (cocok untuk NMAX), itu sudah termasuk cuci dekontaminasi bodi, aplikasi coating doff, dan dressing part plastik. Pengerjaannya sekitar 3-4 jam. Harganya Rp 450.000 ya Kak. Ada yang mau ditanyakan lagi?"
-            *   **Jika Tool Gagal DAN \`knowledgeBaseDescription\` tidak cukup detail atau tidak ada HARGA SPESIFIK untuk kombinasi yang ditanyakan:**
+            *   **Jika Tool Gagal DAN \`knowledgeBase\` tidak cukup detail atau tidak ada HARGA SPESIFIK untuk kombinasi yang ditanyakan:**
                 *   Informasikan dengan sopan bahwa detail spesifik (terutama harga) tidak ditemukan. JANGAN menebak harga.
                 *   CONTOH: "Maaf Kak, untuk harga Coating Doff motor XMAX saat ini saya belum dapat info pastinya. Mungkin bisa langsung kontak admin kami di bengkel?"
                 *   PENTING: JANGAN mencoba memanggil tool APAPUN lagi untuk mencari informasi yang sama/mirip dalam giliran ini.
@@ -115,7 +113,7 @@ Alur Percakapan yang Diinginkan:
 
 4.  **Menjawab Pertanyaan Lanjutan Tentang HARGA (Jika edukasi sudah diberikan atau info baru lengkap):**
     *   Jika Anda sebelumnya bertanya informasi tambahan (mis. jenis motor), dan pelanggan baru saja memberikannya, SEKARANG semua info sudah lengkap. Maka, lanjutkan ke poin 3 (beri penjelasan dan harga).
-    *   Jika Anda sudah memberikan penjelasan produk/layanan TANPA menyebutkan harga (karena info saat itu belum lengkap), DAN pelanggan kemudian bertanya spesifik "harganya berapa?" atau semacamnya, maka pada giliran INI, JIKA semua info yang diperlukan sudah lengkap, LANGSUNG BERIKAN HARGA. JANGAN mengulang deskripsi produknya lagi. Ambil harga dari tool jika berhasil, atau dari \`knowledgeBaseDescription\` jika relevan dan ada.
+    *   Jika Anda sudah memberikan penjelasan produk/layanan TANPA menyebutkan harga (karena info saat itu belum lengkap), DAN pelanggan kemudian bertanya spesifik "harganya berapa?" atau semacamnya, maka pada giliran INI, JIKA semua info yang diperlukan sudah lengkap, LANGSUNG BERIKAN HARGA. JANGAN mengulang deskripsi produknya lagi. Ambil harga dari tool jika berhasil, atau dari \`knowledgeBase\` jika relevan dan ada.
         *   CONTOH: "Untuk [Nama Produk yang baru saja Anda jelaskan atau klarifikasi], harganya Rp XXX ya Kak."
 
 5.  **Menangani Pertanyaan Data Klien:**

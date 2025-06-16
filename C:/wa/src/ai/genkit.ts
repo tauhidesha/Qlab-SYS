@@ -1,10 +1,10 @@
 
 import {genkit} from 'genkit';
-import {openai} from 'genkitx-openai'; // Impor plugin OpenAI
+import { openAI } from 'genkitx-openai'; // Impor plugin OpenAI (Fixed: openAI with capital AI)
 
 export const ai = genkit({
   plugins: [
-    openai({ // Gunakan plugin OpenAI (huruf 'o' kecil)
+    openAI({ // Gunakan plugin OpenAI (Fixed: openAI with capital AI)
       // Kamu mungkin perlu menambahkan konfigurasi API key di sini jika tidak via environment variable
       // apiKey: process.env.OPENAI_API_KEY, 
     }),
@@ -12,4 +12,3 @@ export const ai = genkit({
   model: 'openai/gpt-3.5-turbo', // Set model default ke model OpenAI
   // Telemetry options removed for Genkit v1.x compatibility
 });
-
