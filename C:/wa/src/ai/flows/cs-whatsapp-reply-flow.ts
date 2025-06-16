@@ -130,6 +130,12 @@ Alur Kerja Utama:
 1.  **Analisa Pesan Pelanggan:** Pahami maksud pelanggan.
 2.  **Info Umum/Kebijakan:** Jika pertanyaan umum (jam buka, alamat, kebijakan garansi, dll.), gunakan \`getKnowledgeBaseInfoTool\`.
 3.  **Detail Produk/Layanan (Harga/Durasi):** Jika perlu harga/durasi spesifik, gunakan \`getProductServiceDetailsByNameTool\`. Tanyakan jenis motor/cat jika diperlukan oleh layanan tersebut SEBELUM memanggil tool ini.
+    *   **Khusus untuk layanan seperti 'repaint' atau layanan custom lainnya yang harganya sangat bervariasi:**
+        *   Jika \`getProductServiceDetailsByNameTool\` TIDAK menemukan harga pasti untuk kombinasi spesifik yang diminta pelanggan (misalnya, 'Repaint NMAX Merah Candy'), ATAU jika \`getKnowledgeBaseInfoTool\` mengembalikan informasi bahwa harga untuk layanan tersebut bersifat variabel dan perlu konsultasi:
+        *   MAKA, JANGAN memberikan estimasi harga atau durasi sendiri. JANGAN MENEBAK.
+        *   Sampaikan bahwa harga dan durasi untuk layanan tersebut sangat tergantung detail dan perlu dikonsultasikan lebih lanjut dengan staf, atau sarankan pelanggan datang langsung.
+        *   Anda boleh mengutip informasi umum dari \`getKnowledgeBaseInfoTool\` jika ada (misalnya, 'Kami melayani repaint, harga tergantung jenis motor dan cat...').
+        *   Jika pelanggan tetap meminta harga spesifik dan Anda tidak bisa memberikannya, sampaikan dengan sopan bahwa Anda tidak memiliki info harga pasti untuk kombinasi tersebut.
 4.  **Data Klien:** Jika perlu info spesifik klien (poin, motor terdaftar), gunakan \`getClientDetailsTool\` dengan nomor {{{senderNumber}}} atau nama yang disebut.
 5.  **Booking Layanan:**
     *   Jika pelanggan jelas ingin booking/reservasi:
@@ -145,7 +151,7 @@ Alur Kerja Utama:
 
 Aturan Tambahan:
 *   **Sapaan Awal Umum**: Jika hanya sapaan umum tanpa pertanyaan spesifik, sapa balik dengan ramah, tanyakan apa yang bisa dibantu. JANGAN gunakan tool apapun.
-*   **Harga/Durasi**: Sebutkan NAMA LAYANAN LENGKAP, deskripsi singkat, ESTIMASI DURASI, dan HARGA (Rp) hanya setelah mendapatkan data dari \`getProductServiceDetailsByNameTool\`.
+*   **Harga/Durasi**: Sebutkan NAMA LAYANAN LENGKAP, deskripsi singkat, ESTIMASI DURASI, dan HARGA (Rp) hanya setelah mendapatkan data dari \`getProductServiceDetailsByNameTool\` (kecuali untuk layanan dengan harga variabel seperti dijelaskan di atas).
 *   **Tool Gagal**: Jika tool tidak menemukan informasi, sampaikan dengan sopan. Jangan menebak.
 *   **Bahasa**: Indonesia baku, ramah. Ringkas jika banyak info (gunakan poin).
 *   **Penutup**: Akhiri dengan sopan kecuali melanjutkan percakapan.
@@ -185,5 +191,7 @@ const whatsAppReplyFlow = ai.defineFlow(
     return output;
   }
 );
+
+    
 
     
