@@ -1,7 +1,7 @@
 
 "use client";
 import AppHeader from '@/components/layout/AppHeader';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -33,7 +33,6 @@ import {
   DialogTrigger as InfoDialogTrigger,
   DialogClose
 } from '@/components/ui/dialog';
-import { buttonVariants } from '@/components/ui/button';
 import Papa from 'papaparse';
 import { v4 as uuidv4 } from 'uuid'; 
 
@@ -155,13 +154,12 @@ export default function ServicesPage() {
             const name = row.name?.trim();
             const type = row.type?.trim() as ServiceProduct['type'] | undefined;
             const category = row.category?.trim();
-            const priceString = row.price?.trim();
-            const description = row.description?.trim() || '';
+            const priceString = row.price?.trim() || row['']?.trim(); // Handle if price header is empty
+            const description = row.description?.trim();
             const pointsAwardedString = row.pointsAwarded?.trim();
             const estimatedDurationString = row.estimatedDuration?.trim();
             const stockQuantityString = row.stockQuantity?.trim();
             const costPriceString = row.costPrice?.trim();
-
 
             if (!name || !type || !category) {
               console.warn(`Baris ${index + 2} dilewati: field wajib (name, type, category) tidak lengkap.`);
@@ -187,16 +185,15 @@ export default function ServicesPage() {
             }
 
             let baseStockQuantity: number | undefined = undefined;
-            if (type === 'Produk' && stockQuantityString) {
+            if (stockQuantityString) {
                 const parsedStock = parseInt(stockQuantityString, 10);
                 if (!isNaN(parsedStock) && parsedStock >= 0) baseStockQuantity = parsedStock;
             }
             let baseCostPrice: number | undefined = undefined;
-            if (type === 'Produk' && costPriceString) {
+            if (costPriceString) {
                 const parsedCost = parseFloat(costPriceString);
                 if (!isNaN(parsedCost) && parsedCost >= 0) baseCostPrice = parsedCost;
             }
-
 
             const variants: ServiceProductVariant[] = [];
             for (let i = 1; i <= 5; i++) {
@@ -207,41 +204,39 @@ export default function ServicesPage() {
               const variantStockString = row[`variant${i}_stockQuantity`]?.trim();
               const variantCostString = row[`variant${i}_costPrice`]?.trim();
 
-
               if (variantName && variantPriceString) {
                 const variantPrice = parseFloat(variantPriceString);
                 if (isNaN(variantPrice) || variantPrice <= 0) {
                   console.warn(`Baris ${index + 2}, Varian ${i}: harga varian tidak valid ('${variantPriceString}'). Varian ini dilewati.`);
                   continue; 
                 }
-                let variantPoints = 0;
-                if (variantPointsString) {
-                  const parsedVP = parseInt(variantPointsString, 10);
-                  if (!isNaN(parsedVP) && parsedVP >= 0) {
-                    variantPoints = parsedVP;
-                  }
-                }
-
-                let variantStock: number | undefined = undefined;
-                if (type === 'Produk' && variantStockString) {
-                    const parsedVS = parseInt(variantStockString, 10);
-                    if (!isNaN(parsedVS) && parsedVS >= 0) variantStock = parsedVS;
-                }
-                let variantCost: number | undefined = undefined;
-                if (type === 'Produk' && variantCostString) {
-                    const parsedVC = parseFloat(variantCostString);
-                    if (!isNaN(parsedVC) && parsedVC >= 0) variantCost = parsedVC;
-                }
-
-                variants.push({
+                
+                const newVariant: ServiceProductVariant = {
                   id: uuidv4(),
                   name: variantName,
                   price: variantPrice,
-                  pointsAwarded: variantPoints,
-                  estimatedDuration: variantDurationString || undefined,
-                  stockQuantity: variantStock,
-                  costPrice: variantCost,
-                });
+                };
+
+                if (variantPointsString) {
+                  const parsedVP = parseInt(variantPointsString, 10);
+                  if (!isNaN(parsedVP) && parsedVP >= 0) {
+                    newVariant.pointsAwarded = parsedVP;
+                  }
+                }
+                if (variantDurationString) {
+                  newVariant.estimatedDuration = variantDurationString;
+                }
+                if (type === 'Produk') {
+                  if (variantStockString) {
+                      const parsedVS = parseInt(variantStockString, 10);
+                      if (!isNaN(parsedVS) && parsedVS >= 0) newVariant.stockQuantity = parsedVS;
+                  }
+                  if (variantCostString) {
+                      const parsedVC = parseFloat(variantCostString);
+                      if (!isNaN(parsedVC) && parsedVC >= 0) newVariant.costPrice = parsedVC;
+                  }
+                }
+                variants.push(newVariant);
               } else if (variantName || variantPriceString) {
                 console.warn(`Baris ${index + 2}, Varian ${i}: Nama dan Harga varian harus diisi bersamaan. Varian ini dilewati.`);
               }
@@ -258,24 +253,30 @@ export default function ServicesPage() {
             }
 
             const newItemRef = doc(collection(db, 'services'));
-            const newItemData: Omit<ServiceProduct, 'id' | 'createdAt'> = {
+            const newItemObject: any = {
               name,
               type,
               category,
               price: basePrice,
-              description,
-              pointsAwarded: basePointsAwarded,
-              estimatedDuration: estimatedDurationString || undefined,
-              variants,
-              stockQuantity: baseStockQuantity,
-              costPrice: baseCostPrice,
+              createdAt: serverTimestamp()
             };
-            if (type !== 'Produk') {
-                delete newItemData.stockQuantity;
-                delete newItemData.costPrice;
+
+            if (description) newItemObject.description = description;
+            if (basePointsAwarded > 0) newItemObject.pointsAwarded = basePointsAwarded;
+            else if (basePointsAwarded === 0) newItemObject.pointsAwarded = 0;
+
+            if (estimatedDurationString) newItemObject.estimatedDuration = estimatedDurationString;
+            if (variants.length > 0) newItemObject.variants = variants;
+            
+            if (type === 'Produk') {
+              if (baseStockQuantity !== undefined) newItemObject.stockQuantity = baseStockQuantity;
+              else newItemObject.stockQuantity = 0; // Default to 0 if not specified for Product
+
+              if (baseCostPrice !== undefined) newItemObject.costPrice = baseCostPrice;
+              else newItemObject.costPrice = 0; // Default to 0 if not specified for Product
             }
             
-            batch.set(newItemRef, { ...newItemData, createdAt: serverTimestamp() });
+            batch.set(newItemRef, newItemObject);
             itemsAddedCount++;
           });
 
@@ -389,7 +390,7 @@ export default function ServicesPage() {
                       <li><code className="bg-muted px-1 rounded-sm">variantN_costPrice</code> (Angka, Opsional) - Hanya untuk Produk.</li>
                       <li>Ganti 'N' dengan angka 1 sampai 5 (mis. variant1_name, variant2_price).</li>
                     </ul>
-                    <p className="text-xs text-muted-foreground">Baris pertama CSV harus berisi nama header.</p>
+                    <p className="text-xs text-muted-foreground">Baris pertama CSV harus berisi nama header. Kolom ke-4 (setelah category) bisa kosong atau diisi dengan header 'price'.</p>
                     <InfoDialogFooter>
                       <DialogClose asChild>
                         <Button type="button" variant="secondary">Tutup</Button>
@@ -497,8 +498,4 @@ export default function ServicesPage() {
     </div>
   );
 }
-    
-
-    
-
     
