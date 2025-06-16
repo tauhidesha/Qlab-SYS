@@ -46,7 +46,7 @@ import {
   AlertDialogDescription,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
+  AlertDialogFooter, // Added AlertDialogFooter
 } from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -616,7 +616,6 @@ export default function BookingsPage() {
                               <Button variant="ghost" size="sm" onClick={() => handleEditBooking(booking)} className="h-7 px-2 text-xs hover:bg-accent/80">
                                   <Edit3 className="mr-1 h-3.5 w-3.5"/> Edit
                               </Button>
-                              {/* Changed AlertDialogTrigger to a simple Button that sets state */}
                               <Button variant="ghost" size="sm" onClick={() => handleDeleteBookingConfirmation(booking)} className="h-7 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive">
                                   <Trash2 className="mr-1 h-3.5 w-3.5"/> Hapus
                               </Button>
@@ -634,7 +633,7 @@ export default function BookingsPage() {
             <BookingFormDialog
               onSubmitSuccess={() => {
                   refreshBookings();
-                  // setIsBookingFormOpen(false); // Dialog root onOpenChange will handle this
+                  setIsBookingFormOpen(false);
               }}
               clientsList={clientsList}
               allServicesList={allServicesList}
@@ -642,7 +641,6 @@ export default function BookingsPage() {
             />
           </Dialog>
           
-          {/* AlertDialog for delete confirmation */}
           <AlertDialog open={!!bookingToDelete} onOpenChange={(open) => !open && setBookingToDelete(null)}>
               <AlertDialogContent>
                   <AlertDialogHeader>
@@ -665,3 +663,6 @@ export default function BookingsPage() {
     </BookingsPageContext.Provider>
   );
 }
+
+
+      
