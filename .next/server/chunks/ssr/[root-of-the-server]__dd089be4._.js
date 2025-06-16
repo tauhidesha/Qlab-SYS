@@ -377,36 +377,26 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2
 ;
 ;
 const firebaseConfig = {
-    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
+    apiKey: ("TURBOPACK compile-time value", "AIzaSyB4O6ZRoRnRKWsA3v4q19jXHsSbELo2lT0"),
+    authDomain: ("TURBOPACK compile-time value", "detailflow-8mkmj.firebaseapp.com"),
+    projectId: ("TURBOPACK compile-time value", "detailflow-8mkmj"),
+    storageBucket: ("TURBOPACK compile-time value", "detailflow-8mkmj.firebasestorage.app"),
+    messagingSenderId: ("TURBOPACK compile-time value", "940251442415"),
+    appId: ("TURBOPACK compile-time value", "1:940251442415:web:0227a18d7c0028ff20bf1a")
 };
 let app;
 let db;
+console.log("[firebase.ts] Memulai inisialisasi Firebase...");
 if ((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["getApps"])().length === 0) {
+    console.log("[firebase.ts] Tidak ada aplikasi Firebase yang terinisialisasi, membuat aplikasi baru...");
     app = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["initializeApp"])(firebaseConfig);
+    console.log("[firebase.ts] Aplikasi Firebase baru berhasil dibuat.");
 } else {
+    console.log("[firebase.ts] Menggunakan aplikasi Firebase yang sudah ada.");
     app = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["getApp"])();
 }
 db = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getFirestore"])(app);
-// Kondisi untuk menggunakan emulator hanya saat development dan jika variabel env diset
-// Ini relevan jika kamu menjalankan Next.js secara LOKAL (yarn dev)
-// Untuk Firebase Studio, Studio akan menangani koneksi ke layanan cloud atau emulatornya sendiri.
-const useEmulator = ("TURBOPACK compile-time value", "development") === 'development' && process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true';
-if (useEmulator) {
-    console.log("Firebase.ts: NODE_ENV is development and NEXT_PUBLIC_USE_FIREBASE_EMULATOR is true. Attempting to connect to Firestore Emulator.");
-    try {
-        (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["connectFirestoreEmulator"])(db, 'localhost', 8080);
-        console.log("🔥 Firebase.ts: SUCCESSFULLY connected to Firestore Emulator at localhost:8080");
-    } catch (error) {
-        console.error(" Firebase.ts: FAILED to connect to Firestore Emulator. Make sure emulator is running.", error);
-    }
-} else {
-    console.log("Firebase.ts: Connecting to CLOUD Firestore. (NODE_ENV:", ("TURBOPACK compile-time value", "development"), ", NEXT_PUBLIC_USE_FIREBASE_EMULATOR:", process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR, ")");
-}
+console.log("[firebase.ts] Instance Firestore didapatkan. Selalu menghubungkan ke Cloud Firestore.");
 ;
 }}),
 "[project]/src/types/knowledgeBase.ts [app-ssr] (ecmascript)": ((__turbopack_context__) => {

@@ -1,5 +1,17 @@
 {
-  "node": {},
+  "node": {
+    "4042c47ea0c74421e840a6780974a2d92d185bfc6a": {
+      "workers": {
+        "app/(app)/ai-cs-assistant/page": {
+          "moduleId": "[project]/.next-internal/server/app/(app)/ai-cs-assistant/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/ai/flows/cs-whatsapp-reply-flow.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "async": false
+        }
+      },
+      "layer": {
+        "app/(app)/ai-cs-assistant/page": "action-browser"
+      }
+    }
+  },
   "edge": {},
   "encryptionKey": "0+kuAq257/FpQLayK8hp1TpESbDP0prfjUoFLFmhD5A="
 }

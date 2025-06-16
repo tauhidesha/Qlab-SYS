@@ -1,8 +1,8 @@
 
 'use server';
 /**
- * @fileOverview Minimal AI flow for WhatsApp customer service replies.
- *
+ * @fileOverview AI flow for WhatsApp customer service replies.
+ * Integrates with Firestore settings for dynamic AI behavior.
  * - generateWhatsAppReply - Function to generate a draft reply.
  */
 
@@ -37,15 +37,17 @@ async function getAiSettingsFromFirestore(): Promise<Partial<AiSettingsFormValue
 
 export async function generateWhatsAppReply({ customerMessage, senderNumber, chatHistory }: { customerMessage: string; senderNumber?: string; chatHistory?: ChatMessage[] }): Promise<WhatsAppReplyOutput> {
   const firestoreSettings = await getAiSettingsFromFirestore();
+  // Merge Firestore settings with defaults. Firestore settings take precedence.
   const agentSettings = { ...DEFAULT_AI_SETTINGS, ...firestoreSettings };
   
   const now = new Date();
 
+  // Construct the input for the Genkit flow, including all necessary fields from WhatsAppReplyInputSchema
   const flowInput: WhatsAppReplyInput = {
     customerMessage: customerMessage,
     senderNumber: senderNumber,
     chatHistory: chatHistory || [],
-    agentBehavior: agentSettings.agentBehavior,
+    agentBehavior: agentSettings.agentBehavior, 
     knowledgeBase: agentSettings.knowledgeBaseDescription,
     currentDate: formatDateFns(now, 'yyyy-MM-dd'),
     currentTime: formatDateFns(now, 'HH:mm'),
@@ -53,32 +55,28 @@ export async function generateWhatsAppReply({ customerMessage, senderNumber, cha
     dayAfterTomorrowDate: formatDateFns(addDays(now, 2), 'yyyy-MM-dd'),
   };
   
-  console.log("generateWhatsAppReply input to flow (using merged settings):", JSON.stringify(flowInput, null, 2));
+  console.log("generateWhatsAppReply input to flow (using merged settings, system prompt test):", JSON.stringify(flowInput, null, 2));
   const aiResponse = await whatsAppReplyFlow(flowInput);
   return aiResponse;
 }
 
-const replyPrompt = ai.definePrompt({
-  name: 'whatsAppReplyPromptIntegrated', // Nama prompt diubah sedikit untuk menandakan integrasi
-  input: { schema: WhatsAppReplyInputSchema },
-  output: { schema: WhatsAppReplyOutputSchema },
-  tools: [getKnowledgeBaseInfoTool, getProductServiceDetailsByNameTool, getClientDetailsTool, createBookingTool],
-  system: `ANDA ADALAH AGEN AI.
-Perilaku Anda: {{{agentBehavior}}}
-Panduan Umum Knowledge Base: {{{knowledgeBase}}}
-Tanggal Saat Ini: {{{currentDate}}}
-Waktu Saat Ini: {{{currentTime}}}
-
-TUGAS ANDA:
-Anda adalah Customer Service Assistant AI untuk QLAB Auto Detailing.
-Bantu pengguna dengan menjawab pertanyaan atau memproses permintaan mereka berdasarkan pesan dan riwayat percakapan.
-Gunakan tool yang tersedia ('getKnowledgeBaseInfoTool', 'getProductServiceDetailsByNameTool', 'getClientDetailsTool', 'createBookingTool') jika diperlukan untuk mendapatkan informasi akurat atau melakukan tindakan booking.
+// STATIC SYSTEM PROMPT FOR TESTING - NO HANDLEBARS
+const STATIC_SYSTEM_PROMPT = `Anda adalah Customer Service Assistant AI untuk QLAB Auto Detailing.
+Tugas Anda adalah membantu pengguna dengan menjawab pertanyaan atau memproses permintaan mereka.
+Gunakan tool yang tersedia jika diperlukan untuk mendapatkan informasi akurat atau melakukan tindakan booking.
 Balas SELALU dalam format JSON dengan satu field bernama "suggestedReply".
 Jangan pernah menyebutkan nama tool yang Anda gunakan dalam balasan ke pelanggan.
 Gunakan bahasa Indonesia yang baku, sopan, ramah, dan natural untuk percakapan WhatsApp.
 Jika pertanyaan di luar lingkup, sarankan untuk datang ke bengkel atau hubungi nomor resmi.
 Jaga balasan ringkas namun lengkap. Hindari janji yang tidak pasti.
-Selalu akhiri dengan sapaan sopan atau kalimat positif.`,
+Selalu akhiri dengan sapaan sopan atau kalimat positif.`;
+
+const replyPrompt = ai.definePrompt({
+  name: 'whatsAppReplyPromptSystemTest', // New name for this test
+  input: { schema: WhatsAppReplyInputSchema }, // Schema still expects all fields
+  output: { schema: WhatsAppReplyOutputSchema },
+  tools: [getKnowledgeBaseInfoTool, getProductServiceDetailsByNameTool, getClientDetailsTool, createBookingTool],
+  system: STATIC_SYSTEM_PROMPT, // Using the static system prompt
   prompt: `
 {{#if chatHistory.length}}
 RIWAYAT PERCAKAPAN SEBELUMNYA (dari yang paling lama ke terbaru):
@@ -94,31 +92,22 @@ user: {{{customerMessage}}}
 
 const whatsAppReplyFlow = ai.defineFlow(
   {
-    name: 'whatsAppReplyFlowIntegrated', // Nama flow diubah sedikit
+    name: 'whatsAppReplyFlowSystemTest', // New name for this test
     inputSchema: WhatsAppReplyInputSchema,
     outputSchema: WhatsAppReplyOutputSchema,
   },
   async (input: WhatsAppReplyInput) => {
-    console.log("WhatsAppReplyFlow (integrated) input received by flow:", JSON.stringify(input, null, 2));
+    console.log("WhatsAppReplyFlow (system test) input received by flow:", JSON.stringify(input, null, 2));
     
-    // Tidak perlu lagi menggabungkan dengan DEFAULT_AI_SETTINGS di sini, karena sudah dilakukan di generateWhatsAppReply
-    const promptInput = {
-      customerMessage: input.customerMessage,
-      chatHistory: input.chatHistory || [],
-      agentBehavior: input.agentBehavior, // Langsung dari input yang sudah digabung
-      knowledgeBase: input.knowledgeBase, // Langsung dari input yang sudah digabung
-      currentDate: input.currentDate,
-      currentTime: input.currentTime,
-      tomorrowDate: input.tomorrowDate,
-      dayAfterTomorrowDate: input.dayAfterTomorrowDate,
-      senderNumber: input.senderNumber,
-    };
-
-    const {output} = await replyPrompt(promptInput);
+    // All fields from WhatsAppReplyInput (including agentBehavior, knowledgeBase, etc.)
+    // are passed to the prompt. Even though the 'system' field of replyPrompt is static now,
+    // these values are still available if the main 'prompt' template were to use them.
+    // For this specific test, the main 'prompt' template only uses chatHistory and customerMessage.
+    const {output} = await replyPrompt(input); 
     if (!output) {
-      throw new Error('Gagal mendapatkan saran balasan dari AI (integrated flow).');
+      throw new Error('Gagal mendapatkan saran balasan dari AI (system test flow).');
     }
-    console.log("WhatsAppReplyFlow (integrated) output:", output);
+    console.log("WhatsAppReplyFlow (system test) output:", output);
     return output;
   }
 );

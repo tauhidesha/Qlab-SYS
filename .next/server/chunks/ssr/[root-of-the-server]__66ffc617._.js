@@ -254,27 +254,17 @@ const firebaseConfig = {
 };
 let app;
 let db;
+console.log("[firebase.ts] Memulai inisialisasi Firebase...");
 if ((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["getApps"])().length === 0) {
+    console.log("[firebase.ts] Tidak ada aplikasi Firebase yang terinisialisasi, membuat aplikasi baru...");
     app = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["initializeApp"])(firebaseConfig);
+    console.log("[firebase.ts] Aplikasi Firebase baru berhasil dibuat.");
 } else {
+    console.log("[firebase.ts] Menggunakan aplikasi Firebase yang sudah ada.");
     app = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["getApp"])();
 }
 db = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getFirestore"])(app);
-// Kondisi untuk menggunakan emulator hanya saat development dan jika variabel env diset
-// Ini relevan jika kamu menjalankan Next.js secara LOKAL (yarn dev)
-// Untuk Firebase Studio, Studio akan menangani koneksi ke layanan cloud atau emulatornya sendiri.
-const useEmulator = ("TURBOPACK compile-time value", "development") === 'development' && process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true';
-if (useEmulator) {
-    console.log("Firebase.ts: NODE_ENV is development and NEXT_PUBLIC_USE_FIREBASE_EMULATOR is true. Attempting to connect to Firestore Emulator.");
-    try {
-        (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["connectFirestoreEmulator"])(db, 'localhost', 8080);
-        console.log("🔥 Firebase.ts: SUCCESSFULLY connected to Firestore Emulator at localhost:8080");
-    } catch (error) {
-        console.error(" Firebase.ts: FAILED to connect to Firestore Emulator. Make sure emulator is running.", error);
-    }
-} else {
-    console.log("Firebase.ts: Connecting to CLOUD Firestore. (NODE_ENV:", ("TURBOPACK compile-time value", "development"), ", NEXT_PUBLIC_USE_FIREBASE_EMULATOR:", process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR, ")");
-}
+console.log("[firebase.ts] Instance Firestore didapatkan. Selalu menghubungkan ke Cloud Firestore.");
 ;
 }}),
 "[project]/src/types/aiToolSchemas.ts [app-rsc] (ecmascript)": ((__turbopack_context__) => {
@@ -1040,6 +1030,9 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$ai$2f$cs$2d$
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/types/aiSettings.ts [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__ = __turbopack_context__.i("[project]/node_modules/date-fns/format.mjs [app-rsc] (ecmascript) <locals>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$addDays$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/date-fns/addDays.mjs [app-rsc] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$firestore$2f$dist$2f$index$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/firestore/dist/index.mjs [app-rsc] (ecmascript) <module evaluation>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@firebase/firestore/dist/index.node.mjs [app-rsc] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/firebase.ts [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$action$2d$validate$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/build/webpack/loaders/next-flight-loader/action-validate.js [app-rsc] (ecmascript)");
 ;
 ;
@@ -1051,28 +1044,47 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 ;
 ;
 ;
+;
+;
+async function getAiSettingsFromFirestore() {
+    try {
+        const settingsDocRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["doc"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'appSettings', 'aiAgentConfig');
+        const docSnap = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDoc"])(settingsDocRef);
+        if (docSnap.exists()) {
+            console.log("AI settings fetched from Firestore:", docSnap.data());
+            return docSnap.data();
+        }
+        console.log("No AI settings found in Firestore, using defaults.");
+        return {};
+    } catch (error) {
+        console.error("Error fetching AI settings from Firestore:", error);
+        return {}; // Fallback to empty object, defaults will apply
+    }
+}
 async function generateWhatsAppReply({ customerMessage, senderNumber, chatHistory }) {
+    const firestoreSettings = await getAiSettingsFromFirestore();
     const agentSettings = {
-        ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"]
+        ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"],
+        ...firestoreSettings
     };
     const now = new Date();
     const flowInput = {
         customerMessage: customerMessage,
         senderNumber: senderNumber,
         chatHistory: chatHistory || [],
-        agentBehavior: agentSettings.agentBehavior || 'Ramah & Membantu',
-        knowledgeBase: agentSettings.knowledgeBaseDescription || 'Anda adalah AI bengkel QLAB Auto Detailing. Gunakan knowledge base jika pertanyaan bersifat umum atau kebijakan.',
+        agentBehavior: agentSettings.agentBehavior,
+        knowledgeBase: agentSettings.knowledgeBaseDescription,
         currentDate: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(now, 'yyyy-MM-dd'),
         currentTime: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(now, 'HH:mm'),
         tomorrowDate: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$addDays$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["addDays"])(now, 1), 'yyyy-MM-dd'),
         dayAfterTomorrowDate: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$addDays$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["addDays"])(now, 2), 'yyyy-MM-dd')
     };
-    console.log("generateWhatsAppReply input to flow:", JSON.stringify(flowInput, null, 2));
+    console.log("generateWhatsAppReply input to flow (using merged settings):", JSON.stringify(flowInput, null, 2));
     const aiResponse = await whatsAppReplyFlow(flowInput);
     return aiResponse;
 }
 const replyPrompt = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].definePrompt({
-    name: 'whatsAppReplyPromptSuperMinimal',
+    name: 'whatsAppReplyPromptIntegrated',
     input: {
         schema: __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$ai$2f$cs$2d$whatsapp$2d$reply$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["WhatsAppReplyInputSchema"]
     },
@@ -1085,17 +1097,23 @@ const replyPrompt = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f
         __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$clientLookupTool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getClientDetailsTool"],
         __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$createBookingTool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["createBookingTool"]
     ],
-    prompt: `ANDA ADALAH AGEN AI.
+    system: `ANDA ADALAH AGEN AI.
 Perilaku Anda: {{{agentBehavior}}}
-Deskripsi Knowledge Base: {{{knowledgeBase}}}
+Panduan Umum Knowledge Base: {{{knowledgeBase}}}
 Tanggal Saat Ini: {{{currentDate}}}
 Waktu Saat Ini: {{{currentTime}}}
 
 TUGAS ANDA:
-Bantu pengguna dengan menjawab pertanyaan atau memproses permintaan mereka.
-Gunakan tool yang tersedia ('getKnowledgeBaseInfoTool', 'getProductServiceDetailsByNameTool', 'getClientDetailsTool', 'createBookingTool') jika diperlukan untuk mendapatkan informasi atau melakukan tindakan.
+Anda adalah Customer Service Assistant AI untuk QLAB Auto Detailing.
+Bantu pengguna dengan menjawab pertanyaan atau memproses permintaan mereka berdasarkan pesan dan riwayat percakapan.
+Gunakan tool yang tersedia ('getKnowledgeBaseInfoTool', 'getProductServiceDetailsByNameTool', 'getClientDetailsTool', 'createBookingTool') jika diperlukan untuk mendapatkan informasi akurat atau melakukan tindakan booking.
 Balas SELALU dalam format JSON dengan satu field bernama "suggestedReply".
-
+Jangan pernah menyebutkan nama tool yang Anda gunakan dalam balasan ke pelanggan.
+Gunakan bahasa Indonesia yang baku, sopan, ramah, dan natural untuk percakapan WhatsApp.
+Jika pertanyaan di luar lingkup, sarankan untuk datang ke bengkel atau hubungi nomor resmi.
+Jaga balasan ringkas namun lengkap. Hindari janji yang tidak pasti.
+Selalu akhiri dengan sapaan sopan atau kalimat positif.`,
+    prompt: `
 {{#if chatHistory.length}}
 RIWAYAT PERCAKAPAN SEBELUMNYA (dari yang paling lama ke terbaru):
 {{#each chatHistory}}
@@ -1108,28 +1126,28 @@ user: {{{customerMessage}}}
 `
 });
 const whatsAppReplyFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].defineFlow({
-    name: 'whatsAppReplyFlowSuperMinimal',
+    name: 'whatsAppReplyFlowIntegrated',
     inputSchema: __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$ai$2f$cs$2d$whatsapp$2d$reply$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["WhatsAppReplyInputSchema"],
     outputSchema: __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$ai$2f$cs$2d$whatsapp$2d$reply$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["WhatsAppReplyOutputSchema"]
 }, async (input)=>{
-    console.log("WhatsAppReplyFlow (super minimal) input received by flow:", JSON.stringify(input, null, 2));
-    // Persiapkan input untuk prompt, pastikan semua field Handlebars ada
+    console.log("WhatsAppReplyFlow (integrated) input received by flow:", JSON.stringify(input, null, 2));
+    // Tidak perlu lagi menggabungkan dengan DEFAULT_AI_SETTINGS di sini, karena sudah dilakukan di generateWhatsAppReply
     const promptInput = {
         customerMessage: input.customerMessage,
         chatHistory: input.chatHistory || [],
-        agentBehavior: input.agentBehavior || __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"].agentBehavior,
-        knowledgeBase: input.knowledgeBase || __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"].knowledgeBaseDescription,
-        currentDate: input.currentDate || (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(new Date(), 'yyyy-MM-dd'),
-        currentTime: input.currentTime || (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(new Date(), 'HH:mm'),
-        tomorrowDate: input.tomorrowDate || (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$addDays$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["addDays"])(new Date(), 1), 'yyyy-MM-dd'),
-        dayAfterTomorrowDate: input.dayAfterTomorrowDate || (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$addDays$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["addDays"])(new Date(), 2), 'yyyy-MM-dd'),
+        agentBehavior: input.agentBehavior,
+        knowledgeBase: input.knowledgeBase,
+        currentDate: input.currentDate,
+        currentTime: input.currentTime,
+        tomorrowDate: input.tomorrowDate,
+        dayAfterTomorrowDate: input.dayAfterTomorrowDate,
         senderNumber: input.senderNumber
     };
     const { output } = await replyPrompt(promptInput);
     if (!output) {
-        throw new Error('Gagal mendapatkan saran balasan dari AI (super minimal flow).');
+        throw new Error('Gagal mendapatkan saran balasan dari AI (integrated flow).');
     }
-    console.log("WhatsAppReplyFlow (super minimal) output:", output);
+    console.log("WhatsAppReplyFlow (integrated) output:", output);
     return output;
 });
 ;
