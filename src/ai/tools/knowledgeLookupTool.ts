@@ -6,8 +6,9 @@
  */
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { collection, getDocs, query as firestoreQuery, orderBy } from 'firebase/firestore'; // Renamed query to firestoreQuery to avoid conflict
+import { collection, getDocs, query as firestoreQuery, orderBy, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import type { KnowledgeBaseEntry as KnowledgeBaseEntryType } from '@/types/knowledgeBase'; // Menggunakan tipe dari file baru
 
 const KnowledgeChunkSchema = z.object({
   topic: z.string().describe("The topic queried."),
@@ -20,13 +21,6 @@ const KnowledgeLookupInputSchema = z.object({
   query: z.string().describe("The user's question or topic to search for in the knowledge base. e.g., 'harga coating motor beat', 'jam buka bengkel', 'kebijakan garansi'"),
 });
 
-interface KnowledgeBaseEntry {
-  id: string;
-  topic: string;
-  content: string;
-  keywords?: string[];
-}
-
 export const getKnowledgeBaseInfoTool = ai.defineTool(
   {
     name: 'getKnowledgeBaseInfoTool',
@@ -36,90 +30,72 @@ export const getKnowledgeBaseInfoTool = ai.defineTool(
   },
   async (input) => {
     const queryLower = input.query.toLowerCase().trim();
-    let foundEntry: KnowledgeBaseEntry | null = null;
+    let foundEntryData: KnowledgeBaseEntryType | null = null;
     let highestMatchScore = 0;
     let matchedTopicDisplay = input.query;
 
     try {
       const kbCollectionRef = collection(db, 'knowledge_base_entries');
-      // Fetch all entries. For very large KBs, consider more targeted queries or a search service.
-      const q = firestoreQuery(kbCollectionRef, orderBy('topic'));
+      const q = firestoreQuery(kbCollectionRef, where("isActive", "==", true), orderBy('topic'));
       const snapshot = await getDocs(q);
       
       if (snapshot.empty) {
-        console.log("KnowledgeLookupTool: No entries found in 'knowledge_base_entries' collection.");
-        return { topic: input.query, information: "Maaf, sumber pengetahuan kami saat ini belum terisi.", found: false };
+        console.log("KnowledgeLookupTool: No active entries found in 'knowledge_base_entries' collection.");
+        return { topic: input.query, information: "Maaf, sumber pengetahuan kami saat ini belum terisi atau tidak ada entri yang aktif.", found: false };
       }
 
-      const allEntries: KnowledgeBaseEntry[] = snapshot.docs.map(doc => ({
+      const allEntries: KnowledgeBaseEntryType[] = snapshot.docs.map(doc => ({
         id: doc.id,
-        topic: doc.data().topic as string,
-        content: doc.data().content as string,
-        keywords: doc.data().keywords as string[] | undefined,
-      }));
+        ...doc.data()
+      } as KnowledgeBaseEntryType));
 
-      // Attempt 1: Direct keyword / phrase matching for common topics (similar to previous logic)
       for (const entry of allEntries) {
+        if (!entry.isActive) continue; // Lewati entri yang tidak aktif
+
         const entryTopicLower = entry.topic.toLowerCase();
         const entryKeywordsLower = entry.keywords?.map(kw => kw.toLowerCase()) || [];
         
         let currentScore = 0;
-        const topicWords = entryTopicLower.split(" ");
-        topicWords.forEach(kw => {
-            if (queryLower.includes(kw)) {
-            currentScore += kw.length;
-            }
+        
+        // Skor berdasarkan kecocokan topik
+        if (entryTopicLower === queryLower) { // Cocok persis dengan topik
+          currentScore = entryTopicLower.length * 3; // Skor tinggi untuk cocok persis topik
+        } else if (queryLower.includes(entryTopicLower)) { // Query mengandung nama topik
+          currentScore = entryTopicLower.length * 1.5;
+        } else if (entryTopicLower.includes(queryLower)) { // Nama topik mengandung query
+          currentScore = queryLower.length * 1.2;
+        }
+        
+        // Skor berdasarkan kecocokan kata kunci
+        entryKeywordsLower.forEach(keyword => {
+          if (queryLower.includes(keyword)) {
+            currentScore += keyword.length * 2; // Skor lebih tinggi untuk kata kunci
+          }
+        });
+        
+        // Skor berdasarkan kata-kata dalam query yang ada di topik atau keywords
+        const queryWords = queryLower.split(/\s+/).filter(w => w.length > 2);
+        queryWords.forEach(word => {
+          if (entryTopicLower.includes(word)) {
+            currentScore += word.length * 0.5;
+          }
+          if (entryKeywordsLower.some(kw => kw.includes(word))) {
+            currentScore += word.length * 0.8;
+          }
         });
 
-        // Check for full phrase match or significant overlap in topic
-        if (queryLower.includes(entryTopicLower) && entryTopicLower.length > highestMatchScore) {
-          foundEntry = entry;
-          matchedTopicDisplay = entry.topic;
-          highestMatchScore = entryTopicLower.length;
-        } else if (currentScore > 0 && currentScore * 2 > entryTopicLower.length && currentScore > highestMatchScore) {
-          foundEntry = entry;
+        if (currentScore > highestMatchScore) {
+          foundEntryData = entry;
           matchedTopicDisplay = entry.topic;
           highestMatchScore = currentScore;
         }
-
-        // Check keywords if no strong topic match yet or if keyword match is better
-        entryKeywordsLower.forEach(keyword => {
-          if (queryLower.includes(keyword)) {
-            // Prioritize keyword match if it's a more direct hit than a partial topic match
-            if (keyword.length > highestMatchScore || (queryLower === keyword && keyword.length > highestMatchScore * 0.8) ) {
-                 foundEntry = entry;
-                 matchedTopicDisplay = entry.topic; // still show the entry's main topic
-                 highestMatchScore = keyword.length + 5; // Boost score for direct keyword hit
-            }
-          }
-        });
       }
       
-      // Attempt 2: Fallback if no good direct match, check if query words are in content values (less efficient)
-      if (!foundEntry) {
-          for (const entry of allEntries) {
-              const contentLower = entry.content.toLowerCase();
-              const queryWords = queryLower.split(/\s+/).filter(w => w.length > 2);
-              let matchCount = 0;
-              queryWords.forEach(word => {
-                  if (contentLower.includes(word) || entry.topic.toLowerCase().includes(word)) {
-                      matchCount++;
-                  }
-              });
-              
-              if (queryWords.length > 0 && matchCount / queryWords.length > 0.5 && matchCount > highestMatchScore ) { 
-                  foundEntry = entry;
-                  matchedTopicDisplay = entry.topic;
-                  highestMatchScore = matchCount;
-              }
-          }
-      }
-
-      if (foundEntry) {
-        console.log(`KnowledgeLookupTool: Info found for query "${input.query}" (matched topic: "${matchedTopicDisplay}") from Firestore.`);
-        return { topic: matchedTopicDisplay, information: foundEntry.content, found: true };
+      if (foundEntryData) {
+        console.log(`KnowledgeLookupTool: Info found for query "${input.query}" (matched topic: "${matchedTopicDisplay}") from Firestore. Score: ${highestMatchScore}`);
+        return { topic: matchedTopicDisplay, information: foundEntryData.content, found: true };
       } else {
-        console.log(`KnowledgeLookupTool: No relevant info found for query "${input.query}" in Firestore.`);
+        console.log(`KnowledgeLookupTool: No relevant active info found for query "${input.query}" in Firestore.`);
         return { topic: input.query, information: "Maaf, informasi detail mengenai topik tersebut tidak ditemukan saat ini di knowledge base kami.", found: false };
       }
 
