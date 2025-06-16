@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Loader2, MessageSquareText, Sparkles, Copy, Send, User, Search, Bot, MessageCircle, ThumbsUp, ThumbsDown, Edit2 } from 'lucide-react'; // Added ThumbsUp, ThumbsDown, Edit2
+import { Loader2, MessageSquareText, Sparkles, Copy, Send, User, Search, Bot, MessageCircle, ThumbsUp, ThumbsDown, Edit2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { generateWhatsAppReply } from '@/ai/flows/cs-whatsapp-reply-flow';
 import type { WhatsAppReplyOutput, ChatMessage } from '@/types/ai/cs-whatsapp-reply';
@@ -34,8 +34,8 @@ interface PlaygroundMessage {
   timestamp: string;
   feedback?: 'good' | 'bad' | null;
   correction?: string;
-  isEditingCorrection?: boolean; // True if correction form is active for this message
-  currentCorrectionText?: string; // Text being typed in the correction form for this message
+  isEditingCorrection?: boolean; 
+  currentCorrectionText?: string; 
 }
 
 interface Customer {
@@ -149,8 +149,8 @@ export default function AiCsAssistantPage() {
       unsubscribeChatRef.current = null;
     }
 
-    if (selectedCustomer && selectedCustomer.phone) {
-      const formattedPhoneForQuery = selectedCustomer.phone;
+    if (selectedCustomer && selectedCustomer.phone && !isPlaygroundMode) {
+      const formattedPhoneForQuery = selectedCustomer.phone; // Assumes phone is already formatted
       const messagesRef = collection(db, 'directMessages');
       const q = query(
         messagesRef,
@@ -178,7 +178,7 @@ export default function AiCsAssistantPage() {
         });
       });
     } else {
-      setChatHistory([]);
+      setChatHistory([]); // Clear history if no customer selected or in playground mode
     }
 
     return () => {
@@ -186,21 +186,26 @@ export default function AiCsAssistantPage() {
         unsubscribeChatRef.current();
       }
     };
-  }, [selectedCustomer, toast]);
+  }, [selectedCustomer, toast, isPlaygroundMode]);
 
 
   const handleSelectPlayground = () => {
     setIsPlaygroundMode(true);
-    setSelectedCustomer(null);
+    setSelectedCustomer(null); // Clear selected customer
     setCustomerMessageInput('');
     setCurrentPlaygroundInput('');
     setPlaygroundChatHistory([]);
+    if (unsubscribeChatRef.current) {
+      unsubscribeChatRef.current(); // Unsubscribe from any active customer chat
+      unsubscribeChatRef.current = null;
+    }
   };
 
   const handleCustomerSelect = async (customer: Customer) => {
-    setIsPlaygroundMode(false);
+    setIsPlaygroundMode(false); // Ensure not in playground mode
     setSelectedCustomer(customer);
-    setCustomerMessageInput('');
+    setCustomerMessageInput(''); // Clear any manual reply input
+    // Chat history will be fetched by the useEffect hook for selectedCustomer
   };
 
   const handleSendPlaygroundMessage = async () => {
@@ -227,7 +232,7 @@ export default function AiCsAssistantPage() {
     setIsLoadingPlaygroundSuggestion(true);
 
     const genkitChatHistory: ChatMessage[] = updatedPlaygroundHistory
-      .slice(0, -1)
+      .slice(0, -1) // Exclude the current user message for history
       .map(msg => ({
         role: msg.sender === 'user' ? 'user' : 'model',
         content: msg.text,
@@ -237,6 +242,7 @@ export default function AiCsAssistantPage() {
       const result: WhatsAppReplyOutput = await generateWhatsAppReply({
         customerMessage: userMessageText,
         chatHistory: genkitChatHistory,
+        // senderNumber is not relevant for playground mode here
       });
 
       const aiMessage: PlaygroundMessage = {
@@ -245,7 +251,7 @@ export default function AiCsAssistantPage() {
         text: result.suggestedReply,
         timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
         feedback: null,
-        currentCorrectionText: result.suggestedReply, // Initialize for potential correction
+        currentCorrectionText: result.suggestedReply, 
       };
       setPlaygroundChatHistory(prev => [...prev, aiMessage]);
 
@@ -275,7 +281,7 @@ export default function AiCsAssistantPage() {
     }
   };
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = async () => { // For CS Agent manual reply
     if (!customerMessageInput.trim() || !selectedCustomer || isPlaygroundMode || !selectedCustomer.phone) {
         toast({
           title: "Tidak Dapat Mengirim",
@@ -286,11 +292,12 @@ export default function AiCsAssistantPage() {
     }
 
     const textToSend = customerMessageInput.trim();
-    const originalInput = customerMessageInput;
-    setCustomerMessageInput('');
+    const originalInput = customerMessageInput; // Save for potential revert on error
+    setCustomerMessageInput(''); // Clear input immediately
     setIsSendingWhatsApp(true);
 
     try {
+      // 1. Send message via WhatsApp server
       const response = await fetch('/api/whatsapp/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -304,17 +311,20 @@ export default function AiCsAssistantPage() {
           description: `Pesan Anda sedang dikirim ke ${selectedCustomer.name}.`,
         });
 
+        // 2. Save CS agent's message to Firestore directMessages
         const directMessagesRef = collection(db, 'directMessages');
         const csMessageData: Omit<DirectMessage, 'id'> = {
           customerId: selectedCustomer.id,
           customerName: selectedCustomer.name,
-          senderNumber: selectedCustomer.phone,
+          senderNumber: selectedCustomer.phone, // The customer's number this message is directed to
           text: textToSend,
-          sender: 'user',
-          timestamp: serverTimestamp() as any,
+          sender: 'user', // Mark as sent by CS agent
+          timestamp: serverTimestamp() as any, // Firestore server timestamp
+          read: true, // Agent's own message is "read" by the system
         };
         await addDoc(directMessagesRef, csMessageData);
         console.log("CS manual reply saved to directMessages.");
+        // UI will update automatically due to onSnapshot listener
 
       } else {
         throw new Error(result.error || 'Gagal mengirim pesan via server lokal.');
@@ -326,7 +336,7 @@ export default function AiCsAssistantPage() {
         description: error instanceof Error ? error.message : "Terjadi kesalahan.",
         variant: "destructive",
       });
-      setCustomerMessageInput(originalInput);
+      setCustomerMessageInput(originalInput); // Revert input on error
     } finally {
       setIsSendingWhatsApp(false);
     }
@@ -380,6 +390,7 @@ export default function AiCsAssistantPage() {
       <AppHeader title="Asisten CS AI untuk WhatsApp" />
       <div className="flex-1 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 overflow-hidden">
 
+        {/* Customer List Pane */}
         <div className="col-span-1 md:col-span-1 lg:col-span-1 border-r border-border bg-card flex flex-col">
           <CardHeader className="p-4">
             <CardTitle className="text-lg flex items-center">
@@ -397,6 +408,7 @@ export default function AiCsAssistantPage() {
             </div>
           </CardHeader>
 
+          {/* AI Playground Selector */}
           <div
             key="ai-playground"
             className={cn(
@@ -418,6 +430,7 @@ export default function AiCsAssistantPage() {
               </div>
             </div>
           </div>
+          {/* End AI Playground Selector */}
           <ScrollArea className="flex-grow">
             <CardContent className="p-0">
               {loadingCustomers ? (
@@ -449,6 +462,7 @@ export default function AiCsAssistantPage() {
                         <p className="text-sm font-medium truncate">{customer.name}</p>
                         <p className="text-xs text-muted-foreground truncate">{customer.phone || 'No HP tidak ada'}</p>
                       </div>
+                      {/* TODO: Add unread count badge if needed */}
                     </div>
                   </div>
                 ))
@@ -456,10 +470,12 @@ export default function AiCsAssistantPage() {
             </CardContent>
           </ScrollArea>
         </div>
+        {/* End Customer List Pane */}
 
-
+        {/* Chat/Playground Pane */}
         <div className="col-span-1 md:col-span-2 lg:col-span-3 flex flex-col bg-background">
           {isPlaygroundMode ? (
+            // Playground Mode UI
             <>
               <CardHeader className="p-4 border-b bg-card">
                 <CardTitle className="text-lg flex items-center"><Bot className="mr-2 h-6 w-6 text-primary" /> AI Playground</CardTitle>
@@ -518,7 +534,7 @@ export default function AiCsAssistantPage() {
                         </Button>
                       </div>
                     )}
-                    {message.sender === 'ai' && message.correction && (
+                     {message.sender === 'ai' && message.correction && (
                       <Card className="mt-2 ml-1 p-3 border-green-500 bg-green-50 dark:bg-green-900/30 max-w-md">
                         <p className="text-xs font-medium text-green-700 dark:text-green-300">Koreksi Anda:</p>
                         <p className="text-sm text-green-800 dark:text-green-200 whitespace-pre-wrap">{message.correction}</p>
@@ -559,12 +575,14 @@ export default function AiCsAssistantPage() {
               </Card>
             </>
           ) : !selectedCustomer ? (
+            // No customer selected UI
             <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
               <MessageSquareText className="h-16 w-16 text-muted-foreground mb-4" />
               <p className="text-xl text-muted-foreground">Pilih pelanggan untuk memulai percakapan</p>
               <p className="text-sm text-muted-foreground">atau masuk ke mode Playground AI dari daftar di samping.</p>
             </div>
           ) : (
+            // Customer Chat Mode UI
             <>
               <CardHeader className="p-4 border-b bg-card">
                 <CardTitle className="text-lg flex items-center">
@@ -576,19 +594,23 @@ export default function AiCsAssistantPage() {
                 {chatHistory.map((message) => (
                   <div
                     key={message.id}
-                    className={`flex ${message.sender === 'user' || message.sender === 'ai' ? 'justify-end' : 'justify-start'}`}
+                    className={`flex ${message.sender === 'customer' ? 'justify-start' : 'justify-end'}`}
                   >
                     <div
                       className={`max-w-xs lg:max-w-md px-4 py-2 rounded-xl shadow ${
-                        message.sender === 'user'
-                          ? 'bg-primary text-primary-foreground'
-                          : message.sender === 'ai'
-                            ? 'bg-secondary text-secondary-foreground'
-                            : 'bg-muted text-muted-foreground'
+                        message.sender === 'customer'
+                          ? 'bg-muted text-muted-foreground'
+                          : message.sender === 'user'
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-secondary text-secondary-foreground' // AI reply
                       }`}
                     >
                       <p className="text-sm whitespace-pre-wrap">{message.text}</p>
-                      <p className={`text-xs mt-1 ${message.sender === 'user' ? 'text-primary-foreground/80' : message.sender === 'ai' ? 'text-secondary-foreground/80' : 'text-muted-foreground/80'} text-right`}>
+                      <p className={`text-xs mt-1 ${
+                        message.sender === 'customer' ? 'text-muted-foreground/80' 
+                        : message.sender === 'user' ? 'text-primary-foreground/80' 
+                        : 'text-secondary-foreground/80'
+                        } text-right`}>
                         {message.timestamp} {message.sender === 'ai' && '(AI Otomatis)'}
                       </p>
                     </div>
@@ -638,7 +660,9 @@ export default function AiCsAssistantPage() {
             </>
           )}
         </div>
+        {/* End Chat/Playground Pane */}
       </div>
     </div>
   );
 }
+
