@@ -62,6 +62,7 @@ import { DatePickerSingle } from '@/components/ui/date-picker-single'; // For Bo
 import type { BookingEntry, ManualBookingFormData } from '@/types/booking'; // For Booking Form
 import { format as formatDateFns, parse as parseDateFns, startOfDay, isSameDay, setHours, setMinutes } from 'date-fns';
 import { id as indonesiaLocale } from 'date-fns/locale';
+import { Textarea } from '@/components/ui/textarea';
 
 
 export interface QueueItem { 
@@ -103,6 +104,7 @@ const manualBookingFormSchema = z.object({
   bookingDate: z.date({ required_error: "Tanggal booking diperlukan." }),
   bookingTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Format waktu booking JJ:MM (mis. 14:30)."),
   notes: z.string().max(300, "Catatan maksimal 300 karakter.").optional(),
+  source: z.enum(["Manual", "WhatsApp", "Online"]).default("Manual"),
 });
 
 
@@ -1441,7 +1443,7 @@ export default function QueuePage() {
                       <CardContent className="flex-grow">
                         <div className="text-sm text-muted-foreground mb-1">
                           Estimasi: {item.estimatedTime}
-                          {item.bookingId && <Badge variant="info" className="ml-2 text-xs">Booking</Badge>}
+                          {item.bookingId && <Badge variant="secondary" className="ml-2 text-xs">Booking</Badge>}
                         </div>
                         {item.staff && (
                           <div className="text-sm text-muted-foreground flex items-center">
@@ -1618,3 +1620,5 @@ export default function QueuePage() {
 }
 
 export type { QueueItem as QueueItemType }; 
+
+    
