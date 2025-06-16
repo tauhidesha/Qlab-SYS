@@ -14,46 +14,72 @@ import { createBookingTool } from '@/ai/tools/createBookingTool';
 import type { WhatsAppReplyInput, WhatsAppReplyOutput, ChatMessage } from '@/types/ai/cs-whatsapp-reply';
 import { WhatsAppReplyInputSchema, WhatsAppReplyOutputSchema } from '@/types/ai/cs-whatsapp-reply';
 import { z } from 'genkit';
-import { DEFAULT_AI_SETTINGS } from '@/types/aiSettings';
+import { DEFAULT_AI_SETTINGS, type AiSettingsFormValues } from '@/types/aiSettings';
 import { format as formatDateFns, addDays } from 'date-fns';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+
+async function getAiSettingsFromFirestore(): Promise<Partial<AiSettingsFormValues>> {
+  try {
+    const settingsDocRef = doc(db, 'appSettings', 'aiAgentConfig');
+    const docSnap = await getDoc(settingsDocRef);
+    if (docSnap.exists()) {
+      console.log("AI settings fetched from Firestore:", docSnap.data());
+      return docSnap.data() as Partial<AiSettingsFormValues>;
+    }
+    console.log("No AI settings found in Firestore, using defaults.");
+    return {};
+  } catch (error) {
+    console.error("Error fetching AI settings from Firestore:", error);
+    return {}; // Fallback to empty object, defaults will apply
+  }
+}
 
 export async function generateWhatsAppReply({ customerMessage, senderNumber, chatHistory }: { customerMessage: string; senderNumber?: string; chatHistory?: ChatMessage[] }): Promise<WhatsAppReplyOutput> {
-  const agentSettings = { ...DEFAULT_AI_SETTINGS };
+  const firestoreSettings = await getAiSettingsFromFirestore();
+  const agentSettings = { ...DEFAULT_AI_SETTINGS, ...firestoreSettings };
+  
   const now = new Date();
 
   const flowInput: WhatsAppReplyInput = {
     customerMessage: customerMessage,
     senderNumber: senderNumber,
     chatHistory: chatHistory || [],
-    agentBehavior: agentSettings.agentBehavior || 'Ramah & Membantu',
-    knowledgeBase: agentSettings.knowledgeBaseDescription || 'Anda adalah AI bengkel QLAB Auto Detailing. Gunakan knowledge base jika pertanyaan bersifat umum atau kebijakan.',
+    agentBehavior: agentSettings.agentBehavior,
+    knowledgeBase: agentSettings.knowledgeBaseDescription,
     currentDate: formatDateFns(now, 'yyyy-MM-dd'),
     currentTime: formatDateFns(now, 'HH:mm'),
     tomorrowDate: formatDateFns(addDays(now, 1), 'yyyy-MM-dd'),
     dayAfterTomorrowDate: formatDateFns(addDays(now, 2), 'yyyy-MM-dd'),
   };
   
-  console.log("generateWhatsAppReply input to flow:", JSON.stringify(flowInput, null, 2));
+  console.log("generateWhatsAppReply input to flow (using merged settings):", JSON.stringify(flowInput, null, 2));
   const aiResponse = await whatsAppReplyFlow(flowInput);
   return aiResponse;
 }
 
 const replyPrompt = ai.definePrompt({
-  name: 'whatsAppReplyPromptSuperMinimal',
+  name: 'whatsAppReplyPromptIntegrated', // Nama prompt diubah sedikit untuk menandakan integrasi
   input: { schema: WhatsAppReplyInputSchema },
   output: { schema: WhatsAppReplyOutputSchema },
   tools: [getKnowledgeBaseInfoTool, getProductServiceDetailsByNameTool, getClientDetailsTool, createBookingTool],
-  prompt: `ANDA ADALAH AGEN AI.
+  system: `ANDA ADALAH AGEN AI.
 Perilaku Anda: {{{agentBehavior}}}
-Deskripsi Knowledge Base: {{{knowledgeBase}}}
+Panduan Umum Knowledge Base: {{{knowledgeBase}}}
 Tanggal Saat Ini: {{{currentDate}}}
 Waktu Saat Ini: {{{currentTime}}}
 
 TUGAS ANDA:
-Bantu pengguna dengan menjawab pertanyaan atau memproses permintaan mereka.
-Gunakan tool yang tersedia ('getKnowledgeBaseInfoTool', 'getProductServiceDetailsByNameTool', 'getClientDetailsTool', 'createBookingTool') jika diperlukan untuk mendapatkan informasi atau melakukan tindakan.
+Anda adalah Customer Service Assistant AI untuk QLAB Auto Detailing.
+Bantu pengguna dengan menjawab pertanyaan atau memproses permintaan mereka berdasarkan pesan dan riwayat percakapan.
+Gunakan tool yang tersedia ('getKnowledgeBaseInfoTool', 'getProductServiceDetailsByNameTool', 'getClientDetailsTool', 'createBookingTool') jika diperlukan untuk mendapatkan informasi akurat atau melakukan tindakan booking.
 Balas SELALU dalam format JSON dengan satu field bernama "suggestedReply".
-
+Jangan pernah menyebutkan nama tool yang Anda gunakan dalam balasan ke pelanggan.
+Gunakan bahasa Indonesia yang baku, sopan, ramah, dan natural untuk percakapan WhatsApp.
+Jika pertanyaan di luar lingkup, sarankan untuk datang ke bengkel atau hubungi nomor resmi.
+Jaga balasan ringkas namun lengkap. Hindari janji yang tidak pasti.
+Selalu akhiri dengan sapaan sopan atau kalimat positif.`,
+  prompt: `
 {{#if chatHistory.length}}
 RIWAYAT PERCAKAPAN SEBELUMNYA (dari yang paling lama ke terbaru):
 {{#each chatHistory}}
@@ -68,31 +94,31 @@ user: {{{customerMessage}}}
 
 const whatsAppReplyFlow = ai.defineFlow(
   {
-    name: 'whatsAppReplyFlowSuperMinimal',
+    name: 'whatsAppReplyFlowIntegrated', // Nama flow diubah sedikit
     inputSchema: WhatsAppReplyInputSchema,
     outputSchema: WhatsAppReplyOutputSchema,
   },
   async (input: WhatsAppReplyInput) => {
-    console.log("WhatsAppReplyFlow (super minimal) input received by flow:", JSON.stringify(input, null, 2));
+    console.log("WhatsAppReplyFlow (integrated) input received by flow:", JSON.stringify(input, null, 2));
     
-    // Persiapkan input untuk prompt, pastikan semua field Handlebars ada
+    // Tidak perlu lagi menggabungkan dengan DEFAULT_AI_SETTINGS di sini, karena sudah dilakukan di generateWhatsAppReply
     const promptInput = {
       customerMessage: input.customerMessage,
       chatHistory: input.chatHistory || [],
-      agentBehavior: input.agentBehavior || DEFAULT_AI_SETTINGS.agentBehavior,
-      knowledgeBase: input.knowledgeBase || DEFAULT_AI_SETTINGS.knowledgeBaseDescription,
-      currentDate: input.currentDate || formatDateFns(new Date(), 'yyyy-MM-dd'),
-      currentTime: input.currentTime || formatDateFns(new Date(), 'HH:mm'),
-      tomorrowDate: input.tomorrowDate || formatDateFns(addDays(new Date(), 1), 'yyyy-MM-dd'),
-      dayAfterTomorrowDate: input.dayAfterTomorrowDate || formatDateFns(addDays(new Date(), 2), 'yyyy-MM-dd'),
-      senderNumber: input.senderNumber, // Tetap sertakan, mungkin berguna untuk tools
+      agentBehavior: input.agentBehavior, // Langsung dari input yang sudah digabung
+      knowledgeBase: input.knowledgeBase, // Langsung dari input yang sudah digabung
+      currentDate: input.currentDate,
+      currentTime: input.currentTime,
+      tomorrowDate: input.tomorrowDate,
+      dayAfterTomorrowDate: input.dayAfterTomorrowDate,
+      senderNumber: input.senderNumber,
     };
 
     const {output} = await replyPrompt(promptInput);
     if (!output) {
-      throw new Error('Gagal mendapatkan saran balasan dari AI (super minimal flow).');
+      throw new Error('Gagal mendapatkan saran balasan dari AI (integrated flow).');
     }
-    console.log("WhatsAppReplyFlow (super minimal) output:", output);
+    console.log("WhatsAppReplyFlow (integrated) output:", output);
     return output;
   }
 );
