@@ -65,10 +65,10 @@ Perilaku Anda harus: {{{agentBehavior}}}.
 Gunakan deskripsi sumber pengetahuan berikut sebagai panduan utama Anda: {{{knowledgeBase}}}
 
 {{#if chatHistory}}
-  {{#each chatHistory}}
-    {{#if @first}}
+  {{#if chatHistory.[0]}}
 Berikut adalah riwayat percakapan sebelumnya (JANGAN mengulang sapaan "Halo" jika sudah ada riwayat):
-    {{/if}}
+  {{/if}}
+  {{#each chatHistory}}
   {{this.role}}: {{{this.content}}}
   {{/each}}
 {{/if}}
