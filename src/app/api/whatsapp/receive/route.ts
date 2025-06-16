@@ -4,7 +4,7 @@ import { generateWhatsAppReply } from '@/ai/flows/cs-whatsapp-reply-flow';
 import { WhatsAppReplyInputSchema, ChatMessageSchema } from '@/types/ai/cs-whatsapp-reply';
 import type { DirectMessage } from '@/types/directMessage';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, query, where, getDocs, limit } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, query, where, getDocs, limit, doc, getDoc, Timestamp } from 'firebase/firestore';
 import { z } from 'zod';
 
 // Pastikan genkit diinisialisasi
@@ -20,13 +20,12 @@ async function getClientInfo(senderNumber: string): Promise<{ clientId?: string;
   if (!senderNumber) return {};
   try {
     const clientsRef = collection(db, 'clients');
-    // Mencoba mencocokkan dengan berbagai format nomor yang mungkin disimpan
     const q = query(
       clientsRef,
       where("phone", "in", [
-        senderNumber, // 62812...
-        `0${senderNumber.substring(2)}`, // 0812...
-        `+${senderNumber}` // +62812...
+        senderNumber,
+        `0${senderNumber.substring(2)}`,
+        `+${senderNumber}`
       ]),
       limit(1)
     );
@@ -38,18 +37,16 @@ async function getClientInfo(senderNumber: string): Promise<{ clientId?: string;
   } catch (error) {
     console.error(`Error fetching client info for ${senderNumber}:`, error);
   }
-  return { customerName: `Pelanggan ${senderNumber}` }; // Default name if not found
+  return { customerName: `Pelanggan ${senderNumber}` };
 }
 
 export async function POST(request: Request) {
   console.log("=== API /api/whatsapp/receive ENTERED POST HANDLER ===");
   try {
-    console.log("Attempting to parse request body...");
     const body = await request.json();
-    console.log("Request body parsed successfully:", body);
+    console.log("Request body parsed:", body);
 
     if (body.chatHistory === null) {
-      console.log("Sanitizing chatHistory: was null, setting to undefined.");
       body.chatHistory = undefined;
     }
 
@@ -59,17 +56,16 @@ export async function POST(request: Request) {
       console.error("API Input validation failed:", apiInputValidation.error.format());
       return NextResponse.json({ success: false, error: 'Invalid input for API.', details: apiInputValidation.error.format() }, { status: 400 });
     }
-    
+
     const { customerMessage, chatHistory, senderNumber } = apiInputValidation.data;
     console.log("API Input validated. Customer message:", customerMessage, "Sender:", senderNumber);
-    
+
     const directMessagesRef = collection(db, 'directMessages');
     let clientInfo: { clientId?: string; customerName?: string } = {};
 
     if (senderNumber) {
       clientInfo = await getClientInfo(senderNumber);
-      
-      // Simpan pesan pelanggan ke Firestore
+
       const customerMessageData: Omit<DirectMessage, 'id'> = {
         senderNumber: senderNumber,
         text: customerMessage,
@@ -77,33 +73,45 @@ export async function POST(request: Request) {
         timestamp: serverTimestamp() as any,
         customerId: clientInfo.clientId,
         customerName: clientInfo.customerName,
-        read: false, // Pesan baru dari customer defaultnya belum dibaca
+        read: false,
       };
       await addDoc(directMessagesRef, customerMessageData);
       console.log(`Customer message from ${senderNumber} saved to directMessages.`);
+
+      // Check for AI intervention lock
+      const interventionLockRef = doc(db, 'ai_intervention_locks', senderNumber);
+      const lockSnap = await getDoc(interventionLockRef);
+      if (lockSnap.exists()) {
+        const lockData = lockSnap.data();
+        const lockExpiresAt = lockData.lockExpiresAt as Timestamp;
+        if (lockExpiresAt && new Date() < lockExpiresAt.toDate()) {
+          console.log(`AI response locked for ${senderNumber} until ${lockExpiresAt.toDate().toLocaleString()}. Human intervention active.`);
+          return NextResponse.json({ success: true, message: "AI response deferred due to human intervention." });
+        } else {
+          console.log(`AI lock for ${senderNumber} has expired.`);
+        }
+      }
     } else {
-      console.warn("senderNumber is undefined, cannot save customer message or fetch client info accurately.");
+      console.warn("senderNumber is undefined, cannot save customer message, fetch client info accurately, or check AI lock.");
     }
-    
+
     console.log("Calling generateWhatsAppReply flow...");
-    
-    const aiResponse = await generateWhatsAppReply({ 
-      customerMessage, 
-      senderNumber, // Kirim senderNumber ke flow AI
-      chatHistory 
+    const aiResponse = await generateWhatsAppReply({
+      customerMessage,
+      senderNumber,
+      chatHistory
     });
     console.log("AI Flow response received:", aiResponse);
 
     if (senderNumber && aiResponse.suggestedReply) {
-      // Simpan balasan AI ke Firestore
       const aiMessageData: Omit<DirectMessage, 'id'> = {
-        senderNumber: senderNumber, // Nomor pelanggan yang sama
+        senderNumber: senderNumber,
         text: aiResponse.suggestedReply,
         sender: 'ai',
         timestamp: serverTimestamp() as any,
         customerId: clientInfo.clientId,
         customerName: clientInfo.customerName,
-        read: true, // Balasan AI dianggap "sudah dibaca" oleh sistem
+        read: true,
       };
       await addDoc(directMessagesRef, aiMessageData);
       console.log(`AI reply to ${senderNumber} saved to directMessages.`);
@@ -121,13 +129,11 @@ export async function POST(request: Request) {
     } else if (typeof error === 'object' && error !== null) {
       errorDetails = { ...error };
     }
-    
-    return NextResponse.json({ 
-      success: false, 
+
+    return NextResponse.json({
+      success: false,
       error: errorMessage,
       errorDetails: errorDetails
     }, { status: 500 });
   }
 }
-
-    
