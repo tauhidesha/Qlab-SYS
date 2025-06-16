@@ -6,7 +6,7 @@ import AppHeader from '@/components/layout/AppHeader';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Loader2, PlusCircle, CalendarDays, Clock, User, Edit3, Trash2, PackageSearch } from 'lucide-react';
+import { Loader2, PlusCircle, CalendarDays, Clock, User, Edit3, Trash2, PackageSearch, Wrench } from 'lucide-react'; // Added Wrench
 import { db } from '@/lib/firebase';
 import { 
   collection, 
@@ -73,15 +73,14 @@ const manualBookingFormSchema = z.object({
 });
 
 interface BookingFormDialogProps {
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange: (open: boolean) => void; // For internal close actions
   onSubmitSuccess: () => void;
   clientsList: Client[];
   allServicesList: ServiceProduct[];
-  existingBooking?: BookingEntry | null; // Untuk mode edit
+  existingBooking?: BookingEntry | null;
 }
 
-function BookingFormDialog({ isOpen, onOpenChange, onSubmitSuccess, clientsList, allServicesList, existingBooking }: BookingFormDialogProps) {
+function BookingFormDialog({ onOpenChange, onSubmitSuccess, clientsList, allServicesList, existingBooking }: BookingFormDialogProps) {
   const { toast } = useToast();
   const [isSubmittingBookingForm, setIsSubmittingBookingForm] = useState(false);
 
@@ -117,13 +116,11 @@ function BookingFormDialog({ isOpen, onOpenChange, onSubmitSuccess, clientsList,
         customerName: existingBooking.customerName,
         vehicleInfo: existingBooking.vehicleInfo,
         serviceId: existingBooking.serviceId,
-        // variantId: // This needs to be set after serviceId is processed
         bookingDate: bookingTimeDate,
         bookingTime: formatDateFns(bookingTimeDate, 'HH:mm'),
         notes: existingBooking.notes || '',
         source: existingBooking.source || 'Manual',
       });
-      // Trigger client and service effects after reset
       if (existingBooking.clientId && existingBooking.clientId !== WALK_IN_CLIENT_VALUE) {
         const client = clientsList.find(c => c.id === existingBooking.clientId);
         setSelectedClientMotorcycles(client?.motorcycles || []);
@@ -133,15 +130,16 @@ function BookingFormDialog({ isOpen, onOpenChange, onSubmitSuccess, clientsList,
          if (service) {
             const variants = service.variants?.filter(v => v.name && v.price > 0) || [];
             setAvailableVariants(variants);
-            // Now set variantId if it exists in the loaded service's variants
-            if (service.variants?.some(v => v.id === (existingBooking as any).variantId)) { // Cast as any to access potential variantId on booking
-                form.setValue('variantId', (existingBooking as any).variantId);
+            // Assuming variantId is stored in a field like 'variantId' in the booking entry if it's a variant booking
+            // This part might need adjustment based on how variant bookings are stored
+            const bookingVariantId = (existingBooking as any).variantId || (existingBooking as any).service?.variantId; 
+            if (bookingVariantId && service.variants?.some(v => v.id === bookingVariantId)) {
+                form.setValue('variantId', bookingVariantId);
             }
          }
       }
-
     } else {
-      form.reset({ // Reset to default for new booking
+      form.reset({ 
         clientId: WALK_IN_CLIENT_VALUE,
         customerName: '',
         vehicleInfo: '',
@@ -167,7 +165,7 @@ function BookingFormDialog({ isOpen, onOpenChange, onSubmitSuccess, clientsList,
         form.setValue('vehicleInfo', '');
       }
     } else {
-      if (selectedClientId === WALK_IN_CLIENT_VALUE && !existingBooking) { // Only clear name if creating new walk-in
+      if (selectedClientId === WALK_IN_CLIENT_VALUE && !existingBooking) { 
         form.setValue('customerName', '');
       }
       setSelectedClientMotorcycles([]);
@@ -179,7 +177,7 @@ function BookingFormDialog({ isOpen, onOpenChange, onSubmitSuccess, clientsList,
     if (service) {
       const variants = service.variants?.filter(v => v.name && v.price > 0) || [];
       setAvailableVariants(variants);
-      if (!variants.find(v => v.id === form.getValues('variantId')) && !existingBooking?.id) { // Only reset variant if new booking
+      if (!variants.find(v => v.id === form.getValues('variantId')) && !existingBooking?.id) { 
           form.setValue('variantId', undefined); 
       }
     } else {
@@ -251,8 +249,8 @@ function BookingFormDialog({ isOpen, onOpenChange, onSubmitSuccess, clientsList,
         }
       }
       
-      onSubmitSuccess(); // Call the success callback
-      onOpenChange(false); // Close dialog
+      onSubmitSuccess(); 
+      onOpenChange(false); 
     } catch (error) {
       console.error("Error submitting booking form: ", error);
       toast({ title: "Error Booking", description: "Gagal menyimpan booking.", variant: "destructive" });
@@ -403,7 +401,9 @@ function BookingFormDialog({ isOpen, onOpenChange, onSubmitSuccess, clientsList,
             )}
           />
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmittingBookingForm}>Batal</Button>
+            <DialogClose asChild>
+                <Button type="button" variant="outline" disabled={isSubmittingBookingForm}>Batal</Button>
+            </DialogClose>
             <Button type="submit" disabled={isSubmittingBookingForm}>
               {isSubmittingBookingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               {existingBooking ? "Simpan Perubahan" : "Simpan Booking"}
@@ -511,9 +511,6 @@ export default function BookingsPage() {
     setIsDeletingBooking(true);
     try {
       await deleteDoc(doc(db, 'bookings', bookingToDelete.id!));
-      // If booking was in queue, ideally also remove/update queue item
-      // This part can be complex if queue item has advanced status.
-      // For now, just deleting booking.
       if (bookingToDelete.queueItemId) {
         try {
           await deleteDoc(doc(db, 'queueItems', bookingToDelete.queueItemId));
@@ -526,7 +523,7 @@ export default function BookingsPage() {
 
       toast({ title: "Sukses", description: `Booking untuk ${bookingToDelete.customerName} berhasil dihapus.` });
       setBookingToDelete(null);
-      fetchBookingsForMonth(currentDisplayDate); // Refresh data
+      fetchBookingsForMonth(currentDisplayDate); 
     } catch (error) {
       console.error("Error deleting booking: ", error);
       toast({ title: "Error Hapus Booking", description: "Gagal menghapus booking.", variant: "destructive" });
@@ -618,14 +615,18 @@ export default function BookingsPage() {
           </CardContent>
         </Card>
 
-        <BookingFormDialog
-          isOpen={isBookingFormOpen}
-          onOpenChange={setIsBookingFormOpen}
-          onSubmitSuccess={refreshBookings}
-          clientsList={clientsList}
-          allServicesList={allServicesList}
-          existingBooking={editingBookingEntry}
-        />
+        <Dialog open={isBookingFormOpen} onOpenChange={setIsBookingFormOpen}>
+          <BookingFormDialog
+            onOpenChange={setIsBookingFormOpen}
+            onSubmitSuccess={() => {
+                refreshBookings();
+                // setIsBookingFormOpen(false); // onOpenChange from Dialog root will handle this
+            }}
+            clientsList={clientsList}
+            allServicesList={allServicesList}
+            existingBooking={editingBookingEntry}
+          />
+        </Dialog>
         
         {bookingToDelete && (
             <AlertDialog open={!!bookingToDelete} onOpenChange={(open) => !open && setBookingToDelete(null)}>
@@ -651,3 +652,4 @@ export default function BookingsPage() {
     </div>
   );
 }
+
