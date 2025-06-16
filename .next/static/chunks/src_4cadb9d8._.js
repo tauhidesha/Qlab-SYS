@@ -222,26 +222,35 @@ const firebaseConfig = {
 };
 let app;
 let db;
+console.log("[firebase.ts] Memulai inisialisasi Firebase...");
 if ((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["getApps"])().length === 0) {
+    console.log("[firebase.ts] Tidak ada aplikasi Firebase yang terinisialisasi, membuat aplikasi baru...");
     app = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["initializeApp"])(firebaseConfig);
+    console.log("[firebase.ts] Aplikasi Firebase baru berhasil dibuat.");
 } else {
+    console.log("[firebase.ts] Menggunakan aplikasi Firebase yang sudah ada.");
     app = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["getApp"])();
 }
 db = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getFirestore"])(app);
+console.log("[firebase.ts] Instance Firestore didapatkan.");
 // Kondisi untuk menggunakan emulator hanya saat development dan jika variabel env diset
-// Ini relevan jika kamu menjalankan Next.js secara LOKAL (yarn dev)
-// Untuk Firebase Studio, Studio akan menangani koneksi ke layanan cloud atau emulatornya sendiri.
-const useEmulator = ("TURBOPACK compile-time value", "development") === 'development' && __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$polyfills$2f$process$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"].env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true';
+const nodeEnv = ("TURBOPACK compile-time value", "development");
+const useEmulatorEnvVar = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$polyfills$2f$process$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"].env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR;
+const useEmulator = nodeEnv === 'development' && useEmulatorEnvVar === 'true';
+console.log(`[firebase.ts] Evaluasi penggunaan emulator:`);
+console.log(`  - process.env.NODE_ENV: ${nodeEnv} (Harusnya 'development')`);
+console.log(`  - process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR: ${useEmulatorEnvVar} (Harusnya 'true')`);
+console.log(`  - Keputusan useEmulator: ${useEmulator}`);
 if (useEmulator) {
-    console.log("Firebase.ts: NODE_ENV is development and NEXT_PUBLIC_USE_FIREBASE_EMULATOR is true. Attempting to connect to Firestore Emulator.");
+    console.log("[firebase.ts] Mencoba menghubungkan ke Firestore Emulator di localhost:8080...");
     try {
         (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["connectFirestoreEmulator"])(db, 'localhost', 8080);
-        console.log("🔥 Firebase.ts: SUCCESSFULLY connected to Firestore Emulator at localhost:8080");
+        console.log("🔥 [firebase.ts] BERHASIL terhubung ke Firestore Emulator di localhost:8080.");
     } catch (error) {
-        console.error(" Firebase.ts: FAILED to connect to Firestore Emulator. Make sure emulator is running.", error);
+        console.error("☠️ [firebase.ts] GAGAL terhubung ke Firestore Emulator. Pastikan emulator berjalan.", error);
     }
 } else {
-    console.log("Firebase.ts: Connecting to CLOUD Firestore. (NODE_ENV:", ("TURBOPACK compile-time value", "development"), ", NEXT_PUBLIC_USE_FIREBASE_EMULATOR:", __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$polyfills$2f$process$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"].env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR, ")");
+    console.log("[firebase.ts] Menghubungkan ke Cloud Firestore.");
 }
 ;
 if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
