@@ -1,19 +1,45 @@
 
 import { NextResponse } from 'next/server';
 import { generateWhatsAppReply } from '@/ai/flows/cs-whatsapp-reply-flow';
-import { WhatsAppReplyInputSchema, ChatMessageSchema } from '@/types/ai/cs-whatsapp-reply'; // Import ChatMessageSchema
+import { WhatsAppReplyInputSchema, ChatMessageSchema } from '@/types/ai/cs-whatsapp-reply';
+import type { DirectMessage } from '@/types/directMessage';
+import { db } from '@/lib/firebase';
+import { collection, addDoc, serverTimestamp, query, where, getDocs, limit } from 'firebase/firestore';
 import { z } from 'zod';
 
 // Pastikan genkit diinisialisasi
 import '@/ai/genkit';
 
-
-// Skema input khusus untuk API route ini, bisa lebih fleksibel untuk chatHistory
 const ApiReceiveInputSchema = z.object({
   customerMessage: z.string().min(1, "Pesan pelanggan tidak boleh kosong."),
-  senderNumber: z.string().optional(), // Jika Anda mengirimnya dari whatsapp.js
-  chatHistory: z.array(ChatMessageSchema).optional(), // Terima chat history jika dikirim
+  senderNumber: z.string().optional(),
+  chatHistory: z.array(ChatMessageSchema).optional(),
 });
+
+async function getClientInfo(senderNumber: string): Promise<{ clientId?: string; customerName?: string }> {
+  if (!senderNumber) return {};
+  try {
+    const clientsRef = collection(db, 'clients');
+    // Mencoba mencocokkan dengan berbagai format nomor yang mungkin disimpan
+    const q = query(
+      clientsRef,
+      where("phone", "in", [
+        senderNumber, // 62812...
+        `0${senderNumber.substring(2)}`, // 0812...
+        `+${senderNumber}` // +62812...
+      ]),
+      limit(1)
+    );
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+      const clientDoc = querySnapshot.docs[0];
+      return { clientId: clientDoc.id, customerName: clientDoc.data().name };
+    }
+  } catch (error) {
+    console.error(`Error fetching client info for ${senderNumber}:`, error);
+  }
+  return { customerName: `Pelanggan ${senderNumber}` }; // Default name if not found
+}
 
 export async function POST(request: Request) {
   console.log("=== API /api/whatsapp/receive ENTERED POST HANDLER ===");
@@ -22,7 +48,6 @@ export async function POST(request: Request) {
     const body = await request.json();
     console.log("Request body parsed successfully:", body);
 
-    // Sanitize chatHistory: if it's null, change to undefined before Zod parsing
     if (body.chatHistory === null) {
       console.log("Sanitizing chatHistory: was null, setting to undefined.");
       body.chatHistory = undefined;
@@ -37,19 +62,52 @@ export async function POST(request: Request) {
     
     const { customerMessage, chatHistory, senderNumber } = apiInputValidation.data;
     console.log("API Input validated. Customer message:", customerMessage, "Sender:", senderNumber);
-    if (chatHistory) {
-      console.log(`Chat history received with ${chatHistory.length} message(s).`);
+    
+    const directMessagesRef = collection(db, 'directMessages');
+    let clientInfo: { clientId?: string; customerName?: string } = {};
+
+    if (senderNumber) {
+      clientInfo = await getClientInfo(senderNumber);
+      
+      // Simpan pesan pelanggan ke Firestore
+      const customerMessageData: Omit<DirectMessage, 'id'> = {
+        senderNumber: senderNumber,
+        text: customerMessage,
+        sender: 'customer',
+        timestamp: serverTimestamp() as any,
+        customerId: clientInfo.clientId,
+        customerName: clientInfo.customerName,
+        read: false, // Pesan baru dari customer defaultnya belum dibaca
+      };
+      await addDoc(directMessagesRef, customerMessageData);
+      console.log(`Customer message from ${senderNumber} saved to directMessages.`);
     } else {
-      console.log("No chat history received or chatHistory is undefined.");
+      console.warn("senderNumber is undefined, cannot save customer message or fetch client info accurately.");
     }
     
     console.log("Calling generateWhatsAppReply flow...");
     
     const aiResponse = await generateWhatsAppReply({ 
       customerMessage, 
+      senderNumber, // Kirim senderNumber ke flow AI
       chatHistory 
     });
     console.log("AI Flow response received:", aiResponse);
+
+    if (senderNumber && aiResponse.suggestedReply) {
+      // Simpan balasan AI ke Firestore
+      const aiMessageData: Omit<DirectMessage, 'id'> = {
+        senderNumber: senderNumber, // Nomor pelanggan yang sama
+        text: aiResponse.suggestedReply,
+        sender: 'ai',
+        timestamp: serverTimestamp() as any,
+        customerId: clientInfo.clientId,
+        customerName: clientInfo.customerName,
+        read: true, // Balasan AI dianggap "sudah dibaca" oleh sistem
+      };
+      await addDoc(directMessagesRef, aiMessageData);
+      console.log(`AI reply to ${senderNumber} saved to directMessages.`);
+    }
 
     return NextResponse.json({ success: true, reply: aiResponse });
 
@@ -71,3 +129,5 @@ export async function POST(request: Request) {
     }, { status: 500 });
   }
 }
+
+    
