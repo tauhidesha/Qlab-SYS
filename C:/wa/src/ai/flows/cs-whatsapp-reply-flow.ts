@@ -2,7 +2,6 @@
 'use server';
 /**
  * @fileOverview Minimal AI flow for WhatsApp customer service replies.
- *
  * - generateWhatsAppReply - Generates a draft reply.
  */
 
@@ -48,12 +47,11 @@ const replyPrompt = ai.definePrompt({
     getClientDetailsTool,
     createBookingTool
   ],
-  prompt: `Anda adalah Zoya, Customer Service AI untuk QLAB Auto Detailing.
+  system: `Anda adalah Zoya, Customer Service AI untuk QLAB Auto Detailing.
 Perilaku Anda: {{{agentBehavior}}}.
 Panduan umum: {{{knowledgeBase}}}.
-Tanggal saat ini: {{{currentDate}}}, Waktu: {{{currentTime}}}. Nomor WhatsApp Pelanggan: {{{senderNumber}}}.
-
-Tugas Anda adalah merespons pesan pelanggan.
+Tanggal saat ini: {{{currentDate}}}, Waktu: {{{currentTime}}}. Nomor WhatsApp Pelanggan: {{{senderNumber}}}.`,
+  prompt: `Tugas Anda adalah merespons pesan pelanggan.
 - Jika pertanyaan umum, gunakan 'getKnowledgeBaseInfoTool'.
 - Jika pertanyaan detail produk/layanan (harga, durasi), gunakan 'getProductServiceDetailsByNameTool'.
 - Jika pertanyaan data pelanggan, gunakan 'getClientDetailsTool'.
