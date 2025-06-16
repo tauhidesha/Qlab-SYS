@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview Genkit tool for retrieving specific knowledge base information
@@ -29,6 +28,7 @@ export const getKnowledgeBaseInfoTool = ai.defineTool(
     outputSchema: KnowledgeChunkSchema,
   },
   async (input) => {
+    console.log(`KnowledgeLookupTool: Mencari info untuk query: "${input.query}"`); // CONSOLE LOG DITAMBAHKAN DI SINI
     const queryLower = input.query.toLowerCase().trim();
     let foundEntryData: KnowledgeBaseEntryType | null = null;
     let highestMatchScore = 0;
@@ -92,15 +92,15 @@ export const getKnowledgeBaseInfoTool = ai.defineTool(
       }
       
       if (foundEntryData) {
-        console.log(`KnowledgeLookupTool: Info found for query "${input.query}" (matched topic: "${matchedTopicDisplay}") from Firestore. Score: ${highestMatchScore}`);
+        console.log(`KnowledgeLookupTool: Info ditemukan untuk query "${input.query}" (cocok dengan topik: "${matchedTopicDisplay}") dari Firestore. Skor: ${highestMatchScore}`);
         return { topic: matchedTopicDisplay, information: foundEntryData.content, found: true };
       } else {
-        console.log(`KnowledgeLookupTool: No relevant active info found for query "${input.query}" in Firestore.`);
+        console.log(`KnowledgeLookupTool: Tidak ada info aktif yang relevan untuk query "${input.query}" di Firestore.`);
         return { topic: input.query, information: "Maaf, informasi detail mengenai topik tersebut tidak ditemukan saat ini di knowledge base kami.", found: false };
       }
 
     } catch (error) {
-      console.error("KnowledgeLookupTool: Error fetching from Firestore:", error);
+      console.error("KnowledgeLookupTool: Error saat mengambil data dari Firestore:", error);
       return { topic: input.query, information: "Maaf, terjadi kesalahan saat mengakses sumber pengetahuan kami.", found: false };
     }
   }
