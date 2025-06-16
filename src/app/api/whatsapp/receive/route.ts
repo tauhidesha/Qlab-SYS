@@ -22,6 +22,12 @@ export async function POST(request: Request) {
     const body = await request.json();
     console.log("Request body parsed successfully:", body);
 
+    // Sanitize chatHistory: if it's null, change to undefined before Zod parsing
+    if (body.chatHistory === null) {
+      console.log("Sanitizing chatHistory: was null, setting to undefined.");
+      body.chatHistory = undefined;
+    }
+
     const apiInputValidation = ApiReceiveInputSchema.safeParse(body);
 
     if (!apiInputValidation.success) {
@@ -33,19 +39,15 @@ export async function POST(request: Request) {
     console.log("API Input validated. Customer message:", customerMessage, "Sender:", senderNumber);
     if (chatHistory) {
       console.log(`Chat history received with ${chatHistory.length} message(s).`);
-      // Anda bisa log beberapa pesan terakhir jika perlu untuk debugging:
-      // if (chatHistory.length > 0) {
-      //   console.log("Last message in history:", chatHistory[chatHistory.length - 1]);
-      // }
     } else {
-      console.log("No chat history received.");
+      console.log("No chat history received or chatHistory is undefined.");
     }
     
     console.log("Calling generateWhatsAppReply flow...");
     
     const aiResponse = await generateWhatsAppReply({ 
       customerMessage, 
-      chatHistory // Pass chatHistory to the flow
+      chatHistory 
     });
     console.log("AI Flow response received:", aiResponse);
 

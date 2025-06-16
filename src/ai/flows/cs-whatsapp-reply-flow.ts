@@ -13,9 +13,8 @@ import { ai } from '@/ai/genkit';
 import { getProductServiceDetailsByNameTool } from '@/ai/tools/productLookupTool';
 import { getClientDetailsTool } from '@/ai/tools/clientLookupTool';
 import type { WhatsAppReplyInput, WhatsAppReplyOutput, ChatMessage } from '@/types/ai/cs-whatsapp-reply';
-// Reverted: Removed ProcessedChatMessageSchema and PromptInternalInputSchema from this import
 import { WhatsAppReplyInputSchema, WhatsAppReplyOutputSchema } from '@/types/ai/cs-whatsapp-reply';
-import { z } from 'genkit'; // This import is fine, used by the schemas above
+import { z } from 'genkit'; 
 
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
@@ -23,14 +22,14 @@ import { AiSettingsFormSchema, DEFAULT_AI_SETTINGS, type AiSettingsFormValues } 
 
 
 export async function generateWhatsAppReply({ customerMessage, chatHistory }: { customerMessage: string; chatHistory?: ChatMessage[] }): Promise<WhatsAppReplyOutput> {
-  let agentSettings = { ...DEFAULT_AI_SETTINGS }; // Start with defaults
+  let agentSettings = { ...DEFAULT_AI_SETTINGS }; 
 
   try {
     const settingsDocRef = doc(db, 'appSettings', 'aiAgentConfig');
     const docSnap = await getDoc(settingsDocRef);
     if (docSnap.exists()) {
       const rawSettingsData = docSnap.data();
-      // safeParse was in the original prompt, so it stays
+      
       const parsedSettings = AiSettingsFormSchema.safeParse(rawSettingsData); 
       
       if (parsedSettings.success) {
@@ -46,7 +45,7 @@ export async function generateWhatsAppReply({ customerMessage, chatHistory }: { 
     console.error("Error fetching AI settings from Firestore, using defaults:", error);
   }
 
-  const flowInput: WhatsAppReplyInput = { // Using the original WhatsAppReplyInput type
+  const flowInput: WhatsAppReplyInput = { 
     customerMessage: customerMessage,
     chatHistory: chatHistory,
     agentBehavior: agentSettings.agentBehavior,
@@ -58,7 +57,7 @@ export async function generateWhatsAppReply({ customerMessage, chatHistory }: { 
 
 const replyPrompt = ai.definePrompt({
   name: 'whatsAppReplyPrompt',
-  input: { schema: WhatsAppReplyInputSchema }, // Reverted: Using WhatsAppReplyInputSchema directly
+  input: { schema: WhatsAppReplyInputSchema }, 
   output: { schema: WhatsAppReplyOutputSchema },
   tools: [getProductServiceDetailsByNameTool, getClientDetailsTool],
   prompt: `Anda adalah seorang Customer Service Assistant AI untuk QLAB Auto Detailing, sebuah bengkel perawatan dan detailing motor.
@@ -110,6 +109,7 @@ Instruksi:
 7.  Jika pertanyaan di luar lingkup layanan bengkel umum atau informasi yang bisa Anda akses, sarankan pelanggan untuk datang langsung ke bengkel atau menghubungi nomor telepon resmi untuk bantuan lebih lanjut.
 8.  Jaga agar balasan tetap ringkas namun lengkap. Hindari janji yang tidak bisa dipastikan (misalnya, "pasti selesai dalam 1 jam" kecuali memang itu standar layanan atau informasi dari tool). Lebih baik berikan estimasi yang realistis jika memungkinkan.
 9.  Selalu akhiri dengan sapaan yang sopan atau kalimat penutup yang positif, KECUALI jika Anda sedang melanjutkan percakapan yang sudah berjalan (berdasarkan riwayat chat).
+10. **PENTING UNTUK PENGIRIMAN:** Buat balasan yang **ringkas dan padat**. Jika informasi yang perlu disampaikan cukup banyak, usahakan untuk menyajikannya dalam **poin-poin singkat atau paragraf pendek yang mudah dipisah**. Hindari paragraf yang sangat panjang dan tidak terputus. Sistem pengirim mungkin akan memecah pesanmu menjadi beberapa chat jika terlalu panjang.
 
 Contoh Interaksi Sukses (jika ini pertama kali bahas item):
 - Pelanggan: "Harga coating XMAX berapa?"
@@ -134,7 +134,7 @@ const whatsAppReplyFlow = ai.defineFlow(
   },
   async (input: WhatsAppReplyInput) => { 
     console.log("WhatsAppReplyFlow input received by flow (reverted):", JSON.stringify(input, null, 2));
-    // Reverted: Directly pass input to the prompt without processing chatHistory
+    
     const {output} = await replyPrompt(input); 
     
     if (!output) {
