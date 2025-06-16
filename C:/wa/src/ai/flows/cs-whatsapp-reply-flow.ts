@@ -64,12 +64,12 @@ const replyPrompt = ai.definePrompt({
 Perilaku Anda harus: {{{agentBehavior}}}.
 Gunakan deskripsi sumber pengetahuan berikut sebagai panduan utama Anda: {{{knowledgeBase}}}
 
-{{#if chatHistory.length}}
+{{#each chatHistory}}
+  {{#if @first}}
 Berikut adalah riwayat percakapan sebelumnya (JANGAN mengulang sapaan "Halo" jika sudah ada riwayat):
-  {{#each chatHistory}}
+  {{/if}}
   {{this.role}}: {{{this.content}}}
-  {{/each}}
-{{/if}}
+{{/each}}
 
 Pesan BARU dari Pelanggan (atau pertanyaan dari Staf CS yang perlu Anda bantu jawab berdasarkan riwayat di atas jika ada):
 {{{customerMessage}}}
