@@ -3,8 +3,8 @@
 /**
  * @fileOverview Genkit tool for looking up product or service details from Firestore.
  */
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {ai}from '@/ai/genkit';
+import {z}from 'genkit';
 import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { ServiceProduct, ServiceProductVariant } from '@/app/(app)/services/page';
@@ -43,7 +43,7 @@ export const getProductServiceDetailsByNameTool = ai.defineTool(
         const item = { id: doc.id, ...doc.data() } as ServiceProduct;
         
         // Check variants first for more specific matches
-        if (item.variants && Array.isArray(item.variants)) { // Ensure variants is an array
+        if (item.variants) { // Reverted: No Array.isArray check
             for (const variant of item.variants) {
                 const fullVariantName = `${item.name} - ${variant.name}`;
                 if (fullVariantName.toLowerCase().includes(searchTermLower)) {
@@ -92,15 +92,13 @@ export const getProductServiceDetailsByNameTool = ai.defineTool(
         console.log(`ProductLookupTool: Ditemukan item: ${foundItem.name}`);
         
         let mappedVariants: ProductServiceInfo['variants'] = undefined;
-        if (!bestMatchIsVariant && foundItem.variants && Array.isArray(foundItem.variants)) {
-            mappedVariants = foundItem.variants.map(v => ({
+        if (!bestMatchIsVariant && foundItem.variants) { // Reverted: No Array.isArray check
+            mappedVariants = foundItem.variants.map(v => ({ // This might fail if foundItem.variants is not an array
                 name: v.name,
                 price: v.price,
                 pointsAwarded: v.pointsAwarded || undefined,
                 estimatedDuration: v.estimatedDuration || undefined,
             }));
-        } else if (!bestMatchIsVariant && foundItem.variants && !Array.isArray(foundItem.variants)) {
-            console.warn(`ProductLookupTool: Item ${foundItem.id} memiliki field 'variants' tapi bukan array. Diabaikan.`);
         }
 
         const result: ProductServiceInfo = {

@@ -20,13 +20,6 @@ export const WhatsAppReplyOutputSchema = z.object({
 });
 export type WhatsAppReplyOutput = z.infer<typeof WhatsAppReplyOutputSchema>;
 
-// Skema internal untuk data yang diproses sebelum ke prompt
-export const ProcessedChatMessageSchema = ChatMessageSchema.extend({
-  isUser: z.boolean(),
-  isModel: z.boolean(),
-});
-
-export const PromptInternalInputSchema = WhatsAppReplyInputSchema.omit({ chatHistory: true }).extend({
-  processedChatHistory: z.array(ProcessedChatMessageSchema).optional(),
-});
+// Reverted: Removed ProcessedChatMessageSchema and PromptInternalInputSchema
+// These are no longer used by the reverted cs-whatsapp-reply-flow.ts
 

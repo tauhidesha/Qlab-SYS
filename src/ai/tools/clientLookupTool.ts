@@ -3,8 +3,8 @@
 /**
  * @fileOverview Genkit tool for looking up client details from Firestore.
  */
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import {ai}from '@/ai/genkit';
+import {z}from 'genkit';
 import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Client, Motorcycle } from '@/types/client';
@@ -62,10 +62,8 @@ export const getClientDetailsTool = ai.defineTool(
         console.log(`ClientLookupTool: Ditemukan klien: ${foundClient.name}`);
         
         let mappedMotorcycles: ClientInfo['motorcycles'] = undefined;
-        if (foundClient.motorcycles && Array.isArray(foundClient.motorcycles)) {
-            mappedMotorcycles = foundClient.motorcycles.map(m => ({ name: m.name, licensePlate: m.licensePlate }));
-        } else if (foundClient.motorcycles && !Array.isArray(foundClient.motorcycles)) {
-            console.warn(`ClientLookupTool: Klien ${foundClient.id} memiliki field 'motorcycles' tapi bukan array. Diabaikan.`);
+        if (foundClient.motorcycles) { // Reverted: No Array.isArray check
+            mappedMotorcycles = foundClient.motorcycles.map(m => ({ name: m.name, licensePlate: m.licensePlate })); // This might fail if not an array
         }
 
         const result: ClientInfo = {

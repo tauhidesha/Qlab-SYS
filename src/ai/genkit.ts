@@ -6,6 +6,5 @@ export const ai = genkit({
     googleAI(),
   ],
   model: 'googleai/gemini-1.5-flash-latest', // Mengatur model default
-  // Telemetry options have changed or been removed in Genkit v1.x
-  // Refer to Genkit documentation for current observability/telemetry setup if needed.
+  // Telemetry options removed for Genkit v1.x compatibility
 });
