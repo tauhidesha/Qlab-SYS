@@ -22,13 +22,14 @@ export const getProductServiceDetailsByNameTool = ai.defineTool(
     outputSchema: z.union([ProductServiceInfoSchema, z.null()]).describe("Objek berisi detail produk/layanan, atau null jika tidak ditemukan."),
   },
   async (input) => {
+    console.log(`ProductLookupTool: Mencari produk/layanan dengan nama: "${input.productName}"`);
     if (!input.productName || input.productName.trim() === '') {
       console.log("ProductLookupTool: Nama produk kosong.");
       return null;
     }
     const searchTerm = input.productName.trim();
     const searchTermLower = searchTerm.toLowerCase();
-    console.log(`ProductLookupTool: Mencari produk/layanan dengan nama/term: "${searchTerm}" (lowercase: "${searchTermLower}")`);
+    // console.log(`ProductLookupTool: Mencari produk/layanan dengan nama/term: "${searchTerm}" (lowercase: "${searchTermLower}")`); // Redundant with above
 
     try {
       const servicesRef = collection(db, 'services');
@@ -98,7 +99,7 @@ export const getProductServiceDetailsByNameTool = ai.defineTool(
       }
 
       if (bestMatchCandidate) {
-        console.log(`ProductLookupTool: Ditemukan kandidat terbaik: "${bestMatchCandidate.name}" dengan skor: ${bestMatchScore}`);
+        console.log(`ProductLookupTool: Kandidat terbaik ditemukan: "${bestMatchCandidate.name}" dengan skor: ${bestMatchScore}`);
 
         let mappedVariantsForOutput: ProductServiceInfo['variants'] = undefined;
         if ((bestMatchScore === 1 || bestMatchScore === 2) && Array.isArray(bestMatchCandidate.variants) && bestMatchCandidate.variants.length > 0) {
@@ -126,8 +127,8 @@ export const getProductServiceDetailsByNameTool = ai.defineTool(
             ProductServiceInfoSchema.parse(result);
             return result;
         } catch (zodError: any) {
-            console.error("ProductLookupTool: Zod validation error for found item:", zodError.errors);
-            console.error("ProductLookupTool: Data causing error:", JSON.stringify(result, null, 2));
+            console.error("ProductLookupTool: Error validasi Zod untuk item yang ditemukan:", zodError.errors);
+            console.error("ProductLookupTool: Data yang menyebabkan error:", JSON.stringify(result, null, 2));
             return null;
         }
       } else {
@@ -140,3 +141,4 @@ export const getProductServiceDetailsByNameTool = ai.defineTool(
     }
   }
 );
+

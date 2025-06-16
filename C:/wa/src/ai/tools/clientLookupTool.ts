@@ -22,12 +22,13 @@ export const getClientDetailsTool = ai.defineTool(
     outputSchema: z.union([ClientInfoSchema, z.null()]).describe("Objek berisi detail klien, atau null jika tidak ditemukan."),
   },
   async (input) => {
+    console.log(`ClientLookupTool: Mencari klien dengan query: "${input.searchQuery}"`);
     if (!input.searchQuery || input.searchQuery.trim() === '') {
       console.log("ClientLookupTool: Query pencarian klien kosong.");
       return null;
     }
     const searchTerm = input.searchQuery.trim();
-    console.log(`ClientLookupTool: Mencari klien dengan query: "${searchTerm}"`);
+    // console.log(`ClientLookupTool: Mencari klien dengan query: "${searchTerm}"`); // Redundant
 
     try {
       const clientsRef = collection(db, 'clients');
@@ -86,7 +87,7 @@ export const getClientDetailsTool = ai.defineTool(
             ClientInfoSchema.parse(result);
             return result;
         } catch (zodError: any) { // Catch any error from Zod
-            console.error("ClientLookupTool: Zod validation error for found client:", zodError);
+            console.error("ClientLookupTool: Error validasi Zod untuk klien yang ditemukan:", zodError);
             return null; // Or handle error appropriately
         }
       } else {

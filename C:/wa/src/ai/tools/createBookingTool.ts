@@ -42,7 +42,7 @@ export const createBookingTool = ai.defineTool(
     outputSchema: CreateBookingOutputSchema,
   },
   async (input: CreateBookingToolInput): Promise<CreateBookingToolOutput> => {
-    console.log("createBookingTool input:", JSON.stringify(input, null, 2));
+    console.log("createBookingTool: Input diterima:", JSON.stringify(input, null, 2));
     try {
       const bookingDateTimeStr = `${input.bookingDate}T${input.bookingTime}:00`;
       let parsedBookingDateTime: Date;
@@ -52,7 +52,7 @@ export const createBookingTool = ai.defineTool(
           throw new Error('Format tanggal atau waktu tidak valid.');
         }
       } catch (parseError) {
-        console.error("Error parsing booking date/time:", parseError);
+        console.error("createBookingTool: Error parsing booking date/time:", parseError);
         return { success: false, message: `Format tanggal booking (${input.bookingDate}) atau waktu booking (${input.bookingTime}) tidak valid. Gunakan YYYY-MM-DD dan HH:MM.` };
       }
 
@@ -72,7 +72,7 @@ export const createBookingTool = ai.defineTool(
                 customerPhoneToUse = clientSnap.data().phone;
             }
         } catch (clientError) {
-            console.warn("Could not fetch client phone for booking, proceeding without it:", clientError);
+            console.warn("createBookingTool: Tidak dapat mengambil nomor HP klien, akan dilanjutkan tanpa nomor HP:", clientError);
         }
       }
 
@@ -97,7 +97,7 @@ export const createBookingTool = ai.defineTool(
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
-      console.log(`Booking created with ID: ${bookingDocRef.id}`);
+      console.log(`createBookingTool: Booking dibuat dengan ID: ${bookingDocRef.id}`);
 
       let queueItemId: string | undefined = undefined;
       let queueMessage = "";
@@ -128,7 +128,7 @@ export const createBookingTool = ai.defineTool(
           
           await updateDoc(bookingDocRef, { queueItemId: queueItemId, status: 'In Queue' });
           queueMessage = " dan langsung ditambahkan ke antrian hari ini";
-          console.log(`Booking for today added to queue with ID: ${queueItemId}`);
+          console.log(`createBookingTool: Booking untuk hari ini ditambahkan ke antrian dengan ID: ${queueItemId}`);
         } else {
             queueItemId = existingQueueSnap.docs[0].id;
             const currentQueueData = existingQueueSnap.docs[0].data();
@@ -140,7 +140,7 @@ export const createBookingTool = ai.defineTool(
                  await updateDoc(bookingDocRef, { queueItemId: queueItemId, status: 'In Queue' });
             }
             queueMessage = " dan sudah ada dalam antrian hari ini";
-            console.log(`Booking for today already in queue with ID: ${queueItemId}`);
+            console.log(`createBookingTool: Booking untuk hari ini sudah ada di antrian dengan ID: ${queueItemId}`);
         }
       }
 
@@ -162,3 +162,4 @@ export const createBookingTool = ai.defineTool(
     }
   }
 );
+
