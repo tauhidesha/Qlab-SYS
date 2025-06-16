@@ -317,26 +317,7 @@ if ((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$fireba
     app = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["getApp"])();
 }
 db = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getFirestore"])(app);
-console.log("[firebase.ts] Instance Firestore didapatkan.");
-// Kondisi untuk menggunakan emulator hanya saat development dan jika variabel env diset
-const nodeEnv = ("TURBOPACK compile-time value", "development");
-const useEmulatorEnvVar = process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR;
-const useEmulator = nodeEnv === 'development' && useEmulatorEnvVar === 'true';
-console.log(`[firebase.ts] Evaluasi penggunaan emulator:`);
-console.log(`  - process.env.NODE_ENV: ${nodeEnv} (Harusnya 'development')`);
-console.log(`  - process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR: ${useEmulatorEnvVar} (Harusnya 'true')`);
-console.log(`  - Keputusan useEmulator: ${useEmulator}`);
-if (useEmulator) {
-    console.log("[firebase.ts] Mencoba menghubungkan ke Firestore Emulator di localhost:8080...");
-    try {
-        (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["connectFirestoreEmulator"])(db, 'localhost', 8080);
-        console.log("🔥 [firebase.ts] BERHASIL terhubung ke Firestore Emulator di localhost:8080.");
-    } catch (error) {
-        console.error("☠️ [firebase.ts] GAGAL terhubung ke Firestore Emulator. Pastikan emulator berjalan.", error);
-    }
-} else {
-    console.log("[firebase.ts] Menghubungkan ke Cloud Firestore.");
-}
+console.log("[firebase.ts] Instance Firestore didapatkan. Selalu menghubungkan ke Cloud Firestore.");
 ;
 }}),
 "[project]/src/components/ui/chart.tsx [app-ssr] (ecmascript)": ((__turbopack_context__) => {

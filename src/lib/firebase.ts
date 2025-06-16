@@ -1,6 +1,6 @@
 
 import { initializeApp, getApp, getApps, type FirebaseApp } from "firebase/app";
-import { getFirestore, type Firestore, connectFirestoreEmulator } from "firebase/firestore";
+import { getFirestore, type Firestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -26,29 +26,6 @@ if (getApps().length === 0) {
 }
 
 db = getFirestore(app);
-console.log("[firebase.ts] Instance Firestore didapatkan.");
-
-// Kondisi untuk menggunakan emulator hanya saat development dan jika variabel env diset
-const nodeEnv = process.env.NODE_ENV;
-const useEmulatorEnvVar = process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR;
-const useEmulator = nodeEnv === 'development' && useEmulatorEnvVar === 'true';
-
-console.log(`[firebase.ts] Evaluasi penggunaan emulator:`);
-console.log(`  - process.env.NODE_ENV: ${nodeEnv} (Harusnya 'development')`);
-console.log(`  - process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR: ${useEmulatorEnvVar} (Harusnya 'true')`);
-console.log(`  - Keputusan useEmulator: ${useEmulator}`);
-
-
-if (useEmulator) {
-  console.log("[firebase.ts] Mencoba menghubungkan ke Firestore Emulator di localhost:8080...");
-  try {
-    connectFirestoreEmulator(db, 'localhost', 8080);
-    console.log("🔥 [firebase.ts] BERHASIL terhubung ke Firestore Emulator di localhost:8080.");
-  } catch (error) {
-    console.error("☠️ [firebase.ts] GAGAL terhubung ke Firestore Emulator. Pastikan emulator berjalan.", error);
-  }
-} else {
-  console.log("[firebase.ts] Menghubungkan ke Cloud Firestore.");
-}
+console.log("[firebase.ts] Instance Firestore didapatkan. Selalu menghubungkan ke Cloud Firestore.");
 
 export { app, db };
