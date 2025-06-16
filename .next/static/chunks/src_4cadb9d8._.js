@@ -212,6 +212,9 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@firebase/firestore/dist/index.esm2017.js [app-client] (ecmascript)");
 ;
 ;
+// Log environment variables right at the start of this module's execution
+console.log("[firebase.ts] Reading NEXT_PUBLIC_FIREBASE_PROJECT_ID:", ("TURBOPACK compile-time value", "detailflow-8mkmj"));
+console.log("[firebase.ts] Reading NEXT_PUBLIC_FIREBASE_API_KEY:", ("TURBOPACK compile-time truthy", 1) ? "Exists" : ("TURBOPACK unreachable", undefined));
 const firebaseConfig = {
     apiKey: ("TURBOPACK compile-time value", "AIzaSyB4O6ZRoRnRKWsA3v4q19jXHsSbELo2lT0"),
     authDomain: ("TURBOPACK compile-time value", "detailflow-8mkmj.firebaseapp.com"),
@@ -220,19 +223,44 @@ const firebaseConfig = {
     messagingSenderId: ("TURBOPACK compile-time value", "940251442415"),
     appId: ("TURBOPACK compile-time value", "1:940251442415:web:0227a18d7c0028ff20bf1a")
 };
+// Log the constructed firebaseConfig
+console.log("[firebase.ts] Firebase config to be used:", JSON.stringify(firebaseConfig, null, 2));
 let app;
 let db;
-console.log("[firebase.ts] Memulai inisialisasi Firebase...");
+console.log("[firebase.ts] Memulai inisialisasi Firebase (selalu ke Cloud)...");
+if (!firebaseConfig.projectId || !firebaseConfig.apiKey) {
+    console.error("--------------------------------------------------------------------");
+    console.error("[firebase.ts] KESALAHAN FATAL: Firebase projectId atau apiKey KOSONG!");
+    console.error("[firebase.ts] Pastikan file .env sudah ada di root proyek dan berisi variabel Firebase yang benar (NEXT_PUBLIC_FIREBASE_PROJECT_ID, NEXT_PUBLIC_FIREBASE_API_KEY, dll).");
+    console.error("[firebase.ts] Jalankan 'npm run genkit:dev' dari terminal di root folder proyek Anda.");
+    console.error("--------------------------------------------------------------------");
+// Throw an error or handle appropriately if critical config is missing
+// For now, we let it proceed so initializeApp might show its own error, but this log is critical.
+}
 if ((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["getApps"])().length === 0) {
     console.log("[firebase.ts] Tidak ada aplikasi Firebase yang terinisialisasi, membuat aplikasi baru...");
-    app = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["initializeApp"])(firebaseConfig);
-    console.log("[firebase.ts] Aplikasi Firebase baru berhasil dibuat.");
+    try {
+        app = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["initializeApp"])(firebaseConfig);
+        console.log("[firebase.ts] Aplikasi Firebase baru berhasil dibuat. Project ID:", app.options.projectId);
+    } catch (e) {
+        console.error("[firebase.ts] Gagal menginisialisasi aplikasi Firebase:", e);
+    // throw e; // Re-throw if you want to halt execution, or handle gracefully
+    }
 } else {
     console.log("[firebase.ts] Menggunakan aplikasi Firebase yang sudah ada.");
     app = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["getApp"])();
+    console.log("[firebase.ts] Aplikasi Firebase yang ada. Project ID:", app.options.projectId);
 }
-db = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getFirestore"])(app);
-console.log("[firebase.ts] Instance Firestore didapatkan. Selalu menghubungkan ke Cloud Firestore.");
+try {
+    // @ts-ignore
+    db = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getFirestore"])(app);
+    console.log("[firebase.ts] Instance Firestore didapatkan. Selalu menghubungkan ke Cloud Firestore.");
+} catch (e) {
+    // @ts-ignore
+    console.error("[firebase.ts] Gagal mendapatkan instance Firestore:", e?.message);
+    // @ts-ignore
+    console.error("[firebase.ts] Detail error Firestore:", e);
+}
 ;
 if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
     __turbopack_context__.k.registerExports(module, globalThis.$RefreshHelpers$);
