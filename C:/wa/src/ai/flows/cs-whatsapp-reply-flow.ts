@@ -89,24 +89,24 @@ export async function generateWhatsAppReply({ customerMessage, senderNumber, cha
     
     if (needsHandoff) {
       console.log(`Handoff condition met for ${senderNumber}. Reason: ${handoffReason}`);
-      const handoffNotificationMessage = \`🔔 *Notifikasi Handoff Agen AI* 🔔
+      const handoffNotificationMessage = `🔔 *Notifikasi Handoff Agen AI* 🔔
 
-Pelanggan: \${senderNumber}
-Alasan Handoff: \${handoffReason}
+Pelanggan: ${senderNumber}
+Alasan Handoff: ${handoffReason}
 
 Pesan Terakhir Pelanggan:
-_"\${customerMessage}"_
+_"${customerMessage}"_
 
 Saran Balasan AI (jika ada):
-_"\${aiResponse.suggestedReply}"_
+_"${aiResponse.suggestedReply}"_
 
-Mohon segera tindak lanjuti.\`;
+Mohon segera tindak lanjuti.`;
 
       try {
         await sendWhatsAppMessage(agentSettings.humanAgentWhatsAppNumber, handoffNotificationMessage);
-        console.log(\`Handoff notification sent to human agent: \${agentSettings.humanAgentWhatsAppNumber}\`);
+        console.log(`Handoff notification sent to human agent: ${agentSettings.humanAgentWhatsAppNumber}`);
       } catch (waError) {
-        console.error(\`Failed to send handoff notification to \${agentSettings.humanAgentWhatsAppNumber}:\`, waError);
+        console.error(`Failed to send handoff notification to ${agentSettings.humanAgentWhatsAppNumber}:`, waError);
       }
     }
   }
@@ -124,7 +124,7 @@ const replyPrompt = ai.definePrompt({
     getClientDetailsTool, 
     createBookingTool
   ],
-  prompt: \`Anda adalah Customer Service Assistant AI untuk QLAB Auto Detailing.
+  prompt: `Anda adalah Customer Service Assistant AI untuk QLAB Auto Detailing.
 Perilaku Anda harus: {{{agentBehavior}}}.
 Panduan umum: {{{knowledgeBase}}}.
 Tanggal hari ini: {{{currentDate}}}. Waktu saat ini: {{{currentTime}}} (WIB).
@@ -218,4 +218,5 @@ const whatsAppReplyFlow = ai.defineFlow(
     return output;
   }
 );
+
     
