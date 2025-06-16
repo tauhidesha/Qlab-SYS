@@ -4,9 +4,9 @@ import AppHeader from '@/components/layout/AppHeader';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, Edit3, CheckCircle, Clock, Loader2, Trash2, UserPlus, PackageSearch, FileText, MessageSquareText } from 'lucide-react';
+import { PlusCircle, Edit3, CheckCircle, Clock, Loader2, Trash2, UserPlus, PackageSearch, FileText, MessageSquareText, Search } from 'lucide-react'; // Added Search
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '@/lib/firebase';
 import { 
   collection, 
@@ -34,7 +34,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
+import { Input } from '@/components/ui/input'; // Added Input
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useForm } from 'react-hook-form';
@@ -575,6 +575,8 @@ export default function QueuePage() {
   const [itemBeingAssigned, setItemBeingAssigned] = useState<QueueItem | null>(null);
   const [isSubmittingStaffAssignment, setIsSubmittingStaffAssignment] = useState(false);
 
+  const [queueSearchTerm, setQueueSearchTerm] = useState(''); // State for search
+
   const { toast } = useToast();
   
   const sendQueueNotification = async (
@@ -1048,6 +1050,17 @@ export default function QueuePage() {
 
   const isLoadingOverall = loadingQueue || loadingClients || loadingServices || loadingStaff;
 
+  const filteredQueueItems = useMemo(() => {
+    if (!queueSearchTerm) return queueItems;
+    const lowercasedFilter = queueSearchTerm.toLowerCase();
+    return queueItems.filter(item =>
+      item.customerName.toLowerCase().includes(lowercasedFilter) ||
+      item.vehicleInfo.toLowerCase().includes(lowercasedFilter) ||
+      item.service.toLowerCase().includes(lowercasedFilter)
+    );
+  }, [queueItems, queueSearchTerm]);
+
+
   if (isLoadingOverall && queueItems.length === 0) { 
     return (
       <div className="flex flex-col h-full">
@@ -1066,29 +1079,41 @@ export default function QueuePage() {
       <main className="flex-1 overflow-y-auto p-6">
        <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div>
                 <CardTitle>Antrian Pelanggan</CardTitle>
                 <CardDescription>Kelola pelanggan yang menunggu dan sedang dilayani.</CardDescription>
               </div>
-              <Button onClick={handleOpenAddDialog} disabled={loadingClients || loadingServices}>
-                { (loadingClients || loadingServices) && !isFormDialogOpen ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <PlusCircle className="mr-2 h-4 w-4" /> }
-                 Tambah ke Antrian
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                <div className="relative flex-grow sm:flex-grow-0">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    placeholder="Cari antrian..."
+                    className="pl-8 w-full"
+                    value={queueSearchTerm}
+                    onChange={(e) => setQueueSearchTerm(e.target.value)}
+                  />
+                </div>
+                <Button onClick={handleOpenAddDialog} disabled={loadingClients || loadingServices} className="w-full sm:w-auto">
+                  { (loadingClients || loadingServices) && !isFormDialogOpen ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <PlusCircle className="mr-2 h-4 w-4" /> }
+                   Tambah ke Antrian
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
-              {loadingQueue && queueItems.length === 0 ? (
+              {loadingQueue && filteredQueueItems.length === 0 && !queueSearchTerm ? (
                  <div className="flex items-center justify-center py-10">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   <p className="ml-2">Memuat antrian...</p>
                 </div>
-              ) : queueItems.length === 0 && !loadingQueue ? (
+              ) : filteredQueueItems.length === 0 ? (
                 <div className="text-center py-10 text-muted-foreground">
-                  Antrian saat ini kosong. Klik "Tambah ke Antrian" untuk memulai.
+                  {queueSearchTerm ? "Tidak ada antrian yang cocok dengan pencarian Anda." : "Antrian saat ini kosong."}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {queueItems.map((item) => (
+                  {filteredQueueItems.map((item) => (
                     <Card key={item.id} className="shadow-lg flex flex-col">
                       <CardHeader>
                         <div className="flex items-center justify-between">

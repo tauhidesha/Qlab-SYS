@@ -3,11 +3,11 @@
 import AppHeader from '@/components/layout/AppHeader';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { Input } from '@/components/ui/input'; // Input sudah ada
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Trash2, CreditCard, Loader2, ShoppingBag, UserPlus, Star, Tags, MessageSquareText, Send, Gift, UserCog, PackageSearch } from 'lucide-react'; // Added PackageSearch
+import { PlusCircle, Trash2, CreditCard, Loader2, ShoppingBag, UserPlus, Star, Tags, MessageSquareText, Send, Gift, UserCog, PackageSearch, Search } from 'lucide-react'; // Added Search
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, arrayUnion, serverTimestamp, addDoc, type Timestamp, getDocs, getDoc, deleteDoc, deleteField as firestoreDeleteField } from 'firebase/firestore';
@@ -94,6 +94,7 @@ export default function PosPage() {
   const [availableClients, setAvailableClients] = useState<Client[]>([]);
   const [loadingClients, setLoadingClients] = useState(true);
   const [selectedClientIdForNewBill, setSelectedClientIdForNewBill] = useState<string | undefined>(undefined);
+  const [clientSearchTermForNewBill, setClientSearchTermForNewBill] = useState(''); // New state for client search
   const [isSubmittingNewBill, setIsSubmittingNewBill] = useState(false);
 
   const [selectedClientDetails, setSelectedClientDetails] = useState<Client | null>(null);
@@ -445,7 +446,19 @@ export default function PosPage() {
   const resetNewBillDialogState = () => {
     setNewBillType('walk-in');
     setSelectedClientIdForNewBill(undefined);
+    setClientSearchTermForNewBill(''); // Reset search term
   };
+
+  const filteredAvailableClientsForNewBill = useMemo(() => {
+    if (!clientSearchTermForNewBill) {
+      return availableClients;
+    }
+    const lowercasedFilter = clientSearchTermForNewBill.toLowerCase();
+    return availableClients.filter(client =>
+      client.name.toLowerCase().includes(lowercasedFilter) ||
+      (client.phone && client.phone.includes(clientSearchTermForNewBill)) // Direct match for phone
+    );
+  }, [availableClients, clientSearchTermForNewBill]);
 
   const handleConfirmCreateBill = async () => {
     if (newBillType === 'existing-client' && !selectedClientIdForNewBill) {
@@ -1234,7 +1247,10 @@ export default function PosPage() {
       </main>
 
 
-      <Dialog open={isCreateBillDialogOpen} onOpenChange={setIsCreateBillDialogOpen}>
+      <Dialog open={isCreateBillDialogOpen} onOpenChange={(isOpen) => {
+          setIsCreateBillDialogOpen(isOpen);
+          if (!isOpen) resetNewBillDialogState();
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Buat Bill Baru</DialogTitle>
@@ -1254,6 +1270,16 @@ export default function PosPage() {
 
             {newBillType === 'existing-client' && (
               <div className="space-y-2">
+                <div className="relative mt-2 mb-2">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    placeholder="Cari klien (nama/HP)..."
+                    className="pl-8 w-full h-9"
+                    value={clientSearchTermForNewBill}
+                    onChange={(e) => setClientSearchTermForNewBill(e.target.value)}
+                  />
+                </div>
                 <Label htmlFor="client-select-for-bill">Pilih Klien</Label>
                 <Select
                   value={selectedClientIdForNewBill}
@@ -1264,23 +1290,26 @@ export default function PosPage() {
                     <SelectValue placeholder={loadingClients ? "Memuat klien..." : "Pilih klien"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {!loadingClients && availableClients.length === 0 && (
-                      <SelectItem value="no-clients" disabled>Tidak ada klien terdaftar.</SelectItem>
-                    )}
-                    {availableClients.map(client => (
-                      <SelectItem key={client.id} value={client.id}>
-                        {client.name} ({client.phone})
+                    {loadingClients ? (
+                      <SelectItem value="loading" disabled>Memuat...</SelectItem>
+                    ) : filteredAvailableClientsForNewBill.length === 0 ? (
+                      <SelectItem value="no-clients" disabled>
+                        {clientSearchTermForNewBill ? "Tidak ada klien cocok." : "Tidak ada klien terdaftar."}
                       </SelectItem>
-                    ))}
+                    ) : (
+                      filteredAvailableClientsForNewBill.map(client => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.name} ({client.phone})
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>
             )}
           </div>
           <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline" onClick={resetNewBillDialogState} disabled={isSubmittingNewBill}>Batal</Button>
-            </DialogClose>
+            <Button variant="outline" onClick={() => {setIsCreateBillDialogOpen(false); resetNewBillDialogState();}} disabled={isSubmittingNewBill}>Batal</Button>
             <Button
               onClick={handleConfirmCreateBill}
               disabled={isSubmittingNewBill || (newBillType === 'existing-client' && !selectedClientIdForNewBill && !loadingClients)}
