@@ -47,7 +47,7 @@ export async function generateWhatsAppReply({ customerMessage, chatHistory }: { 
 
   const flowInput: WhatsAppReplyInput = {
     customerMessage: customerMessage,
-    chatHistory: chatHistory,
+    chatHistory: chatHistory || [], // Pastikan chatHistory selalu array, minimal array kosong
     agentBehavior: agentSettings.agentBehavior,
     knowledgeBase: agentSettings.knowledgeBaseDescription,
   };

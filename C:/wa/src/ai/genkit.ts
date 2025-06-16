@@ -1,14 +1,13 @@
 
 import {genkit} from 'genkit';
-import { openAI } from 'genkitx-openai'; // Impor plugin OpenAI (Fixed: openAI with capital AI)
+import {googleAI} from '@genkit-ai/googleai'; // Impor plugin Google AI
 
 export const ai = genkit({
   plugins: [
-    openAI({ // Gunakan plugin OpenAI (Fixed: openAI with capital AI)
-      // Kamu mungkin perlu menambahkan konfigurasi API key di sini jika tidak via environment variable
-      // apiKey: process.env.OPENAI_API_KEY, 
-    }),
+    googleAI(), // Gunakan plugin Google AI
   ],
-  model: 'openai/gpt-3.5-turbo', // Set model default ke model OpenAI
-  // Telemetry options removed for Genkit v1.x compatibility
+  model: 'googleai/gemini-1.5-flash-latest', // Set model default ke model Gemini
+  // Opsi telemetry tidak lagi dikonfigurasi di sini untuk Genkit v1.x
+  // Jika butuh logging, konfigurasi dilakukan secara berbeda atau via environment.
 });
+
