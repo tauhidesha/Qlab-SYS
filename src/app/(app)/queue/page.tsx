@@ -4,7 +4,7 @@ import AppHeader from '@/components/layout/AppHeader';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { PlusCircle, Edit3, CheckCircle, Clock, Loader2, Trash2, UserPlus, PackageSearch, FileText, MessageSquareText, Search } from 'lucide-react'; // Added Search
+import { PlusCircle, Edit3, CheckCircle, Clock, Loader2, Trash2, UserPlus, PackageSearch, FileText, MessageSquareText, Search, CalendarPlus } from 'lucide-react'; // Added CalendarPlus
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { db } from '@/lib/firebase';
@@ -34,7 +34,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input'; // Added Input
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useForm } from 'react-hook-form';
@@ -58,58 +58,72 @@ import type { Transaction, TransactionItem } from '@/types/transaction';
 import { v4 as uuidv4 } from 'uuid';
 import type { StaffMember, StaffRole } from '@/types/staff';
 import Link from 'next/link';
+import { DatePickerSingle } from '@/components/ui/date-picker-single'; // For Booking Form
+import type { BookingEntry, ManualBookingFormData } from '@/types/booking'; // For Booking Form
+import { format as formatDateFns, parse as parseDateFns, startOfDay, isSameDay, setHours, setMinutes } from 'date-fns';
+import { id as indonesiaLocale } from 'date-fns/locale';
 
 
-export interface QueueItem { // Exporting for Dashboard
+export interface QueueItem { 
   id: string;
   customerName: string;
   clientId?: string; 
   vehicleInfo: string;
-  service: string; // Nama layanan (bisa termasuk nama varian)
-  serviceId?: string; // ID layanan utama
-  variantId?: string; // ID varian layanan jika ada
+  service: string; 
+  serviceId?: string; 
+  variantId?: string; 
   status: 'Menunggu' | 'Dalam Layanan' | 'Selesai';
   estimatedTime: string;
-  staff?: string; // Nama staf yang menangani
+  staff?: string; 
+  bookingId?: string; // Link ke booking jika berasal dari booking
   createdAt: Timestamp; 
   completedAt?: Timestamp;
-  serviceStartTime?: Timestamp; // Kapan layanan mulai dikerjakan
+  serviceStartTime?: Timestamp; 
 }
 
 const queueItemFormSchema = z.object({
   customerName: z.string().min(1, "Nama pelanggan diperlukan"),
   clientId: z.string().optional(),
   vehicleInfo: z.string().min(1, "Info kendaraan diperlukan"), 
-  serviceId: z.string().min(1, "Layanan harus dipilih"), // ID layanan utama
-  variantId: z.string().optional(), // ID varian jika ada
-  estimatedTime: z.string().min(1, "Estimasi waktu diperlukan (otomatis terisi)"), // Akan read-only
+  serviceId: z.string().min(1, "Layanan harus dipilih"), 
+  variantId: z.string().optional(), 
+  estimatedTime: z.string().min(1, "Estimasi waktu diperlukan (otomatis terisi)"), 
   status: z.enum(['Menunggu', 'Dalam Layanan', 'Selesai']),
 });
 
 type QueueItemFormData = z.infer<typeof queueItemFormSchema>;
 
-interface ClientForSelect extends Client {
-  // jika ada tambahan spesifik untuk select
-}
-interface ServiceForSelect extends ServiceProduct {
-// jika ada tambahan spesifik untuk select
-}
+
+const manualBookingFormSchema = z.object({
+  clientId: z.string().optional(),
+  customerName: z.string().min(1, "Nama pelanggan diperlukan."),
+  vehicleInfo: z.string().min(1, "Informasi kendaraan diperlukan."),
+  serviceId: z.string().min(1, "Layanan harus dipilih."),
+  variantId: z.string().optional(),
+  bookingDate: z.date({ required_error: "Tanggal booking diperlukan." }),
+  bookingTime: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Format waktu booking JJ:MM (mis. 14:30)."),
+  notes: z.string().max(300, "Catatan maksimal 300 karakter.").optional(),
+});
+
+
+interface ClientForSelect extends Client {}
+interface ServiceForSelect extends ServiceProduct {}
 
 const WALK_IN_CLIENT_VALUE = "##WALK_IN_CLIENT##";
 
 interface QueueItemFormProps {
   onSubmit: (data: QueueItemFormData, serviceNameDisplay: string) => Promise<void>;
-  defaultValues: Partial<QueueItemFormData>; // Make defaultValues partial
+  defaultValues: Partial<QueueItemFormData>; 
   onCancel: () => void;
   isSubmitting: boolean;
   clientsList: ClientForSelect[];
-  allServicesList: ServiceForSelect[]; // Now receives all services
+  allServicesList: ServiceForSelect[]; 
 }
 
 function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting, clientsList, allServicesList }: QueueItemFormProps) {
   const form = useForm<QueueItemFormData>({
     resolver: zodResolver(queueItemFormSchema),
-    defaultValues: { // Ensure all fields have a default, even if undefined for optional
+    defaultValues: { 
       customerName: defaultValues.customerName || '',
       clientId: defaultValues.clientId || WALK_IN_CLIENT_VALUE,
       vehicleInfo: defaultValues.vehicleInfo || '',
@@ -126,12 +140,10 @@ function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting, client
   const [selectedClientMotorcycles, setSelectedClientMotorcycles] = useState<Motorcycle[]>([]);
   const [availableVariants, setAvailableVariants] = useState<ServiceProductVariant[]>([]);
 
-  // Filter for only "Layanan" type items for the service dropdown
   const availableServiceItems = React.useMemo(() => {
     return allServicesList.filter(s => s.type === 'Layanan');
   }, [allServicesList]);
 
-  // Effect for handling client selection and motorcycle list
   useEffect(() => {
     const initialClientId = defaultValues.clientId || WALK_IN_CLIENT_VALUE;
     const isWalkInByDefault = initialClientId === WALK_IN_CLIENT_VALUE;
@@ -141,7 +153,7 @@ function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting, client
       customerName: isWalkInByDefault && !defaultValues.customerName ? '' : defaultValues.customerName || '',
       clientId: initialClientId, 
       vehicleInfo: defaultValues.vehicleInfo || '',
-      estimatedTime: defaultValues.estimatedTime || '', // Preserve estimatedTime if editing
+      estimatedTime: defaultValues.estimatedTime || '', 
       status: defaultValues.status || 'Menunggu',
       serviceId: defaultValues.serviceId,
       variantId: defaultValues.variantId,
@@ -184,21 +196,19 @@ function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting, client
     }
   }, [selectedClientId, clientsList, form]);
 
-  // Effect for handling service and variant selection
   useEffect(() => {
     const service = availableServiceItems.find(s => s.id === selectedServiceId);
     if (service) {
       const variants = service.variants?.filter(v => v.name && v.price > 0) || [];
       setAvailableVariants(variants);
       
-      // Reset variant if service changes or if the current variant is not valid for the new service
       const currentVariantId = form.getValues('variantId');
       if (!currentVariantId || !variants.find(v => v.id === currentVariantId)) {
           form.setValue('variantId', undefined); 
       }
 
       if (variants.length > 0) {
-        const preSelectedVariant = variants.find(v => v.id === form.getValues('variantId')); // Use current form value for variant
+        const preSelectedVariant = variants.find(v => v.id === form.getValues('variantId')); 
         if (preSelectedVariant) {
             form.setValue('estimatedTime', preSelectedVariant.estimatedDuration || service.estimatedDuration || '');
         } else {
@@ -456,6 +466,240 @@ function QueueItemForm({ onSubmit, defaultValues, onCancel, isSubmitting, client
   );
 }
 
+interface BookingFormProps {
+  onSubmit: (data: ManualBookingFormData, serviceNameDisplay: string) => Promise<void>;
+  onCancel: () => void;
+  isSubmitting: boolean;
+  clientsList: ClientForSelect[];
+  allServicesList: ServiceForSelect[];
+}
+
+function BookingFormDialog({ onSubmit, onCancel, isSubmitting, clientsList, allServicesList }: BookingFormProps) {
+  const form = useForm<ManualBookingFormData>({
+    resolver: zodResolver(manualBookingFormSchema),
+    defaultValues: {
+      clientId: WALK_IN_CLIENT_VALUE,
+      customerName: '',
+      vehicleInfo: '',
+      serviceId: undefined,
+      variantId: undefined,
+      bookingDate: new Date(),
+      bookingTime: '',
+      notes: '',
+      source: 'Manual',
+    }
+  });
+
+  const selectedClientId = form.watch('clientId');
+  const selectedServiceId = form.watch('serviceId');
+  const [selectedClientMotorcycles, setSelectedClientMotorcycles] = useState<Motorcycle[]>([]);
+  const [availableVariants, setAvailableVariants] = useState<ServiceProductVariant[]>([]);
+  
+  const availableServiceItems = React.useMemo(() => {
+    return allServicesList.filter(s => s.type === 'Layanan');
+  }, [allServicesList]);
+
+  useEffect(() => {
+    if (selectedClientId && selectedClientId !== WALK_IN_CLIENT_VALUE) {
+      const client = clientsList.find(c => c.id === selectedClientId);
+      form.setValue('customerName', client?.name || '');
+      setSelectedClientMotorcycles(client?.motorcycles || []);
+       if (!client?.motorcycles?.some(m => `${m.name} (${m.licensePlate.toUpperCase()})` === form.getValues('vehicleInfo'))) {
+        form.setValue('vehicleInfo', '');
+      }
+    } else {
+      if (selectedClientId === WALK_IN_CLIENT_VALUE && form.getValues('customerName')) {
+         // Keep current customerName if walk-in and already filled
+      } else {
+        form.setValue('customerName', '');
+      }
+      setSelectedClientMotorcycles([]);
+    }
+  }, [selectedClientId, clientsList, form]);
+
+  useEffect(() => {
+    const service = availableServiceItems.find(s => s.id === selectedServiceId);
+    if (service) {
+      const variants = service.variants?.filter(v => v.name && v.price > 0) || [];
+      setAvailableVariants(variants);
+      if (!variants.find(v => v.id === form.getValues('variantId'))) {
+          form.setValue('variantId', undefined); 
+      }
+    } else {
+      setAvailableVariants([]);
+      form.setValue('variantId', undefined);
+    }
+  }, [selectedServiceId, availableServiceItems, form]);
+
+  const internalSubmit = form.handleSubmit(async (data) => {
+    const selectedService = availableServiceItems.find(s => s.id === data.serviceId);
+    let serviceNameDisplay = selectedService?.name || "Layanan Tidak Diketahui";
+    let estimatedDuration = selectedService?.estimatedDuration || '';
+
+    if (data.variantId) {
+        const selectedVariant = selectedService?.variants?.find(v => v.id === data.variantId);
+        if (selectedVariant) {
+            serviceNameDisplay = `${selectedService?.name} - ${selectedVariant.name}`;
+            estimatedDuration = selectedVariant.estimatedDuration || estimatedDuration;
+        }
+    }
+    await onSubmit(data, serviceNameDisplay);
+  });
+
+  return (
+    <Form {...form}>
+      <form onSubmit={internalSubmit} className="space-y-4">
+         <FormField
+          control={form.control}
+          name="clientId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Pelanggan Terdaftar (Opsional)</FormLabel>
+              <Select 
+                onValueChange={(value) => field.onChange(value)} 
+                value={field.value || WALK_IN_CLIENT_VALUE} 
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih pelanggan atau isi nama (walk-in)" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value={WALK_IN_CLIENT_VALUE}>-- Pelanggan Walk-in --</SelectItem>
+                  {clientsList.map(client => (
+                    <SelectItem key={client.id} value={client.id}>
+                      {client.name} ({client.phone})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="customerName"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Nama Pelanggan</FormLabel>
+              <FormControl><Input placeholder="Nama pelanggan" {...field} disabled={!!selectedClientId && selectedClientId !== WALK_IN_CLIENT_VALUE} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="vehicleInfo"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Info Kendaraan</FormLabel>
+              {(selectedClientId && selectedClientId !== WALK_IN_CLIENT_VALUE && selectedClientMotorcycles.length > 0) ? (
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl><SelectTrigger><SelectValue placeholder="Pilih kendaraan" /></SelectTrigger></FormControl>
+                  <SelectContent>
+                    {selectedClientMotorcycles.map(motorcycle => (
+                      <SelectItem key={motorcycle.licensePlate} value={`${motorcycle.name} (${motorcycle.licensePlate.toUpperCase()})`}>
+                        {motorcycle.name} ({motorcycle.licensePlate.toUpperCase()})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <FormControl><Input placeholder="Mis. Honda Vario (B 1234 XYZ)" {...field} disabled={!!selectedClientId && selectedClientId !== WALK_IN_CLIENT_VALUE && selectedClientMotorcycles.length === 0} /></FormControl>
+              )}
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="bookingDate"
+            render={({ field }) => (
+              <FormItem className="flex flex-col">
+                <FormLabel className="mb-1">Tanggal Booking</FormLabel>
+                <DatePickerSingle
+                  date={field.value}
+                  onDateChange={field.onChange}
+                  disabled={(d) => d < startOfDay(new Date())}
+                />
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="bookingTime"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Waktu Booking (JJ:MM)</FormLabel>
+                <FormControl><Input type="time" placeholder="mis. 14:30" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        <FormField
+          control={form.control}
+          name="serviceId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Layanan</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl><SelectTrigger><SelectValue placeholder="Pilih layanan" /></SelectTrigger></FormControl>
+                <SelectContent>
+                  {availableServiceItems.map(service => (
+                    <SelectItem key={service.id} value={service.id}>{service.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        {availableVariants.length > 0 && (
+           <FormField
+            control={form.control}
+            name="variantId"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel className="flex items-center"><PackageSearch className="mr-2 h-4 w-4 text-muted-foreground"/>Varian Layanan (Opsional)</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Pilih varian (jika ada)" /></SelectTrigger></FormControl>
+                    <SelectContent>
+                    {availableVariants.map(variant => (
+                        <SelectItem key={variant.id} value={variant.id}>{variant.name} (Rp {variant.price.toLocaleString('id-ID')})</SelectItem>
+                    ))}
+                    </SelectContent>
+                </Select>
+                </FormItem>
+            )}
+            />
+        )}
+        <FormField
+          control={form.control}
+          name="notes"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Catatan (Opsional)</FormLabel>
+              <FormControl><Textarea placeholder="Catatan tambahan untuk booking ini..." {...field} /></FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>Batal</Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            Simpan Booking
+          </Button>
+        </DialogFooter>
+      </form>
+    </Form>
+  );
+}
+
+
 interface AssignStaffDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -522,7 +766,6 @@ function AssignStaffDialog({ isOpen, onClose, onSubmit, staffList, isSubmitting,
   );
 }
 
-// Helper function to format estimated time for notifications
 function formatEstimatedTimeForNotification(timeString?: string): string {
   if (!timeString || timeString.trim() === '' || timeString.trim().toLowerCase() === 'n/a') {
     return 'Estimasi waktu akan diinformasikan segera';
@@ -544,13 +787,11 @@ function formatEstimatedTimeForNotification(timeString?: string): string {
       }
     } else if (minutes > 0) {
       result += `${minutes} menit`;
-    } else { // Fallback if numericValue > 0 but hours and minutes are 0 (e.g. for "0")
-      return `sekitar ${cleanedTime} menit`; // Or handle as "Estimasi belum ditentukan"
+    } else { 
+      return `sekitar ${cleanedTime} menit`; 
     }
     return result;
   }
-
-  // If it's not a pure number, assume it's already formatted (e.g., "1 jam", "30 mnt")
   return `sekitar ${cleanedTime}`;
 }
 
@@ -558,10 +799,10 @@ function formatEstimatedTimeForNotification(timeString?: string): string {
 export default function QueuePage() {
   const [queueItems, setQueueItems] = useState<QueueItem[]>([]);
   const [loadingQueue, setLoadingQueue] = useState(true);
-  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
-  const [currentEditingItem, setCurrentEditingItem] = useState<QueueItem | null>(null);
-  const [itemToDelete, setItemToDelete] = useState<QueueItem | null>(null);
-  const [isSubmittingForm, setIsSubmittingForm] = useState(false);
+  const [isQueueFormDialogOpen, setIsQueueFormDialogOpen] = useState(false);
+  const [currentEditingQueueItem, setCurrentEditingQueueItem] = useState<QueueItem | null>(null);
+  const [queueItemToDelete, setQueueItemToDelete] = useState<QueueItem | null>(null);
+  const [isSubmittingQueueForm, setIsSubmittingQueueForm] = useState(false);
   
   const [clientsList, setClientsList] = useState<ClientForSelect[]>([]);
   const [loadingClients, setLoadingClients] = useState(true);
@@ -575,7 +816,10 @@ export default function QueuePage() {
   const [itemBeingAssigned, setItemBeingAssigned] = useState<QueueItem | null>(null);
   const [isSubmittingStaffAssignment, setIsSubmittingStaffAssignment] = useState(false);
 
-  const [queueSearchTerm, setQueueSearchTerm] = useState(''); // State for search
+  const [isBookingFormDialogOpen, setIsBookingFormDialogOpen] = useState(false);
+  const [isSubmittingBookingForm, setIsSubmittingBookingForm] = useState(false);
+
+  const [queueSearchTerm, setQueueSearchTerm] = useState('');
 
   const { toast } = useToast();
   
@@ -771,18 +1015,18 @@ export default function QueuePage() {
     status: 'Menunggu',
   };
 
-  const handleOpenAddDialog = () => {
-    setCurrentEditingItem(null); 
-    setIsFormDialogOpen(true);
+  const handleOpenAddQueueDialog = () => {
+    setCurrentEditingQueueItem(null); 
+    setIsQueueFormDialogOpen(true);
   };
 
-  const handleEditItem = (item: QueueItem) => {
-    setCurrentEditingItem(item); 
-    setIsFormDialogOpen(true);
+  const handleEditQueueItem = (item: QueueItem) => {
+    setCurrentEditingQueueItem(item); 
+    setIsQueueFormDialogOpen(true);
   };
 
-  const handleFormSubmit = async (formData: QueueItemFormData, serviceNameDisplay: string) => {
-    setIsSubmittingForm(true);
+  const handleQueueFormSubmit = async (formData: QueueItemFormData, serviceNameDisplay: string) => {
+    setIsSubmittingQueueForm(true);
     try {
       const { clientId: formClientId, ...otherFormData } = formData;
       const actualClientId = formClientId === WALK_IN_CLIENT_VALUE ? undefined : formClientId;
@@ -803,15 +1047,15 @@ export default function QueuePage() {
 
       let itemWasJustAdded = false;
 
-      if (currentEditingItem) { 
-        const itemDocRef = doc(db, 'queueItems', currentEditingItem.id);
+      if (currentEditingQueueItem) { 
+        const itemDocRef = doc(db, 'queueItems', currentEditingQueueItem.id);
         const updatePayload: any = {...firestoreData};
         
-        if (formData.status !== currentEditingItem.status) {
+        if (formData.status !== currentEditingQueueItem.status) {
           if (formData.status === 'Selesai') {
             updatePayload.completedAt = serverTimestamp();
-            updatePayload.serviceStartTime = currentEditingItem.serviceStartTime || deleteField(); 
-          } else if (formData.status === 'Dalam Layanan' && currentEditingItem.status !== 'Dalam Layanan') {
+            updatePayload.serviceStartTime = currentEditingQueueItem.serviceStartTime || deleteField(); 
+          } else if (formData.status === 'Dalam Layanan' && currentEditingQueueItem.status !== 'Dalam Layanan') {
             updatePayload.serviceStartTime = serverTimestamp();
             updatePayload.completedAt = deleteField(); 
           } else if (formData.status === 'Menunggu') {
@@ -837,16 +1081,82 @@ export default function QueuePage() {
         await sendQueueNotification(actualClientId, formData.customerName, message, "penambahan antrian");
       }
 
-      setIsFormDialogOpen(false);
-      setCurrentEditingItem(null);
+      setIsQueueFormDialogOpen(false);
+      setCurrentEditingQueueItem(null);
       fetchQueueItems(); 
     } catch (error) {
-      console.error("Error submitting form: ", error);
+      console.error("Error submitting queue form: ", error);
       toast({ title: "Error", description: "Gagal menyimpan item antrian.", variant: "destructive" });
     } finally {
-      setIsSubmittingForm(false);
+      setIsSubmittingQueueForm(false);
     }
   };
+  
+  const handleBookingFormSubmit = async (data: ManualBookingFormData, serviceNameDisplay: string) => {
+    setIsSubmittingBookingForm(true);
+    try {
+      const [hour, minute] = data.bookingTime.split(':').map(Number);
+      const bookingDateTime = setMinutes(setHours(data.bookingDate, hour), minute);
+      const bookingTimestamp = Timestamp.fromDate(bookingDateTime);
+
+      const newBookingData: Omit<BookingEntry, 'id'|'createdAt'|'updatedAt'|'queueItemId'|'estimatedDuration'> & { serviceId: string; } = {
+        customerName: data.customerName,
+        clientId: data.clientId === WALK_IN_CLIENT_VALUE ? undefined : data.clientId,
+        vehicleInfo: data.vehicleInfo,
+        serviceId: data.serviceId,
+        serviceName: serviceNameDisplay,
+        bookingDateTime: bookingTimestamp,
+        status: 'Confirmed',
+        notes: data.notes,
+        source: data.source,
+      };
+      
+      const selectedService = allServicesList.find(s => s.id === data.serviceId);
+      let estimatedDuration = selectedService?.estimatedDuration;
+      if (data.variantId) {
+        const variant = selectedService?.variants?.find(v => v.id === data.variantId);
+        if (variant) estimatedDuration = variant.estimatedDuration || estimatedDuration;
+      }
+       if (estimatedDuration) (newBookingData as any).estimatedDuration = estimatedDuration;
+
+
+      const bookingDocRef = await addDoc(collection(db, "bookings"), {
+        ...newBookingData,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      toast({ title: "Booking Sukses", description: `Booking untuk ${data.customerName} berhasil dibuat.` });
+
+      if (isSameDay(bookingDateTime, new Date())) {
+        const queueItemData: Omit<QueueItem, 'id' | 'createdAt' | 'completedAt' | 'serviceStartTime'> = {
+          customerName: data.customerName,
+          clientId: newBookingData.clientId,
+          vehicleInfo: data.vehicleInfo,
+          service: serviceNameDisplay,
+          serviceId: data.serviceId,
+          variantId: data.variantId,
+          status: 'Menunggu',
+          estimatedTime: estimatedDuration || 'N/A',
+          bookingId: bookingDocRef.id,
+        };
+        const queueDocRef = await addDoc(collection(db, 'queueItems'), {
+          ...queueItemData,
+          createdAt: bookingTimestamp,
+        });
+        await updateDoc(bookingDocRef, { queueItemId: queueDocRef.id, status: 'In Queue' });
+        toast({ title: "Info Antrian", description: "Booking hari ini juga ditambahkan ke antrian." });
+      }
+      
+      setIsBookingFormDialogOpen(false);
+      fetchQueueItems(); // Refresh queue if a same-day booking was made
+    } catch (error) {
+      console.error("Error submitting booking form: ", error);
+      toast({ title: "Error Booking", description: "Gagal menyimpan booking.", variant: "destructive" });
+    } finally {
+      setIsSubmittingBookingForm(false);
+    }
+  };
+
 
   const handleStatusChange = async (item: QueueItem, newStatus: QueueItem['status']) => {
     if (newStatus === 'Dalam Layanan') {
@@ -925,8 +1235,9 @@ export default function QueuePage() {
       
       const transactionsRef = collection(db, "transactions");
       const q = query(transactionsRef, 
-        where("customerName", "==", itemBeingAssigned.customerName), 
-        where("status", "==", "open")
+        where("queueItemId", "==", itemBeingAssigned.id), // Search by queueItemId
+        where("status", "==", "open"),
+        limit(1)
       );
       const existingTransactionsSnap = await getDocs(q);
 
@@ -956,7 +1267,6 @@ export default function QueuePage() {
         batch.update(transactionDocRef, {
           items: updatedItems,
           serviceStaffName: staffName, 
-          queueItemId: itemBeingAssigned.id, 
           updatedAt: serverTimestamp(),
           subtotal: subtotal,
           total: total,
@@ -1010,19 +1320,19 @@ export default function QueuePage() {
   };
   
   const handleDeleteConfirmation = (item: QueueItem) => {
-    setItemToDelete(item);
+    setQueueItemToDelete(item);
   };
 
-  const handleDeleteItem = async () => {
-    if (!itemToDelete) return;
-    setIsSubmittingForm(true); 
+  const handleDeleteQueueItem = async () => {
+    if (!queueItemToDelete) return;
+    setIsSubmittingQueueForm(true); 
     try {
-      await deleteDoc(doc(db, 'queueItems', itemToDelete.id));
+      await deleteDoc(doc(db, 'queueItems', queueItemToDelete.id));
       toast({
         title: "Sukses",
-        description: `Item antrian untuk "${itemToDelete.customerName}" berhasil dihapus.`,
+        description: `Item antrian untuk "${queueItemToDelete.customerName}" berhasil dihapus.`,
       });
-      setItemToDelete(null);
+      setQueueItemToDelete(null);
       fetchQueueItems();
     } catch (error) {
       console.error("Error deleting item: ", error);
@@ -1032,7 +1342,7 @@ export default function QueuePage() {
         variant: "destructive",
       });
     } finally {
-      setIsSubmittingForm(false);
+      setIsSubmittingQueueForm(false);
     }
   };
 
@@ -1064,7 +1374,7 @@ export default function QueuePage() {
   if (isLoadingOverall && queueItems.length === 0) { 
     return (
       <div className="flex flex-col h-full">
-        <AppHeader title="Manajemen Antrian" />
+        <AppHeader title="Manajemen Antrian & Booking" />
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="ml-2">Memuat data antrian dan pendukung...</p>
@@ -1075,14 +1385,14 @@ export default function QueuePage() {
 
   return (
     <div className="flex flex-col h-full">
-      <AppHeader title="Manajemen Antrian" />
+      <AppHeader title="Manajemen Antrian & Booking" />
       <main className="flex-1 overflow-y-auto p-6">
-       <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
+       <AlertDialog open={!!queueItemToDelete} onOpenChange={(open) => !open && setQueueItemToDelete(null)}>
           <Card>
             <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div>
                 <CardTitle>Antrian Pelanggan</CardTitle>
-                <CardDescription>Kelola pelanggan yang menunggu dan sedang dilayani.</CardDescription>
+                <CardDescription>Kelola pelanggan yang menunggu dan sedang dilayani. Tambah booking baru jika perlu.</CardDescription>
               </div>
               <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
                 <div className="relative flex-grow sm:flex-grow-0">
@@ -1095,8 +1405,11 @@ export default function QueuePage() {
                     onChange={(e) => setQueueSearchTerm(e.target.value)}
                   />
                 </div>
-                <Button onClick={handleOpenAddDialog} disabled={loadingClients || loadingServices} className="w-full sm:w-auto">
-                  { (loadingClients || loadingServices) && !isFormDialogOpen ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <PlusCircle className="mr-2 h-4 w-4" /> }
+                <Button onClick={() => setIsBookingFormDialogOpen(true)} variant="outline" disabled={loadingClients || loadingServices} className="w-full sm:w-auto">
+                   <CalendarPlus className="mr-2 h-4 w-4" /> Buat Booking Baru
+                </Button>
+                <Button onClick={handleOpenAddQueueDialog} disabled={loadingClients || loadingServices} className="w-full sm:w-auto">
+                  { (loadingClients || loadingServices) && !isQueueFormDialogOpen ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <PlusCircle className="mr-2 h-4 w-4" /> }
                    Tambah ke Antrian
                 </Button>
               </div>
@@ -1128,6 +1441,7 @@ export default function QueuePage() {
                       <CardContent className="flex-grow">
                         <div className="text-sm text-muted-foreground mb-1">
                           Estimasi: {item.estimatedTime}
+                          {item.bookingId && <Badge variant="info" className="ml-2 text-xs">Booking</Badge>}
                         </div>
                         {item.staff && (
                           <div className="text-sm text-muted-foreground flex items-center">
@@ -1153,8 +1467,8 @@ export default function QueuePage() {
                          )}
                       </CardContent>
                        <CardFooter className="flex flex-col sm:flex-row sm:justify-end gap-2 pt-4 border-t mt-auto">
-                        <Button variant="outline" size="sm" onClick={() => handleEditItem(item)} className="w-full sm:w-auto order-1 sm:order-1" disabled={loadingClients || loadingServices}>
-                          { (loadingClients || loadingServices) && currentEditingItem?.id === item.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Edit3 className="mr-2 h-4 w-4" /> }
+                        <Button variant="outline" size="sm" onClick={() => handleEditQueueItem(item)} className="w-full sm:w-auto order-1 sm:order-1" disabled={loadingClients || loadingServices}>
+                          { (loadingClients || loadingServices) && currentEditingQueueItem?.id === item.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Edit3 className="mr-2 h-4 w-4" /> }
                           Ubah
                         </Button>
                         
@@ -1210,28 +1524,28 @@ export default function QueuePage() {
               <AlertDialogHeader>
               <AlertDialogTitle>Konfirmasi Penghapusan</AlertDialogTitle>
               <AlertDialogDescription>
-                  Apakah Anda yakin ingin menghapus item antrian untuk "{itemToDelete?.customerName}"? Tindakan ini tidak dapat diurungkan.
+                  Apakah Anda yakin ingin menghapus item antrian untuk "{queueItemToDelete?.customerName}"? Tindakan ini tidak dapat diurungkan.
               </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-              <AlertDialogCancel onClick={() => setItemToDelete(null)}>Batal</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDeleteItem} disabled={isSubmittingForm} className={buttonVariants({variant: "destructive"})}>
-                  {isSubmittingForm && itemToDelete ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              <AlertDialogCancel onClick={() => setQueueItemToDelete(null)}>Batal</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteQueueItem} disabled={isSubmittingQueueForm} className={buttonVariants({variant: "destructive"})}>
+                  {isSubmittingQueueForm && queueItemToDelete ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   Hapus
               </AlertDialogAction>
               </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
 
-        <Dialog open={isFormDialogOpen} onOpenChange={(openState) => {
-            setIsFormDialogOpen(openState);
-            if (!openState) { setCurrentEditingItem(null); }
+        <Dialog open={isQueueFormDialogOpen} onOpenChange={(openState) => {
+            setIsQueueFormDialogOpen(openState);
+            if (!openState) { setCurrentEditingQueueItem(null); }
         }}>
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
-              <DialogTitle>{currentEditingItem ? 'Ubah Item Antrian' : 'Tambah Item ke Antrian'}</DialogTitle>
+              <DialogTitle>{currentEditingQueueItem ? 'Ubah Item Antrian' : 'Tambah Item ke Antrian'}</DialogTitle>
               <DialogDescription>
-                {currentEditingItem ? 'Ubah detail item antrian di bawah ini.' : 'Isi detail item antrian baru.'}
+                {currentEditingQueueItem ? 'Ubah detail item antrian di bawah ini.' : 'Isi detail item antrian baru.'}
               </DialogDescription>
             </DialogHeader>
             {(loadingClients || loadingServices) ? (
@@ -1241,20 +1555,47 @@ export default function QueuePage() {
                 </div>
             ) : (
               <QueueItemForm
-                onSubmit={handleFormSubmit}
-                defaultValues={currentEditingItem ? { 
-                  customerName: currentEditingItem.customerName,
-                  clientId: currentEditingItem.clientId || WALK_IN_CLIENT_VALUE, 
-                  vehicleInfo: currentEditingItem.vehicleInfo || '',
-                  serviceId: currentEditingItem.serviceId, 
-                  variantId: currentEditingItem.variantId, 
-                  estimatedTime: currentEditingItem.estimatedTime || '',
-                  status: currentEditingItem.status,
+                onSubmit={handleQueueFormSubmit}
+                defaultValues={currentEditingQueueItem ? { 
+                  customerName: currentEditingQueueItem.customerName,
+                  clientId: currentEditingQueueItem.clientId || WALK_IN_CLIENT_VALUE, 
+                  vehicleInfo: currentEditingQueueItem.vehicleInfo || '',
+                  serviceId: currentEditingQueueItem.serviceId, 
+                  variantId: currentEditingQueueItem.variantId, 
+                  estimatedTime: currentEditingQueueItem.estimatedTime || '',
+                  status: currentEditingQueueItem.status,
                 } : defaultQueueItemValues}
-                onCancel={() => { setIsFormDialogOpen(false); setCurrentEditingItem(null);}}
-                isSubmitting={isSubmittingForm}
+                onCancel={() => { setIsQueueFormDialogOpen(false); setCurrentEditingQueueItem(null);}}
+                isSubmitting={isSubmittingQueueForm}
                 clientsList={clientsList}
                 allServicesList={allServicesList} 
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isBookingFormDialogOpen} onOpenChange={(isOpen) => {
+          setIsBookingFormDialogOpen(isOpen);
+        }}>
+          <DialogContent className="sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Buat Booking Baru</DialogTitle>
+              <DialogDescription>
+                Jadwalkan layanan untuk pelanggan. Booking hari ini akan langsung masuk antrian.
+              </DialogDescription>
+            </DialogHeader>
+             {(loadingClients || loadingServices) ? (
+                <div className="flex items-center justify-center py-10">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="ml-2">Memuat data pendukung form...</p>
+                </div>
+            ) : (
+              <BookingFormDialog
+                onSubmit={handleBookingFormSubmit}
+                onCancel={() => setIsBookingFormDialogOpen(false)}
+                isSubmitting={isSubmittingBookingForm}
+                clientsList={clientsList}
+                allServicesList={allServicesList}
               />
             )}
           </DialogContent>
@@ -1276,5 +1617,4 @@ export default function QueuePage() {
   );
 }
 
-export type { QueueItem as QueueItemType }; // Export for dashboard
-    
+export type { QueueItem as QueueItemType }; 

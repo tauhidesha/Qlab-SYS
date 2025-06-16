@@ -71,9 +71,9 @@ export const createBookingTool = ai.defineTool(
         vehicleInfo: input.vehicleInfo,
         bookingDateTime: bookingTimestamp,
         estimatedDuration: input.estimatedDuration,
-        status: isSameDay(parsedBookingDateTime, new Date()) ? 'In Queue' : 'Confirmed',
+        status: isSameDay(parsedBookingDateTime, new Date()) ? 'In Queue' : 'Confirmed', // Default to In Queue if today
         notes: input.notes,
-        source: 'WhatsApp',
+        source: 'WhatsApp', // Source from AI/WhatsApp
       };
 
       const bookingsCollectionRef = collection(db, 'bookings');
@@ -89,19 +89,20 @@ export const createBookingTool = ai.defineTool(
 
       if (isSameDay(parsedBookingDateTime, new Date())) {
         const queueCollectionRef = collection(db, 'queueItems');
+        // Check if queue item for this booking already exists
         const q = query(queueCollectionRef, where("bookingId", "==", bookingDocRef.id), limit(1));
         const existingQueueSnap = await getDocs(q);
 
         if (existingQueueSnap.empty) {
-            const newQueueItem: Omit<QueueItem, 'id' | 'createdAt' | 'completedAt' | 'serviceStartTime'> & {bookingId: string} = {
+            const newQueueItem: Omit<QueueItem, 'id' | 'createdAt' | 'completedAt' | 'serviceStartTime'> = {
             customerName: input.customerName,
             clientId: input.clientId,
             vehicleInfo: input.vehicleInfo,
-            service: input.serviceName,
-            serviceId: input.serviceId,
-            status: 'Menunggu',
+            service: input.serviceName, // serviceName from booking input
+            serviceId: input.serviceId, // serviceId from booking input
+            bookingId: bookingDocRef.id, // Link to booking
+            status: 'Menunggu', // Default status for new queue item
             estimatedTime: input.estimatedDuration || 'N/A',
-            bookingId: bookingDocRef.id,
           };
 
           const queueDocRef = await addDoc(queueCollectionRef, {
@@ -109,11 +110,16 @@ export const createBookingTool = ai.defineTool(
             createdAt: bookingTimestamp, // Masuk antrian sesuai waktu booking jika hari ini
           });
           queueItemId = queueDocRef.id;
+          // Update booking entry with queueItemId
           await updateDoc(bookingDocRef, { queueItemId: queueItemId, status: 'In Queue' });
           queueMessage = " dan langsung ditambahkan ke antrian hari ini";
           console.log(`Booking for today added to queue with ID: ${queueItemId}`);
         } else {
             queueItemId = existingQueueSnap.docs[0].id;
+            // Ensure booking status is 'In Queue' if already in queue
+            if (newBookingData.status !== 'In Queue') {
+                 await updateDoc(bookingDocRef, { queueItemId: queueItemId, status: 'In Queue' });
+            }
             queueMessage = " dan sudah ada dalam antrian hari ini";
             console.log(`Booking for today already in queue with ID: ${queueItemId}`);
         }
@@ -137,3 +143,4 @@ export const createBookingTool = ai.defineTool(
     }
   }
 );
+

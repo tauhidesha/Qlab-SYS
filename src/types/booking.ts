@@ -46,3 +46,17 @@ export interface CreateBookingToolOutput {
   message: string; // e.g., "Booking berhasil dibuat dan ditambahkan ke antrian." atau "Booking untuk besok berhasil."
   status?: BookingStatus;
 }
+
+// Untuk form booking manual
+export interface ManualBookingFormData {
+  customerName: string;
+  clientId?: string;
+  vehicleInfo: string;
+  serviceId: string;
+  variantId?: string;
+  bookingDate: Date;
+  bookingTime: string; // HH:MM
+  notes?: string;
+  source: 'Manual' | 'WhatsApp' | 'Online'; // Untuk membedakan sumber inputan
+}
+
