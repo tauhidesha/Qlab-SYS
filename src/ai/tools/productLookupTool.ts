@@ -41,7 +41,7 @@ export const getProductServiceDetailsByNameTool = ai.defineTool(
       for (const doc of querySnapshot.docs) {
         const item = { id: doc.id, ...doc.data() } as ServiceProduct;
 
-        if (Array.isArray(item.variants)) {
+        if (Array.isArray(item.variants)) { // Safely check if variants is an array
             for (const variant of item.variants) {
                 const fullVariantName = `${item.name} - ${variant.name}`;
                 if (fullVariantName.toLowerCase().includes(searchTermLower)) {
@@ -86,7 +86,7 @@ export const getProductServiceDetailsByNameTool = ai.defineTool(
         console.log(`ProductLookupTool: Ditemukan item: ${foundItem.name}`);
 
         let mappedVariants: ProductServiceInfo['variants'] = undefined;
-        if (!bestMatchIsVariant && Array.isArray(foundItem.variants)) {
+        if (!bestMatchIsVariant && Array.isArray(foundItem.variants)) { // Safely check if variants is an array
             mappedVariants = foundItem.variants.map(v => ({
                 name: v.name,
                 price: v.price,
@@ -110,7 +110,7 @@ export const getProductServiceDetailsByNameTool = ai.defineTool(
         try {
             ProductServiceInfoSchema.parse(result);
             return result;
-        } catch (zodError) {
+        } catch (zodError: any) {
             console.error("ProductLookupTool: Zod validation error for found item:", zodError.errors);
             return null;
         }

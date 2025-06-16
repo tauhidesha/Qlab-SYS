@@ -59,7 +59,7 @@ export const getClientDetailsTool = ai.defineTool(
         console.log(`ClientLookupTool: Ditemukan klien: ${foundClient.name}`);
 
         let mappedMotorcycles: ClientInfo['motorcycles'] = undefined;
-        if (Array.isArray(foundClient.motorcycles)) {
+        if (Array.isArray(foundClient.motorcycles)) { // Safely check if motorcycles is an array
             mappedMotorcycles = foundClient.motorcycles.map(m => ({ name: m.name, licensePlate: m.licensePlate }));
         }
 
@@ -75,7 +75,7 @@ export const getClientDetailsTool = ai.defineTool(
         try {
             ClientInfoSchema.parse(result);
             return result;
-        } catch (zodError) {
+        } catch (zodError: any) {
             console.error("ClientLookupTool: Zod validation error for found client:", zodError);
             return null;
         }

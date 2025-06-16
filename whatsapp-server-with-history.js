@@ -106,8 +106,8 @@ client.on('message', async (msg) => {
 
             // (OPSIONAL) Kirim balasan AI langsung ke pelanggan via WhatsApp dari sini
             // Jika kamu mau agar server Next.js yang memicu pengiriman, maka bagian ini tidak perlu
-            // await client.sendMessage(msg.from, aiReplyText);
-            // console.log(`Balasan AI dikirim ke ${senderName} via WhatsApp.`);
+            await client.sendMessage(msg.from, aiReplyText); // BARIS INI DIAKTIFKAN
+            console.log(`Balasan AI dikirim ke ${senderName} via WhatsApp.`);
 
         } else if (response.ok && responseData.success) {
             console.log('Pesan berhasil diteruskan ke Next.js, namun AI tidak memberikan balasan (mungkin tidak perlu).');
