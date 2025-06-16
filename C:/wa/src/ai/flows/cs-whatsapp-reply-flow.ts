@@ -18,11 +18,13 @@ import { z } from 'genkit';
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { AiSettingsFormSchema, DEFAULT_AI_SETTINGS, type AiSettingsFormValues } from '@/types/aiSettings';
-import { format as formatDateFns, addDays } from 'date-fns';
+import { sendWhatsAppMessage } from '@/services/whatsappService';
+import { format as formatDateFns, addDays, parseISO } from 'date-fns';
+import { id as indonesiaLocale } from 'date-fns/locale';
 
 
 export async function generateWhatsAppReply({ customerMessage, senderNumber, chatHistory }: { customerMessage: string; senderNumber?: string; chatHistory?: ChatMessage[] }): Promise<WhatsAppReplyOutput> {
-  let agentSettings = { ...DEFAULT_AI_SETTINGS };
+  let agentSettings = { ...DEFAULT_AI_SETTINGS }; // Keep settings for context
 
   try {
     const settingsDocRef = doc(db, 'appSettings', 'aiAgentConfig');
@@ -32,12 +34,12 @@ export async function generateWhatsAppReply({ customerMessage, senderNumber, cha
       const parsedSettings = AiSettingsFormSchema.safeParse(rawSettingsData);
       if (parsedSettings.success) {
         agentSettings = { ...DEFAULT_AI_SETTINGS, ...parsedSettings.data };
-        console.log("AI Settings loaded and validated from Firestore:", agentSettings.agentBehavior);
+        console.log("Minimal AI Settings loaded and validated from Firestore:", agentSettings.agentBehavior);
       } else {
-        console.warn("AI Settings in Firestore are invalid, using defaults.");
+        console.warn("Minimal AI Settings in Firestore are invalid, using defaults.");
       }
     } else {
-      console.log("AI Settings not found in Firestore, using defaults.");
+      console.log("Minimal AI Settings not found in Firestore, using defaults.");
     }
   } catch (error) {
     console.error("Error fetching AI settings from Firestore, using defaults:", error);
@@ -49,7 +51,7 @@ export async function generateWhatsAppReply({ customerMessage, senderNumber, cha
     senderNumber: senderNumber,
     chatHistory: chatHistory || [],
     agentBehavior: agentSettings.agentBehavior || '',
-    knowledgeBase: agentSettings.knowledgeBaseDescription || '', // Ini akan jadi panduan umum sekali
+    knowledgeBase: agentSettings.knowledgeBaseDescription || '',
     currentDate: formatDateFns(now, 'yyyy-MM-dd'),
     currentTime: formatDateFns(now, 'HH:mm'),
     tomorrowDate: formatDateFns(addDays(now, 1), 'yyyy-MM-dd'),
@@ -72,19 +74,19 @@ const replyPrompt = ai.definePrompt({
   ],
   prompt: `Anda adalah Zoya, Customer Service AI untuk QLAB Auto Detailing.
 Perilaku Anda: {{{agentBehavior}}}.
-Gunakan panduan umum ini: {{{knowledgeBase}}}.
+Panduan umum: {{{knowledgeBase}}}.
 Tanggal saat ini: {{{currentDate}}}, Waktu: {{{currentTime}}}. Nomor WhatsApp Pelanggan: {{{senderNumber}}}.
 
 Tugas Anda adalah merespons pesan pelanggan.
--   Jika pertanyaan umum (mis. jam buka, alamat, kebijakan umum), gunakan \`getKnowledgeBaseInfoTool\` untuk mencari jawabannya.
--   Jika pertanyaan tentang detail produk/layanan (harga, durasi, deskripsi), gunakan \`getProductServiceDetailsByNameTool\`.
--   Jika pertanyaan tentang data pelanggan (poin, motor terdaftar), gunakan \`getClientDetailsTool\`.
--   Jika pelanggan ingin membuat booking, kumpulkan informasi yang diperlukan (Nama Pelanggan, ID & Nama Layanan, Info Kendaraan, Tanggal, Waktu) lalu gunakan \`createBookingTool\`.
+- Jika pertanyaan umum, gunakan \`getKnowledgeBaseInfoTool\`.
+- Jika pertanyaan detail produk/layanan (harga, durasi), gunakan \`getProductServiceDetailsByNameTool\`.
+- Jika pertanyaan data pelanggan, gunakan \`getClientDetailsTool\`.
+- Jika pelanggan ingin booking, gunakan \`createBookingTool\` setelah info lengkap.
 
-SANGAT PENTING:
-1.  PASTIKAN balasan Anda SELALU dalam format JSON yang valid: \`{"suggestedReply": "Teks balasan Anda di sini..."}\`.
-2.  JANGAN PERNAH menyebutkan nama tool yang Anda gunakan kepada pelanggan.
-3.  JANGAN PERNAH mengatakan "sedang mengecek", "tunggu sebentar", atau "*loading...*". Jika tool tidak menemukan informasi, katakan Anda tidak menemukan informasinya.
+ATURAN PENTING:
+1.  Hasilkan balasan dalam format JSON: \`{"suggestedReply": "Teks balasan Anda..."}\`.
+2.  JANGAN PERNAH menyebutkan nama tool.
+3.  JANGAN PERNAH mengatakan "sedang mengecek/loading" atau semacamnya. Langsung berikan hasil atau katakan tidak menemukan info.
 
 Riwayat Percakapan Sebelumnya:
 {{#each chatHistory}}
@@ -115,4 +117,6 @@ const whatsAppReplyFlow = ai.defineFlow(
     return output;
   }
 );
+    
+
     
