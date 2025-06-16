@@ -2,10 +2,8 @@
 'use server';
 /**
  * @fileOverview Flow AI untuk membantu membuat balasan pesan WhatsApp customer service.
- * Dilengkapi dengan kemampuan untuk mencari informasi produk/layanan dan data klien,
- * serta menggunakan pengaturan agen AI dinamis dari Firestore dan riwayat percakapan.
- * Menggunakan pendekatan RAG sederhana untuk informasi dari knowledge base.
- * Juga memiliki kemampuan notifikasi ke agen manusia jika kondisi tertentu terpenuhi.
+ * Dilengkapi dengan kemampuan untuk mencari informasi produk/layanan, data klien,
+ * menggunakan pengaturan agen AI dinamis, melakukan booking, dan notifikasi handoff.
  *
  * - generateWhatsAppReply - Fungsi yang menghasilkan draf balasan.
  */
@@ -14,6 +12,7 @@ import { ai } from '@/ai/genkit';
 import { getProductServiceDetailsByNameTool } from '@/ai/tools/productLookupTool';
 import { getClientDetailsTool } from '@/ai/tools/clientLookupTool';
 import { getKnowledgeBaseInfoTool } from '@/ai/tools/knowledgeLookupTool';
+import { createBookingTool } from '@/ai/tools/createBookingTool'; // Import tool booking
 import type { WhatsAppReplyInput, WhatsAppReplyOutput, ChatMessage } from '@/types/ai/cs-whatsapp-reply';
 import { WhatsAppReplyInputSchema, WhatsAppReplyOutputSchema } from '@/types/ai/cs-whatsapp-reply';
 import { z } from 'genkit';
@@ -21,21 +20,20 @@ import { z } from 'genkit';
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { AiSettingsFormSchema, DEFAULT_AI_SETTINGS, type AiSettingsFormValues } from '@/types/aiSettings';
-import { sendWhatsAppMessage } from '@/services/whatsappService'; // Untuk mengirim notifikasi ke agen manusia
+import { sendWhatsAppMessage } from '@/services/whatsappService';
+import { format as formatDateFns, addDays, parseISO } from 'date-fns';
+import { id as indonesiaLocale } from 'date-fns/locale';
 
-// Kata kunci untuk deteksi permintaan handoff dari pelanggan
 const CUSTOMER_HANDOFF_KEYWORDS = [
     "manusia", "staf", "cs", "customer service", "operator", "agen", "admin", "orang", "komplain", "bicara langsung"
 ];
-// Kata kunci dari AI yang mengindikasikan ketidakmampuan
 const AI_INABILITY_KEYWORDS = [
-    "tidak bisa membantu", "kurang yakin", "tidak menemukan informasi", "tidak tahu", "sulit mengerti", "bukan kapasitas saya", "hubungi staf", "tidak ada data"
+    "tidak bisa membantu", "kurang yakin", "tidak menemukan informasi", "tidak tahu", "sulit mengerti", "bukan kapasitas saya", "hubungi staf", "tidak ada data", "maaf, saya tidak dapat"
 ];
 
 
 export async function generateWhatsAppReply({ customerMessage, senderNumber, chatHistory }: { customerMessage: string; senderNumber?: string; chatHistory?: ChatMessage[] }): Promise<WhatsAppReplyOutput> {
   let agentSettings = { ...DEFAULT_AI_SETTINGS };
-  let settingsLoadedFromFirestore = false;
 
   try {
     const settingsDocRef = doc(db, 'appSettings', 'aiAgentConfig');
@@ -45,7 +43,6 @@ export async function generateWhatsAppReply({ customerMessage, senderNumber, cha
       const parsedSettings = AiSettingsFormSchema.safeParse(rawSettingsData);
       if (parsedSettings.success) {
         agentSettings = { ...DEFAULT_AI_SETTINGS, ...parsedSettings.data };
-        settingsLoadedFromFirestore = true;
         console.log("AI Settings loaded and validated from Firestore:", agentSettings);
       } else {
         console.warn("AI Settings in Firestore are invalid, using defaults. Validation errors:", parsedSettings.error.format());
@@ -57,22 +54,25 @@ export async function generateWhatsAppReply({ customerMessage, senderNumber, cha
     console.error("Error fetching AI settings from Firestore, using defaults:", error);
   }
 
+  const now = new Date();
   const flowInput: WhatsAppReplyInput = {
     customerMessage: customerMessage,
     senderNumber: senderNumber,
     chatHistory: chatHistory || [],
     agentBehavior: agentSettings.agentBehavior || '',
     knowledgeBase: agentSettings.knowledgeBaseDescription || '',
+    currentDate: formatDateFns(now, 'yyyy-MM-dd'),
+    currentTime: formatDateFns(now, 'HH:mm'),
+    tomorrowDate: formatDateFns(addDays(now, 1), 'yyyy-MM-dd'),
+    dayAfterTomorrowDate: formatDateFns(addDays(now, 2), 'yyyy-MM-dd'),
   };
 
   const aiResponse = await whatsAppReplyFlow(flowInput);
 
-  // Logika Handoff ke Agen Manusia
-  if (agentSettings.enableHumanHandoff && agentSettings.humanAgentWhatsAppNumber && agentSettings.humanAgentWhatsAppNumber.trim() !== '') {
+  if (agentSettings.enableHumanHandoff && agentSettings.humanAgentWhatsAppNumber && agentSettings.humanAgentWhatsAppNumber.trim() !== '' && senderNumber) {
     let needsHandoff = false;
     let handoffReason = "";
 
-    // Cek apakah pelanggan meminta handoff
     if (agentSettings.transferConditions.includes("Pelanggan Meminta Secara Eksplisit") || agentSettings.transferConditions.includes("Disebut Kata Kunci Eskalasi (mis. 'manajer', 'komplain')")) {
       if (CUSTOMER_HANDOFF_KEYWORDS.some(keyword => customerMessage.toLowerCase().includes(keyword))) {
         needsHandoff = true;
@@ -80,8 +80,6 @@ export async function generateWhatsAppReply({ customerMessage, senderNumber, cha
       }
     }
 
-    // Cek apakah AI mengindikasikan tidak bisa membantu (berdasarkan output AI atau kondisi lain)
-    // Untuk "AI Tidak Menemukan Jawaban (Setelah 2x Coba)", kita sederhanakan dulu menjadi "AI Tidak Menemukan Jawaban" dari teks balasan AI
     if (!needsHandoff && agentSettings.transferConditions.some(tc => tc.startsWith("AI Tidak Menemukan Jawaban"))) {
       if (AI_INABILITY_KEYWORDS.some(keyword => aiResponse.suggestedReply.toLowerCase().includes(keyword))) {
         needsHandoff = true;
@@ -89,19 +87,17 @@ export async function generateWhatsAppReply({ customerMessage, senderNumber, cha
       }
     }
     
-    // TODO: Tambahkan pengecekan untuk kondisi transfer lainnya jika memungkinkan di masa depan (mis. sentimen, jumlah pertanyaan)
-
     if (needsHandoff) {
-      console.log(`Handoff condition met for ${senderNumber || 'Unknown sender'}. Reason: ${handoffReason}`);
+      console.log(`Handoff condition met for ${senderNumber}. Reason: ${handoffReason}`);
       const handoffNotificationMessage = `🔔 *Notifikasi Handoff Agen AI* 🔔
 
-Pelanggan: ${senderNumber || 'Nomor tidak diketahui'}
+Pelanggan: ${senderNumber}
 Alasan Handoff: ${handoffReason}
 
 Pesan Terakhir Pelanggan:
 _"${customerMessage}"_
 
-Saran Balasan AI Sebelumnya (jika ada):
+Saran Balasan AI (jika ada):
 _"${aiResponse.suggestedReply}"_
 
 Mohon segera tindak lanjuti.`;
@@ -109,9 +105,6 @@ Mohon segera tindak lanjuti.`;
       try {
         await sendWhatsAppMessage(agentSettings.humanAgentWhatsAppNumber, handoffNotificationMessage);
         console.log(`Handoff notification sent to human agent: ${agentSettings.humanAgentWhatsAppNumber}`);
-        // Mungkin kita ingin AI membalas ke pelanggan bahwa sedang dihubungkan ke staf
-        // aiResponse.suggestedReply = `Mohon tunggu sebentar, Kak. Saya akan segera menghubungkan Anda dengan staf kami untuk bantuan lebih lanjut. ${agentSettings.agentBehavior.includes("Humoris") ? "Jangan kemana-mana ya, nanti kangen!" : "" }`;
-
       } catch (waError) {
         console.error(`Failed to send handoff notification to ${agentSettings.humanAgentWhatsAppNumber}:`, waError);
       }
@@ -125,65 +118,50 @@ const replyPrompt = ai.definePrompt({
   name: 'whatsAppReplyPrompt',
   input: { schema: WhatsAppReplyInputSchema },
   output: { schema: WhatsAppReplyOutputSchema },
-  tools: [getKnowledgeBaseInfoTool, getProductServiceDetailsByNameTool, getClientDetailsTool],
-  prompt: `Anda adalah seorang Customer Service Assistant AI untuk QLAB Auto Detailing, sebuah bengkel perawatan dan detailing motor.
+  tools: [getKnowledgeBaseInfoTool, getProductServiceDetailsByNameTool, getClientDetailsTool, createBookingTool],
+  system: `Anda adalah Customer Service Assistant AI untuk QLAB Auto Detailing.
 Perilaku Anda harus: {{{agentBehavior}}}.
-Panduan umum untuk Anda: {{{knowledgeBase}}}
+Panduan umum: {{{knowledgeBase}}}.
+Tanggal hari ini: {{{currentDate}}}. Waktu saat ini: {{{currentTime}}} (WIB).
+Tanggal besok: {{{tomorrowDate}}}. Tanggal lusa: {{{dayAfterTomorrowDate}}}.
+Nomor WhatsApp Pelanggan: {{{senderNumber}}}.
 
-{{#each chatHistory}}
+Alur Kerja Utama:
+1.  **Analisa Pesan Pelanggan:** Pahami maksud pelanggan.
+2.  **Info Umum/Kebijakan:** Jika pertanyaan umum (jam buka, alamat, kebijakan garansi, dll.), gunakan \`getKnowledgeBaseInfoTool\`.
+3.  **Detail Produk/Layanan (Harga/Durasi):** Jika perlu harga/durasi spesifik, gunakan \`getProductServiceDetailsByNameTool\`. Tanyakan jenis motor/cat jika diperlukan oleh layanan tersebut SEBELUM memanggil tool ini.
+4.  **Data Klien:** Jika perlu info spesifik klien (poin, motor terdaftar), gunakan \`getClientDetailsTool\` dengan nomor {{{senderNumber}}} atau nama yang disebut.
+5.  **Booking Layanan:**
+    *   Jika pelanggan jelas ingin booking/reservasi:
+        *   **Layanan:** Pastikan LAYANAN APA yang diinginkan. Jika tidak jelas, tanyakan. Jika perlu, gunakan \`getProductServiceDetailsByNameTool\` untuk mencari dan mengkonfirmasi layanan berdasarkan deskripsi pelanggan. Dapatkan **ID Layanan** dan **Nama Layanan Lengkap** (termasuk varian jika ada). Ambil juga **Estimasi Durasi** dari hasil tool produk.
+        *   **Tanggal & Waktu:** Tanyakan TANGGAL (YYYY-MM-DD) dan WAKTU (HH:MM format 24 jam) yang diinginkan. Bantu pelanggan mengkonversi jika mereka menyebut "besok" (gunakan {{{tomorrowDate}}}), "lusa" (gunakan {{{dayAfterTomorrowDate}}}), atau jam tidak spesifik (mis. "siang" menjadi "13:00").
+        *   **Kendaraan:** Tanyakan INFORMASI KENDARAAN (mis. "Honda Vario B 1234 XYZ", "Yamaha NMAX Merah").
+        *   **Nama Pelanggan:** Tanyakan NAMA LENGKAP PELANGGAN jika belum tahu dari histori atau \`getClientDetailsTool\`.
+        *   **Konfirmasi Slot (SANGAT PENTING):** SEBELUM MEMANGGIL \`createBookingTool\`, JIKA pelanggan meminta waktu yang SANGAT SPESIFIK (mis. "besok jam 10 pagi pas"), Anda HARUS bertanya kepada staf (dengan mengindikasikan Anda tidak bisa cek slot) atau menyarankan pelanggan untuk fleksibel. JANGAN berasumsi slot pasti ada untuk permintaan waktu spesifik tanpa pengecekan. Jika pelanggan hanya bertanya "besok bisa?", asumsikan bisa dan lanjutkan.
+        *   Setelah semua info (nama pelanggan, ID & nama layanan, info kendaraan, tanggal, waktu, estimasi durasi) lengkap dan slot waktu (jika spesifik) telah dikonfirmasi (atau diasumsikan tersedia untuk permintaan umum), panggil \`createBookingTool\`.
+        *   Sampaikan hasil dari \`createBookingTool\` (sukses atau gagal, beserta pesannya) kepada pelanggan.
+    *   JANGAN menawarkan booking jika pelanggan hanya bertanya informasi umum. Tawarkan booking HANYA jika pelanggan menunjukkan minat jelas untuk datang atau meminta dibuatkan jadwal.
+6.  **Sintesis Jawaban:** Gabungkan info dari tool dan histori untuk jawaban yang membantu & sesuai perilaku.
+
+Aturan Tambahan:
+*   **Sapaan Awal Umum**: Jika hanya sapaan umum tanpa pertanyaan spesifik, sapa balik dengan ramah, tanyakan apa yang bisa dibantu. JANGAN gunakan tool apapun.
+*   **Harga/Durasi**: Sebutkan NAMA LAYANAN LENGKAP, deskripsi singkat, ESTIMASI DURASI, dan HARGA (Rp) hanya setelah mendapatkan data dari \`getProductServiceDetailsByNameTool\`.
+*   **Tool Gagal**: Jika tool tidak menemukan informasi, sampaikan dengan sopan. Jangan menebak.
+*   **Bahasa**: Indonesia baku, ramah. Ringkas jika banyak info (gunakan poin).
+*   **Penutup**: Akhiri dengan sopan kecuali melanjutkan percakapan.
+
+Hasilkan hanya teks balasannya saja. Jangan menyebutkan nama tool yang Anda gunakan dalam balasan ke pelanggan.
+`,
+  prompt: `{{#each chatHistory}}
   {{#if @first}}
-Berikut adalah riwayat percakapan sebelumnya:
-  (JANGAN mengulang sapaan "Halo" jika sudah ada riwayat):
+Riwayat percakapan sebelumnya (JANGAN mengulang sapaan "Halo" jika sudah ada riwayat):
   {{/if}}
   {{this.role}}: {{{this.content}}}
 {{/each}}
 
-Pesan BARU dari Pelanggan ({{{senderNumber}}}) (atau pertanyaan dari Staf CS yang perlu Anda bantu jawab):
+Pesan BARU dari Pelanggan:
 {{{customerMessage}}}
-
-Alur Kerja Utama Anda:
-1.  **Analisa Pesan Pelanggan:** Pahami apa yang dibutuhkan pelanggan. Perhatikan nomor pengirim: {{{senderNumber}}} jika perlu.
-2.  **Ambil Informasi dari Knowledge Base (JIKA PERLU):**
-    *   Jika pelanggan bertanya tentang informasi umum layanan (bukan harga/durasi spesifik), kebijakan, jam buka, alamat, atau topik umum lainnya, PERTAMA-TAMA gunakan tool \`getKnowledgeBaseInfoTool\` untuk mencari informasi relevan.
-    *   Parameter 'query' untuk tool ini bisa berupa inti pertanyaan pelanggan atau topik spesifik yang Anda identifikasi (mis. "coating motor", "jam buka", "garansi").
-3.  **Ambil Detail Produk/Layanan (JIKA PERLU untuk HARGA/DURASI):**
-    *   Jika pelanggan bertanya tentang HARGA atau DURASI layanan spesifik, ATAU jika informasi dari \`getKnowledgeBaseInfoTool\` menyarankan perlunya detail lebih lanjut (misalnya, "untuk harga Coating, tanyakan jenis motor"), gunakan tool \`getProductServiceDetailsByNameTool\`.
-    *   Sebelum memanggil tool ini, pastikan Anda memiliki informasi yang cukup (seperti jenis motor atau jenis cat jika diperlukan, sesuai instruksi dari \`getKnowledgeBaseInfoTool\` atau logika umum). Jika belum, TANYAKAN dulu ke pelanggan.
-4.  **Ambil Data Klien (JIKA PERLU):**
-    *   Jika pesan pelanggan berkaitan dengan data pribadi mereka (poin, motor terdaftar, dll.), atau jika Anda memerlukan informasi spesifik tentang pelanggan untuk menjawab pertanyaan, gunakan tool \`getClientDetailsTool\`. Anda bisa menggunakan nomor pengirim ({{{senderNumber}}}) atau nama yang mungkin disebut dalam percakapan sebagai input untuk tool ini.
-5.  **Sintesis Jawaban:**
-    *   Gunakan informasi yang Anda dapatkan dari semua tool yang dipanggil (jika ada) dan riwayat percakapan untuk menyusun balasan yang informatif dan membantu.
-    *   Jika tool tidak menemukan informasi yang dibutuhkan, sampaikan dengan sopan. JANGAN menebak-nebak.
-    *   Jika Anda benar-benar tidak bisa membantu atau pertanyaan terlalu kompleks/sensitif, Anda BOLEH menyarankan pelanggan untuk menunggu bantuan dari staf manusia, atau jika ada indikasi kuat pelanggan ingin berbicara dengan manusia, sampaikan bahwa Anda akan mencoba meneruskannya.
-
-Aturan Tambahan:
-*   **Sapaan Awal dari Pelanggan**:
-    *   Jika pesan pelanggan adalah sapaan umum (misalnya "Halo", "Siang", "Pagi", "Info dong", "Bro") dan TIDAK mengandung pertanyaan spesifik:
-        *   Sapa balik dengan ramah sesuai {{{agentBehavior}}}.
-        *   Tanyakan secara umum apa yang bisa dibantu atau layanan apa yang mereka cari.
-        *   CONTOH BALASAN SAPAAN UMUM: "Halo Kak! Ada yang bisa saya bantu untuk motornya hari ini? Lagi cari info cuci, detailing, coating, atau yang lain?"
-        *   PENTING: JANGAN menggunakan tool APAPUN (termasuk \`getKnowledgeBaseInfoTool\`) pada tahap ini jika hanya sapaan umum.
-*   **Menanyakan Informasi Tambahan (Jenis Motor/Cat):**
-    *   Jika hasil dari \`getKnowledgeBaseInfoTool\` (misalnya tentang "coating") atau logika umum Anda menunjukkan bahwa jenis motor atau jenis cat diperlukan untuk menjawab pertanyaan layanan (misalnya, untuk harga coating atau poles), TANYAKAN informasi tersebut DULU SEBELUM memanggil \`getProductServiceDetailsByNameTool\` atau memberikan harga.
-    *   CONTOH TANYA JENIS MOTOR: "Oke Kak. Untuk motor apa ya kira-kira? Biar saya bisa kasih info yang pas."
-    *   CONTOH TANYA JENIS CAT (untuk COATING): "Siap! Untuk coatingnya, motor Kakak catnya doff (matte) atau glossy (mengkilap) ya?"
-*   **Menyebutkan Harga/Durasi (dari \`getProductServiceDetailsByNameTool\`):**
-    *   HANYA setelah semua informasi yang diperlukan lengkap (misal jenis motor/cat sudah tahu) DAN \`getProductServiceDetailsByNameTool\` berhasil mengembalikan data:
-        *   Sebutkan NAMA LAYANAN LENGKAP.
-        *   Jelaskan secara ringkas APA SAJA YANG TERMASUK (berdasarkan field \`description\` dari tool produk/layanan, JANGAN dari \`getKnowledgeBaseInfoTool\` jika sudah memanggil tool produk).
-        *   Sebutkan ESTIMASI DURASI (field \`estimatedDuration\` dari tool produk/layanan).
-        *   LANGSUNG SEBUTKAN HARGA (field \`price\` dari tool produk/layanan), format sebagai Rupiah (Rp).
-    *   Jika \`getProductServiceDetailsByNameTool\` gagal dan tidak ada harga/durasi spesifik: Informasikan dengan sopan. JANGAN menebak harga.
-*   **Jika Tool Gagal**: Jika tool \`getKnowledgeBaseInfoTool\` atau \`getProductServiceDetailsByNameTool\` mengembalikan bahwa informasi tidak ditemukan, sampaikan itu ke pelanggan. Jangan mencoba memanggil tool yang sama lagi untuk query yang mirip dalam giliran yang sama.
-
-Umum:
-*   Gunakan bahasa Indonesia yang baku, ramah, dan sesuai {{{agentBehavior}}}.
-*   Buat balasan ringkas, jika banyak info, gunakan poin-poin.
-*   Selalu akhiri dengan sapaan yang sopan atau kalimat penutup yang positif, KECUALI jika Anda sedang melanjutkan percakapan yang sudah berjalan.
-
-Hasilkan hanya teks balasannya saja. Jangan menyebutkan nama tool yang Anda gunakan dalam balasan ke pelanggan.
-Pastikan balasan Anda tetap ramah dan profesional.
-`,
+`
 });
 
 const whatsAppReplyFlow = ai.defineFlow(
@@ -204,5 +182,3 @@ const whatsAppReplyFlow = ai.defineFlow(
     return output;
   }
 );
-
-    
