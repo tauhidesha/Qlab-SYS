@@ -1,0 +1,11 @@
+{
+  "/(app)/ai-cs-assistant/page": "app/(app)/ai-cs-assistant/page.js",
+  "/(app)/bookings/page": "app/(app)/bookings/page.js",
+  "/(app)/clients/page": "app/(app)/clients/page.js",
+  "/(app)/dashboard/page": "app/(app)/dashboard/page.js",
+  "/(app)/pos/page": "app/(app)/pos/page.js",
+  "/(app)/queue/page": "app/(app)/queue/page.js",
+  "/(app)/settings/page": "app/(app)/settings/page.js",
+  "/favicon.ico/route": "app/favicon.ico/route.js",
+  "/page": "app/page.js"
+}
