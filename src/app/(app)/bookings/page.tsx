@@ -57,6 +57,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { buttonVariants } from '@/components/ui/button';
+import Link from 'next/link';
 
 const WALK_IN_CLIENT_VALUE = "##WALK_IN_CLIENT##";
 
@@ -73,16 +74,17 @@ const manualBookingFormSchema = z.object({
 });
 
 interface BookingFormDialogProps {
-  onOpenChange: (open: boolean) => void; // For internal close actions
   onSubmitSuccess: () => void;
   clientsList: Client[];
   allServicesList: ServiceProduct[];
   existingBooking?: BookingEntry | null;
 }
 
-function BookingFormDialog({ onOpenChange, onSubmitSuccess, clientsList, allServicesList, existingBooking }: BookingFormDialogProps) {
+function BookingFormDialog({ onSubmitSuccess, clientsList, allServicesList, existingBooking }: BookingFormDialogProps) {
   const { toast } = useToast();
   const [isSubmittingBookingForm, setIsSubmittingBookingForm] = useState(false);
+  const { setIsBookingFormOpen } = useBookingsPageContext();
+
 
   const form = useForm<ManualBookingFormData>({
     resolver: zodResolver(manualBookingFormSchema),
@@ -130,8 +132,6 @@ function BookingFormDialog({ onOpenChange, onSubmitSuccess, clientsList, allServ
          if (service) {
             const variants = service.variants?.filter(v => v.name && v.price > 0) || [];
             setAvailableVariants(variants);
-            // Assuming variantId is stored in a field like 'variantId' in the booking entry if it's a variant booking
-            // This part might need adjustment based on how variant bookings are stored
             const bookingVariantId = (existingBooking as any).variantId || (existingBooking as any).service?.variantId; 
             if (bookingVariantId && service.variants?.some(v => v.id === bookingVariantId)) {
                 form.setValue('variantId', bookingVariantId);
@@ -250,7 +250,7 @@ function BookingFormDialog({ onOpenChange, onSubmitSuccess, clientsList, allServ
       }
       
       onSubmitSuccess(); 
-      onOpenChange(false); 
+      setIsBookingFormOpen(false);
     } catch (error) {
       console.error("Error submitting booking form: ", error);
       toast({ title: "Error Booking", description: "Gagal menyimpan booking.", variant: "destructive" });
@@ -402,7 +402,7 @@ function BookingFormDialog({ onOpenChange, onSubmitSuccess, clientsList, allServ
           />
           <DialogFooter>
             <DialogClose asChild>
-                <Button type="button" variant="outline" disabled={isSubmittingBookingForm}>Batal</Button>
+                <Button type="button" variant="outline" disabled={isSubmittingBookingForm} onClick={() => setIsBookingFormOpen(false)}>Batal</Button>
             </DialogClose>
             <Button type="submit" disabled={isSubmittingBookingForm}>
               {isSubmittingBookingForm ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -414,6 +414,21 @@ function BookingFormDialog({ onOpenChange, onSubmitSuccess, clientsList, allServ
     </DialogContent>
   );
 }
+
+interface BookingsPageContextType {
+  isBookingFormOpen: boolean;
+  setIsBookingFormOpen: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
+const BookingsPageContext = React.createContext<BookingsPageContextType | undefined>(undefined);
+
+const useBookingsPageContext = () => {
+  const context = React.useContext(BookingsPageContext);
+  if (!context) {
+    throw new Error("useBookingsPageContext must be used within a BookingsPageContextProvider");
+  }
+  return context;
+};
 
 
 export default function BookingsPage() {
@@ -537,119 +552,116 @@ export default function BookingsPage() {
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <AppHeader title="Kalender Booking" />
-      <main className="flex-1 overflow-y-auto p-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Kalender Jadwal Booking</CardTitle>
-              <CardDescription>Lihat dan kelola jadwal booking pelanggan.</CardDescription>
-            </div>
-            <Button onClick={handleOpenNewBookingDialog} disabled={loadingDialogDeps}>
-                {loadingDialogDeps && !isBookingFormOpen ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
-                Buat Booking Baru
-            </Button>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-1 flex justify-center md:justify-start">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={setSelectedDate}
-                month={currentDisplayDate}
-                onMonthChange={setCurrentDisplayDate}
-                className="rounded-md border shadow-sm"
-                modifiers={{ booked: daysWithBookings }}
-                modifiersClassNames={{ booked: 'booked-day' }}
-                locale={indonesiaLocale}
-              />
-            </div>
-            <div className="md:col-span-2">
-              <h3 className="text-lg font-semibold mb-3">
-                Booking untuk: {selectedDate ? formatDateFns(selectedDate, "PPP", { locale: indonesiaLocale }) : "Pilih tanggal"}
-              </h3>
-              {loading ? (
-                <div className="flex items-center justify-center h-40"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-              ) : bookingsOnSelectedDate.length === 0 ? (
-                <p className="text-muted-foreground text-center py-4">Tidak ada booking untuk tanggal ini.</p>
-              ) : (
-                <ScrollArea className="h-[400px] pr-3">
-                  <div className="space-y-3">
-                    {bookingsOnSelectedDate.map(booking => (
-                      <Card key={booking.id} className="bg-card hover:shadow-md transition-shadow">
-                        <CardHeader className="pb-3 pt-4 px-4">
-                          <div className="flex justify-between items-start">
-                            <div>
-                                <CardTitle className="text-md flex items-center">
-                                <User className="mr-2 h-4 w-4 text-primary" /> {booking.customerName}
-                                </CardTitle>
-                                <CardDescription className="text-xs">{booking.vehicleInfo}</CardDescription>
+    <BookingsPageContext.Provider value={{ isBookingFormOpen, setIsBookingFormOpen }}>
+      <div className="flex flex-col h-full">
+        <AppHeader title="Kalender Booking" />
+        <main className="flex-1 overflow-y-auto p-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Kalender Jadwal Booking</CardTitle>
+                <CardDescription>Lihat dan kelola jadwal booking pelanggan.</CardDescription>
+              </div>
+              <Button onClick={handleOpenNewBookingDialog} disabled={loadingDialogDeps}>
+                  {loadingDialogDeps && !isBookingFormOpen ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+                  Buat Booking Baru
+              </Button>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="md:col-span-1 flex justify-center md:justify-start">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={setSelectedDate}
+                  month={currentDisplayDate}
+                  onMonthChange={setCurrentDisplayDate}
+                  className="rounded-md border shadow-sm"
+                  modifiers={{ booked: daysWithBookings }}
+                  modifiersClassNames={{ booked: 'booked-day' }}
+                  locale={indonesiaLocale}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <h3 className="text-lg font-semibold mb-3">
+                  Booking untuk: {selectedDate ? formatDateFns(selectedDate, "PPP", { locale: indonesiaLocale }) : "Pilih tanggal"}
+                </h3>
+                {loading ? (
+                  <div className="flex items-center justify-center h-40"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+                ) : bookingsOnSelectedDate.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-4">Tidak ada booking untuk tanggal ini.</p>
+                ) : (
+                  <ScrollArea className="h-[400px] pr-3">
+                    <div className="space-y-3">
+                      {bookingsOnSelectedDate.map(booking => (
+                        <Card key={booking.id} className="bg-card hover:shadow-md transition-shadow">
+                          <CardHeader className="pb-3 pt-4 px-4">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                  <CardTitle className="text-md flex items-center">
+                                  <User className="mr-2 h-4 w-4 text-primary" /> {booking.customerName}
+                                  </CardTitle>
+                                  <CardDescription className="text-xs">{booking.vehicleInfo}</CardDescription>
+                              </div>
+                              <Badge variant={booking.status === 'In Queue' ? 'default' : booking.status === 'Confirmed' ? 'secondary' : 'outline'} className="capitalize text-xs">
+                                  {booking.status}
+                              </Badge>
                             </div>
-                             <Badge variant={booking.status === 'In Queue' ? 'default' : booking.status === 'Confirmed' ? 'secondary' : 'outline'} className="capitalize text-xs">
-                                {booking.status}
-                             </Badge>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="px-4 pb-3 pt-1 text-sm">
-                          <p><Clock className="inline mr-1.5 h-3.5 w-3.5 text-muted-foreground" /> Pukul: {formatDateFns(booking.bookingDateTime.toDate(), "HH:mm", { locale: indonesiaLocale })}</p>
-                          <p className="truncate"><Wrench className="inline mr-1.5 h-3.5 w-3.5 text-muted-foreground" /> Layanan: {booking.serviceName}</p>
-                          {booking.notes && <p className="text-xs text-muted-foreground mt-1 truncate">Catatan: {booking.notes}</p>}
-                        </CardContent>
-                        <CardFooter className="px-4 py-2 border-t flex justify-end gap-2">
-                            <Button variant="ghost" size="sm" onClick={() => handleEditBooking(booking)} className="h-7 px-2 text-xs hover:bg-accent/80">
-                                <Edit3 className="mr-1 h-3.5 w-3.5"/> Edit
-                            </Button>
-                            <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="sm" onClick={() => handleDeleteBookingConfirmation(booking)} className="h-7 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive">
-                                    <Trash2 className="mr-1 h-3.5 w-3.5"/> Hapus
-                                </Button>
-                            </AlertDialogTrigger>
-                        </CardFooter>
-                      </Card>
-                    ))}
-                  </div>
-                </ScrollArea>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                          </CardHeader>
+                          <CardContent className="px-4 pb-3 pt-1 text-sm">
+                            <p><Clock className="inline mr-1.5 h-3.5 w-3.5 text-muted-foreground" /> Pukul: {formatDateFns(booking.bookingDateTime.toDate(), "HH:mm", { locale: indonesiaLocale })}</p>
+                            <p className="truncate"><Wrench className="inline mr-1.5 h-3.5 w-3.5 text-muted-foreground" /> Layanan: {booking.serviceName}</p>
+                            {booking.notes && <p className="text-xs text-muted-foreground mt-1 truncate">Catatan: {booking.notes}</p>}
+                          </CardContent>
+                          <CardFooter className="px-4 py-2 border-t flex justify-end gap-2">
+                              <Button variant="ghost" size="sm" onClick={() => handleEditBooking(booking)} className="h-7 px-2 text-xs hover:bg-accent/80">
+                                  <Edit3 className="mr-1 h-3.5 w-3.5"/> Edit
+                              </Button>
+                              {/* Changed AlertDialogTrigger to a simple Button that sets state */}
+                              <Button variant="ghost" size="sm" onClick={() => handleDeleteBookingConfirmation(booking)} className="h-7 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive">
+                                  <Trash2 className="mr-1 h-3.5 w-3.5"/> Hapus
+                              </Button>
+                          </CardFooter>
+                        </Card>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
-        <Dialog open={isBookingFormOpen} onOpenChange={setIsBookingFormOpen}>
-          <BookingFormDialog
-            onOpenChange={setIsBookingFormOpen}
-            onSubmitSuccess={() => {
-                refreshBookings();
-                // setIsBookingFormOpen(false); // onOpenChange from Dialog root will handle this
-            }}
-            clientsList={clientsList}
-            allServicesList={allServicesList}
-            existingBooking={editingBookingEntry}
-          />
-        </Dialog>
-        
-        {bookingToDelete && (
-            <AlertDialog open={!!bookingToDelete} onOpenChange={(open) => !open && setBookingToDelete(null)}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                    <AlertDialogTitle>Konfirmasi Penghapusan Booking</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        Apakah Anda yakin ingin menghapus booking untuk "{bookingToDelete.customerName}" pada layanan "{bookingToDelete.serviceName}"? 
-                        Jika booking ini sudah masuk antrian, item antrian terkait juga akan dihapus. Tindakan ini tidak dapat diurungkan.
-                    </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                    <AlertDialogCancel onClick={() => setBookingToDelete(null)} disabled={isDeletingBooking}>Batal</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDeleteBooking} disabled={isDeletingBooking} className={buttonVariants({variant: "destructive"})}>
-                        {isDeletingBooking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Hapus Booking
-                    </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-        )}
-
-      </main>
-    </div>
+          <Dialog open={isBookingFormOpen} onOpenChange={setIsBookingFormOpen}>
+            <BookingFormDialog
+              onSubmitSuccess={() => {
+                  refreshBookings();
+                  // setIsBookingFormOpen(false); // Dialog root onOpenChange will handle this
+              }}
+              clientsList={clientsList}
+              allServicesList={allServicesList}
+              existingBooking={editingBookingEntry}
+            />
+          </Dialog>
+          
+          {/* AlertDialog for delete confirmation */}
+          <AlertDialog open={!!bookingToDelete} onOpenChange={(open) => !open && setBookingToDelete(null)}>
+              <AlertDialogContent>
+                  <AlertDialogHeader>
+                  <AlertDialogTitle>Konfirmasi Penghapusan Booking</AlertDialogTitle>
+                  <AlertDialogDescription>
+                      Apakah Anda yakin ingin menghapus booking untuk "{bookingToDelete?.customerName}" pada layanan "{bookingToDelete?.serviceName}"? 
+                      Jika booking ini sudah masuk antrian, item antrian terkait juga akan dihapus. Tindakan ini tidak dapat diurungkan.
+                  </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => setBookingToDelete(null)} disabled={isDeletingBooking}>Batal</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeleteBooking} disabled={isDeletingBooking} className={buttonVariants({variant: "destructive"})}>
+                      {isDeletingBooking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Hapus Booking
+                  </AlertDialogAction>
+                  </AlertDialogFooter>
+              </AlertDialogContent>
+          </AlertDialog>
+        </main>
+      </div>
+    </BookingsPageContext.Provider>
   );
 }
-
