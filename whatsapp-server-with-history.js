@@ -10,8 +10,12 @@ const bodyParser = require('body-parser');
 const app = express();
 const port = 8080; // Pastikan port ini cocok dengan WHATSAPP_SERVER_URL di .env Next.js kamu
 
-// !!! PENTING: PASTIKAN INI URL PUBLIK APLIKASI NEXT.JS KAMU (DARI FIREBASE STUDIO) !!!
-const NEXTJS_RECEIVE_ENDPOINT = 'https://6000-firebase-studio-1749479571361.cluster-nzwlpk54dvagsxetkvxzbvslyi.cloudworkstations.dev/api/whatsapp/receive';
+// !!! PENTING: GANTI INI DENGAN URL HTTP SERVER NEXT.JS LOKALMU JIKA BERBEDA !!!
+// Jika kamu menjalankan Next.js di PC lokalmu dengan `yarn dev` (yang biasanya di port 9002), gunakan http.
+const NEXTJS_RECEIVE_ENDPOINT = 'http://localhost:9002/api/whatsapp/receive';
+// Jika kamu ingin menargetkan Firebase Studio URL (seperti yang ada di contoh awal), gunakan URL HTTPS yang sesuai:
+// const NEXTJS_RECEIVE_ENDPOINT = 'https://6000-firebase-studio-1749479571361.cluster-nzwlpk54dvagsxetkvxzbvslyi.cloudworkstations.dev/api/whatsapp/receive';
+
 
 // Variabel untuk menyimpan riwayat chat (sederhana, di memori)
 const chatHistories = {}; // Format: { "nomorWA": [{role: "user/model", content: "pesan"}, ...], ... }

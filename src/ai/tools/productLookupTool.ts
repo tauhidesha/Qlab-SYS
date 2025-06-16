@@ -29,27 +29,25 @@ export const getProductServiceDetailsByNameTool = ai.defineTool(
     console.log(`ProductLookupTool: Mencari produk/layanan dengan nama: "${input.productName}"`);
     try {
       const servicesRef = collection(db, 'services');
-      const q = query(servicesRef); 
+      const q = query(servicesRef);
       const querySnapshot = await getDocs(q);
-      
+
       let foundItem: ServiceProduct | null = null;
       const searchTermLower = input.productName.toLowerCase();
 
-      // Priority for exact matches or more specific variant matches
       let bestMatchCandidate: ServiceProduct | null = null;
       let bestMatchIsVariant = false;
 
       for (const doc of querySnapshot.docs) {
         const item = { id: doc.id, ...doc.data() } as ServiceProduct;
-        
-        // Check variants first for more specific matches
-        if (item.variants) { // Reverted: No Array.isArray check
+
+        if (Array.isArray(item.variants)) {
             for (const variant of item.variants) {
                 const fullVariantName = `${item.name} - ${variant.name}`;
                 if (fullVariantName.toLowerCase().includes(searchTermLower)) {
-                    const currentCandidateIsBetter = !bestMatchCandidate || 
-                                                     (fullVariantName.toLowerCase() === searchTermLower && (!bestMatchIsVariant || bestMatchCandidate.name.toLowerCase() !== searchTermLower)) || // Exact variant match is best
-                                                     (!bestMatchIsVariant && searchTermLower.length > (bestMatchCandidate.name?.length || 0) ); // More specific partial variant match
+                    const currentCandidateIsBetter = !bestMatchCandidate ||
+                                                     (fullVariantName.toLowerCase() === searchTermLower && (!bestMatchIsVariant || bestMatchCandidate.name.toLowerCase() !== searchTermLower)) ||
+                                                     (!bestMatchIsVariant && searchTermLower.length > (bestMatchCandidate.name?.length || 0) );
 
                     if (currentCandidateIsBetter) {
                         bestMatchCandidate = {
@@ -59,9 +57,9 @@ export const getProductServiceDetailsByNameTool = ai.defineTool(
                             pointsAwarded: variant.pointsAwarded ?? item.pointsAwarded,
                             estimatedDuration: variant.estimatedDuration ?? item.estimatedDuration,
                         };
-                        delete bestMatchCandidate.variants; 
+                        delete bestMatchCandidate.variants;
                         bestMatchIsVariant = true;
-                        if (fullVariantName.toLowerCase() === searchTermLower) { // Exact match, break all
+                        if (fullVariantName.toLowerCase() === searchTermLower) {
                             foundItem = bestMatchCandidate;
                             break;
                         }
@@ -69,31 +67,27 @@ export const getProductServiceDetailsByNameTool = ai.defineTool(
                 }
             }
         }
-        if (foundItem) break; // Exact variant match found
+        if (foundItem) break;
 
-        // Check base item name if no exact variant match yet
         if (item.name.toLowerCase().includes(searchTermLower)) {
-            if (!bestMatchCandidate || // No candidate yet
-                (!bestMatchIsVariant && item.name.toLowerCase() === searchTermLower && bestMatchCandidate.name.toLowerCase() !== searchTermLower) || // Exact base name match is better than previous partial base
-                (!bestMatchIsVariant && item.name.length < (bestMatchCandidate.name?.length || Infinity)) // Shorter base name that includes term (less specific but could be what user meant)
-            ) { 
+            if (!bestMatchCandidate ||
+                (!bestMatchIsVariant && item.name.toLowerCase() === searchTermLower && bestMatchCandidate.name.toLowerCase() !== searchTermLower) ||
+                (!bestMatchIsVariant && item.name.length < (bestMatchCandidate.name?.length || Infinity))
+            ) {
                 bestMatchCandidate = item;
-                bestMatchIsVariant = false; 
-                if (item.name.toLowerCase() === searchTermLower) { // If it's an exact base name match, this is good enough for now
-                    // Potentially could be overridden by an exact variant match later, but good for now
-                }
+                bestMatchIsVariant = false;
             }
         }
       }
 
-      foundItem = bestMatchCandidate || foundItem; // Ensure foundItem gets the candidate if no exact variant break
+      foundItem = bestMatchCandidate || foundItem;
 
       if (foundItem) {
         console.log(`ProductLookupTool: Ditemukan item: ${foundItem.name}`);
-        
+
         let mappedVariants: ProductServiceInfo['variants'] = undefined;
-        if (!bestMatchIsVariant && foundItem.variants) { // Reverted: No Array.isArray check
-            mappedVariants = foundItem.variants.map(v => ({ // This might fail if foundItem.variants is not an array
+        if (!bestMatchIsVariant && Array.isArray(foundItem.variants)) {
+            mappedVariants = foundItem.variants.map(v => ({
                 name: v.name,
                 price: v.price,
                 pointsAwarded: v.pointsAwarded || undefined,
@@ -112,13 +106,12 @@ export const getProductServiceDetailsByNameTool = ai.defineTool(
           estimatedDuration: foundItem.estimatedDuration || undefined,
           variants: mappedVariants,
         };
-        
+
         try {
             ProductServiceInfoSchema.parse(result);
             return result;
         } catch (zodError) {
             console.error("ProductLookupTool: Zod validation error for found item:", zodError.errors);
-            // console.error("ProductLookupTool: Data causing error:", JSON.stringify(result, null, 2));
             return null;
         }
       } else {
@@ -131,4 +124,3 @@ export const getProductServiceDetailsByNameTool = ai.defineTool(
     }
   }
 );
-

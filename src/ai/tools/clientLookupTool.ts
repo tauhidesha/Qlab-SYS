@@ -34,36 +34,33 @@ export const getClientDetailsTool = ai.defineTool(
       let q;
       let foundClient: Client | null = null;
 
-      // Basic check if it's a phone number (contains mostly digits)
       if (/^\+?[0-9\s-]{7,}$/.test(searchTerm)) {
-        // Try to match phone number
         const phoneQuery = query(clientsRef, where("phone", "==", searchTerm), limit(1));
         const phoneSnapshot = await getDocs(phoneQuery);
         if (!phoneSnapshot.empty) {
           foundClient = { id: phoneSnapshot.docs[0].id, ...phoneSnapshot.docs[0].data() } as Client;
         }
       }
-      
-      // If not found by phone or if it wasn't a phone-like query, try by name
+
       if (!foundClient) {
-        const nameQuery = query(clientsRef); 
+        const nameQuery = query(clientsRef);
         const nameSnapshot = await getDocs(nameQuery);
         const searchTermLower = searchTerm.toLowerCase();
         for (const doc of nameSnapshot.docs) {
             const clientData = { id: doc.id, ...doc.data() } as Client;
             if (clientData.name.toLowerCase().includes(searchTermLower)) {
                 foundClient = clientData;
-                break; 
+                break;
             }
         }
       }
 
       if (foundClient) {
         console.log(`ClientLookupTool: Ditemukan klien: ${foundClient.name}`);
-        
+
         let mappedMotorcycles: ClientInfo['motorcycles'] = undefined;
-        if (foundClient.motorcycles) { // Reverted: No Array.isArray check
-            mappedMotorcycles = foundClient.motorcycles.map(m => ({ name: m.name, licensePlate: m.licensePlate })); // This might fail if not an array
+        if (Array.isArray(foundClient.motorcycles)) {
+            mappedMotorcycles = foundClient.motorcycles.map(m => ({ name: m.name, licensePlate: m.licensePlate }));
         }
 
         const result: ClientInfo = {
@@ -74,7 +71,7 @@ export const getClientDetailsTool = ai.defineTool(
           motorcycles: mappedMotorcycles,
           lastVisit: foundClient.lastVisit || undefined,
         };
-        
+
         try {
             ClientInfoSchema.parse(result);
             return result;
@@ -92,4 +89,3 @@ export const getClientDetailsTool = ai.defineTool(
     }
   }
 );
-
