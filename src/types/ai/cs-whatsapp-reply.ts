@@ -9,6 +9,7 @@ export type ChatMessage = z.infer<typeof ChatMessageSchema>;
 
 export const WhatsAppReplyInputSchema = z.object({
   customerMessage: z.string().describe('Pesan yang diterima dari pelanggan melalui WhatsApp, atau pertanyaan dari staf CS.'),
+  senderNumber: z.string().optional().describe('Nomor WhatsApp pengirim pesan (pelanggan).'),
   chatHistory: z.array(ChatMessageSchema).optional().describe('Riwayat percakapan sebelumnya antara pelanggan dan AI/staf CS.'),
   agentBehavior: z.string().optional().describe('Perilaku agen AI yang diinginkan, mis. "Ramah & Membantu".'),
   knowledgeBase: z.string().optional().describe('Panduan tingkat tinggi untuk AI. Detail pengetahuan spesifik akan diambil melalui tools.'),
@@ -19,3 +20,4 @@ export const WhatsAppReplyOutputSchema = z.object({
   suggestedReply: z.string().describe('Saran balasan yang dihasilkan AI untuk dikirim ke pelanggan.'),
 });
 export type WhatsAppReplyOutput = z.infer<typeof WhatsAppReplyOutputSchema>;
+    

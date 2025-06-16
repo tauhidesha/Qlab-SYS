@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Palette, Bell, Users, CreditCard as CreditCardIcon, Gift, DollarSign, Loader2, Wallet, Award, PlusCircle, Edit3, Trash2, SlidersHorizontal, Settings2, Zap, MessageCircle, Info, BrainCircuit } from 'lucide-react'; // Added BrainCircuit
+import { Palette, Bell, Users, CreditCard as CreditCardIcon, Gift, DollarSign, Loader2, Wallet, Award, PlusCircle, Edit3, Trash2, SlidersHorizontal, Settings2, Zap, MessageCircle, Info, BrainCircuit, PhoneForwarded } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, serverTimestamp, collection, addDoc, updateDoc, deleteDoc, query, orderBy, getDocs as getFirestoreDocs, where } from 'firebase/firestore'; 
@@ -16,7 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { LoyaltyReward } from '@/types/loyalty';
 import type { DirectReward, DirectRewardFormData } from '@/types/directReward';
 import type { ServiceProduct } from '@/app/(app)/services/page';
-import { KnowledgeBaseEntryFormSchema, type KnowledgeBaseFormData, type KnowledgeBaseEntry } from '@/types/knowledgeBase'; // Import baru
+import { KnowledgeBaseEntryFormSchema, type KnowledgeBaseFormData, type KnowledgeBaseEntry } from '@/types/knowledgeBase';
 import {
   AiSettingsFormSchema,
   type AiSettingsFormValues,
@@ -131,7 +131,6 @@ export default function SettingsPage() {
   const [isLoadingAiSettings, setIsLoadingAiSettings] = useState(true);
   const [isSavingAiSettings, setIsSavingAiSettings] = useState(false);
 
-  // State untuk Knowledge Base Management
   const [knowledgeBaseEntries, setKnowledgeBaseEntries] = useState<KnowledgeBaseEntry[]>([]);
   const [isLoadingKnowledgeBase, setIsLoadingKnowledgeBase] = useState(true);
   const [isKbFormDialogOpen, setIsKbFormDialogOpen] = useState(false);
@@ -145,6 +144,7 @@ export default function SettingsPage() {
     defaultValues: DEFAULT_AI_SETTINGS,
   });
   const watchedEnableFollowUp = aiSettingsForm.watch('enableFollowUp');
+  const watchedEnableHumanHandoff = aiSettingsForm.watch('enableHumanHandoff');
 
 
   const rewardForm = useForm<LoyaltyRewardFormValues>({
@@ -285,6 +285,7 @@ export default function SettingsPage() {
             ...DEFAULT_AI_SETTINGS, 
             ...data, 
             followUpDelays: followUpDelaysWithDefaults,
+            humanAgentWhatsAppNumber: data.humanAgentWhatsAppNumber || '',
           } as AiSettingsFormValues);
         } else {
           aiSettingsForm.reset(DEFAULT_AI_SETTINGS);
@@ -442,6 +443,9 @@ export default function SettingsPage() {
       if (!data.enableFollowUp) {
       } else {
         dataToSave.followUpDelays = data.followUpDelays || DEFAULT_AI_SETTINGS.followUpDelays;
+      }
+      if (!data.enableHumanHandoff) {
+        dataToSave.humanAgentWhatsAppNumber = ''; // Clear number if handoff disabled
       }
       await setDoc(settingsDocRef, { ...dataToSave, updatedAt: serverTimestamp() }, { merge: true });
       toast({ title: "Sukses", description: "Pengaturan Agen AI berhasil disimpan." });
@@ -681,15 +685,15 @@ export default function SettingsPage() {
       <AppHeader title="Pengaturan" />
       <main className="flex-1 overflow-y-auto p-6">
         <Tabs defaultValue="general" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 mb-6"> {/* Increased lg cols */}
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 mb-6">
             <TabsTrigger value="general"><SlidersHorizontal className="mr-2 h-4 w-4 hidden md:inline" />Umum</TabsTrigger>
             <TabsTrigger value="ai"><Zap className="mr-2 h-4 w-4 hidden md:inline" />Agen AI</TabsTrigger>
-            <TabsTrigger value="knowledge_base"><BrainCircuit className="mr-2 h-4 w-4 hidden md:inline" />Knowledge Base</TabsTrigger> {/* New Tab */}
+            <TabsTrigger value="knowledge_base"><BrainCircuit className="mr-2 h-4 w-4 hidden md:inline" />Knowledge Base</TabsTrigger>
             <TabsTrigger value="loyalty"><Gift className="mr-2 h-4 w-4 hidden md:inline" />Loyalitas Dasar</TabsTrigger>
             <TabsTrigger value="loyalty_rewards"><Award className="mr-2 h-4 w-4 hidden md:inline" />Daftar Reward Poin</TabsTrigger>
             <TabsTrigger value="direct_rewards"><Zap className="mr-2 h-4 w-4 hidden md:inline" />Reward Langsung</TabsTrigger>
             <TabsTrigger value="appearance" disabled><Palette className="mr-2 h-4 w-4 hidden md:inline" />Tampilan</TabsTrigger>
-            <TabsTrigger value="notifications" disabled><Bell className="mr-2 h-4 w-4 hidden md:inline" />Notifikasi</TabsTrigger>
+            {/* <TabsTrigger value="notifications" disabled><Bell className="mr-2 h-4 w-4 hidden md:inline" />Notifikasi</TabsTrigger> */}
           </TabsList>
           
           <TabsContent value="general" className="space-y-6">
@@ -876,6 +880,35 @@ export default function SettingsPage() {
                           </div>
                           <FormMessage>{aiSettingsForm.formState.errors.transferConditions?.message}</FormMessage>
                         </FormItem>
+
+                         <FormField
+                          control={aiSettingsForm.control}
+                          name="enableHumanHandoff"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                              <div className="space-y-0.5">
+                                <FormLabel className="flex items-center"><PhoneForwarded className="mr-2 h-4 w-4 text-muted-foreground"/>Aktifkan Notifikasi Handoff ke Agen Manusia</FormLabel>
+                                <FormDescription>Jika aktif, notifikasi akan dikirim ke nomor agen manusia ketika kondisi transfer terpenuhi.</FormDescription>
+                              </div>
+                              <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                            </FormItem>
+                          )}
+                        />
+                        {watchedEnableHumanHandoff && (
+                           <FormField
+                              control={aiSettingsForm.control}
+                              name="humanAgentWhatsAppNumber"
+                              render={({ field }) => (
+                                <FormItem className="pl-4 mt-2">
+                                  <FormLabel>Nomor WhatsApp Agen Manusia</FormLabel>
+                                  <FormControl><Input type="tel" placeholder="mis. +6281234567890" {...field} /></FormControl>
+                                  <FormDescription>Nomor ini akan menerima notifikasi saat handoff diperlukan.</FormDescription>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                        )}
+
                         <FormField
                           control={aiSettingsForm.control}
                           name="enableFollowUp"
@@ -1293,7 +1326,7 @@ export default function SettingsPage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="notifications">
+          {/* <TabsContent value="notifications">
              <Card>
               <CardHeader>
                 <CardTitle>Notifikasi</CardTitle>
@@ -1303,7 +1336,7 @@ export default function SettingsPage() {
                 <p className="text-center text-muted-foreground py-8">Pengaturan notifikasi akan segera tersedia.</p>
               </CardContent>
             </Card>
-          </TabsContent>
+          </TabsContent> */}
         </Tabs>
 
         <Dialog open={isRewardFormDialogOpen} onOpenChange={(isOpen) => {
