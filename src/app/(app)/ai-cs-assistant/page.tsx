@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Loader2, MessageSquareText, Sparkles, Copy, Send, User, Search, Bot, MessageCircle, ThumbsUp, ThumbsDown, Edit2 } from 'lucide-react';
+import { Loader2, MessageSquareText, Sparkles, Copy, Send, User, Search, Bot, MessageCircle, ThumbsUp, ThumbsDown, Edit2, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { generateWhatsAppReply } from '@/ai/flows/cs-whatsapp-reply-flow';
 import type { WhatsAppReplyOutput, ChatMessage } from '@/types/ai/cs-whatsapp-reply';
@@ -62,7 +62,7 @@ function formatPhoneNumberForMatching(number: string): string {
   return cleaned;
 }
 
-const AI_LOCK_DURATION_MS = 1 * 60 * 60 * 1000; // 1 hour
+const AI_LOCK_DURATION_MS = 1 * 60 * 60 * 1000; // 1 jam
 
 export default function AiCsAssistantPage() {
   const [customerMessageInput, setCustomerMessageInput] = useState('');
@@ -152,7 +152,7 @@ export default function AiCsAssistantPage() {
     }
 
     if (selectedCustomer && selectedCustomer.phone && !isPlaygroundMode) {
-      const formattedPhoneForQuery = selectedCustomer.phone;
+      const formattedPhoneForQuery = selectedCustomer.phone; // Already formatted
       const messagesRef = collection(db, 'directMessages');
       const q = query(
         messagesRef,
@@ -180,9 +180,10 @@ export default function AiCsAssistantPage() {
         });
       });
     } else {
-      setChatHistory([]);
+      setChatHistory([]); // Clear chat if no customer selected or in playground mode
     }
 
+    // Cleanup listener on component unmount or when selectedCustomer/isPlaygroundMode changes
     return () => {
       if (unsubscribeChatRef.current) {
         unsubscribeChatRef.current();
@@ -193,7 +194,7 @@ export default function AiCsAssistantPage() {
 
   const handleSelectPlayground = () => {
     setIsPlaygroundMode(true);
-    setSelectedCustomer(null);
+    setSelectedCustomer(null); // Clear selected customer
     setCustomerMessageInput('');
     setCurrentPlaygroundInput('');
     setPlaygroundChatHistory([]);
@@ -207,6 +208,7 @@ export default function AiCsAssistantPage() {
     setIsPlaygroundMode(false);
     setSelectedCustomer(customer);
     setCustomerMessageInput('');
+    // Chat history will be loaded by the useEffect hook for selectedCustomer
   };
 
   const handleSendPlaygroundMessage = async () => {
@@ -233,7 +235,7 @@ export default function AiCsAssistantPage() {
     setIsLoadingPlaygroundSuggestion(true);
 
     const genkitChatHistory: ChatMessage[] = updatedPlaygroundHistory
-      .slice(0, -1)
+      .slice(0, -1) // Exclude the last user message as it's the current one
       .map(msg => ({
         role: msg.sender === 'user' ? 'user' : 'model',
         content: msg.text,
@@ -243,6 +245,7 @@ export default function AiCsAssistantPage() {
       const result: WhatsAppReplyOutput = await generateWhatsAppReply({
         customerMessage: userMessageText,
         chatHistory: genkitChatHistory,
+        // senderNumber is not relevant for playground mode
       });
 
       const aiMessage: PlaygroundMessage = {
@@ -292,12 +295,13 @@ export default function AiCsAssistantPage() {
     }
 
     const textToSend = customerMessageInput.trim();
-    const originalInput = customerMessageInput;
-    setCustomerMessageInput('');
+    const originalInput = customerMessageInput; // Save for potential restore on error
+    setCustomerMessageInput(''); // Clear input immediately
     setIsSendingWhatsApp(true);
     const customerPhoneNumber = selectedCustomer.phone; // Ensure phone is available
 
     try {
+      // 1. Send message via local WhatsApp server
       const response = await fetch('/api/whatsapp/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -311,27 +315,36 @@ export default function AiCsAssistantPage() {
           description: `Pesan Anda sedang dikirim ke ${selectedCustomer.name}.`,
         });
 
+        // 2. Save CS manual reply to directMessages
         const directMessagesRef = collection(db, 'directMessages');
         const csMessageData: Omit<DirectMessage, 'id'> = {
           customerId: selectedCustomer.id,
           customerName: selectedCustomer.name,
           senderNumber: customerPhoneNumber,
           text: textToSend,
-          sender: 'user',
-          timestamp: serverTimestamp() as any,
-          read: true,
+          sender: 'user', // Mark as from CS user
+          timestamp: serverTimestamp() as any, // Cast to any for serverTimestamp
+          read: true, // CS message is "read" by CS
         };
         await addDoc(directMessagesRef, csMessageData);
         console.log("CS manual reply saved to directMessages.");
 
-        // Set AI intervention lock
-        const lockExpiresDate = new Date(Date.now() + AI_LOCK_DURATION_MS);
-        const interventionLockRef = doc(db, 'ai_intervention_locks', customerPhoneNumber);
-        await setDoc(interventionLockRef, {
-          lastInterventionAt: serverTimestamp(),
-          lockExpiresAt: Timestamp.fromDate(lockExpiresDate)
-        }, { merge: true });
-        console.log(`AI lock set for ${customerPhoneNumber} until ${lockExpiresDate.toLocaleString()}`);
+        // 3. Set AI intervention lock
+        try {
+            const lockResponse = await fetch('/api/whatsapp/set-intervention-lock', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ senderNumber: customerPhoneNumber }),
+            });
+            const lockResult = await lockResponse.json();
+            if (lockResponse.ok && lockResult.success) {
+                console.log(`AI lock set for ${customerPhoneNumber} via API call from UI.`);
+            } else {
+                console.warn(`Failed to set AI lock for ${customerPhoneNumber} via API: ${lockResult.error}`);
+            }
+        } catch (lockError) {
+            console.error(`Error calling set-intervention-lock API from UI:`, lockError);
+        }
 
       } else {
         throw new Error(result.error || 'Gagal mengirim pesan via server lokal.');
@@ -343,7 +356,7 @@ export default function AiCsAssistantPage() {
         description: error instanceof Error ? error.message : "Terjadi kesalahan.",
         variant: "destructive",
       });
-      setCustomerMessageInput(originalInput);
+      setCustomerMessageInput(originalInput); // Restore input on error
     } finally {
       setIsSendingWhatsApp(false);
     }
@@ -353,6 +366,32 @@ export default function AiCsAssistantPage() {
     if (event.key === 'Enter' && !event.shiftKey && !isPlaygroundMode && selectedCustomer) {
       event.preventDefault();
       handleSendMessage();
+    }
+  };
+
+  const handleSetManualLock = async () => {
+    if (!selectedCustomer || !selectedCustomer.phone) {
+      toast({ title: "Info", description: "Pilih pelanggan dengan nomor HP untuk mengaktifkan lock AI.", variant: "default" });
+      return;
+    }
+    setIsSendingWhatsApp(true); // Reuse loading state for visual feedback
+    try {
+      const response = await fetch('/api/whatsapp/set-intervention-lock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ senderNumber: selectedCustomer.phone }),
+      });
+      const result = await response.json();
+      if (response.ok && result.success) {
+        toast({ title: "Lock AI Aktif", description: `AI tidak akan merespons ${selectedCustomer.name} selama 1 jam.`, variant: "default" });
+      } else {
+        throw new Error(result.error || "Gagal mengaktifkan lock AI.");
+      }
+    } catch (error) {
+      console.error("Error manually setting AI lock:", error);
+      toast({ title: "Error Lock AI", description: error instanceof Error ? error.message : "Terjadi kesalahan.", variant: "destructive" });
+    } finally {
+      setIsSendingWhatsApp(false);
     }
   };
 
@@ -388,7 +427,7 @@ export default function AiCsAssistantPage() {
 
   const filteredCustomers = customers.filter(customer =>
     customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (customer.phone && customer.phone.includes(searchTerm))
+    (customer.phone && customer.phone.includes(searchTerm)) // Pastikan phone ada sebelum includes
   );
 
 
@@ -397,6 +436,7 @@ export default function AiCsAssistantPage() {
       <AppHeader title="Asisten CS AI untuk WhatsApp" />
       <div className="flex-1 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 overflow-hidden">
 
+        {/* Kolom Daftar Pelanggan & Playground */}
         <div className="col-span-1 md:col-span-1 lg:col-span-1 border-r border-border bg-card flex flex-col">
           <CardHeader className="p-4">
             <CardTitle className="text-lg flex items-center">
@@ -414,6 +454,7 @@ export default function AiCsAssistantPage() {
             </div>
           </CardHeader>
 
+          {/* Tombol Playground */}
           <div
             key="ai-playground"
             className={cn(
@@ -474,6 +515,7 @@ export default function AiCsAssistantPage() {
           </ScrollArea>
         </div>
 
+        {/* Kolom Chat atau Playground View */}
         <div className="col-span-1 md:col-span-2 lg:col-span-3 flex flex-col bg-background">
           {isPlaygroundMode ? (
             <>
@@ -583,10 +625,24 @@ export default function AiCsAssistantPage() {
           ) : (
             <>
               <CardHeader className="p-4 border-b bg-card">
-                <CardTitle className="text-lg flex items-center">
-                   Percakapan dengan: {selectedCustomer.name}
-                </CardTitle>
-                <CardDescription>{selectedCustomer.phone || "Nomor HP tidak tersedia"}</CardDescription>
+                <div className="flex justify-between items-center">
+                    <div>
+                        <CardTitle className="text-lg flex items-center">
+                        Percakapan dengan: {selectedCustomer.name}
+                        </CardTitle>
+                        <CardDescription>{selectedCustomer.phone || "Nomor HP tidak tersedia"}</CardDescription>
+                    </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSetManualLock}
+                        disabled={isSendingWhatsApp || !selectedCustomer.phone}
+                        title="Aktifkan lock AI selama 1 jam (jika Anda baru balas dari HP)"
+                    >
+                        <ShieldAlert className="mr-2 h-4 w-4" />
+                        Ambil Alih (Lock AI 1 Jam)
+                    </Button>
+                </div>
               </CardHeader>
               <ScrollArea className="flex-1 p-4 space-y-4 bg-card/50">
                 {chatHistory.map((message) => (
@@ -598,9 +654,9 @@ export default function AiCsAssistantPage() {
                       className={`max-w-xs lg:max-w-md px-4 py-2 rounded-xl shadow ${
                         message.sender === 'customer'
                           ? 'bg-muted text-muted-foreground'
-                          : message.sender === 'user'
+                          : message.sender === 'user' // Staf CS manual reply
                             ? 'bg-primary text-primary-foreground'
-                            : 'bg-secondary text-secondary-foreground'
+                            : 'bg-secondary text-secondary-foreground' // AI auto-reply
                       }`}
                     >
                       <p className="text-sm whitespace-pre-wrap">{message.text}</p>
