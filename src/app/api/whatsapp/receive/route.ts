@@ -14,22 +14,39 @@ const AI_LOCK_DURATION_MS = 1 * 60 * 60 * 1000; // 1 jam
 
 const ApiReceiveInputSchema = z.object({
   customerMessage: z.string().min(1, "Pesan pelanggan tidak boleh kosong."),
-  senderNumber: z.string().optional(), // Tetap optional untuk kompatibilitas awal
+  senderNumber: z.string().optional(), 
   chatHistory: z.array(ChatMessageSchema).optional(),
 });
 
-async function getClientInfo(senderNumber: string): Promise<{ clientId?: string; customerName?: string }> {
-  if (!senderNumber) return {};
+// Fungsi untuk memformat nomor telepon ke format standar untuk query Firestore (mis. 62xxxx)
+function formatPhoneNumberForDbQuery(number?: string): string {
+  if (!number || typeof number !== 'string' || number.trim() === '') {
+    return '';
+  }
+  let cleaned = number.replace(/\D/g, '');
+  if (cleaned.startsWith('0')) {
+    cleaned = '62' + cleaned.substring(1);
+  } else if (cleaned.startsWith('8') && cleaned.length >= 9 && cleaned.length <= 13 && /^\d+$/.test(cleaned)) {
+    cleaned = '62' + cleaned;
+  } else if (!cleaned.startsWith('62') && /^\d{9,13}$/.test(cleaned) && !cleaned.startsWith('+')) {
+    cleaned = '62' + cleaned;
+  }
+  
+  if (cleaned.startsWith('62') && cleaned.length >= 10) {
+    return cleaned;
+  }
+  return ''; // Kembalikan string kosong jika format akhir tidak sesuai
+}
+
+
+async function getClientInfo(formattedSenderNumber?: string): Promise<{ clientId?: string; customerName?: string }> {
+  if (!formattedSenderNumber) return {}; // Jika nomor sudah tidak valid dari awal
   try {
     const clientsRef = collection(db, 'clients');
-    // Mencoba berbagai format nomor telepon yang mungkin tersimpan
+    // Query hanya dengan nomor yang sudah diformat dan valid
     const q = query(
       clientsRef,
-      where("phone", "in", [
-        senderNumber, // format 62xxxx
-        `0${senderNumber.substring(2)}`, // format 0xxxx (jika senderNumber adalah 62xxxx)
-        `+${senderNumber}` // format +62xxxx
-      ]),
+      where("phone", "==", formattedSenderNumber), // Langsung gunakan nomor yang sudah diformat
       limit(1)
     );
     const querySnapshot = await getDocs(q);
@@ -38,10 +55,9 @@ async function getClientInfo(senderNumber: string): Promise<{ clientId?: string;
       return { clientId: clientDoc.id, customerName: clientDoc.data().name };
     }
   } catch (error) {
-    console.error(`Error fetching client info for ${senderNumber}:`, error);
+    console.error(`Error fetching client info for ${formattedSenderNumber}:`, error);
   }
-  // Jika tidak ditemukan, gunakan senderNumber sebagai nama sementara
-  return { customerName: `Pelanggan ${senderNumber}` };
+  return { customerName: `Pelanggan ${formattedSenderNumber}` };
 }
 
 export async function POST(request: Request) {
@@ -50,7 +66,6 @@ export async function POST(request: Request) {
     const body = await request.json();
     console.log("Request body parsed:", body);
 
-    // Menangani chatHistory yang mungkin null dari beberapa implementasi whatsapp-web.js
     if (body.chatHistory === null) {
       body.chatHistory = undefined;
     }
@@ -62,71 +77,67 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Invalid input for API.', details: apiInputValidation.error.format() }, { status: 400 });
     }
 
-    const { customerMessage, chatHistory, senderNumber } = apiInputValidation.data;
-    console.log("API Input validated. Customer message:", customerMessage, "Sender:", senderNumber);
+    const { customerMessage, chatHistory, senderNumber: rawSenderNumber } = apiInputValidation.data;
+    console.log("API Input validated. Customer message:", customerMessage, "Raw Sender:", rawSenderNumber);
 
     const directMessagesRef = collection(db, 'directMessages');
     let clientInfo: { clientId?: string; customerName?: string } = {};
+    const formattedSenderNumber = formatPhoneNumberForDbQuery(rawSenderNumber); // Format nomornya di sini
 
-    if (senderNumber) {
-      clientInfo = await getClientInfo(senderNumber);
+    if (formattedSenderNumber) { // Hanya proses jika nomornya valid setelah diformat
+      clientInfo = await getClientInfo(formattedSenderNumber);
 
-      // Simpan pesan pelanggan ke Firestore
       const customerMessageData: Omit<DirectMessage, 'id'> = {
-        senderNumber: senderNumber,
+        senderNumber: formattedSenderNumber, // Simpan nomor yang sudah diformat
         text: customerMessage,
         sender: 'customer',
-        timestamp: serverTimestamp() as any, // any untuk serverTimestamp
+        timestamp: serverTimestamp() as any, 
         customerId: clientInfo.clientId,
         customerName: clientInfo.customerName,
-        read: false, // Pesan baru dari pelanggan, belum dibaca CS
+        read: false, 
       };
       await addDoc(directMessagesRef, customerMessageData);
-      console.log(`Customer message from ${senderNumber} saved to directMessages.`);
+      console.log(`Customer message from ${formattedSenderNumber} saved to directMessages.`);
 
-      // Cek AI intervention lock
-      const interventionLockRef = doc(db, 'ai_intervention_locks', senderNumber);
+      const interventionLockRef = doc(db, 'ai_intervention_locks', formattedSenderNumber);
       const lockSnap = await getDoc(interventionLockRef);
       if (lockSnap.exists()) {
         const lockData = lockSnap.data();
-        const lockExpiresAt = lockData.lockExpiresAt as Timestamp; // Cast ke Timestamp
+        const lockExpiresAt = lockData.lockExpiresAt as Timestamp; 
         if (lockExpiresAt && new Date() < lockExpiresAt.toDate()) {
-          console.log(`AI response locked for ${senderNumber} until ${lockExpiresAt.toDate().toLocaleString()}. Human intervention active.`);
+          console.log(`AI response locked for ${formattedSenderNumber} until ${lockExpiresAt.toDate().toLocaleString()}. Human intervention active.`);
           return NextResponse.json({ success: true, message: "AI response deferred due to human intervention." });
         } else {
-          console.log(`AI lock for ${senderNumber} has expired or does not exist.`);
+          console.log(`AI lock for ${formattedSenderNumber} has expired or does not exist.`);
         }
       } else {
-        console.log(`No AI lock found for ${senderNumber}. Proceeding with AI.`);
+        console.log(`No AI lock found for ${formattedSenderNumber}. Proceeding with AI.`);
       }
 
     } else {
-      // Jika tidak ada senderNumber, AI tetap bisa dipanggil untuk tujuan testing umum dari Playground,
-      // tapi pesan tidak akan tersimpan dan tidak ada info klien.
-      console.warn("senderNumber is undefined. AI will process without saving message or client context.");
+      console.warn("senderNumber is undefined or invalid after formatting. AI will process without saving message or client context.");
     }
     
     console.log("Calling generateWhatsAppReply flow...");
     const aiResponse = await generateWhatsAppReply({
       customerMessage,
-      senderNumber, // Teruskan senderNumber ke flow
+      senderNumber: formattedSenderNumber || undefined, // Teruskan nomor yang sudah diformat (atau undefined)
       chatHistory
     });
     console.log("AI Flow response received:", aiResponse);
 
-    // Jika ada balasan dari AI DAN ada senderNumber (artinya bukan dari playground tanpa nomor)
-    if (senderNumber && aiResponse.suggestedReply) {
+    if (formattedSenderNumber && aiResponse.suggestedReply) {
       const aiMessageData: Omit<DirectMessage, 'id'> = {
-        senderNumber: senderNumber,
+        senderNumber: formattedSenderNumber, // Simpan nomor yang sudah diformat
         text: aiResponse.suggestedReply,
         sender: 'ai',
-        timestamp: serverTimestamp() as any, // any untuk serverTimestamp
+        timestamp: serverTimestamp() as any, 
         customerId: clientInfo.clientId,
         customerName: clientInfo.customerName,
-        read: true, // Balasan AI dianggap "dibaca" oleh sistem
+        read: true, 
       };
       await addDoc(directMessagesRef, aiMessageData);
-      console.log(`AI reply to ${senderNumber} saved to directMessages.`);
+      console.log(`AI reply to ${formattedSenderNumber} saved to directMessages.`);
     }
 
     return NextResponse.json({ success: true, reply: aiResponse });
@@ -134,20 +145,18 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error("Internal server error in /api/whatsapp/receive:", error);
     let errorMessage = 'Internal Server Error';
-    let errorDetails: any = {}; // Inisialisasi sebagai objek kosong
+    let errorDetails: any = {}; 
     if (error instanceof Error) {
       errorMessage = error.message;
-      // Sertakan detail error yang lebih aman untuk logging
       errorDetails = { name: error.name, message: error.message, stack: error.stack };
     } else if (typeof error === 'object' && error !== null) {
-      // Jika error bukan instance dari Error tapi adalah objek, coba ambil propertinya
       errorDetails = { ...error };
     }
     
     return NextResponse.json({ 
       success: false, 
       error: errorMessage,
-      errorDetails: errorDetails // Sertakan detail error di respons (untuk debugging)
+      errorDetails: errorDetails 
     }, { status: 500 });
   }
 }

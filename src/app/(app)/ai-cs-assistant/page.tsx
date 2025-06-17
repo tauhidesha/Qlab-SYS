@@ -48,19 +48,27 @@ interface Customer {
   phone?: string;
 }
 
-function formatPhoneNumberForMatching(number: string): string {
+function formatPhoneNumberForMatching(number?: string): string { // Input bisa undefined
+  if (!number || typeof number !== 'string' || number.trim() === '') { // Cek string, non-empty
+    return ''; // Kembalikan string kosong jika input tidak valid
+  }
   let cleaned = number.replace(/\D/g, '');
   if (cleaned.startsWith('0')) {
     cleaned = '62' + cleaned.substring(1);
-  } else if (cleaned.startsWith('8') && cleaned.length >= 9 && cleaned.length <= 13) {
+  } else if (cleaned.startsWith('8') && cleaned.length >= 9 && cleaned.length <= 13 && /^\d+$/.test(cleaned)) {
+    // Hanya prefix 62 jika dimulai '8' dan panjangnya sesuai nomor lokal
     cleaned = '62' + cleaned;
-  } else if (!cleaned.startsWith('62') && !(cleaned.length < 9)) {
-     if (cleaned.length >= 9 && cleaned.length <=13 && !cleaned.startsWith('+')) {
-        cleaned = '62' + cleaned;
-    }
+  } else if (!cleaned.startsWith('62') && /^\d{9,13}$/.test(cleaned) && !cleaned.startsWith('+')) {
+    // Untuk kasus lain yang hanya digit, panjangnya nomor lokal, dan tidak ada +62
+    cleaned = '62' + cleaned;
   }
-  return cleaned;
+  // Pastikan outputnya valid atau kosong
+  if (cleaned.startsWith('62') && cleaned.length >= 10) {
+    return cleaned;
+  }
+  return ''; // Kembalikan string kosong jika format akhir tidak sesuai
 }
+
 
 const AI_LOCK_DURATION_MS = 1 * 60 * 60 * 1000; // 1 jam
 
@@ -113,11 +121,11 @@ export default function AiCsAssistantPage() {
       return clientsData.map(client => ({
         id: client.id,
         name: client.name,
-        avatarUrl: `https://placehold.co/40x40.png?text=${client.name.charAt(0)}`,
+        avatarUrl: client.photoUrl || `https://placehold.co/40x40.png?text=${client.name.charAt(0)}`,
         lastMessageTimestamp: client.lastVisit || 'N/A',
         lastMessage: 'Klik untuk melihat chat...',
         unreadCount: 0,
-        phone: client.phone ? formatPhoneNumberForMatching(client.phone) : undefined,
+        phone: client.phone, // Simpan nomor telepon asli dari DB
       }));
     } catch (error) {
       console.error("Error fetching customers from Firestore: ", error);
@@ -151,39 +159,48 @@ export default function AiCsAssistantPage() {
       unsubscribeChatRef.current = null;
     }
 
-    if (selectedCustomer && selectedCustomer.phone && !isPlaygroundMode) {
-      const formattedPhoneForQuery = selectedCustomer.phone; // Already formatted
-      const messagesRef = collection(db, 'directMessages');
-      const q = query(
-        messagesRef,
-        where("senderNumber", "==", formattedPhoneForQuery),
-        orderBy("timestamp", "asc")
-      );
+    if (selectedCustomer && !isPlaygroundMode) {
+      const phoneToFormat = selectedCustomer.phone;
+      const formattedPhoneForQuery = formatPhoneNumberForMatching(phoneToFormat);
 
-      unsubscribeChatRef.current = onSnapshot(q, (querySnapshot) => {
-        const history: ChatMessageUi[] = [];
-        querySnapshot.forEach((doc) => {
-          const data = doc.data() as DirectMessage;
-          history.push({
-            ...data,
-            id: doc.id,
-            timestamp: data.timestamp?.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) || 'N/A',
+      if (formattedPhoneForQuery) { // Hanya jalankan query jika nomor telepon valid
+        const messagesRef = collection(db, 'directMessages');
+        const q = query(
+          messagesRef,
+          where("senderNumber", "==", formattedPhoneForQuery),
+          orderBy("timestamp", "asc")
+        );
+
+        unsubscribeChatRef.current = onSnapshot(q, (querySnapshot) => {
+          const history: ChatMessageUi[] = [];
+          querySnapshot.forEach((doc) => {
+            const data = doc.data() as DirectMessage;
+            history.push({
+              ...data,
+              id: doc.id,
+              timestamp: data.timestamp?.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) || 'N/A',
+            });
+          });
+          setChatHistory(history);
+        }, (error) => {
+          console.error(`Error fetching real-time chat for ${selectedCustomer.name} (phone: ${formattedPhoneForQuery}):`, error);
+          toast({
+            title: "Error Real-time Chat",
+            description: "Gagal memuat pesan secara real-time.",
+            variant: "destructive",
           });
         });
-        setChatHistory(history);
-      }, (error) => {
-        console.error(`Error fetching real-time chat for ${selectedCustomer.name}:`, error);
-        toast({
-          title: "Error Real-time Chat",
-          description: "Gagal memuat pesan secara real-time.",
-          variant: "destructive",
-        });
-      });
+      } else {
+        setChatHistory([]); // Kosongkan chat jika nomor tidak valid
+        if (selectedCustomer.phone) { // Hanya tampilkan toast jika ada nomor tapi tidak valid
+          console.warn(`Nomor telepon pelanggan "${selectedCustomer.name}" (${selectedCustomer.phone}) tidak valid atau tidak dapat diformat untuk query.`);
+        }
+      }
     } else {
-      setChatHistory([]); // Clear chat if no customer selected or in playground mode
+      setChatHistory([]); // Kosongkan chat jika tidak ada pelanggan dipilih atau dalam mode playground
     }
 
-    // Cleanup listener on component unmount or when selectedCustomer/isPlaygroundMode changes
+    // Cleanup listener
     return () => {
       if (unsubscribeChatRef.current) {
         unsubscribeChatRef.current();
@@ -285,10 +302,21 @@ export default function AiCsAssistantPage() {
   };
 
   const handleSendMessage = async () => {
-    if (!customerMessageInput.trim() || !selectedCustomer || isPlaygroundMode || !selectedCustomer.phone) {
+    const customerPhone = selectedCustomer?.phone;
+    if (!customerMessageInput.trim() || !selectedCustomer || isPlaygroundMode || !customerPhone) {
         toast({
           title: "Tidak Dapat Mengirim",
           description: "Pesan kosong, pelanggan tidak dipilih, atau nomor HP pelanggan tidak tersedia.",
+          variant: "destructive",
+        });
+        return;
+    }
+    
+    const formattedPhoneForSending = formatPhoneNumberForMatching(customerPhone);
+    if (!formattedPhoneForSending) {
+        toast({
+          title: "Nomor Tidak Valid",
+          description: `Nomor HP pelanggan "${customerPhone}" tidak dapat diformat dengan benar untuk pengiriman.`,
           variant: "destructive",
         });
         return;
@@ -298,14 +326,13 @@ export default function AiCsAssistantPage() {
     const originalInput = customerMessageInput; // Save for potential restore on error
     setCustomerMessageInput(''); // Clear input immediately
     setIsSendingWhatsApp(true);
-    const customerPhoneNumber = selectedCustomer.phone; // Ensure phone is available
 
     try {
       // 1. Send message via local WhatsApp server
       const response = await fetch('/api/whatsapp/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ number: customerPhoneNumber, message: textToSend }),
+        body: JSON.stringify({ number: formattedPhoneForSending, message: textToSend }),
       });
       const result = await response.json();
 
@@ -320,7 +347,7 @@ export default function AiCsAssistantPage() {
         const csMessageData: Omit<DirectMessage, 'id'> = {
           customerId: selectedCustomer.id,
           customerName: selectedCustomer.name,
-          senderNumber: customerPhoneNumber,
+          senderNumber: formattedPhoneForSending, // Simpan nomor yang sudah diformat
           text: textToSend,
           sender: 'user', // Mark as from CS user
           timestamp: serverTimestamp() as any, // Cast to any for serverTimestamp
@@ -334,13 +361,13 @@ export default function AiCsAssistantPage() {
             const lockResponse = await fetch('/api/whatsapp/set-intervention-lock', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ senderNumber: customerPhoneNumber }),
+                body: JSON.stringify({ senderNumber: formattedPhoneForSending }),
             });
             const lockResult = await lockResponse.json();
             if (lockResponse.ok && lockResult.success) {
-                console.log(`AI lock set for ${customerPhoneNumber} via API call from UI.`);
+                console.log(`AI lock set for ${formattedPhoneForSending} via API call from UI.`);
             } else {
-                console.warn(`Failed to set AI lock for ${customerPhoneNumber} via API: ${lockResult.error}`);
+                console.warn(`Failed to set AI lock for ${formattedPhoneForSending} via API: ${lockResult.error}`);
             }
         } catch (lockError) {
             console.error(`Error calling set-intervention-lock API from UI:`, lockError);
@@ -374,12 +401,18 @@ export default function AiCsAssistantPage() {
       toast({ title: "Info", description: "Pilih pelanggan dengan nomor HP untuk mengaktifkan lock AI.", variant: "default" });
       return;
     }
+    const formattedPhoneForLock = formatPhoneNumberForMatching(selectedCustomer.phone);
+    if (!formattedPhoneForLock) {
+      toast({ title: "Nomor Tidak Valid", description: `Nomor HP pelanggan "${selectedCustomer.phone}" tidak dapat diformat.`, variant: "destructive" });
+      return;
+    }
+
     setIsSendingWhatsApp(true); // Reuse loading state for visual feedback
     try {
       const response = await fetch('/api/whatsapp/set-intervention-lock', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ senderNumber: selectedCustomer.phone }),
+        body: JSON.stringify({ senderNumber: formattedPhoneForLock }),
       });
       const result = await response.json();
       if (response.ok && result.success) {
