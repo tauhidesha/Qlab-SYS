@@ -27,6 +27,27 @@ import * as z from 'zod';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"; // Ensuring this import is correct and present
 
 const loyaltyRewardFormSchema = z.object({
   name: z.string().min(3, "Nama reward minimal 3 karakter").max(100, "Nama reward maksimal 100 karakter"),
@@ -1297,5 +1318,7 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+    
 
     
