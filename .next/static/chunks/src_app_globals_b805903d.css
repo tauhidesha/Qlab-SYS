@@ -1517,10 +1517,6 @@ body {
   background-color: hsl(var(--card));
 }
 
-.bg-card\/50 {
-  background-color: hsl(var(--card) / .5);
-}
-
 .bg-destructive {
   background-color: hsl(var(--destructive));
 }
@@ -3523,10 +3519,6 @@ body {
 
   .lg\:grid-cols-4 {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  .lg\:grid-cols-7 {
-    grid-template-columns: repeat(7, minmax(0, 1fr));
   }
 
   .lg\:grid-cols-6 {
