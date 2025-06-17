@@ -1,33 +1,25 @@
 
 import { config } from 'dotenv';
-config(); // Memuat variabel dari .env dan .env.local (jika ada, untuk API keys dll)
+config(); // Load variables from .env and .env.local
 
-// Logging untuk diagnosis
-console.log(`--------------------------------------------------------------------`);
-console.log(`[src/ai/dev.ts] Inisialisasi Genkit Dev Environment:`);
-console.log(`  - NODE_ENV (sistem): ${process.env.NODE_ENV}`);
-console.log(`  - NEXT_PUBLIC_FIREBASE_PROJECT_ID (dari dotenv): ${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}`);
-console.log(`  - NEXT_PUBLIC_FIREBASE_API_KEY (dari dotenv): ${process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? "Ada" : "KOSONG!"}`);
-console.log(`  - NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN (dari dotenv): ${process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ? "Ada" : "KOSONG!"}`);
-console.log(`  - Google API Key (GOOGLE_API_KEY dari dotenv): ${process.env.GOOGLE_API_KEY ? "Ada" : "KOSONG!"}`);
-console.log(`  - Firebase connection will be to Cloud Firestore as per firebase.ts`);
-console.log(`--------------------------------------------------------------------`);
+// Minimal logging for startup
+console.log(`[src/ai/dev.ts] Genkit Dev Environment Initializing...`);
+console.log(`  - Project ID (from env): ${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'NOT FOUND'}`);
+console.log(`  - Google API Key (from env): ${process.env.GOOGLE_API_KEY ? 'Exists' : 'NOT FOUND'}`);
 
-
-// Pastikan Firebase diimpor SETELAH dotenv config() dan logging env var
+// Ensure Firebase is imported AFTER dotenv config() and minimal logging
 import '@/lib/firebase'; 
 
-// Pastikan semua flow dan tool diimpor agar ter-register oleh Genkit
+// Ensure all flows and tools are imported to be registered by Genkit
 import '@/ai/flows/analyze-profit-loss-flow.ts';
 import '@/ai/flows/cs-whatsapp-reply-flow.ts';
-// import '@/ai/flows/visualize-repaint.ts'; // Fitur AI Visualizer telah dihapus
-// import '@/ai/flows/test-tool-flow.ts'; // Test flow dinonaktifkan untuk mencegah error ENOENT tools-XXXX.json
+// test-tool-flow.ts is intentionally kept empty/commented out
+// visualize-repaint.ts has been removed
 
 import '@/ai/tools/productLookupTool.ts';
 import '@/ai/tools/clientLookupTool.ts';
 import '@/ai/tools/knowledgeLookupTool.ts';
 import '@/ai/tools/createBookingTool.ts'; 
 
-console.log("[src/ai/dev.ts] Semua flow dan tool yang relevan telah diimpor (test-tool-flow dan visualize-repaint dinonaktifkan/dihapus).");
-console.log("[src/ai/dev.ts] Genkit Developer UI (jika tidak ada error) akan tersedia di port yang dikonfigurasi (default: 4001).");
-
+console.log("[src/ai/dev.ts] Relevant flows and tools imported.");
+console.log("[src/ai/dev.ts] Genkit Developer UI should be available if no errors (default port: 4003).");

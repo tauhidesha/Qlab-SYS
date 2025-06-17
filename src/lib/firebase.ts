@@ -2,75 +2,37 @@
 import { initializeApp, getApp, getApps, type FirebaseApp } from "firebase/app";
 import { getFirestore, type Firestore } from "firebase/firestore";
 
-// Log environment variables right at the start of this module's execution
-console.log("--------------------------------------------------------------------");
-console.log("[firebase.ts] Membaca variabel environment untuk Firebase config:");
-const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
-const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
-const messagingSenderId = process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID;
-const appId = process.env.NEXT_PUBLIC_FIREBASE_APP_ID;
-
-console.log(`[firebase.ts]   NEXT_PUBLIC_FIREBASE_API_KEY: ${apiKey ? 'Ada' : 'KOSONG!'}`);
-console.log(`[firebase.ts]   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${authDomain ? 'Ada' : 'KOSONG!'}`);
-console.log(`[firebase.ts]   NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${projectId ? projectId : 'KOSONG!'}`);
-console.log(`[firebase.ts]   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${storageBucket ? 'Ada' : 'KOSONG!'}`);
-console.log(`[firebase.ts]   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${messagingSenderId ? 'Ada' : 'KOSONG!'}`);
-console.log(`[firebase.ts]   NEXT_PUBLIC_FIREBASE_APP_ID: ${appId ? 'Ada' : 'KOSONG!'}`);
-console.log("--------------------------------------------------------------------");
-
+// Minimal logging
+console.log("[firebase.ts] Initializing Firebase...");
 
 const firebaseConfig = {
-  apiKey: apiKey,
-  authDomain: authDomain,
-  projectId: projectId,
-  storageBucket: storageBucket,
-  messagingSenderId: messagingSenderId,
-  appId: appId,
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Log the constructed firebaseConfig
-console.log("[firebase.ts] Firebase config yang AKAN DIGUNAKAN:", JSON.stringify({
-    apiKey: firebaseConfig.apiKey ? "*** (ada)" : "KOSONG!",
-    authDomain: firebaseConfig.authDomain,
-    projectId: firebaseConfig.projectId,
-    storageBucket: firebaseConfig.storageBucket,
-    messagingSenderId: firebaseConfig.messagingSenderId,
-    appId: firebaseConfig.appId
-}, null, 2));
+if (!firebaseConfig.projectId || !firebaseConfig.apiKey) {
+  console.error("[firebase.ts] FATAL ERROR: Firebase projectId or apiKey is MISSING in environment variables.");
+}
 
 let app: FirebaseApp;
 let db: Firestore;
 
-console.log("[firebase.ts] Memulai inisialisasi Firebase (selalu ke Cloud)...");
-
-if (!firebaseConfig.projectId || !firebaseConfig.apiKey) {
-  console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-  console.error("[firebase.ts] KESALAHAN FATAL: Firebase projectId atau apiKey KOSONG!");
-  console.error("[firebase.ts] Pastikan file .env sudah ada di root proyek dan berisi variabel Firebase yang benar (NEXT_PUBLIC_FIREBASE_PROJECT_ID, NEXT_PUBLIC_FIREBASE_API_KEY, dll).");
-  console.error("[firebase.ts] Jalankan 'npm run genkit:dev' dari terminal di root folder proyek Anda.");
-  console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-  // @ts-ignore
-  app = null; // Prevent further operations if config is bad
-}
-
-
-if (app !== null && getApps().length === 0) {
-  console.log("[firebase.ts] Tidak ada aplikasi Firebase yang terinisialisasi, membuat aplikasi baru...");
+if (getApps().length === 0) {
   try {
     app = initializeApp(firebaseConfig);
-    console.log("[firebase.ts] Aplikasi Firebase baru berhasil dibuat. Project ID dari app.options:", app.options.projectId);
+    console.log("[firebase.ts] Firebase app initialized. Project ID:", app.options.projectId);
   } catch (e: any) {
-    console.error("[firebase.ts] GAGAL menginisialisasi aplikasi Firebase:", e.message);
-    console.error("[firebase.ts] Detail Error Inisialisasi Firebase:", e);
+    console.error("[firebase.ts] FAILED to initialize Firebase app:", e.message);
     // @ts-ignore
-    app = null; // Mark app as null if initialization fails
+    app = null;
   }
-} else if (app !== null) {
-  console.log("[firebase.ts] Menggunakan aplikasi Firebase yang sudah ada.");
+} else {
   app = getApp();
-  console.log("[firebase.ts] Aplikasi Firebase yang ada. Project ID dari app.options:", app.options.projectId);
+  console.log("[firebase.ts] Using existing Firebase app. Project ID:", app.options.projectId);
 }
 
 // @ts-ignore
@@ -78,14 +40,12 @@ if (app) {
   try {
     // @ts-ignore
     db = getFirestore(app);
-    console.log("[firebase.ts] Instance Firestore didapatkan. Selalu menghubungkan ke Cloud Firestore.");
+    console.log("[firebase.ts] Firestore instance obtained.");
   } catch (e: any) {
-    console.error("[firebase.ts] GAGAL mendapatkan instance Firestore:", e?.message);
-    console.error("[firebase.ts] Detail error Firestore:", e);
+    console.error("[firebase.ts] FAILED to get Firestore instance:", e?.message);
   }
 } else {
-    console.error("[firebase.ts] Aplikasi Firebase tidak terinisialisasi dengan benar, tidak bisa mendapatkan Firestore.");
+    console.error("[firebase.ts] Firebase app not properly initialized, cannot get Firestore.");
 }
-
 
 export { app, db };
