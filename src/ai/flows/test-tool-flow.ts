@@ -1,9 +1,14 @@
-'use server';
+
+// This file is temporarily emptied to diagnose a Genkit tools configuration error.
+// The original content defined a 'dummyTool' and 'testToolFlow'.
+
+// 'use server';
 /**
- * @fileOverview A simple test flow with a dummy tool.
+ * @fileOverview A simple test flow with a dummy tool. (Temporarily Inactive)
  *
  * - testToolFlow - A function that invokes a prompt with a dummy tool.
  */
+/*
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
@@ -22,8 +27,8 @@ const testPrompt = ai.definePrompt({
   tools: [dummyTool], // Making the tool available to this prompt
   input: { schema: z.object({ message: z.string().describe("The user's message.") }) },
   output: { schema: z.object({ reply: z.string().describe("The AI's reply.") }) },
-  prompt: `User says: {{{message}}}. 
-  If the user's message contains the word 'testtool', use the dummyTool with the user's entire message as the query. 
+  prompt: `User says: {{{message}}}.
+  If the user's message contains the word 'testtool', use the dummyTool with the user's entire message as the query.
   Otherwise, just reply normally.`,
 });
 
@@ -47,3 +52,4 @@ const testToolGenkitFlow = ai.defineFlow(
     return testToolFlow(input);
   }
 );
+*/

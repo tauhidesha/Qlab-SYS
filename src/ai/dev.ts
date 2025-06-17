@@ -13,13 +13,13 @@ console.log(`  - Firebase connection will be to Cloud Firestore as per firebase.
 import '@/ai/flows/analyze-profit-loss-flow.ts';
 import '@/ai/flows/cs-whatsapp-reply-flow.ts';
 // import '@/ai/flows/visualize-repaint.ts'; // Fitur AI Visualizer telah dihapus
-import '@/ai/flows/test-tool-flow.ts'; // Import test flow baru
+// import '@/ai/flows/test-tool-flow.ts'; // Test flow dinonaktifkan sementara
 
 import '@/ai/tools/productLookupTool.ts';
 import '@/ai/tools/clientLookupTool.ts';
 import '@/ai/tools/knowledgeLookupTool.ts';
 import '@/ai/tools/createBookingTool.ts'; 
 
-console.log("[src/ai/dev.ts] Semua flow dan tool yang relevan telah diimpor.");
+console.log("[src/ai/dev.ts] Semua flow dan tool yang relevan telah diimpor (test-tool-flow dinonaktifkan sementara).");
 console.log("[src/ai/dev.ts] Genkit Developer UI (jika tidak ada error) akan tersedia di port yang dikonfigurasi (default: 4001).");
 
