@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"sources":["file:///home/user/studio/src/app/%28app%29/ai-cs-assistant/layout.tsx"],"sourcesContent":["\nimport React from \"react\";\n\nexport default function AiCsAssistantLayout({\n  children,\n}: {\n  children: React.ReactNode;\n}) {\n  // Layout ini sangat sederhana, hanya merender children tanpa sidebar\n  // Ini akan meng-override layout default dari src/app/(app)/layout.tsx\n  // khusus untuk halaman /ai-cs-assistant\n  return (\n    <div className=\"flex min-h-screen flex-col bg-background text-foreground\">\n      {children}\n    </div>\n  );\n}\n"],"names":[],"mappings":";;;;;AAGe,SAAS,oBAAoB,EAC1C,QAAQ,EAGT;IACC,qEAAqE;IACrE,sEAAsE;IACtE,wCAAwC;IACxC,qBACE,8OAAC;QAAI,WAAU;kBACZ;;;;;;AAGP","debugId":null}}]
+}
