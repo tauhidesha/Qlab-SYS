@@ -58,7 +58,7 @@ export async function generateWhatsAppReply({ customerMessage, senderNumber, cha
 
 const replyPromptCombined_v5_refined = ai.definePrompt({
   name: 'whatsAppReplyPrompt_Combined_v5_refined',
-  role: 'system',  // <-- memastikan prompt dikirim sebagai system message
+  // role: 'system', // Dihapus, karena instruksi sistem sudah ada di awal prompt teks
   input: { schema: WhatsAppReplyInputSchema },
   output: { schema: WhatsAppReplyOutputSchema },
   tools: [
@@ -134,7 +134,8 @@ user: {{{customerMessage}}}
 
 Hasilkan hanya objek JSON sebagai balasan Anda.
 
-`});
+`
+});
 
 const whatsAppReplyFlowCombined_v5_refined = ai.defineFlow(
   {

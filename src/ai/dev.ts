@@ -20,6 +20,6 @@ import '@/ai/tools/clientLookupTool.ts';
 import '@/ai/tools/knowledgeLookupTool.ts';
 import '@/ai/tools/createBookingTool.ts'; 
 
-console.log("[src/ai/dev.ts] Semua flow dan tool yang relevan telah diimpor (test-tool-flow dinonaktifkan).");
+console.log("[src/ai/dev.ts] Semua flow dan tool yang relevan telah diimpor (test-tool-flow dan visualize-repaint dinonaktifkan/dihapus).");
 console.log("[src/ai/dev.ts] Genkit Developer UI (jika tidak ada error) akan tersedia di port yang dikonfigurasi (default: 4001).");
 
