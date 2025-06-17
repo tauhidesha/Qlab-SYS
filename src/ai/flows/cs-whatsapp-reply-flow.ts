@@ -114,7 +114,7 @@ Tanggal saat ini adalah {{{currentDate}}}, jam {{{currentTime}}}. Besok adalah {
 
 FORMAT BALASAN:
 Format balasan ANDA HARUS SELALU berupa objek JSON dengan satu field bernama "suggestedReply" yang berisi teks balasan Anda.
-Contoh balasan JSON: {"suggestedReply": "Tentu, Kak. Untuk layanan Cuci Premium, harganya adalah Rp 75.000."}
+Contoh balasan JSON: {"suggestedReply": "Tentu, Kak. Untuk layanan Cuci Premium SIZE L, harganya adalah Rp 55.000."}
 JANGAN PERNAH menyebutkan nama tool yang Anda gunakan dalam balasan teks ke pelanggan.
 
 GAYA BAHASA:
