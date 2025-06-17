@@ -61,12 +61,6 @@ export const mainNavItems: NavItem[] = [
     description: 'Kelola katalog layanan dan produk.',
   },
   {
-    title: 'Asisten CS AI',
-    href: '/ai-cs-assistant',
-    icon: MessageSquareText,
-    description: 'Bantuan AI untuk membalas pesan customer.',
-  },
-  {
     title: 'Inventaris',
     href: '#', 
     icon: Package,
