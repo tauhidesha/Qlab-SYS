@@ -17,34 +17,7 @@ import type { LoyaltyReward } from '@/types/loyalty';
 import type { DirectReward, DirectRewardFormData } from '@/types/directReward';
 import type { ServiceProduct } from '@/app/(app)/services/page';
 import { KnowledgeBaseEntryFormSchema, type KnowledgeBaseFormData, type KnowledgeBaseEntry } from '@/types/knowledgeBase';
-import {
-  AiSettingsFormSchema,
-  type AiSettingsFormValues,
-  DEFAULT_AI_SETTINGS,
-  AI_AGENT_BEHAVIORS,
-  AI_TRANSFER_CONDITIONS,
-  type FollowUpDelaysValues,
-} from '@/types/aiSettings';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogClose,
-} from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -128,23 +101,12 @@ export default function SettingsPage() {
   const [availableProductsForDropdown, setAvailableProductsForDropdown] = useState<ServiceProduct[]>([]);
   const [isLoadingServicesForDropdown, setIsLoadingServicesForDropdown] = useState(true);
 
-  const [isLoadingAiSettings, setIsLoadingAiSettings] = useState(true);
-  const [isSavingAiSettings, setIsSavingAiSettings] = useState(false);
-
   const [knowledgeBaseEntries, setKnowledgeBaseEntries] = useState<KnowledgeBaseEntry[]>([]);
   const [isLoadingKnowledgeBase, setIsLoadingKnowledgeBase] = useState(true);
   const [isKbFormDialogOpen, setIsKbFormDialogOpen] = useState(false);
   const [editingKbEntry, setEditingKbEntry] = useState<KnowledgeBaseEntry | null>(null);
   const [kbEntryToDelete, setKbEntryToDelete] = useState<KnowledgeBaseEntry | null>(null);
   const [isSubmittingKbEntry, setIsSubmittingKbEntry] = useState(false);
-
-
-  const aiSettingsForm = useForm<AiSettingsFormValues>({
-    resolver: zodResolver(AiSettingsFormSchema),
-    defaultValues: DEFAULT_AI_SETTINGS,
-  });
-  const watchedEnableFollowUp = aiSettingsForm.watch('enableFollowUp');
-  const watchedEnableHumanHandoff = aiSettingsForm.watch('enableHumanHandoff');
 
 
   const rewardForm = useForm<LoyaltyRewardFormValues>({
@@ -268,39 +230,6 @@ export default function SettingsPage() {
     };
     fetchFinancialSettings();
   }, [toast]);
-  
-  useEffect(() => {
-    const fetchAiAgentSettings = async () => {
-      setIsLoadingAiSettings(true);
-      try {
-        const settingsDocRef = doc(db, 'appSettings', 'aiAgentConfig');
-        const docSnap = await getDoc(settingsDocRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          const followUpDelaysWithDefaults = {
-            ...DEFAULT_AI_SETTINGS.followUpDelays,
-            ...(data.followUpDelays || {}),
-          };
-          aiSettingsForm.reset({
-            ...DEFAULT_AI_SETTINGS, 
-            ...data, 
-            followUpDelays: followUpDelaysWithDefaults,
-            humanAgentWhatsAppNumber: data.humanAgentWhatsAppNumber || '',
-          } as AiSettingsFormValues);
-        } else {
-          aiSettingsForm.reset(DEFAULT_AI_SETTINGS);
-        }
-      } catch (error) {
-        console.error("Error fetching AI agent settings: ", error);
-        toast({ title: "Error", description: "Gagal memuat pengaturan agen AI.", variant: "destructive" });
-        aiSettingsForm.reset(DEFAULT_AI_SETTINGS);
-      } finally {
-        setIsLoadingAiSettings(false);
-      }
-    };
-    fetchAiAgentSettings();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
 
   const fetchLoyaltyRewards = useCallback(async () => {
@@ -432,28 +361,6 @@ export default function SettingsPage() {
       toast({ title: "Error", description: "Gagal menyimpan pengaturan.", variant: "destructive" });
     } finally {
       setIsSavingFinancialSettings(false);
-    }
-  };
-  
-  const handleSaveAiAgentSettings = async (data: AiSettingsFormValues) => {
-    setIsSavingAiSettings(true);
-    try {
-      const settingsDocRef = doc(db, 'appSettings', 'aiAgentConfig');
-      const dataToSave = { ...data };
-      if (!data.enableFollowUp) {
-      } else {
-        dataToSave.followUpDelays = data.followUpDelays || DEFAULT_AI_SETTINGS.followUpDelays;
-      }
-      if (!data.enableHumanHandoff) {
-        dataToSave.humanAgentWhatsAppNumber = ''; // Clear number if handoff disabled
-      }
-      await setDoc(settingsDocRef, { ...dataToSave, updatedAt: serverTimestamp() }, { merge: true });
-      toast({ title: "Sukses", description: "Pengaturan Agen AI berhasil disimpan." });
-    } catch (error) {
-      console.error("Error saving AI agent settings: ", error);
-      toast({ title: "Error", description: "Gagal menyimpan pengaturan Agen AI.", variant: "destructive" });
-    } finally {
-      setIsSavingAiSettings(false);
     }
   };
 
@@ -685,15 +592,13 @@ export default function SettingsPage() {
       <AppHeader title="Pengaturan" />
       <main className="flex-1 overflow-y-auto p-6">
         <Tabs defaultValue="general" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 mb-6">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-6 mb-6"> {/* Adjusted to lg:grid-cols-6 */}
             <TabsTrigger value="general"><SlidersHorizontal className="mr-2 h-4 w-4 hidden md:inline" />Umum</TabsTrigger>
-            <TabsTrigger value="ai"><Zap className="mr-2 h-4 w-4 hidden md:inline" />Agen AI</TabsTrigger>
             <TabsTrigger value="knowledge_base"><BrainCircuit className="mr-2 h-4 w-4 hidden md:inline" />Knowledge Base</TabsTrigger>
             <TabsTrigger value="loyalty"><Gift className="mr-2 h-4 w-4 hidden md:inline" />Loyalitas Dasar</TabsTrigger>
             <TabsTrigger value="loyalty_rewards"><Award className="mr-2 h-4 w-4 hidden md:inline" />Daftar Reward Poin</TabsTrigger>
             <TabsTrigger value="direct_rewards"><Zap className="mr-2 h-4 w-4 hidden md:inline" />Reward Langsung</TabsTrigger>
             <TabsTrigger value="appearance" disabled><Palette className="mr-2 h-4 w-4 hidden md:inline" />Tampilan</TabsTrigger>
-            {/* <TabsTrigger value="notifications" disabled><Bell className="mr-2 h-4 w-4 hidden md:inline" />Notifikasi</TabsTrigger> */}
           </TabsList>
           
           <TabsContent value="general" className="space-y-6">
@@ -787,231 +692,6 @@ export default function SettingsPage() {
                   Simpan Pengaturan Keuangan
                 </Button>
               </CardFooter>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="ai">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center"><Zap className="mr-2 h-5 w-5 text-primary" />Pengaturan Agen AI</CardTitle>
-                <CardDescription>Konfigurasi perilaku, pesan, dan kemampuan agen AI Anda.</CardDescription>
-              </CardHeader>
-              <Form {...aiSettingsForm}>
-                <form onSubmit={aiSettingsForm.handleSubmit(handleSaveAiAgentSettings)}>
-                  <CardContent className="space-y-6">
-                    {isLoadingAiSettings ? (
-                       <div className="flex items-center space-x-2">
-                         <Loader2 className="h-5 w-5 animate-spin" />
-                         <span>Memuat pengaturan AI...</span>
-                       </div>
-                    ) : (
-                      <>
-                        <FormField
-                          control={aiSettingsForm.control}
-                          name="agentBehavior"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Perilaku Agen AI</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl><SelectTrigger><SelectValue placeholder="Pilih perilaku agen" /></SelectTrigger></FormControl>
-                                <SelectContent>
-                                  {AI_AGENT_BEHAVIORS.map(behavior => (
-                                    <SelectItem key={behavior} value={behavior}>{behavior}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={aiSettingsForm.control}
-                          name="welcomeMessage"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="flex items-center"><MessageCircle className="mr-2 h-4 w-4 text-muted-foreground" />Pesan Selamat Datang</FormLabel>
-                              <FormControl><Textarea placeholder="Tulis pesan selamat datang dari agen AI..." {...field} rows={3} /></FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={aiSettingsForm.control}
-                          name="knowledgeBaseDescription"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="flex items-center"><Info className="mr-2 h-4 w-4 text-muted-foreground" />Deskripsi/Panduan Umum Knowledge Base AI</FormLabel>
-                              <FormControl><Textarea placeholder="Panduan tingkat tinggi untuk AI tentang bagaimana menggunakan knowledge base. Detail pengetahuan akan dikelola di tab 'Knowledge Base'." {...field} rows={4} /></FormControl>
-                              <FormDescription>Informasi ini akan membantu AI memahami konteks jawaban yang harus diberikan, dan bagaimana ia harus berinteraksi dengan tools knowledge base.</FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                         <FormItem>
-                          <FormLabel>Kondisi Transfer ke Manusia</FormLabel>
-                          <FormDescription>Pilih kondisi kapan percakapan harus dialihkan ke staf manusia.</FormDescription>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 pt-2">
-                            {AI_TRANSFER_CONDITIONS.map((condition) => (
-                              <FormField
-                                key={condition}
-                                control={aiSettingsForm.control}
-                                name="transferConditions"
-                                render={({ field }) => (
-                                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                                    <FormControl>
-                                      <Checkbox
-                                        checked={field.value?.includes(condition)}
-                                        onCheckedChange={(checked) => {
-                                          return checked
-                                            ? field.onChange([...(field.value || []), condition])
-                                            : field.onChange(
-                                                (field.value || []).filter(
-                                                  (value) => value !== condition
-                                                )
-                                              )
-                                        }}
-                                      />
-                                    </FormControl>
-                                    <FormLabel className="font-normal text-sm">{condition}</FormLabel>
-                                  </FormItem>
-                                )}
-                              />
-                            ))}
-                          </div>
-                          <FormMessage>{aiSettingsForm.formState.errors.transferConditions?.message}</FormMessage>
-                        </FormItem>
-
-                         <FormField
-                          control={aiSettingsForm.control}
-                          name="enableHumanHandoff"
-                          render={({ field }) => (
-                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                              <div className="space-y-0.5">
-                                <FormLabel className="flex items-center"><PhoneForwarded className="mr-2 h-4 w-4 text-muted-foreground"/>Aktifkan Notifikasi Handoff ke Agen Manusia</FormLabel>
-                                <FormDescription>Jika aktif, notifikasi akan dikirim ke nomor agen manusia ketika kondisi transfer terpenuhi.</FormDescription>
-                              </div>
-                              <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                            </FormItem>
-                          )}
-                        />
-                        {watchedEnableHumanHandoff && (
-                           <FormField
-                              control={aiSettingsForm.control}
-                              name="humanAgentWhatsAppNumber"
-                              render={({ field }) => (
-                                <FormItem className="pl-4 mt-2">
-                                  <FormLabel>Nomor WhatsApp Agen Manusia</FormLabel>
-                                  <FormControl><Input type="tel" placeholder="mis. +6281234567890" {...field} /></FormControl>
-                                  <FormDescription>Nomor ini akan menerima notifikasi saat handoff diperlukan.</FormDescription>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                        )}
-
-                        <FormField
-                          control={aiSettingsForm.control}
-                          name="enableFollowUp"
-                          render={({ field }) => (
-                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                              <div className="space-y-0.5">
-                                <FormLabel>Aktifkan Fitur Follow-up</FormLabel>
-                                <FormDescription>Agen AI akan mengirimkan pesan follow-up berkala kepada pelanggan yang pernah menghubungi via WhatsApp namun belum melakukan kunjungan atau transaksi.</FormDescription>
-                              </div>
-                              <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                            </FormItem>
-                          )}
-                        />
-                        {watchedEnableFollowUp && (
-                          <Card className="p-4 bg-muted/50 border-dashed">
-                            <CardHeader className="p-0 pb-3">
-                                <CardTitle className="text-md">Pengaturan Jadwal Follow-up</CardTitle>
-                                <CardDescription className="text-xs">Interval dihitung dari upaya follow-up sebelumnya jika pelanggan belum berkunjung/bertransaksi.</CardDescription>
-                            </CardHeader>
-                            <CardContent className="p-0 space-y-4">
-                              <FormField
-                                control={aiSettingsForm.control}
-                                name="followUpMessageTemplate"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Template Pesan Follow-up (Untuk Kontak Awal)</FormLabel>
-                                    <FormControl><Textarea placeholder="Tulis template pesan untuk follow-up..." {...field} rows={3} /></FormControl>
-                                    <FormMessage />
-                                  </FormItem>
-                                )}
-                              />
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <FormField
-                                    control={aiSettingsForm.control}
-                                    name="followUpDelays.firstAttemptHours"
-                                    render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Penundaan Pertama (Jam setelah kontak awal)</FormLabel>
-                                        <FormControl><Input type="number" placeholder="mis. 24" {...field} 
-                                        onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
-                                        value={field.value === undefined ? '' : String(field.value)}
-                                        /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={aiSettingsForm.control}
-                                    name="followUpDelays.secondAttemptDays"
-                                    render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Penundaan Ke-2 (Hari setelah upaya pertama)</FormLabel>
-                                        <FormControl><Input type="number" placeholder="mis. 7" {...field}
-                                        onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
-                                        value={field.value === undefined ? '' : String(field.value)}
-                                        /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={aiSettingsForm.control}
-                                    name="followUpDelays.thirdAttemptDays"
-                                    render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Penundaan Ke-3 (Hari setelah upaya kedua)</FormLabel>
-                                        <FormControl><Input type="number" placeholder="mis. 7" {...field} 
-                                        onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
-                                        value={field.value === undefined ? '' : String(field.value)}
-                                        /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                    )}
-                                />
-                                <FormField
-                                    control={aiSettingsForm.control}
-                                    name="followUpDelays.fourthAttemptDays"
-                                    render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Penundaan Ke-4 (Hari setelah upaya ketiga)</FormLabel>
-                                        <FormControl><Input type="number" placeholder="mis. 30" {...field} 
-                                        onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
-                                        value={field.value === undefined ? '' : String(field.value)}
-                                        /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                    )}
-                                />
-                              </div>
-                            </CardContent>
-                          </Card>
-                        )}
-                      </>
-                    )}
-                  </CardContent>
-                  <CardFooter>
-                    <Button type="submit" disabled={isSavingAiSettings || isLoadingAiSettings}>
-                      {isSavingAiSettings ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                      Simpan Pengaturan AI
-                    </Button>
-                  </CardFooter>
-                </form>
-              </Form>
             </Card>
           </TabsContent>
 
@@ -1326,17 +1006,6 @@ export default function SettingsPage() {
             </Card>
           </TabsContent>
 
-          {/* <TabsContent value="notifications">
-             <Card>
-              <CardHeader>
-                <CardTitle>Notifikasi</CardTitle>
-                <CardDescription>Kelola preferensi notifikasi Anda.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-center text-muted-foreground py-8">Pengaturan notifikasi akan segera tersedia.</p>
-              </CardContent>
-            </Card>
-          </TabsContent> */}
         </Tabs>
 
         <Dialog open={isRewardFormDialogOpen} onOpenChange={(isOpen) => {
@@ -1629,3 +1298,4 @@ export default function SettingsPage() {
   );
 }
 
+    

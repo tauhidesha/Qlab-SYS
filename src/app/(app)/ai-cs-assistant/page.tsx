@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Loader2, MessageSquareText, Sparkles, Copy, Send, User, Search, Bot, MessageCircle, ThumbsUp, ThumbsDown, Edit2, ShieldAlert } from 'lucide-react';
+import { Loader2, MessageSquareText, Sparkles, Copy, Send, User, Search, Bot, MessageCircle, ThumbsUp, ThumbsDown, Edit2, ShieldAlert, BrainCircuit, PhoneForwarded, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { generateWhatsAppReply } from '@/ai/flows/cs-whatsapp-reply-flow';
 import type { WhatsAppReplyOutput, ChatMessage } from '@/types/ai/cs-whatsapp-reply';
@@ -16,11 +16,27 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, orderBy, type Timestamp, onSnapshot, addDoc, serverTimestamp, where, limit, setDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, type Timestamp, onSnapshot, addDoc, serverTimestamp, where, limit, setDoc, doc, getDoc as getFirestoreDoc } from 'firebase/firestore';
 import type { Client } from '@/types/client';
 import type { DirectMessage } from '@/types/directMessage';
 import { cn } from '@/lib/utils';
 import { v4 as uuidv4 } from 'uuid';
+
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import {
+  AiSettingsFormSchema,
+  type AiSettingsFormValues,
+  DEFAULT_AI_SETTINGS,
+  AI_AGENT_BEHAVIORS,
+  AI_TRANSFER_CONDITIONS,
+  type FollowUpDelaysValues,
+} from '@/types/aiSettings';
+
 
 interface ChatMessageUi extends Omit<DirectMessage, 'timestamp' | 'id'> {
   id: string;
@@ -48,29 +64,23 @@ interface Customer {
   phone?: string;
 }
 
-function formatPhoneNumberForMatching(number?: string): string { // Input bisa undefined
-  if (!number || typeof number !== 'string' || number.trim() === '') { // Cek string, non-empty
-    return ''; // Kembalikan string kosong jika input tidak valid
+function formatPhoneNumberForMatching(number?: string): string {
+  if (!number || typeof number !== 'string' || number.trim() === '') {
+    return '';
   }
   let cleaned = number.replace(/\D/g, '');
   if (cleaned.startsWith('0')) {
     cleaned = '62' + cleaned.substring(1);
   } else if (cleaned.startsWith('8') && cleaned.length >= 9 && cleaned.length <= 13 && /^\d+$/.test(cleaned)) {
-    // Hanya prefix 62 jika dimulai '8' dan panjangnya sesuai nomor lokal
     cleaned = '62' + cleaned;
   } else if (!cleaned.startsWith('62') && /^\d{9,13}$/.test(cleaned) && !cleaned.startsWith('+')) {
-    // Untuk kasus lain yang hanya digit, panjangnya nomor lokal, dan tidak ada +62
     cleaned = '62' + cleaned;
   }
-  // Pastikan outputnya valid atau kosong
   if (cleaned.startsWith('62') && cleaned.length >= 10) {
     return cleaned;
   }
-  return ''; // Kembalikan string kosong jika format akhir tidak sesuai
+  return '';
 }
-
-
-const AI_LOCK_DURATION_MS = 1 * 60 * 60 * 1000; // 1 jam
 
 export default function AiCsAssistantPage() {
   const [customerMessageInput, setCustomerMessageInput] = useState('');
@@ -91,6 +101,70 @@ export default function AiCsAssistantPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const playgroundMessagesEndRef = useRef<HTMLDivElement>(null);
   const unsubscribeChatRef = useRef<(() => void) | null>(null);
+
+  // AI Settings State & Form
+  const [isLoadingAiSettings, setIsLoadingAiSettings] = useState(true);
+  const [isSavingAiSettings, setIsSavingAiSettings] = useState(false);
+  const aiSettingsForm = useForm<AiSettingsFormValues>({
+    resolver: zodResolver(AiSettingsFormSchema),
+    defaultValues: DEFAULT_AI_SETTINGS,
+  });
+  const watchedEnableFollowUp = aiSettingsForm.watch('enableFollowUp');
+  const watchedEnableHumanHandoff = aiSettingsForm.watch('enableHumanHandoff');
+
+  const fetchAiAgentSettings = useCallback(async () => {
+    setIsLoadingAiSettings(true);
+    try {
+      const settingsDocRef = doc(db, 'appSettings', 'aiAgentConfig');
+      const docSnap = await getFirestoreDoc(settingsDocRef); // Use getFirestoreDoc
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        const followUpDelaysWithDefaults = {
+          ...DEFAULT_AI_SETTINGS.followUpDelays,
+          ...(data.followUpDelays || {}),
+        };
+        aiSettingsForm.reset({
+          ...DEFAULT_AI_SETTINGS,
+          ...data,
+          followUpDelays: followUpDelaysWithDefaults,
+          humanAgentWhatsAppNumber: data.humanAgentWhatsAppNumber || '',
+        } as AiSettingsFormValues);
+      } else {
+        aiSettingsForm.reset(DEFAULT_AI_SETTINGS);
+      }
+    } catch (error) {
+      console.error("Error fetching AI agent settings: ", error);
+      toast({ title: "Error", description: "Gagal memuat pengaturan agen AI.", variant: "destructive" });
+      aiSettingsForm.reset(DEFAULT_AI_SETTINGS);
+    } finally {
+      setIsLoadingAiSettings(false);
+    }
+  }, [aiSettingsForm, toast]);
+
+  const handleSaveAiAgentSettings = async (data: AiSettingsFormValues) => {
+    setIsSavingAiSettings(true);
+    try {
+      const settingsDocRef = doc(db, 'appSettings', 'aiAgentConfig');
+      const dataToSave = { ...data };
+      if (data.enableFollowUp) {
+        dataToSave.followUpDelays = data.followUpDelays || DEFAULT_AI_SETTINGS.followUpDelays;
+      }
+      if (!data.enableHumanHandoff) {
+        dataToSave.humanAgentWhatsAppNumber = '';
+      }
+      await setDoc(settingsDocRef, { ...dataToSave, updatedAt: serverTimestamp() }, { merge: true });
+      toast({ title: "Sukses", description: "Pengaturan Agen AI berhasil disimpan." });
+    } catch (error) {
+      console.error("Error saving AI agent settings: ", error);
+      toast({ title: "Error", description: "Gagal menyimpan pengaturan Agen AI.", variant: "destructive" });
+    } finally {
+      setIsSavingAiSettings(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAiAgentSettings();
+  }, [fetchAiAgentSettings]);
 
 
   const scrollToBottom = (ref: React.RefObject<HTMLDivElement>) => {
@@ -125,7 +199,7 @@ export default function AiCsAssistantPage() {
         lastMessageTimestamp: client.lastVisit || 'N/A',
         lastMessage: 'Klik untuk melihat chat...',
         unreadCount: 0,
-        phone: client.phone, // Simpan nomor telepon asli dari DB
+        phone: client.phone,
       }));
     } catch (error) {
       console.error("Error fetching customers from Firestore: ", error);
@@ -163,7 +237,7 @@ export default function AiCsAssistantPage() {
       const phoneToFormat = selectedCustomer.phone;
       const formattedPhoneForQuery = formatPhoneNumberForMatching(phoneToFormat);
 
-      if (formattedPhoneForQuery) { // Hanya jalankan query jika nomor telepon valid
+      if (formattedPhoneForQuery) {
         const messagesRef = collection(db, 'directMessages');
         const q = query(
           messagesRef,
@@ -191,16 +265,15 @@ export default function AiCsAssistantPage() {
           });
         });
       } else {
-        setChatHistory([]); // Kosongkan chat jika nomor tidak valid
-        if (selectedCustomer.phone) { // Hanya tampilkan toast jika ada nomor tapi tidak valid
+        setChatHistory([]);
+        if (selectedCustomer.phone) {
           console.warn(`Nomor telepon pelanggan "${selectedCustomer.name}" (${selectedCustomer.phone}) tidak valid atau tidak dapat diformat untuk query.`);
         }
       }
     } else {
-      setChatHistory([]); // Kosongkan chat jika tidak ada pelanggan dipilih atau dalam mode playground
+      setChatHistory([]);
     }
 
-    // Cleanup listener
     return () => {
       if (unsubscribeChatRef.current) {
         unsubscribeChatRef.current();
@@ -211,7 +284,7 @@ export default function AiCsAssistantPage() {
 
   const handleSelectPlayground = () => {
     setIsPlaygroundMode(true);
-    setSelectedCustomer(null); // Clear selected customer
+    setSelectedCustomer(null);
     setCustomerMessageInput('');
     setCurrentPlaygroundInput('');
     setPlaygroundChatHistory([]);
@@ -225,7 +298,6 @@ export default function AiCsAssistantPage() {
     setIsPlaygroundMode(false);
     setSelectedCustomer(customer);
     setCustomerMessageInput('');
-    // Chat history will be loaded by the useEffect hook for selectedCustomer
   };
 
   const handleSendPlaygroundMessage = async () => {
@@ -252,7 +324,7 @@ export default function AiCsAssistantPage() {
     setIsLoadingPlaygroundSuggestion(true);
 
     const genkitChatHistory: ChatMessage[] = updatedPlaygroundHistory
-      .slice(0, -1) // Exclude the last user message as it's the current one
+      .slice(0, -1)
       .map(msg => ({
         role: msg.sender === 'user' ? 'user' : 'model',
         content: msg.text,
@@ -262,7 +334,6 @@ export default function AiCsAssistantPage() {
       const result: WhatsAppReplyOutput = await generateWhatsAppReply({
         customerMessage: userMessageText,
         chatHistory: genkitChatHistory,
-        // senderNumber is not relevant for playground mode
       });
 
       const aiMessage: PlaygroundMessage = {
@@ -323,12 +394,11 @@ export default function AiCsAssistantPage() {
     }
 
     const textToSend = customerMessageInput.trim();
-    const originalInput = customerMessageInput; // Save for potential restore on error
-    setCustomerMessageInput(''); // Clear input immediately
+    const originalInput = customerMessageInput;
+    setCustomerMessageInput('');
     setIsSendingWhatsApp(true);
 
     try {
-      // 1. Send message via local WhatsApp server
       const response = await fetch('/api/whatsapp/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -342,21 +412,19 @@ export default function AiCsAssistantPage() {
           description: `Pesan Anda sedang dikirim ke ${selectedCustomer.name}.`,
         });
 
-        // 2. Save CS manual reply to directMessages
         const directMessagesRef = collection(db, 'directMessages');
         const csMessageData: Omit<DirectMessage, 'id'> = {
           customerId: selectedCustomer.id,
           customerName: selectedCustomer.name,
-          senderNumber: formattedPhoneForSending, // Simpan nomor yang sudah diformat
+          senderNumber: formattedPhoneForSending,
           text: textToSend,
-          sender: 'user', // Mark as from CS user
-          timestamp: serverTimestamp() as any, // Cast to any for serverTimestamp
-          read: true, // CS message is "read" by CS
+          sender: 'user',
+          timestamp: serverTimestamp() as any,
+          read: true,
         };
         await addDoc(directMessagesRef, csMessageData);
         console.log("CS manual reply saved to directMessages.");
 
-        // 3. Set AI intervention lock
         try {
             const lockResponse = await fetch('/api/whatsapp/set-intervention-lock', {
                 method: 'POST',
@@ -383,7 +451,7 @@ export default function AiCsAssistantPage() {
         description: error instanceof Error ? error.message : "Terjadi kesalahan.",
         variant: "destructive",
       });
-      setCustomerMessageInput(originalInput); // Restore input on error
+      setCustomerMessageInput(originalInput);
     } finally {
       setIsSendingWhatsApp(false);
     }
@@ -407,7 +475,7 @@ export default function AiCsAssistantPage() {
       return;
     }
 
-    setIsSendingWhatsApp(true); // Reuse loading state for visual feedback
+    setIsSendingWhatsApp(true);
     try {
       const response = await fetch('/api/whatsapp/set-intervention-lock', {
         method: 'POST',
@@ -460,7 +528,7 @@ export default function AiCsAssistantPage() {
 
   const filteredCustomers = customers.filter(customer =>
     customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (customer.phone && customer.phone.includes(searchTerm)) // Pastikan phone ada sebelum includes
+    (customer.phone && customer.phone.includes(searchTerm))
   );
 
 
@@ -487,7 +555,6 @@ export default function AiCsAssistantPage() {
             </div>
           </CardHeader>
 
-          {/* Tombol Playground */}
           <div
             key="ai-playground"
             className={cn(
@@ -548,84 +615,84 @@ export default function AiCsAssistantPage() {
           </ScrollArea>
         </div>
 
-        {/* Kolom Chat atau Playground View */}
-        <div className="col-span-1 md:col-span-2 lg:col-span-3 flex flex-col bg-background">
+        {/* Kolom Chat atau Playground View & AI Settings */}
+        <div className="col-span-1 md:col-span-2 lg:col-span-3 flex flex-col bg-background p-4 space-y-4 overflow-y-auto">
           {isPlaygroundMode ? (
             <>
-              <CardHeader className="p-4 border-b bg-card">
-                <CardTitle className="text-lg flex items-center"><Bot className="mr-2 h-6 w-6 text-primary" /> AI Playground</CardTitle>
-                <CardDescription>Uji coba langsung kemampuan AI. Berikan feedback untuk membantu AI belajar.</CardDescription>
-              </CardHeader>
-              <ScrollArea className="flex-1 p-4 space-y-4 bg-card/50">
-                {playgroundChatHistory.map((message) => (
-                  <div key={message.id}>
-                    <div
-                      className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                    >
+              <Card className="flex-shrink-0">
+                <CardHeader className="p-4 border-b">
+                  <CardTitle className="text-lg flex items-center"><Bot className="mr-2 h-6 w-6 text-primary" /> AI Playground</CardTitle>
+                  <CardDescription>Uji coba langsung kemampuan AI. Berikan feedback untuk membantu AI belajar.</CardDescription>
+                </CardHeader>
+                <ScrollArea className="h-[400px] p-4 space-y-4"> {/* Fixed height for chat */}
+                  {playgroundChatHistory.map((message) => (
+                    <div key={message.id}>
                       <div
-                        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-xl shadow ${
-                          message.sender === 'user'
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-secondary text-secondary-foreground'
-                        }`}
+                        className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                       >
-                        <p className="text-sm whitespace-pre-wrap">{message.text}</p>
-                        <p className={`text-xs mt-1 ${message.sender === 'user' ? 'text-primary-foreground/80' : 'text-secondary-foreground/80'} text-right`}>
-                          {message.timestamp}
-                        </p>
+                        <div
+                          className={`max-w-xs lg:max-w-md px-4 py-2 rounded-xl shadow ${
+                            message.sender === 'user'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-secondary text-secondary-foreground'
+                          }`}
+                        >
+                          <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+                          <p className={`text-xs mt-1 ${message.sender === 'user' ? 'text-primary-foreground/80' : 'text-secondary-foreground/80'} text-right`}>
+                            {message.timestamp}
+                          </p>
+                        </div>
                       </div>
+                      {message.sender === 'ai' && (
+                        <div className="flex justify-start mt-1.5 ml-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className={cn("h-7 w-7 hover:bg-green-100 dark:hover:bg-green-800", message.feedback === 'good' && "bg-green-100 text-green-700 dark:bg-green-800 dark:text-green-300")}
+                            onClick={() => handlePlaygroundFeedback(message.id, 'good')}
+                          >
+                            <ThumbsUp className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className={cn("h-7 w-7 ml-1 hover:bg-red-100 dark:hover:bg-red-800", message.feedback === 'bad' && "bg-red-100 text-red-700 dark:bg-red-800 dark:text-red-300")}
+                            onClick={() => handlePlaygroundFeedback(message.id, 'bad')}
+                          >
+                            <ThumbsDown className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                      {message.sender === 'ai' && message.feedback === 'bad' && message.isEditingCorrection && !message.correction && (
+                        <div className="mt-2 ml-1 space-y-2 max-w-md">
+                          <Textarea
+                            placeholder="Tulis koreksi Anda di sini..."
+                            value={message.currentCorrectionText || ''}
+                            onChange={(e) => handlePlaygroundCorrectionChange(message.id, e.target.value)}
+                            rows={3}
+                            className="text-sm bg-background"
+                          />
+                          <Button size="sm" onClick={() => handleSavePlaygroundCorrection(message.id)} className="bg-accent text-accent-foreground hover:bg-accent/90">
+                            <Edit2 className="mr-2 h-4 w-4" /> Simpan Koreksi
+                          </Button>
+                        </div>
+                      )}
+                      {message.sender === 'ai' && message.correction && (
+                        <Card className="mt-2 ml-1 p-3 border-green-500 bg-green-50 dark:bg-green-900/30 max-w-md">
+                          <p className="text-xs font-medium text-green-700 dark:text-green-300">Koreksi Anda:</p>
+                          <p className="text-sm text-green-800 dark:text-green-200 whitespace-pre-wrap">{message.correction}</p>
+                        </Card>
+                      )}
                     </div>
-                    {message.sender === 'ai' && (
-                      <div className="flex justify-start mt-1.5 ml-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className={cn("h-7 w-7 hover:bg-green-100 dark:hover:bg-green-800", message.feedback === 'good' && "bg-green-100 text-green-700 dark:bg-green-800 dark:text-green-300")}
-                          onClick={() => handlePlaygroundFeedback(message.id, 'good')}
-                        >
-                          <ThumbsUp className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className={cn("h-7 w-7 ml-1 hover:bg-red-100 dark:hover:bg-red-800", message.feedback === 'bad' && "bg-red-100 text-red-700 dark:bg-red-800 dark:text-red-300")}
-                          onClick={() => handlePlaygroundFeedback(message.id, 'bad')}
-                        >
-                          <ThumbsDown className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-                    {message.sender === 'ai' && message.feedback === 'bad' && message.isEditingCorrection && !message.correction && (
-                      <div className="mt-2 ml-1 space-y-2 max-w-md">
-                        <Textarea
-                          placeholder="Tulis koreksi Anda di sini..."
-                          value={message.currentCorrectionText || ''}
-                          onChange={(e) => handlePlaygroundCorrectionChange(message.id, e.target.value)}
-                          rows={3}
-                          className="text-sm bg-background"
-                        />
-                        <Button size="sm" onClick={() => handleSavePlaygroundCorrection(message.id)} className="bg-accent text-accent-foreground hover:bg-accent/90">
-                          <Edit2 className="mr-2 h-4 w-4" /> Simpan Koreksi
-                        </Button>
-                      </div>
-                    )}
-                     {message.sender === 'ai' && message.correction && (
-                      <Card className="mt-2 ml-1 p-3 border-green-500 bg-green-50 dark:bg-green-900/30 max-w-md">
-                        <p className="text-xs font-medium text-green-700 dark:text-green-300">Koreksi Anda:</p>
-                        <p className="text-sm text-green-800 dark:text-green-200 whitespace-pre-wrap">{message.correction}</p>
-                      </Card>
-                    )}
-                  </div>
-                ))}
-                 {playgroundChatHistory.length === 0 && (
-                    <p className="text-center text-muted-foreground py-10">Mulai percakapan dengan AI di bawah.</p>
-                )}
-                <div ref={playgroundMessagesEndRef} />
-              </ScrollArea>
-              <Separator />
-              <Card className="rounded-none border-0 border-t shadow-none">
-                <CardContent className="p-4">
-                  <div className="flex items-end space-x-2">
+                  ))}
+                  {playgroundChatHistory.length === 0 && (
+                      <p className="text-center text-muted-foreground py-10">Mulai percakapan dengan AI di bawah.</p>
+                  )}
+                  <div ref={playgroundMessagesEndRef} />
+                </ScrollArea>
+                <Separator />
+                <CardFooter className="p-4">
+                  <div className="flex items-end space-x-2 w-full">
                     <Textarea
                       id="playground-chat-input"
                       placeholder="Ketik pertanyaan atau skenario Anda..."
@@ -646,7 +713,7 @@ export default function AiCsAssistantPage() {
                       {isLoadingPlaygroundSuggestion ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
                     </Button>
                   </div>
-                </CardContent>
+                </CardFooter>
               </Card>
             </>
           ) : !selectedCustomer ? (
@@ -657,97 +724,323 @@ export default function AiCsAssistantPage() {
             </div>
           ) : (
             <>
-              <CardHeader className="p-4 border-b bg-card">
-                <div className="flex justify-between items-center">
-                    <div>
-                        <CardTitle className="text-lg flex items-center">
-                        Percakapan dengan: {selectedCustomer.name}
-                        </CardTitle>
-                        <CardDescription>{selectedCustomer.phone || "Nomor HP tidak tersedia"}</CardDescription>
-                    </div>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleSetManualLock}
-                        disabled={isSendingWhatsApp || !selectedCustomer.phone}
-                        title="Aktifkan lock AI selama 1 jam (jika Anda baru balas dari HP)"
-                    >
-                        <ShieldAlert className="mr-2 h-4 w-4" />
-                        Ambil Alih (Lock AI 1 Jam)
-                    </Button>
-                </div>
-              </CardHeader>
-              <ScrollArea className="flex-1 p-4 space-y-4 bg-card/50">
-                {chatHistory.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex ${message.sender === 'customer' ? 'justify-start' : 'justify-end'}`}
-                  >
-                    <div
-                      className={`max-w-xs lg:max-w-md px-4 py-2 rounded-xl shadow ${
-                        message.sender === 'customer'
-                          ? 'bg-muted text-muted-foreground'
-                          : message.sender === 'user' // Staf CS manual reply
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-secondary text-secondary-foreground' // AI auto-reply
-                      }`}
-                    >
-                      <p className="text-sm whitespace-pre-wrap">{message.text}</p>
-                      <p className={`text-xs mt-1 ${
-                        message.sender === 'customer' ? 'text-muted-foreground/80'
-                        : message.sender === 'user' ? 'text-primary-foreground/80'
-                        : 'text-secondary-foreground/80'
-                        } text-right`}>
-                        {message.timestamp} {message.sender === 'ai' && '(AI Otomatis)'}
-                      </p>
-                    </div>
+              <Card className="flex-shrink-0">
+                <CardHeader className="p-4 border-b">
+                  <div className="flex justify-between items-center">
+                      <div>
+                          <CardTitle className="text-lg flex items-center">
+                          Percakapan dengan: {selectedCustomer.name}
+                          </CardTitle>
+                          <CardDescription>{selectedCustomer.phone || "Nomor HP tidak tersedia"}</CardDescription>
+                      </div>
+                      <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleSetManualLock}
+                          disabled={isSendingWhatsApp || !selectedCustomer.phone}
+                          title="Aktifkan lock AI selama 1 jam (jika Anda baru balas dari HP)"
+                      >
+                          <ShieldAlert className="mr-2 h-4 w-4" />
+                          Ambil Alih (Lock AI 1 Jam)
+                      </Button>
                   </div>
-                ))}
-                {chatHistory.length === 0 && (
-                    <p className="text-center text-muted-foreground py-10">Belum ada riwayat chat untuk pelanggan ini.</p>
-                )}
-                <div ref={messagesEndRef} />
-              </ScrollArea>
-
-              <Separator />
-              <Card className="rounded-none border-0 border-t shadow-none">
-                <CardHeader className="p-4">
-                  <CardTitle className="text-lg flex items-center">
-                    <MessageCircle className="mr-2 h-5 w-5 text-primary" />
-                    Balas Pesan Pelanggan
-                  </CardTitle>
                 </CardHeader>
-                <CardContent className="p-4">
-                  <div className="flex items-end space-x-2">
-                    <Textarea
-                      id="customer-message-input"
-                      placeholder="Ketik balasan Anda di sini..."
-                      value={customerMessageInput}
-                      onChange={(e) => setCustomerMessageInput(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      rows={3}
-                      disabled={isSendingWhatsApp || !selectedCustomer?.phone}
-                      className="bg-background flex-1 resize-none"
-                    />
-                    <Button
-                      size="icon"
-                      onClick={handleSendMessage}
-                      disabled={isSendingWhatsApp || !customerMessageInput.trim() || !selectedCustomer?.phone}
-                      className="h-10 w-10 shrink-0"
-                      aria-label="Kirim Pesan Manual"
+                <ScrollArea className="h-[400px] p-4 space-y-4"> {/* Fixed height for chat */}
+                  {chatHistory.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex ${message.sender === 'customer' ? 'justify-start' : 'justify-end'}`}
                     >
-                      {isSendingWhatsApp ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-                    </Button>
-                  </div>
-                   {!selectedCustomer?.phone && (
-                         <p className="text-xs text-destructive mt-1">Nomor HP pelanggan tidak tersedia untuk pengiriman WhatsApp.</p>
-                       )}
-                </CardContent>
+                      <div
+                        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-xl shadow ${
+                          message.sender === 'customer'
+                            ? 'bg-muted text-muted-foreground'
+                            : message.sender === 'user'
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-secondary text-secondary-foreground'
+                        }`}
+                      >
+                        <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+                        <p className={`text-xs mt-1 ${
+                          message.sender === 'customer' ? 'text-muted-foreground/80'
+                          : message.sender === 'user' ? 'text-primary-foreground/80'
+                          : 'text-secondary-foreground/80'
+                          } text-right`}>
+                          {message.timestamp} {message.sender === 'ai' && '(AI Otomatis)'}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                  {chatHistory.length === 0 && (
+                      <p className="text-center text-muted-foreground py-10">Belum ada riwayat chat untuk pelanggan ini.</p>
+                  )}
+                  <div ref={messagesEndRef} />
+                </ScrollArea>
+                <Separator />
+                <Card className="rounded-none border-0 border-t shadow-none">
+                  <CardHeader className="p-4">
+                    <CardTitle className="text-lg flex items-center">
+                      <MessageCircle className="mr-2 h-5 w-5 text-primary" />
+                      Balas Pesan Pelanggan
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    <div className="flex items-end space-x-2">
+                      <Textarea
+                        id="customer-message-input"
+                        placeholder="Ketik balasan Anda di sini..."
+                        value={customerMessageInput}
+                        onChange={(e) => setCustomerMessageInput(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        rows={3}
+                        disabled={isSendingWhatsApp || !selectedCustomer?.phone}
+                        className="bg-background flex-1 resize-none"
+                      />
+                      <Button
+                        size="icon"
+                        onClick={handleSendMessage}
+                        disabled={isSendingWhatsApp || !customerMessageInput.trim() || !selectedCustomer?.phone}
+                        className="h-10 w-10 shrink-0"
+                        aria-label="Kirim Pesan Manual"
+                      >
+                        {isSendingWhatsApp ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                      </Button>
+                    </div>
+                    {!selectedCustomer?.phone && (
+                          <p className="text-xs text-destructive mt-1">Nomor HP pelanggan tidak tersedia untuk pengiriman WhatsApp.</p>
+                        )}
+                  </CardContent>
+                </Card>
               </Card>
             </>
           )}
+
+          {/* AI Settings Card - Always visible on this page, below chat/playground */}
+          <Card className="mt-4">
+            <CardHeader>
+              <CardTitle className="flex items-center"><BrainCircuit className="mr-2 h-5 w-5 text-primary" />Pengaturan Agen AI</CardTitle>
+              <CardDescription>Konfigurasi perilaku, pesan, dan kemampuan agen AI Anda di halaman ini.</CardDescription>
+            </CardHeader>
+            <Form {...aiSettingsForm}>
+              <form onSubmit={aiSettingsForm.handleSubmit(handleSaveAiAgentSettings)}>
+                <CardContent className="space-y-6">
+                  {isLoadingAiSettings ? (
+                      <div className="flex items-center space-x-2">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <span>Memuat pengaturan AI...</span>
+                      </div>
+                  ) : (
+                    <>
+                      <FormField
+                        control={aiSettingsForm.control}
+                        name="agentBehavior"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Perilaku Agen AI</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl><SelectTrigger><SelectValue placeholder="Pilih perilaku agen" /></SelectTrigger></FormControl>
+                              <SelectContent>
+                                {AI_AGENT_BEHAVIORS.map(behavior => (
+                                  <SelectItem key={behavior} value={behavior}>{behavior}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={aiSettingsForm.control}
+                        name="welcomeMessage"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center"><MessageCircle className="mr-2 h-4 w-4 text-muted-foreground" />Pesan Selamat Datang</FormLabel>
+                            <FormControl><Textarea placeholder="Tulis pesan selamat datang dari agen AI..." {...field} rows={3} /></FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={aiSettingsForm.control}
+                        name="knowledgeBaseDescription"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="flex items-center"><Info className="mr-2 h-4 w-4 text-muted-foreground" />Deskripsi/Panduan Umum Knowledge Base AI</FormLabel>
+                            <FormControl><Textarea placeholder="Panduan tingkat tinggi untuk AI tentang bagaimana menggunakan knowledge base..." {...field} rows={4} /></FormControl>
+                            <FormDescription>Informasi ini akan membantu AI memahami konteks jawaban.</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormItem>
+                        <FormLabel>Kondisi Transfer ke Manusia</FormLabel>
+                        <FormDescription>Pilih kondisi kapan percakapan harus dialihkan ke staf manusia.</FormDescription>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 pt-2">
+                          {AI_TRANSFER_CONDITIONS.map((condition) => (
+                            <FormField
+                              key={condition}
+                              control={aiSettingsForm.control}
+                              name="transferConditions"
+                              render={({ field }) => (
+                                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                  <FormControl>
+                                    <Checkbox
+                                      checked={field.value?.includes(condition)}
+                                      onCheckedChange={(checked) => {
+                                        return checked
+                                          ? field.onChange([...(field.value || []), condition])
+                                          : field.onChange(
+                                              (field.value || []).filter(
+                                                (value) => value !== condition
+                                              )
+                                            )
+                                      }}
+                                    />
+                                  </FormControl>
+                                  <FormLabel className="font-normal text-sm">{condition}</FormLabel>
+                                </FormItem>
+                              )}
+                            />
+                          ))}
+                        </div>
+                        <FormMessage>{aiSettingsForm.formState.errors.transferConditions?.message}</FormMessage>
+                      </FormItem>
+
+                      <FormField
+                        control={aiSettingsForm.control}
+                        name="enableHumanHandoff"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                            <div className="space-y-0.5">
+                              <FormLabel className="flex items-center"><PhoneForwarded className="mr-2 h-4 w-4 text-muted-foreground"/>Aktifkan Notifikasi Handoff</FormLabel>
+                              <FormDescription>Notifikasi dikirim jika kondisi transfer terpenuhi.</FormDescription>
+                            </div>
+                            <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      {watchedEnableHumanHandoff && (
+                          <FormField
+                            control={aiSettingsForm.control}
+                            name="humanAgentWhatsAppNumber"
+                            render={({ field }) => (
+                              <FormItem className="pl-4 mt-2">
+                                <FormLabel>Nomor WhatsApp Agen Manusia</FormLabel>
+                                <FormControl><Input type="tel" placeholder="mis. +6281234567890" {...field} /></FormControl>
+                                <FormDescription>Nomor ini akan menerima notifikasi saat handoff.</FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                      )}
+
+                      <FormField
+                        control={aiSettingsForm.control}
+                        name="enableFollowUp"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                            <div className="space-y-0.5">
+                              <FormLabel>Aktifkan Fitur Follow-up</FormLabel>
+                              <FormDescription>AI mengirim follow-up jika pelanggan belum berkunjung/transaksi.</FormDescription>
+                            </div>
+                            <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      {watchedEnableFollowUp && (
+                        <Card className="p-4 bg-muted/50 border-dashed">
+                          <CardHeader className="p-0 pb-3">
+                              <CardTitle className="text-md">Pengaturan Jadwal Follow-up</CardTitle>
+                          </CardHeader>
+                          <CardContent className="p-0 space-y-4">
+                            <FormField
+                              control={aiSettingsForm.control}
+                              name="followUpMessageTemplate"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Template Pesan Follow-up</FormLabel>
+                                  <FormControl><Textarea placeholder="Tulis template pesan untuk follow-up..." {...field} rows={3} /></FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <FormField
+                                  control={aiSettingsForm.control}
+                                  name="followUpDelays.firstAttemptHours"
+                                  render={({ field }) => (
+                                  <FormItem>
+                                      <FormLabel>Penundaan Pertama (Jam)</FormLabel>
+                                      <FormControl><Input type="number" placeholder="mis. 24" {...field} 
+                                      onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
+                                      value={field.value === undefined ? '' : String(field.value)}
+                                      /></FormControl>
+                                      <FormMessage />
+                                  </FormItem>
+                                  )}
+                              />
+                              <FormField
+                                  control={aiSettingsForm.control}
+                                  name="followUpDelays.secondAttemptDays"
+                                  render={({ field }) => (
+                                  <FormItem>
+                                      <FormLabel>Penundaan Ke-2 (Hari)</FormLabel>
+                                      <FormControl><Input type="number" placeholder="mis. 7" {...field}
+                                      onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
+                                      value={field.value === undefined ? '' : String(field.value)}
+                                      /></FormControl>
+                                      <FormMessage />
+                                  </FormItem>
+                                  )}
+                              />
+                              <FormField
+                                  control={aiSettingsForm.control}
+                                  name="followUpDelays.thirdAttemptDays"
+                                  render={({ field }) => (
+                                  <FormItem>
+                                      <FormLabel>Penundaan Ke-3 (Hari)</FormLabel>
+                                      <FormControl><Input type="number" placeholder="mis. 7" {...field} 
+                                      onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
+                                      value={field.value === undefined ? '' : String(field.value)}
+                                      /></FormControl>
+                                      <FormMessage />
+                                  </FormItem>
+                                  )}
+                              />
+                              <FormField
+                                  control={aiSettingsForm.control}
+                                  name="followUpDelays.fourthAttemptDays"
+                                  render={({ field }) => (
+                                  <FormItem>
+                                      <FormLabel>Penundaan Ke-4 (Hari)</FormLabel>
+                                      <FormControl><Input type="number" placeholder="mis. 30" {...field} 
+                                      onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
+                                      value={field.value === undefined ? '' : String(field.value)}
+                                      /></FormControl>
+                                      <FormMessage />
+                                  </FormItem>
+                                  )}
+                              />
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+                <CardFooter>
+                  <Button type="submit" disabled={isSavingAiSettings || isLoadingAiSettings}>
+                    {isSavingAiSettings ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Simpan Pengaturan AI
+                  </Button>
+                </CardFooter>
+              </form>
+            </Form>
+          </Card>
         </div>
       </div>
     </div>
   );
 }
+
+    
