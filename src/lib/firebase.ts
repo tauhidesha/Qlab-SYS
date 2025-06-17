@@ -51,10 +51,12 @@ if (!firebaseConfig.projectId || !firebaseConfig.apiKey) {
   console.error("[firebase.ts] Pastikan file .env sudah ada di root proyek dan berisi variabel Firebase yang benar (NEXT_PUBLIC_FIREBASE_PROJECT_ID, NEXT_PUBLIC_FIREBASE_API_KEY, dll).");
   console.error("[firebase.ts] Jalankan 'npm run genkit:dev' dari terminal di root folder proyek Anda.");
   console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+  // @ts-ignore
+  app = null; // Prevent further operations if config is bad
 }
 
 
-if (getApps().length === 0) {
+if (app !== null && getApps().length === 0) {
   console.log("[firebase.ts] Tidak ada aplikasi Firebase yang terinisialisasi, membuat aplikasi baru...");
   try {
     app = initializeApp(firebaseConfig);
@@ -62,8 +64,10 @@ if (getApps().length === 0) {
   } catch (e: any) {
     console.error("[firebase.ts] GAGAL menginisialisasi aplikasi Firebase:", e.message);
     console.error("[firebase.ts] Detail Error Inisialisasi Firebase:", e);
+    // @ts-ignore
+    app = null; // Mark app as null if initialization fails
   }
-} else {
+} else if (app !== null) {
   console.log("[firebase.ts] Menggunakan aplikasi Firebase yang sudah ada.");
   app = getApp();
   console.log("[firebase.ts] Aplikasi Firebase yang ada. Project ID dari app.options:", app.options.projectId);

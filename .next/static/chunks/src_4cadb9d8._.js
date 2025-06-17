@@ -254,8 +254,10 @@ if (!firebaseConfig.projectId || !firebaseConfig.apiKey) {
     console.error("[firebase.ts] Pastikan file .env sudah ada di root proyek dan berisi variabel Firebase yang benar (NEXT_PUBLIC_FIREBASE_PROJECT_ID, NEXT_PUBLIC_FIREBASE_API_KEY, dll).");
     console.error("[firebase.ts] Jalankan 'npm run genkit:dev' dari terminal di root folder proyek Anda.");
     console.error("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    // @ts-ignore
+    app = null; // Prevent further operations if config is bad
 }
-if ((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["getApps"])().length === 0) {
+if (app !== null && (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["getApps"])().length === 0) {
     console.log("[firebase.ts] Tidak ada aplikasi Firebase yang terinisialisasi, membuat aplikasi baru...");
     try {
         app = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["initializeApp"])(firebaseConfig);
@@ -263,8 +265,10 @@ if ((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$fireba
     } catch (e) {
         console.error("[firebase.ts] GAGAL menginisialisasi aplikasi Firebase:", e.message);
         console.error("[firebase.ts] Detail Error Inisialisasi Firebase:", e);
+        // @ts-ignore
+        app = null; // Mark app as null if initialization fails
     }
-} else {
+} else if (app !== null) {
     console.log("[firebase.ts] Menggunakan aplikasi Firebase yang sudah ada.");
     app = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["getApp"])();
     console.log("[firebase.ts] Aplikasi Firebase yang ada. Project ID dari app.options:", app.options.projectId);
