@@ -1156,12 +1156,12 @@ async function generateWhatsAppReply({ customerMessage, senderNumber, chatHistor
         tomorrowDate: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$addDays$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["addDays"])(now, 1), 'yyyy-MM-dd'),
         dayAfterTomorrowDate: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$addDays$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["addDays"])(now, 2), 'yyyy-MM-dd')
     };
-    console.log("generateWhatsAppReply input to flow (using merged settings, combined prompt):", JSON.stringify(flowInput, null, 2));
-    const aiResponse = await whatsAppReplyFlowCombined(flowInput);
+    console.log("generateWhatsAppReply input to flow (using merged settings, combined prompt v5 refined):", JSON.stringify(flowInput, null, 2));
+    const aiResponse = await whatsAppReplyFlowCombined_v5_refined(flowInput); // Menggunakan flow baru
     return aiResponse;
 }
-const replyPromptCombined = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].definePrompt({
-    name: 'whatsAppReplyPrompt_Combined_v4',
+const replyPromptCombined_v5_refined = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].definePrompt({
+    name: 'whatsAppReplyPrompt_Combined_v5_refined',
     input: {
         schema: __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$ai$2f$cs$2d$whatsapp$2d$reply$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["WhatsAppReplyInputSchema"]
     },
@@ -1178,30 +1178,42 @@ const replyPromptCombined = __TURBOPACK__imported__module__$5b$project$5d2f$src$
 Perilaku Anda: {{{agentBehavior}}}.
 Anda bertugas membantu pengguna dengan menjawab pertanyaan atau memproses permintaan mereka mengenai layanan dan produk QLAB.
 
+INFORMASI UKURAN KENDARAAN UMUM UNTUK COATING (Jika relevan dan produknya memiliki varian ukuran S/M/L/XL):
+- XMAX, NMAX, PCX, ADV: Biasanya ukuran L atau XL.
+- Vario, Aerox, Lexi: Biasanya ukuran M atau L.
+- Beat, Scoopy, Mio, Fazzio: Biasanya ukuran S atau M.
+Gunakan informasi ini untuk membantu pelanggan memilih ukuran yang tepat jika mereka menyebutkan jenis motornya. Selalu konfirmasi pilihan ukuran dengan pelanggan.
+
 INSTRUKSI UTAMA:
-1.  Gunakan tool yang tersedia jika diperlukan untuk mendapatkan informasi akurat atau melakukan tindakan booking.
-2.  Informasi umum atau kebijakan dapat dicari menggunakan 'getKnowledgeBaseInfoTool'.
-3.  Detail spesifik produk/layanan seperti harga, durasi, atau ketersediaan gunakan 'getProductServiceDetailsByNameTool'.
-    *   Tool 'getProductServiceDetailsByNameTool' bisa mengembalikan satu item atau array beberapa item jika query-nya umum.
-    *   **Saat menggunakan output dari 'getProductServiceDetailsByNameTool': SELALU gunakan NAMA dan HARGA PERSIS seperti yang dikembalikan oleh tool. JANGAN membuat nama layanan atau harga sendiri.**
-    *   Jika pelanggan menyebutkan layanan secara umum (misalnya "coating motor", "cuci xmax") atau bertanya "ada apa aja?", gunakan tool 'getProductServiceDetailsByNameTool' dengan query yang lebih umum (misalnya, "coating", "paket detailing", "cuci motor").
-    *   Jika tool mengembalikan **ARRAY BEBERAPA ITEM** (misalnya, hasil dari query umum seperti "coating" atau "paket detailing"):
-        *   Sebutkan 2-3 item yang paling relevan dari array tersebut.
-        *   Untuk setiap item yang dipilih, sebutkan **NAMA itemnya (dari field 'name' output tool)** dan **HARGA-nya (dari field 'price' output tool)**.
-        *   Jika item tersebut punya array 'variants' yang TIDAK KOSONG, sebutkan NAMA item dasar, lalu sebutkan beberapa contoh varian dari dalam array 'variants' beserta harganya.
-        *   Contoh jika tool mengembalikan array: "Untuk coating, kami ada beberapa pilihan Kak: (1) [NAMA_ITEM_1_DARI_TOOL] harganya Rp [HARGA_ITEM_1_DARI_TOOL]. (2) Untuk [NAMA_ITEM_2_DARI_TOOL], ada varian [NAMA_VARIAN_A_DARI_TOOL_2] Rp [HARGA_VARIAN_A_DARI_TOOL_2] dan varian [NAMA_VARIAN_B_DARI_TOOL_2] Rp [HARGA_VARIAN_B_DARI_TOOL_2]. Kakak tertarik yang mana?"
-    *   Jika tool mengembalikan **SATU ITEM** (objek tunggal, bukan array):
-        *   Gunakan field 'name' dari output tool sebagai NAMA LAYANAN.
-        *   Jika item tersebut TIDAK memiliki array 'variants' atau array 'variants' KOSONG:
-            *   Sebutkan harga dari field 'price' item tersebut. Contoh: "Untuk [NAMA_ITEM_DARI_TOOL], harganya Rp [HARGA_DARI_TOOL]."
-        *   Jika item tersebut MEMILIKI array 'variants' yang berisi beberapa pilihan:
-            *   Sebutkan NAMA item dasar (dari field 'name' output tool).
-            *   Kemudian, sebutkan beberapa pilihan varian DARI DALAM ARRAY 'variants' tersebut beserta harganya. Contoh: "Untuk layanan [NAMA_ITEM_DASAR_DARI_TOOL], kami ada beberapa pilihan ukuran Kak: Varian [NAMA_VARIAN_1_DARI_TOOL] harganya Rp [HARGA_VARIAN_1_DARI_TOOL], dan Varian [NAMA_VARIAN_2_DARI_TOOL] harganya Rp [HARGA_VARIAN_2_DARI_TOOL]. Kakak tertarik yang mana?"
-            *   Jika pelanggan bertanya harga spesifik varian (mis. "glossy size L berapa?"), pastikan Anda mencari item dasar (misalnya "Coating Motor Glossy" jika itu nama itemnya), lalu cari varian "L" (atau nama varian yang paling cocok) di dalam array \`variants\` item tersebut untuk mendapatkan harga yang benar.
-    *   Jika pelanggan bertanya tentang kategori layanan (misalnya "layanan detailing apa saja?"), Anda bisa gunakan 'getKnowledgeBaseInfoTool' dengan query tentang kategori tersebut atau 'getProductServiceDetailsByNameTool' dengan nama kategori sebagai productName.
-4.  Untuk data pelanggan (poin, motor terdaftar), gunakan 'getClientDetailsTool'.
-5.  Jika pelanggan meminta booking, gunakan 'createBookingTool'. Pastikan Anda telah mengkonfirmasi layanan yang diinginkan, nama pelanggan, info kendaraan, dan tanggal/waktu sebelum memanggil tool booking. Untuk tanggal dan waktu, jika pelanggan tidak spesifik, Anda bisa menawarkan slot tersedia atau menanyakan preferensi mereka. Konfirmasi KETERSEDIAAN SLOT jika pelanggan meminta waktu spesifik SEBELUM memanggil tool ini (gunakan pengetahuan umum Anda atau getKnowledgeBaseInfoTool jika ada info ketersediaan umum).
-6.  Konteks Knowledge Base Tambahan: {{{knowledgeBase}}}
+1.  PAHAMI PESAN PELANGGAN. Identifikasi apakah pelanggan bertanya tentang informasi umum, detail produk/layanan, data pribadi, atau ingin booking.
+2.  GUNAKAN TOOL YANG SESUAI:
+    *   'getKnowledgeBaseInfoTool': Untuk pertanyaan umum, kebijakan, jam operasional, deskripsi umum layanan/proses.
+    *   'getProductServiceDetailsByNameTool': Untuk HARGA, DURASI, KETERSEDIAAN, atau detail SPESIFIK produk/layanan.
+        *   Input untuk tool ini adalah 'productName'. Anda bisa menggunakan nama produk/layanan yang disebut pelanggan, atau kata kunci umum jika pelanggan bertanya secara umum (mis. 'coating', 'paket detailing', 'cuci motor').
+        *   Tool ini bisa mengembalikan SATU objek produk/layanan, atau ARRAY beberapa objek, atau null.
+        *   **CARA MENANGANI OUTPUT dari 'getProductServiceDetailsByNameTool':**
+            *   **JIKA TOOL MENGEMBALIKAN ARRAY BEBERAPA ITEM** (misalnya, jika pelanggan bertanya "coating apa saja?" atau "cuci motor ada apa aja?"):
+                1.  Sebutkan NAMA PERSIS dari beberapa item yang dikembalikan oleh tool (maksimal 2-3 item jika arraynya panjang). CONTOH JIKA TOOL MEMBERIKAN item bernama 'Coating Motor A' dan 'Coating Motor B': "Kami ada pilihan Coating Motor A dan Coating Motor B, Kak." JANGAN membuat nama sendiri seperti "Coating Standar" jika tidak ada di output tool.
+                2.  Untuk setiap item yang Anda sebutkan (misalnya 'Coating Motor A'):
+                    a.  Jika 'Coating Motor A' memiliki array \`variants\` yang TIDAK KOSONG (misalnya varian ukuran S, M, L, XL):
+                        Sebutkan NAMA ITEM DASAR ('Coating Motor A') dan bahwa ia memiliki beberapa pilihan varian.
+                        Kemudian, JIKA PELANGGAN MENYEBUTKAN JENIS KENDARAAN (mis. XMAX) DAN VARIANNYA ADALAH UKURAN, gunakan 'INFORMASI UKURAN KENDARAAN UMUM' di atas untuk menyarankan ukuran, lalu tanyakan konfirmasi. Contoh: "Untuk Coating Motor A ini ada ukuran S, M, L, XL. XMAX Kakak biasanya cocok ukuran L atau XL. Mau yang ukuran mana?"
+                        ATAU, jika pelanggan tidak menyebutkan jenis kendaraan, Anda bisa sebutkan NAMA dan HARGA dari 1-2 VARIANNYA sebagai contoh: "Coating Motor A ini ada varian ukuran L harganya Rp XXX dan XL harganya Rp YYY."
+                        JANGAN sebutkan harga item dasar ('Coating Motor A') jika harga dasarnya 0 atau tidak ada (artinya harga ditentukan varian).
+                    b.  Jika 'Coating Motor A' TIDAK memiliki array \`variants\` (atau array \`variants\` kosong) DAN harga item dasar (\`price\`) lebih dari 0:
+                        Sebutkan HARGA dari 'Coating Motor A' tersebut. Contoh: "Untuk layanan Poles Standar, harganya Rp 150.000."
+            *   **JIKA TOOL MENGEMBALIKAN SATU ITEM** (objek tunggal):
+                1.  Gunakan NAMA PERSIS dari field \`name\` output tool sebagai NAMA LAYANAN/PRODUK. JANGAN membuat nama sendiri.
+                2.  Jika item tersebut memiliki array \`variants\` yang TIDAK KOSONG:
+                    Sebutkan bahwa item tersebut memiliki beberapa pilihan varian. Jika pelanggan menyebutkan jenis kendaraan (misalnya XMAX) dan varian tersebut adalah ukuran (S, M, L, XL), gunakan 'INFORMASI UKURAN KENDARAAN UMUM' di atas untuk menyarankan ukuran, lalu tanyakan konfirmasi. Contoh: "Untuk Coating Motor Doff, tersedia dalam ukuran S, M, L, dan XL. Untuk XMAX biasanya ukuran L atau XL, Kak. Mau dihitungkan untuk ukuran yang mana?"
+                3.  Jika item tersebut TIDAK memiliki array \`variants\` (atau array \`variants\` kosong) DAN harga item dasar (\`price\`) lebih dari 0:
+                    Sebutkan HARGA dari field \`price\` item tersebut.
+            *   **JIKA PELANGGAN BERTANYA HARGA VARIAN SPESIFIK** (mis. "Coating Glossy ukuran L berapa?"):
+                Pastikan Anda menggunakan \`getProductServiceDetailsByNameTool\` dengan nama item dasar (mis. "Coating Motor Glossy"). Lalu, dari output tool, cari varian "L" (atau nama varian yang paling cocok) di dalam array \`variants\` item tersebut untuk mendapatkan harga yang benar.
+            *   **SANGAT PENTING: JANGAN PERNAH MEMBUAT NAMA LAYANAN ATAU HARGA SENDIRI. SELALU gunakan NAMA dan HARGA PERSIS seperti yang dikembalikan oleh tool.**
+    *   'getClientDetailsTool': Untuk data pelanggan (poin, motor terdaftar, histori).
+    *   'createBookingTool': Jika pelanggan meminta booking. Pastikan Anda telah mengkonfirmasi layanan, nama, info kendaraan, dan tanggal/waktu sebelum memanggil tool ini. Jika tanggal/waktu tidak spesifik, tawarkan slot atau tanya preferensi. Konfirmasi KETERSEDIAAN SLOT (gunakan pengetahuan umum atau 'getKnowledgeBaseInfoTool') sebelum memanggil tool.
+3.  Konteks Knowledge Base Tambahan: {{{knowledgeBase}}}
 
 INFORMASI WAKTU SAAT INI:
 Tanggal saat ini adalah {{{currentDate}}}, jam {{{currentTime}}}. Besok adalah {{{tomorrowDate}}}, dan lusa adalah {{{dayAfterTomorrowDate}}}.
@@ -1230,17 +1242,17 @@ user: {{{customerMessage}}}
 Hasilkan hanya objek JSON sebagai balasan Anda.
 `
 });
-const whatsAppReplyFlowCombined = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].defineFlow({
-    name: 'whatsAppReplyFlow_Combined_v4',
+const whatsAppReplyFlowCombined_v5_refined = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].defineFlow({
+    name: 'whatsAppReplyFlow_Combined_v5_refined',
     inputSchema: __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$ai$2f$cs$2d$whatsapp$2d$reply$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["WhatsAppReplyInputSchema"],
     outputSchema: __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$ai$2f$cs$2d$whatsapp$2d$reply$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["WhatsAppReplyOutputSchema"]
 }, async (input)=>{
-    console.log("whatsAppReplyFlow_Combined_v4 input received by flow:", JSON.stringify(input, null, 2));
-    const { output } = await replyPromptCombined(input);
+    console.log("whatsAppReplyFlow_Combined_v5_refined input received by flow:", JSON.stringify(input, null, 2));
+    const { output } = await replyPromptCombined_v5_refined(input); // Memanggil prompt baru
     if (!output) {
-        throw new Error('Gagal mendapatkan saran balasan dari AI (combined prompt flow v4).');
+        throw new Error('Gagal mendapatkan saran balasan dari AI (combined prompt flow v5 refined).');
     }
-    console.log("whatsAppReplyFlow_Combined_v4 output:", output);
+    console.log("whatsAppReplyFlow_Combined_v5_refined output:", output);
     return output;
 });
 ;
