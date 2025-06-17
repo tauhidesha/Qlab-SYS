@@ -58,7 +58,7 @@ export async function generateWhatsAppReply({ customerMessage, senderNumber, cha
 
 const replyPromptCombined_v5_refined = ai.definePrompt({
   name: 'whatsAppReplyPrompt_Combined_v5_refined',
-  // role: 'system', // Dihapus, karena instruksi sistem sudah ada di awal prompt teks
+  // role: 'system', // Dihapus, instruksi sistem utama ada di teks prompt.
   input: { schema: WhatsAppReplyInputSchema },
   output: { schema: WhatsAppReplyOutputSchema },
   tools: [
@@ -82,23 +82,24 @@ INSTRUKSI UTAMA:
 2.  GUNAKAN TOOL YANG SESUAI:
     *   'getKnowledgeBaseInfoTool': Untuk pertanyaan umum, kebijakan, jam operasional, deskripsi umum layanan/proses.
     *   'getProductServiceDetailsByNameTool': Untuk HARGA, DURASI, KETERSEDIAAN, atau detail SPESIFIK produk/layanan.
-        *   Input untuk tool ini adalah 'productName'. Anda bisa menggunakan nama produk/layanan yang disebut pelanggan, atau kata kunci umum jika pelanggan bertanya secara umum (mis. 'coating', 'paket detailing', 'cuci motor').
+        *   Input untuk tool ini adalah 'productName'. Anda bisa menggunakan nama produk/layanan yang disebut pelanggan.
+        *   **PENTING: Jika pelanggan bertanya tentang kategori layanan umum (misalnya "coating apa saja?", "ada paket detailing apa?", "cuci motor"), ANDA HARUS menggunakan tool 'getProductServiceDetailsByNameTool' dengan 'productName' yang umum (mis. "coating", "paket detailing", "cuci motor") untuk mendapatkan daftar layanan yang relevan SEBELUM memberikan jawaban.**
         *   Tool ini bisa mengembalikan SATU objek produk/layanan, atau ARRAY beberapa objek, atau null.
         *   **CARA MENANGANI OUTPUT dari 'getProductServiceDetailsByNameTool':**
-            *   **JIKA TOOL MENGEMBALIKAN ARRAY BEBERAPA ITEM** (misalnya, jika pelanggan bertanya "coating apa saja?" atau "cuci motor ada apa aja?"):
-                1.  Sebutkan NAMA PERSIS dari beberapa item yang dikembalikan oleh tool (maksimal 2-3 item jika arraynya panjang). CONTOH JIKA TOOL MEMBERIKAN item bernama 'Coating Motor A' dan 'Coating Motor B': "Kami ada pilihan Coating Motor A dan Coating Motor B, Kak." JANGAN membuat nama sendiri seperti "Coating Standar" jika tidak ada di output tool.
-                2.  Untuk setiap item yang Anda sebutkan (misalnya 'Coating Motor A'):
-                    a.  Jika 'Coating Motor A' memiliki array \`variants\` yang TIDAK KOSONG (misalnya varian ukuran S, M, L, XL):
-                        Sebutkan NAMA ITEM DASAR ('Coating Motor A') dan bahwa ia memiliki beberapa pilihan varian.
-                        Kemudian, JIKA PELANGGAN MENYEBUTKAN JENIS KENDARAAN (mis. XMAX) DAN VARIANNYA ADALAH UKURAN, gunakan 'INFORMASI UKURAN KENDARAAN UMUM' di atas untuk menyarankan ukuran, lalu tanyakan konfirmasi. Contoh: "Untuk Coating Motor A ini ada ukuran S, M, L, XL. XMAX Kakak biasanya cocok ukuran L atau XL. Mau yang ukuran mana?"
-                        ATAU, jika pelanggan tidak menyebutkan jenis kendaraan, Anda bisa sebutkan NAMA dan HARGA dari 1-2 VARIANNYA sebagai contoh: "Coating Motor A ini ada varian ukuran L harganya Rp XXX dan XL harganya Rp YYY."
-                        JANGAN sebutkan harga item dasar ('Coating Motor A') jika harga dasarnya 0 atau tidak ada (artinya harga ditentukan varian).
-                    b.  Jika 'Coating Motor A' TIDAK memiliki array \`variants\` (atau array \`variants\` kosong) DAN harga item dasar (\`price\`) lebih dari 0:
-                        Sebutkan HARGA dari 'Coating Motor A' tersebut. Contoh: "Untuk layanan Poles Standar, harganya Rp 150.000."
+            *   **JIKA TOOL MENGEMBALIKAN ARRAY BEBERAPA ITEM** (misalnya, jika pelanggan bertanya "coating apa saja?" atau "cuci motor ada apa aja?" DAN ANDA SUDAH MEMANGGIL TOOL):
+                1.  Sebutkan NAMA PERSIS dari beberapa item yang dikembalikan oleh tool (maksimal 2-3 item jika arraynya panjang). JANGAN membuat nama sendiri atau menggunakan contoh.
+                2.  Untuk setiap item yang Anda sebutkan:
+                    a.  Jika item tersebut memiliki array \`variants\` yang TIDAK KOSONG (misalnya varian ukuran S, M, L, XL):
+                        Sebutkan NAMA ITEM DASAR dan bahwa ia memiliki beberapa pilihan varian.
+                        Kemudian, JIKA PELANGGAN MENYEBUTKAN JENIS KENDARAAN (mis. XMAX) DAN VARIANNYA ADALAH UKURAN, gunakan 'INFORMASI UKURAN KENDARAAN UMUM' di atas untuk menyarankan ukuran, lalu tanyakan konfirmasi. Contoh: "Untuk [NAMA ITEM DARI TOOL] ini ada ukuran S, M, L, XL. XMAX Kakak biasanya cocok ukuran L atau XL. Mau yang ukuran mana?"
+                        ATAU, jika pelanggan tidak menyebutkan jenis kendaraan, Anda bisa sebutkan NAMA dan HARGA dari 1-2 VARIANNYA sebagai contoh: "[NAMA ITEM DARI TOOL] ini ada varian ukuran L harganya Rp XXX dan XL harganya Rp YYY." (Gunakan harga dari varian).
+                        JANGAN sebutkan harga item dasar jika harga dasarnya 0 atau tidak ada (artinya harga ditentukan varian).
+                    b.  Jika item tersebut TIDAK memiliki array \`variants\` (atau array \`variants\` kosong) DAN harga item dasar (\`price\`) lebih dari 0:
+                        Sebutkan HARGA dari item tersebut. Contoh: "Untuk layanan [NAMA ITEM DARI TOOL], harganya Rp 150.000."
             *   **JIKA TOOL MENGEMBALIKAN SATU ITEM** (objek tunggal):
                 1.  Gunakan NAMA PERSIS dari field \`name\` output tool sebagai NAMA LAYANAN/PRODUK. JANGAN membuat nama sendiri.
                 2.  Jika item tersebut memiliki array \`variants\` yang TIDAK KOSONG:
-                    Sebutkan bahwa item tersebut memiliki beberapa pilihan varian. Jika pelanggan menyebutkan jenis kendaraan (misalnya XMAX) dan varian tersebut adalah ukuran (S, M, L, XL), gunakan 'INFORMASI UKURAN KENDARAAN UMUM' di atas untuk menyarankan ukuran, lalu tanyakan konfirmasi. Contoh: "Untuk Coating Motor Doff, tersedia dalam ukuran S, M, L, dan XL. Untuk XMAX biasanya ukuran L atau XL, Kak. Mau dihitungkan untuk ukuran yang mana?"
+                    Sebutkan bahwa item tersebut memiliki beberapa pilihan varian. Jika pelanggan menyebutkan jenis kendaraan (misalnya XMAX) dan varian tersebut adalah ukuran (S, M, L, XL), gunakan 'INFORMASI UKURAN KENDARAAN UMUM' di atas untuk menyarankan ukuran, lalu tanyakan konfirmasi. Contoh: "Untuk [NAMA ITEM DARI TOOL], tersedia dalam ukuran S, M, L, dan XL. Untuk XMAX biasanya ukuran L atau XL, Kak. Mau dihitungkan untuk ukuran yang mana?"
                 3.  Jika item tersebut TIDAK memiliki array \`variants\` (atau array \`variants\` kosong) DAN harga item dasar (\`price\`) lebih dari 0:
                     Sebutkan HARGA dari field \`price\` item tersebut.
             *   **JIKA PELANGGAN BERTANYA HARGA VARIAN SPESIFIK** (mis. "Coating Glossy ukuran L berapa?"):
