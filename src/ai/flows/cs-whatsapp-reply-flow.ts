@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview AI flow for WhatsApp customer service replies.
@@ -37,33 +36,37 @@ async function getAiSettingsFromFirestore(): Promise<Partial<AiSettingsFormValue
 
 export async function generateWhatsAppReply({ customerMessage, senderNumber, chatHistory }: { customerMessage: string; senderNumber?: string; chatHistory?: ChatMessage[] }): Promise<WhatsAppReplyOutput> {
   const firestoreSettings = await getAiSettingsFromFirestore();
-  // Merge Firestore settings with defaults. Firestore settings take precedence.
   const agentSettings = { ...DEFAULT_AI_SETTINGS, ...firestoreSettings };
-  
   const now = new Date();
 
   const flowInput: WhatsAppReplyInput = {
-    customerMessage: customerMessage,
-    senderNumber: senderNumber,
+    customerMessage,
+    senderNumber,
     chatHistory: chatHistory || [],
-    agentBehavior: agentSettings.agentBehavior, 
+    agentBehavior: agentSettings.agentBehavior,
     knowledgeBase: agentSettings.knowledgeBaseDescription,
     currentDate: formatDateFns(now, 'yyyy-MM-dd'),
     currentTime: formatDateFns(now, 'HH:mm'),
     tomorrowDate: formatDateFns(addDays(now, 1), 'yyyy-MM-dd'),
     dayAfterTomorrowDate: formatDateFns(addDays(now, 2), 'yyyy-MM-dd'),
   };
-  
-  console.log("generateWhatsAppReply input to flow (using merged settings, combined prompt v5 refined):", JSON.stringify(flowInput, null, 2));
-  const aiResponse = await whatsAppReplyFlowCombined_v5_refined(flowInput); // Menggunakan flow baru
+
+  console.log("generateWhatsAppReply input to flow:", JSON.stringify(flowInput, null, 2));
+  const aiResponse = await whatsAppReplyFlowCombined_v5_refined(flowInput);
   return aiResponse;
 }
 
-const replyPromptCombined_v5_refined = ai.definePrompt({ // Nama prompt baru
-  name: 'whatsAppReplyPrompt_Combined_v5_refined', // Nama prompt baru
+const replyPromptCombined_v5_refined = ai.definePrompt({
+  name: 'whatsAppReplyPrompt_Combined_v5_refined',
+  role: 'system',  // <-- memastikan prompt dikirim sebagai system message
   input: { schema: WhatsAppReplyInputSchema },
   output: { schema: WhatsAppReplyOutputSchema },
-  tools: [getKnowledgeBaseInfoTool, getProductServiceDetailsByNameTool, getClientDetailsTool, createBookingTool],
+  tools: [
+    getKnowledgeBaseInfoTool,
+    getProductServiceDetailsByNameTool,
+    getClientDetailsTool,
+    createBookingTool
+  ],
   prompt: `Anda adalah Zoya, seorang Customer Service Assistant AI untuk QLAB Auto Detailing.
 Perilaku Anda: {{{agentBehavior}}}.
 Anda bertugas membantu pengguna dengan menjawab pertanyaan atau memproses permintaan mereka mengenai layanan dan produk QLAB.
@@ -130,28 +133,20 @@ PESAN PELANGGAN TERBARU:
 user: {{{customerMessage}}}
 
 Hasilkan hanya objek JSON sebagai balasan Anda.
-`
-});
 
-const whatsAppReplyFlowCombined_v5_refined = ai.defineFlow( // Nama flow baru
+`});
+
+const whatsAppReplyFlowCombined_v5_refined = ai.defineFlow(
   {
-    name: 'whatsAppReplyFlow_Combined_v5_refined', // Nama flow baru
+    name: 'whatsAppReplyFlow_Combined_v5_refined',
     inputSchema: WhatsAppReplyInputSchema,
     outputSchema: WhatsAppReplyOutputSchema,
   },
   async (input: WhatsAppReplyInput) => {
-    console.log("whatsAppReplyFlow_Combined_v5_refined input received by flow:", JSON.stringify(input, null, 2));
-    
-    const {output} = await replyPromptCombined_v5_refined(input); // Memanggil prompt baru
-    if (!output) {
-      throw new Error('Gagal mendapatkan saran balasan dari AI (combined prompt flow v5 refined).');
-    }
-    console.log("whatsAppReplyFlow_Combined_v5_refined output:", output);
+    console.log("whatsAppReplyFlowCombined_v5_refined input:", JSON.stringify(input, null, 2));
+    const { output } = await replyPromptCombined_v5_refined(input);
+    if (!output) throw new Error('Gagal mendapatkan saran balasan dari AI.');
+    console.log("whatsAppReplyFlowCombined_v5_refined output:", output);
     return output;
   }
 );
-    
-
-    
-
-    
