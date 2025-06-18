@@ -2,7 +2,7 @@
 import { z } from 'genkit';
 
 export const ChatMessageSchema = z.object({
-  role: z.enum(['user', 'model']), // 'user' for customer/CS agent, 'model' for AI's previous replies
+  role: z.enum(['user', 'model']), 
   content: z.string(),
 });
 export type ChatMessage = z.infer<typeof ChatMessageSchema>;
@@ -17,6 +17,7 @@ export const WhatsAppReplyInputSchema = z.object({
   currentTime: z.string().optional().describe('Waktu saat ini dalam format HH:MM (24 jam). Berguna untuk konteks booking.'),
   tomorrowDate: z.string().optional().describe('Tanggal besok dalam format YYYY-MM-DD. Berguna untuk konteks booking.'),
   dayAfterTomorrowDate: z.string().optional().describe('Tanggal lusa (besoknya besok) dalam format YYYY-MM-DD. Berguna untuk konteks booking.'),
+  mainPromptString: z.string().optional().describe('String prompt utama yang diambil dari pengaturan.'), // Field baru
 });
 export type WhatsAppReplyInput = z.infer<typeof WhatsAppReplyInputSchema>;
 

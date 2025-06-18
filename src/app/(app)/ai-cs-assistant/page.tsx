@@ -175,6 +175,7 @@ export default function AiCsAssistantPage() {
           ...data,
           followUpDelays: followUpDelaysWithDefaults,
           humanAgentWhatsAppNumber: data.humanAgentWhatsAppNumber || '',
+          mainPrompt: data.mainPrompt || DEFAULT_AI_SETTINGS.mainPrompt, // Load mainPrompt
         } as AiSettingsFormValues);
       } else {
         aiSettingsForm.reset(DEFAULT_AI_SETTINGS);
@@ -199,9 +200,12 @@ export default function AiCsAssistantPage() {
       if (!data.enableHumanHandoff) {
         dataToSave.humanAgentWhatsAppNumber = '';
       }
+      // Ensure mainPrompt is saved
+      if (!dataToSave.mainPrompt || dataToSave.mainPrompt.trim() === "") {
+        dataToSave.mainPrompt = DEFAULT_AI_SETTINGS.mainPrompt;
+      }
       await setDoc(settingsDocRef, { ...dataToSave, updatedAt: serverTimestamp() }, { merge: true });
       toast({ title: "Sukses", description: "Pengaturan Agen AI berhasil disimpan." });
-      // Keep dialog open for KB management, do not setIsAiSettingsDialogOpen(false);
     } catch (error) {
       console.error("Error saving AI agent settings: ", error);
       toast({ title: "Error", description: "Gagal menyimpan pengaturan Agen AI.", variant: "destructive" });
@@ -298,7 +302,7 @@ export default function AiCsAssistantPage() {
       await deleteDoc(doc(db, 'knowledge_base_entries', kbEntryToDelete.id));
       toast({ title: "Sukses", description: `Entri Knowledge Base "${kbEntryToDelete.topic}" berhasil dihapus.` });
       fetchKnowledgeBaseEntries();
-      setKbEntryToDelete(null); // Close the alert dialog
+      setKbEntryToDelete(null); 
     } catch (error) {
       console.error("Error deleting Knowledge Base entry: ", error);
       toast({ title: "Error", description: "Gagal menghapus entri Knowledge Base.", variant: "destructive" });
@@ -475,6 +479,7 @@ export default function AiCsAssistantPage() {
       const result: WhatsAppReplyOutput = await generateWhatsAppReply({
         customerMessage: userMessageText,
         chatHistory: genkitChatHistory,
+        // Tidak perlu kirim promptStringFromSettings di sini, karena generateWhatsAppReply akan mengambilnya dari Firestore
       });
 
       const aiMessage: PlaygroundMessage = {
@@ -672,692 +677,701 @@ export default function AiCsAssistantPage() {
     (customer.phone && customer.phone.includes(searchTerm))
   );
 
-
   return (
-    <div className="flex flex-col h-full bg-background">
-      <AppHeader title="Asisten CS AI untuk WhatsApp" />
-      <div className="flex-1 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 overflow-hidden">
+    <React.Fragment>
+      <div className="flex flex-col h-full bg-background">
+        <AppHeader title="Asisten CS AI untuk WhatsApp" />
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 overflow-hidden">
 
-        {/* Kolom Daftar Pelanggan & Playground */}
-        <div className="col-span-1 md:col-span-1 lg:col-span-1 border-r border-border bg-card flex flex-col">
-          <CardHeader className="p-4">
-            <CardTitle className="text-lg flex items-center">
-              <User className="mr-2 h-5 w-5" /> Daftar Pelanggan
-            </CardTitle>
-            <div className="relative mt-2">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Cari pelanggan (nama/HP)..."
-                className="pl-8 w-full h-9"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-          </CardHeader>
+          {/* Kolom Daftar Pelanggan & Playground */}
+          <div className="col-span-1 md:col-span-1 lg:col-span-1 border-r border-border bg-card flex flex-col">
+            <CardHeader className="p-4">
+              <CardTitle className="text-lg flex items-center">
+                <User className="mr-2 h-5 w-5" /> Daftar Pelanggan
+              </CardTitle>
+              <div className="relative mt-2">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Cari pelanggan (nama/HP)..."
+                  className="pl-8 w-full h-9"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </CardHeader>
 
-          <div
-            key="ai-playground"
-            className={cn(
-              "p-3 hover:bg-muted cursor-pointer border-b border-t border-border",
-              isPlaygroundMode ? 'bg-accent text-accent-foreground' : ''
-            )}
-            onClick={handleSelectPlayground}
-          >
-            <div className="flex items-center space-x-3">
-              <Avatar className={cn(
-                "h-9 w-9 flex items-center justify-center",
-                isPlaygroundMode ? "bg-accent-foreground text-accent" : "bg-primary/10 text-primary"
-              )}>
-                <Bot className="h-5 w-5" />
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">AI Playground</p>
-                <p className="text-xs text-muted-foreground truncate">Uji coba AI tanpa pelanggan.</p>
+            <div
+              key="ai-playground"
+              className={cn(
+                "p-3 hover:bg-muted cursor-pointer border-b border-t border-border",
+                isPlaygroundMode ? 'bg-accent text-accent-foreground' : ''
+              )}
+              onClick={handleSelectPlayground}
+            >
+              <div className="flex items-center space-x-3">
+                <Avatar className={cn(
+                  "h-9 w-9 flex items-center justify-center",
+                  isPlaygroundMode ? "bg-accent-foreground text-accent" : "bg-primary/10 text-primary"
+                )}>
+                  <Bot className="h-5 w-5" />
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">AI Playground</p>
+                  <p className="text-xs text-muted-foreground truncate">Uji coba AI tanpa pelanggan.</p>
+                </div>
               </div>
             </div>
-          </div>
-          <ScrollArea className="flex-grow">
-            <CardContent className="p-0">
-              {loadingCustomers ? (
-                <div className="p-4 text-center text-muted-foreground">
-                  <Loader2 className="h-6 w-6 animate-spin mx-auto my-4" />
-                  Memuat pelanggan...
-                </div>
-              ) : filteredCustomers.length === 0 && searchTerm ? (
-                 <p className="p-4 text-center text-muted-foreground">
-                  Pelanggan tidak ditemukan.
-                 </p>
-              ) : filteredCustomers.length === 0 && !searchTerm ? (
-                 <p className="p-4 text-center text-muted-foreground">
-                  Belum ada pelanggan.
-                 </p>
-              ): (
-                filteredCustomers.map((customer) => (
-                  <div
-                    key={customer.id}
-                    className={`p-3 hover:bg-muted cursor-pointer border-b border-border last:border-b-0 ${selectedCustomer?.id === customer.id && !isPlaygroundMode ? 'bg-accent/20' : ''}`}
-                    onClick={() => handleCustomerSelect(customer)}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <Avatar className="h-9 w-9">
-                        <AvatarImage src={customer.avatarUrl} alt={customer.name} data-ai-hint="avatar pelanggan" />
-                        <AvatarFallback>{customer.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{customer.name}</p>
-                        <p className="text-xs text-muted-foreground truncate">{customer.phone || 'No HP tidak ada'}</p>
-                      </div>
-                    </div>
+            <ScrollArea className="flex-grow">
+              <CardContent className="p-0">
+                {loadingCustomers ? (
+                  <div className="p-4 text-center text-muted-foreground">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto my-4" />
+                    Memuat pelanggan...
                   </div>
-                ))
-              )}
-            </CardContent>
-          </ScrollArea>
-        </div>
-
-        {/* Kolom Chat atau Playground View & AI Settings Button */}
-        <div className="col-span-1 md:col-span-2 lg:col-span-3 flex flex-col bg-background p-4 space-y-4 overflow-y-auto">
-          {isPlaygroundMode ? (
-            <>
-              <Card className="flex-shrink-0">
-                <CardHeader className="p-4 border-b">
-                  <CardTitle className="text-lg flex items-center"><Bot className="mr-2 h-6 w-6 text-primary" /> AI Playground</CardTitle>
-                  <CardDescription>Uji coba langsung kemampuan AI. Berikan feedback untuk membantu AI belajar.</CardDescription>
-                </CardHeader>
-                <ScrollArea className="h-[400px] p-4 space-y-4"> {/* Fixed height for chat */}
-                  {playgroundChatHistory.map((message) => (
-                    <div key={message.id}>
-                      <div
-                        className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div
-                          className={`px-4 py-2 rounded-xl shadow ${
-                            message.sender === 'user'
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-secondary text-secondary-foreground'
-                          }`}
-                        >
-                          <p className="text-sm whitespace-pre-wrap">{message.text}</p>
-                          <p className={`text-xs mt-1 ${message.sender === 'user' ? 'text-primary-foreground/80' : 'text-secondary-foreground/80'} text-right`}>
-                            {message.timestamp}
-                          </p>
-                        </div>
-                      </div>
-                      {message.sender === 'ai' && (
-                        <div className="flex justify-start mt-1.5 ml-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className={cn("h-7 w-7 hover:bg-green-100 dark:hover:bg-green-800", message.feedback === 'good' && "bg-green-100 text-green-700 dark:bg-green-800 dark:text-green-300")}
-                            onClick={() => handlePlaygroundFeedback(message.id, 'good')}
-                          >
-                            <ThumbsUp className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className={cn("h-7 w-7 ml-1 hover:bg-red-100 dark:hover:bg-red-800", message.feedback === 'bad' && "bg-red-100 text-red-700 dark:bg-red-800 dark:text-red-300")}
-                            onClick={() => handlePlaygroundFeedback(message.id, 'bad')}
-                          >
-                            <ThumbsDown className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )}
-                      {message.sender === 'ai' && message.feedback === 'bad' && message.isEditingCorrection && !message.correction && (
-                        <div className="mt-2 ml-1 space-y-2">
-                          <Textarea
-                            placeholder="Tulis koreksi Anda di sini..."
-                            value={message.currentCorrectionText || ''}
-                            onChange={(e) => handlePlaygroundCorrectionChange(message.id, e.target.value)}
-                            rows={3}
-                            className="text-sm bg-background"
-                          />
-                          <Button size="sm" onClick={() => handleSavePlaygroundCorrection(message.id)} className="bg-accent text-accent-foreground hover:bg-accent/90">
-                            <Edit2 className="mr-2 h-4 w-4" /> Simpan Koreksi
-                          </Button>
-                        </div>
-                      )}
-                      {message.sender === 'ai' && message.correction && (
-                        <Card className="mt-2 ml-1 p-3 border-green-500 bg-green-50 dark:bg-green-900/30">
-                          <p className="text-xs font-medium text-green-700 dark:text-green-300">Koreksi Anda:</p>
-                          <p className="text-sm text-green-800 dark:text-green-200 whitespace-pre-wrap">{message.correction}</p>
-                        </Card>
-                      )}
-                    </div>
-                  ))}
-                  {playgroundChatHistory.length === 0 && (
-                      <p className="text-center text-muted-foreground py-10">Mulai percakapan dengan AI di bawah.</p>
-                  )}
-                  <div ref={playgroundMessagesEndRef} />
-                </ScrollArea>
-                <Separator />
-                <CardFooter className="p-4">
-                  <div className="flex items-end space-x-2 w-full">
-                    <Textarea
-                      id="playground-chat-input"
-                      placeholder="Ketik pertanyaan atau skenario Anda..."
-                      value={currentPlaygroundInput}
-                      onChange={(e) => setCurrentPlaygroundInput(e.target.value)}
-                      onKeyDown={handlePlaygroundKeyDown}
-                      rows={2}
-                      disabled={isLoadingPlaygroundSuggestion}
-                      className="bg-background flex-1 resize-none"
-                    />
-                    <Button
-                      size="icon"
-                      onClick={handleSendPlaygroundMessage}
-                      disabled={isLoadingPlaygroundSuggestion || !currentPlaygroundInput.trim()}
-                      className="h-10 w-10 shrink-0"
-                      aria-label="Kirim Pesan ke AI"
-                    >
-                      {isLoadingPlaygroundSuggestion ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-                    </Button>
-                  </div>
-                </CardFooter>
-              </Card>
-            </>
-          ) : !selectedCustomer ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
-              <MessageSquareText className="h-16 w-16 text-muted-foreground mb-4" />
-              <p className="text-xl text-muted-foreground">Pilih pelanggan untuk memulai percakapan</p>
-              <p className="text-sm text-muted-foreground">atau masuk ke mode Playground AI dari daftar di samping.</p>
-            </div>
-          ) : (
-            <>
-              <Card className="flex-shrink-0">
-                <CardHeader className="p-4 border-b">
-                  <div className="flex justify-between items-center">
-                      <div>
-                          <CardTitle className="text-lg flex items-center">
-                          Percakapan dengan: {selectedCustomer.name}
-                          </CardTitle>
-                          <CardDescription>{selectedCustomer.phone || "Nomor HP tidak tersedia"}</CardDescription>
-                      </div>
-                      <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleSetManualLock}
-                          disabled={isSendingWhatsApp || !selectedCustomer.phone}
-                          title="Aktifkan lock AI selama 1 jam (jika Anda baru balas dari HP)"
-                      >
-                          <ShieldAlert className="mr-2 h-4 w-4" />
-                          Ambil Alih (Lock AI 1 Jam)
-                      </Button>
-                  </div>
-                </CardHeader>
-                <ScrollArea className="h-[400px] p-4 space-y-4">
-                  {chatHistory.map((message) => (
+                ) : filteredCustomers.length === 0 && searchTerm ? (
+                   <p className="p-4 text-center text-muted-foreground">
+                    Pelanggan tidak ditemukan.
+                   </p>
+                ) : filteredCustomers.length === 0 && !searchTerm ? (
+                   <p className="p-4 text-center text-muted-foreground">
+                    Belum ada pelanggan.
+                   </p>
+                ): (
+                  filteredCustomers.map((customer) => (
                     <div
-                      key={message.id}
-                      className={`flex ${message.sender === 'customer' ? 'justify-start' : 'justify-end'}`}
+                      key={customer.id}
+                      className={`p-3 hover:bg-muted cursor-pointer border-b border-border last:border-b-0 ${selectedCustomer?.id === customer.id && !isPlaygroundMode ? 'bg-accent/20' : ''}`}
+                      onClick={() => handleCustomerSelect(customer)}
                     >
-                      <div
-                        className={`px-4 py-2 rounded-xl shadow ${
-                          message.sender === 'customer'
-                            ? 'bg-muted text-muted-foreground'
-                            : message.sender === 'user'
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-secondary text-secondary-foreground'
-                        }`}
-                      >
-                        <p className="text-sm whitespace-pre-wrap">{message.text}</p>
-                        <p className={`text-xs mt-1 ${
-                          message.sender === 'customer' ? 'text-muted-foreground/80'
-                          : message.sender === 'user' ? 'text-primary-foreground/80'
-                          : 'text-secondary-foreground/80'
-                          } text-right`}>
-                          {message.timestamp} {message.sender === 'ai' && '(AI Otomatis)'}
-                        </p>
+                      <div className="flex items-center space-x-3">
+                        <Avatar className="h-9 w-9">
+                          <AvatarImage src={customer.avatarUrl} alt={customer.name} data-ai-hint="avatar pelanggan" />
+                          <AvatarFallback>{customer.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{customer.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{customer.phone || 'No HP tidak ada'}</p>
+                        </div>
                       </div>
                     </div>
-                  ))}
-                  {chatHistory.length === 0 && (
-                      <p className="text-center text-muted-foreground py-10">Belum ada riwayat chat untuk pelanggan ini.</p>
-                  )}
-                  <div ref={messagesEndRef} />
-                </ScrollArea>
-                <Separator />
-                <Card className="rounded-none border-0 border-t shadow-none">
-                  <CardHeader className="p-4">
-                    <CardTitle className="text-lg flex items-center">
-                      <MessageCircle className="mr-2 h-5 w-5 text-primary" />
-                      Balas Pesan Pelanggan
-                    </CardTitle>
+                  ))
+                )}
+              </CardContent>
+            </ScrollArea>
+          </div>
+
+          {/* Kolom Chat atau Playground View & AI Settings Button */}
+          <div className="col-span-1 md:col-span-2 lg:col-span-3 flex flex-col bg-background p-4 space-y-4 overflow-y-auto">
+            {isPlaygroundMode ? (
+              <>
+                <Card className="flex-shrink-0">
+                  <CardHeader className="p-4 border-b">
+                    <CardTitle className="text-lg flex items-center"><Bot className="mr-2 h-6 w-6 text-primary" /> AI Playground</CardTitle>
+                    <CardDescription>Uji coba langsung kemampuan AI. Berikan feedback untuk membantu AI belajar.</CardDescription>
                   </CardHeader>
-                  <CardContent className="p-4">
-                    <div className="flex items-end space-x-2">
+                  <ScrollArea className="h-[400px] p-4 space-y-4"> 
+                    {playgroundChatHistory.map((message) => (
+                      <div key={message.id}>
+                        <div
+                          className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                        >
+                          <div
+                            className={`px-4 py-2 rounded-xl shadow ${
+                              message.sender === 'user'
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-secondary text-secondary-foreground'
+                            }`}
+                          >
+                            <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+                            <p className={`text-xs mt-1 ${message.sender === 'user' ? 'text-primary-foreground/80' : 'text-secondary-foreground/80'} text-right`}>
+                              {message.timestamp}
+                            </p>
+                          </div>
+                        </div>
+                        {message.sender === 'ai' && (
+                          <div className="flex justify-start mt-1.5 ml-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className={cn("h-7 w-7 hover:bg-green-100 dark:hover:bg-green-800", message.feedback === 'good' && "bg-green-100 text-green-700 dark:bg-green-800 dark:text-green-300")}
+                              onClick={() => handlePlaygroundFeedback(message.id, 'good')}
+                            >
+                              <ThumbsUp className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className={cn("h-7 w-7 ml-1 hover:bg-red-100 dark:hover:bg-red-800", message.feedback === 'bad' && "bg-red-100 text-red-700 dark:bg-red-800 dark:text-red-300")}
+                              onClick={() => handlePlaygroundFeedback(message.id, 'bad')}
+                            >
+                              <ThumbsDown className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+                        {message.sender === 'ai' && message.feedback === 'bad' && message.isEditingCorrection && !message.correction && (
+                          <div className="mt-2 ml-1 space-y-2">
+                            <Textarea
+                              placeholder="Tulis koreksi Anda di sini..."
+                              value={message.currentCorrectionText || ''}
+                              onChange={(e) => handlePlaygroundCorrectionChange(message.id, e.target.value)}
+                              rows={3}
+                              className="text-sm bg-background"
+                            />
+                            <Button size="sm" onClick={() => handleSavePlaygroundCorrection(message.id)} className="bg-accent text-accent-foreground hover:bg-accent/90">
+                              <Edit2 className="mr-2 h-4 w-4" /> Simpan Koreksi
+                            </Button>
+                          </div>
+                        )}
+                        {message.sender === 'ai' && message.correction && (
+                          <Card className="mt-2 ml-1 p-3 border-green-500 bg-green-50 dark:bg-green-900/30">
+                            <p className="text-xs font-medium text-green-700 dark:text-green-300">Koreksi Anda:</p>
+                            <p className="text-sm text-green-800 dark:text-green-200 whitespace-pre-wrap">{message.correction}</p>
+                          </Card>
+                        )}
+                      </div>
+                    ))}
+                    {playgroundChatHistory.length === 0 && (
+                        <p className="text-center text-muted-foreground py-10">Mulai percakapan dengan AI di bawah.</p>
+                    )}
+                    <div ref={playgroundMessagesEndRef} />
+                  </ScrollArea>
+                  <Separator />
+                  <CardFooter className="p-4">
+                    <div className="flex items-end space-x-2 w-full">
                       <Textarea
-                        id="customer-message-input"
-                        placeholder="Ketik balasan Anda di sini..."
-                        value={customerMessageInput}
-                        onChange={(e) => setCustomerMessageInput(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        rows={3}
-                        disabled={isSendingWhatsApp || !selectedCustomer?.phone}
+                        id="playground-chat-input"
+                        placeholder="Ketik pertanyaan atau skenario Anda..."
+                        value={currentPlaygroundInput}
+                        onChange={(e) => setCurrentPlaygroundInput(e.target.value)}
+                        onKeyDown={handlePlaygroundKeyDown}
+                        rows={2}
+                        disabled={isLoadingPlaygroundSuggestion}
                         className="bg-background flex-1 resize-none"
                       />
                       <Button
                         size="icon"
-                        onClick={handleSendMessage}
-                        disabled={isSendingWhatsApp || !customerMessageInput.trim() || !selectedCustomer?.phone}
+                        onClick={handleSendPlaygroundMessage}
+                        disabled={isLoadingPlaygroundSuggestion || !currentPlaygroundInput.trim()}
                         className="h-10 w-10 shrink-0"
-                        aria-label="Kirim Pesan Manual"
+                        aria-label="Kirim Pesan ke AI"
                       >
-                        {isSendingWhatsApp ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                        {isLoadingPlaygroundSuggestion ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
                       </Button>
                     </div>
-                    {!selectedCustomer?.phone && (
-                          <p className="text-xs text-destructive mt-1">Nomor HP pelanggan tidak tersedia untuk pengiriman WhatsApp.</p>
-                        )}
-                  </CardContent>
+                  </CardFooter>
                 </Card>
-              </Card>
-            </>
-          )}
-          
-          {/* AI Settings Dialog Trigger */}
-          <div className="mt-auto p-4 flex justify-start">
-            <Dialog open={isAiSettingsDialogOpen} onOpenChange={setIsAiSettingsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button variant="outline">
-                  <Settings className="mr-2 h-4 w-4" /> Pengaturan Agen & Knowledge Base AI
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0">
-                <DialogHeader className="sr-only"> {/* Added sr-only class for accessibility */}
-                  <DialogTitle>Pengaturan Agen dan Knowledge Base AI</DialogTitle>
-                  <DialogDescription>Konfigurasi detail untuk agen AI dan kelola basis pengetahuan.</DialogDescription>
-                </DialogHeader>
-
-                <Card className="shadow-none border-none h-full flex flex-col"> {/* Ensure card takes full height */}
-                  <CardHeader className="p-6 sticky top-0 bg-background/95 backdrop-blur z-10 border-b">
-                    <CardTitle className="flex items-center"><BrainCircuit className="mr-2 h-5 w-5 text-primary" />Pengaturan Agen & Knowledge Base AI</CardTitle>
-                    <CardDescription>Konfigurasi perilaku agen AI dan kelola sumber pengetahuan di halaman ini.</CardDescription>
+              </>
+            ) : !selectedCustomer ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
+                <MessageSquareText className="h-16 w-16 text-muted-foreground mb-4" />
+                <p className="text-xl text-muted-foreground">Pilih pelanggan untuk memulai percakapan</p>
+                <p className="text-sm text-muted-foreground">atau masuk ke mode Playground AI dari daftar di samping.</p>
+              </div>
+            ) : (
+              <>
+                <Card className="flex-shrink-0">
+                  <CardHeader className="p-4 border-b">
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <CardTitle className="text-lg flex items-center">
+                            Percakapan dengan: {selectedCustomer.name}
+                            </CardTitle>
+                            <CardDescription>{selectedCustomer.phone || "Nomor HP tidak tersedia"}</CardDescription>
+                        </div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleSetManualLock}
+                            disabled={isSendingWhatsApp || !selectedCustomer.phone}
+                            title="Aktifkan lock AI selama 1 jam (jika Anda baru balas dari HP)"
+                        >
+                            <ShieldAlert className="mr-2 h-4 w-4" />
+                            Ambil Alih (Lock AI 1 Jam)
+                        </Button>
+                    </div>
                   </CardHeader>
-                  
-                  <div className="flex-grow overflow-y-auto"> {/* Scrollable area for tabs content */}
-                    <Tabs defaultValue="agent-settings" className="w-full">
-                      <TabsList className="grid w-full grid-cols-2 m-6 mb-0"> {/* Removed sticky from here */}
-                        <TabsTrigger value="agent-settings">Pengaturan Agen AI</TabsTrigger>
-                        <TabsTrigger value="knowledge-base">Manajemen Knowledge Base</TabsTrigger>
-                      </TabsList>
-                      
-                      <TabsContent value="agent-settings">
-                        <Form {...aiSettingsForm}>
-                          <form onSubmit={aiSettingsForm.handleSubmit(handleSaveAiAgentSettings)}>
-                            <CardContent className="p-6 space-y-6">
-                              {isLoadingAiSettings ? (
-                                  <div className="flex items-center space-x-2">
-                                    <Loader2 className="h-5 w-5 animate-spin" />
-                                    <span>Memuat pengaturan AI...</span>
-                                  </div>
-                              ) : (
-                                <>
-                                  <FormField
-                                    control={aiSettingsForm.control}
-                                    name="agentBehavior"
-                                    render={({ field }) => (
-                                      <FormItem>
-                                        <FormLabel>Perilaku Agen AI</FormLabel>
-                                        <Select onValueChange={field.onChange} value={field.value}>
-                                          <FormControl><SelectTrigger><SelectValue placeholder="Pilih perilaku agen" /></SelectTrigger></FormControl>
-                                          <SelectContent>
-                                            {AI_AGENT_BEHAVIORS.map(behavior => (
-                                              <SelectItem key={behavior} value={behavior}>{behavior}</SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
-                                        <FormMessage />
-                                      </FormItem>
-                                    )}
-                                  />
-                                  <FormField
-                                    control={aiSettingsForm.control}
-                                    name="welcomeMessage"
-                                    render={({ field }) => (
-                                      <FormItem>
-                                        <FormLabel className="flex items-center"><MessageCircle className="mr-2 h-4 w-4 text-muted-foreground" />Pesan Selamat Datang</FormLabel>
-                                        <FormControl><Textarea placeholder="Tulis pesan selamat datang dari agen AI..." {...field} rows={3} /></FormControl>
-                                        <FormMessage />
-                                      </FormItem>
-                                    )}
-                                  />
-                                  <FormField
-                                    control={aiSettingsForm.control}
-                                    name="knowledgeBaseDescription"
-                                    render={({ field }) => (
-                                      <FormItem>
-                                        <FormLabel className="flex items-center"><Info className="mr-2 h-4 w-4 text-muted-foreground" />Deskripsi/Panduan Umum Knowledge Base AI</FormLabel>
-                                        <FormControl><Textarea placeholder="Panduan tingkat tinggi untuk AI tentang bagaimana menggunakan knowledge base..." {...field} rows={4} /></FormControl>
-                                        <FormDescription>Informasi ini akan membantu AI memahami konteks jawaban.</FormDescription>
-                                        <FormMessage />
-                                      </FormItem>
-                                    )}
-                                  />
-                                  <FormItem>
-                                    <FormLabel>Kondisi Transfer ke Manusia</FormLabel>
-                                    <FormDescription>Pilih kondisi kapan percakapan harus dialihkan ke staf manusia.</FormDescription>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 pt-2">
-                                      {AI_TRANSFER_CONDITIONS.map((condition) => (
-                                        <FormField
-                                          key={condition}
-                                          control={aiSettingsForm.control}
-                                          name="transferConditions"
-                                          render={({ field }) => (
-                                            <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                                              <FormControl>
-                                                <Checkbox
-                                                  checked={field.value?.includes(condition)}
-                                                  onCheckedChange={(checked) => {
-                                                    return checked
-                                                      ? field.onChange([...(field.value || []), condition])
-                                                      : field.onChange(
-                                                          (field.value || []).filter(
-                                                            (value) => value !== condition
-                                                          )
-                                                        )
-                                                  }}
-                                                />
-                                              </FormControl>
-                                              <FormLabel className="font-normal text-sm">{condition}</FormLabel>
-                                            </FormItem>
-                                          )}
-                                        />
-                                      ))}
+                  <ScrollArea className="h-[400px] p-4 space-y-4">
+                    {chatHistory.map((message) => (
+                      <div
+                        key={message.id}
+                        className={`flex ${message.sender === 'customer' ? 'justify-start' : 'justify-end'}`}
+                      >
+                        <div
+                          className={`px-4 py-2 rounded-xl shadow ${
+                            message.sender === 'customer'
+                              ? 'bg-muted text-muted-foreground'
+                              : message.sender === 'user'
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-secondary text-secondary-foreground'
+                          }`}
+                        >
+                          <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+                          <p className={`text-xs mt-1 ${
+                            message.sender === 'customer' ? 'text-muted-foreground/80'
+                            : message.sender === 'user' ? 'text-primary-foreground/80'
+                            : 'text-secondary-foreground/80'
+                            } text-right`}>
+                            {message.timestamp} {message.sender === 'ai' && '(AI Otomatis)'}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                    {chatHistory.length === 0 && (
+                        <p className="text-center text-muted-foreground py-10">Belum ada riwayat chat untuk pelanggan ini.</p>
+                    )}
+                    <div ref={messagesEndRef} />
+                  </ScrollArea>
+                  <Separator />
+                  <Card className="rounded-none border-0 border-t shadow-none">
+                    <CardHeader className="p-4">
+                      <CardTitle className="text-lg flex items-center">
+                        <MessageCircle className="mr-2 h-5 w-5 text-primary" />
+                        Balas Pesan Pelanggan
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4">
+                      <div className="flex items-end space-x-2">
+                        <Textarea
+                          id="customer-message-input"
+                          placeholder="Ketik balasan Anda di sini..."
+                          value={customerMessageInput}
+                          onChange={(e) => setCustomerMessageInput(e.target.value)}
+                          onKeyDown={handleKeyDown}
+                          rows={3}
+                          disabled={isSendingWhatsApp || !selectedCustomer?.phone}
+                          className="bg-background flex-1 resize-none"
+                        />
+                        <Button
+                          size="icon"
+                          onClick={handleSendMessage}
+                          disabled={isSendingWhatsApp || !customerMessageInput.trim() || !selectedCustomer?.phone}
+                          className="h-10 w-10 shrink-0"
+                          aria-label="Kirim Pesan Manual"
+                        >
+                          {isSendingWhatsApp ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                        </Button>
+                      </div>
+                      {!selectedCustomer?.phone && (
+                            <p className="text-xs text-destructive mt-1">Nomor HP pelanggan tidak tersedia untuk pengiriman WhatsApp.</p>
+                          )}
+                    </CardContent>
+                  </Card>
+                </Card>
+              </>
+            )}
+            
+            <div className="mt-auto p-4 flex justify-start">
+              <Dialog open={isAiSettingsDialogOpen} onOpenChange={setIsAiSettingsDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <Settings className="mr-2 h-4 w-4" /> Pengaturan Agen & Knowledge Base AI
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0">
+                  <DialogHeader className="sr-only"> 
+                    <DialogTitle>Pengaturan Agen dan Knowledge Base AI</DialogTitle>
+                    <DialogDescription>Konfigurasi detail untuk agen AI dan kelola basis pengetahuan.</DialogDescription>
+                  </DialogHeader>
+
+                  <Card className="shadow-none border-none h-full flex flex-col"> 
+                    <CardHeader className="p-6 sticky top-0 bg-background/95 backdrop-blur z-10 border-b">
+                      <CardTitle className="flex items-center"><BrainCircuit className="mr-2 h-5 w-5 text-primary" />Pengaturan Agen & Knowledge Base AI</CardTitle>
+                      <CardDescription>Konfigurasi perilaku agen AI dan kelola sumber pengetahuan di halaman ini.</CardDescription>
+                    </CardHeader>
+                    
+                    <div className="flex-grow overflow-y-auto"> 
+                      <Tabs defaultValue="agent-settings" className="w-full">
+                        <TabsList className="grid w-full grid-cols-2 m-6 mb-0"> 
+                          <TabsTrigger value="agent-settings">Pengaturan Agen AI</TabsTrigger>
+                          <TabsTrigger value="knowledge-base">Manajemen Knowledge Base</TabsTrigger>
+                        </TabsList>
+                        
+                        <TabsContent value="agent-settings">
+                          <Form {...aiSettingsForm}>
+                            <form onSubmit={aiSettingsForm.handleSubmit(handleSaveAiAgentSettings)}>
+                              <CardContent className="p-6 space-y-6">
+                                {isLoadingAiSettings ? (
+                                    <div className="flex items-center space-x-2">
+                                      <Loader2 className="h-5 w-5 animate-spin" />
+                                      <span>Memuat pengaturan AI...</span>
                                     </div>
-                                    <FormMessage>{aiSettingsForm.formState.errors.transferConditions?.message}</FormMessage>
-                                  </FormItem>
+                                ) : (
+                                  <>
+                                    <FormField
+                                      control={aiSettingsForm.control}
+                                      name="mainPrompt"
+                                      render={({ field }) => (
+                                        <FormItem>
+                                          <FormLabel className="flex items-center"><Sparkles className="mr-2 h-4 w-4 text-muted-foreground" />Prompt Utama Zoya</FormLabel>
+                                          <FormControl><Textarea placeholder="Masukkan prompt utama untuk Zoya di sini..." {...field} rows={15} className="text-xs leading-relaxed font-mono" /></FormControl>
+                                          <FormDescription>Ini adalah instruksi inti yang mengarahkan Zoya. Gunakan placeholder seperti {`{\`{{{customerMessage}}}\`}`} atau {`{\`{{{currentDate}}}\`}`}. Perubahan di sini akan langsung mempengaruhi respon AI.</FormDescription>
+                                          <FormMessage />
+                                        </FormItem>
+                                      )}
+                                    />
+                                    <Separator />
+                                    <FormField
+                                      control={aiSettingsForm.control}
+                                      name="agentBehavior"
+                                      render={({ field }) => (
+                                        <FormItem>
+                                          <FormLabel>Perilaku Agen AI</FormLabel>
+                                          <Select onValueChange={field.onChange} value={field.value}>
+                                            <FormControl><SelectTrigger><SelectValue placeholder="Pilih perilaku agen" /></SelectTrigger></FormControl>
+                                            <SelectContent>
+                                              {AI_AGENT_BEHAVIORS.map(behavior => (
+                                                <SelectItem key={behavior} value={behavior}>{behavior}</SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                          <FormMessage />
+                                        </FormItem>
+                                      )}
+                                    />
+                                    <FormField
+                                      control={aiSettingsForm.control}
+                                      name="welcomeMessage"
+                                      render={({ field }) => (
+                                        <FormItem>
+                                          <FormLabel className="flex items-center"><MessageCircle className="mr-2 h-4 w-4 text-muted-foreground" />Pesan Selamat Datang</FormLabel>
+                                          <FormControl><Textarea placeholder="Tulis pesan selamat datang dari agen AI..." {...field} rows={3} /></FormControl>
+                                          <FormMessage />
+                                        </FormItem>
+                                      )}
+                                    />
+                                    <FormField
+                                      control={aiSettingsForm.control}
+                                      name="knowledgeBaseDescription"
+                                      render={({ field }) => (
+                                        <FormItem>
+                                          <FormLabel className="flex items-center"><Info className="mr-2 h-4 w-4 text-muted-foreground" />Deskripsi/Panduan Umum Knowledge Base AI</FormLabel>
+                                          <FormControl><Textarea placeholder="Panduan tingkat tinggi untuk AI tentang bagaimana menggunakan knowledge base..." {...field} rows={4} /></FormControl>
+                                          <FormDescription>Informasi ini akan membantu AI memahami konteks jawaban.</FormDescription>
+                                          <FormMessage />
+                                        </FormItem>
+                                      )}
+                                    />
+                                    <FormItem>
+                                      <FormLabel>Kondisi Transfer ke Manusia</FormLabel>
+                                      <FormDescription>Pilih kondisi kapan percakapan harus dialihkan ke staf manusia.</FormDescription>
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 pt-2">
+                                        {AI_TRANSFER_CONDITIONS.map((condition) => (
+                                          <FormField
+                                            key={condition}
+                                            control={aiSettingsForm.control}
+                                            name="transferConditions"
+                                            render={({ field }) => (
+                                              <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                                <FormControl>
+                                                  <Checkbox
+                                                    checked={field.value?.includes(condition)}
+                                                    onCheckedChange={(checked) => {
+                                                      return checked
+                                                        ? field.onChange([...(field.value || []), condition])
+                                                        : field.onChange(
+                                                            (field.value || []).filter(
+                                                              (value) => value !== condition
+                                                            )
+                                                          )
+                                                    }}
+                                                  />
+                                                </FormControl>
+                                                <FormLabel className="font-normal text-sm">{condition}</FormLabel>
+                                              </FormItem>
+                                            )}
+                                          />
+                                        ))}
+                                      </div>
+                                      <FormMessage>{aiSettingsForm.formState.errors.transferConditions?.message}</FormMessage>
+                                    </FormItem>
 
-                                  <FormField
-                                    control={aiSettingsForm.control}
-                                    name="enableHumanHandoff"
-                                    render={({ field }) => (
-                                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                                        <div className="space-y-0.5">
-                                          <FormLabel className="flex items-center"><PhoneForwarded className="mr-2 h-4 w-4 text-muted-foreground"/>Aktifkan Notifikasi Handoff</FormLabel>
-                                          <FormDescription>Notifikasi dikirim jika kondisi transfer terpenuhi.</FormDescription>
-                                        </div>
-                                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                      </FormItem>
-                                    )}
-                                  />
-                                  {watchedEnableHumanHandoff && (
-                                      <FormField
-                                        control={aiSettingsForm.control}
-                                        name="humanAgentWhatsAppNumber"
-                                        render={({ field }) => (
-                                          <FormItem className="pl-4 mt-2">
-                                            <FormLabel>Nomor WhatsApp Agen Manusia</FormLabel>
-                                            <FormControl><Input type="tel" placeholder="mis. +6281234567890" {...field} /></FormControl>
-                                            <FormDescription>Nomor ini akan menerima notifikasi saat handoff.</FormDescription>
-                                            <FormMessage />
-                                          </FormItem>
-                                        )}
-                                      />
-                                  )}
-
-                                  <FormField
-                                    control={aiSettingsForm.control}
-                                    name="enableFollowUp"
-                                    render={({ field }) => (
-                                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                                        <div className="space-y-0.5">
-                                          <FormLabel>Aktifkan Fitur Follow-up</FormLabel>
-                                          <FormDescription>AI mengirim follow-up jika pelanggan belum berkunjung/transaksi.</FormDescription>
-                                        </div>
-                                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                      </FormItem>
-                                    )}
-                                  />
-                                  {watchedEnableFollowUp && (
-                                    <Card className="p-4 bg-muted/50 border-dashed">
-                                      <CardHeader className="p-0 pb-3">
-                                          <CardTitle className="text-md">Pengaturan Jadwal Follow-up</CardTitle>
-                                      </CardHeader>
-                                      <CardContent className="p-0 space-y-4">
+                                    <FormField
+                                      control={aiSettingsForm.control}
+                                      name="enableHumanHandoff"
+                                      render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                          <div className="space-y-0.5">
+                                            <FormLabel className="flex items-center"><PhoneForwarded className="mr-2 h-4 w-4 text-muted-foreground"/>Aktifkan Notifikasi Handoff</FormLabel>
+                                            <FormDescription>Notifikasi dikirim jika kondisi transfer terpenuhi.</FormDescription>
+                                          </div>
+                                          <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                        </FormItem>
+                                      )}
+                                    />
+                                    {watchedEnableHumanHandoff && (
                                         <FormField
                                           control={aiSettingsForm.control}
-                                          name="followUpMessageTemplate"
+                                          name="humanAgentWhatsAppNumber"
                                           render={({ field }) => (
-                                            <FormItem>
-                                              <FormLabel>Template Pesan Follow-up</FormLabel>
-                                              <FormControl><Textarea placeholder="Tulis template pesan untuk follow-up..." {...field} rows={3} /></FormControl>
+                                            <FormItem className="pl-4 mt-2">
+                                              <FormLabel>Nomor WhatsApp Agen Manusia</FormLabel>
+                                              <FormControl><Input type="tel" placeholder="mis. +6281234567890" {...field} /></FormControl>
+                                              <FormDescription>Nomor ini akan menerima notifikasi saat handoff.</FormDescription>
                                               <FormMessage />
                                             </FormItem>
                                           )}
                                         />
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    )}
+
+                                    <FormField
+                                      control={aiSettingsForm.control}
+                                      name="enableFollowUp"
+                                      render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                          <div className="space-y-0.5">
+                                            <FormLabel>Aktifkan Fitur Follow-up</FormLabel>
+                                            <FormDescription>AI mengirim follow-up jika pelanggan belum berkunjung/transaksi.</FormDescription>
+                                          </div>
+                                          <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                        </FormItem>
+                                      )}
+                                    />
+                                    {watchedEnableFollowUp && (
+                                      <Card className="p-4 bg-muted/50 border-dashed">
+                                        <CardHeader className="p-0 pb-3">
+                                            <CardTitle className="text-md">Pengaturan Jadwal Follow-up</CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="p-0 space-y-4">
                                           <FormField
-                                              control={aiSettingsForm.control}
-                                              name="followUpDelays.firstAttemptHours"
-                                              render={({ field }) => (
+                                            control={aiSettingsForm.control}
+                                            name="followUpMessageTemplate"
+                                            render={({ field }) => (
                                               <FormItem>
-                                                  <FormLabel>Penundaan Pertama (Jam)</FormLabel>
-                                                  <FormControl><Input type="number" placeholder="mis. 24" {...field} 
-                                                  onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
-                                                  value={field.value === undefined ? '' : String(field.value)}
-                                                  /></FormControl>
-                                                  <FormMessage />
+                                                <FormLabel>Template Pesan Follow-up</FormLabel>
+                                                <FormControl><Textarea placeholder="Tulis template pesan untuk follow-up..." {...field} rows={3} /></FormControl>
+                                                <FormMessage />
                                               </FormItem>
-                                              )}
+                                            )}
                                           />
-                                          <FormField
-                                              control={aiSettingsForm.control}
-                                              name="followUpDelays.secondAttemptDays"
-                                              render={({ field }) => (
-                                              <FormItem>
-                                                  <FormLabel>Penundaan Ke-2 (Hari)</FormLabel>
-                                                  <FormControl><Input type="number" placeholder="mis. 7" {...field}
-                                                  onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
-                                                  value={field.value === undefined ? '' : String(field.value)}
-                                                  /></FormControl>
-                                                  <FormMessage />
-                                              </FormItem>
-                                              )}
-                                          />
-                                          <FormField
-                                              control={aiSettingsForm.control}
-                                              name="followUpDelays.thirdAttemptDays"
-                                              render={({ field }) => (
-                                              <FormItem>
-                                                  <FormLabel>Penundaan Ke-3 (Hari)</FormLabel>
-                                                  <FormControl><Input type="number" placeholder="mis. 7" {...field} 
-                                                  onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
-                                                  value={field.value === undefined ? '' : String(field.value)}
-                                                  /></FormControl>
-                                                  <FormMessage />
-                                              </FormItem>
-                                              )}
-                                          />
-                                          <FormField
-                                              control={aiSettingsForm.control}
-                                              name="followUpDelays.fourthAttemptDays"
-                                              render={({ field }) => (
-                                              <FormItem>
-                                                  <FormLabel>Penundaan Ke-4 (Hari)</FormLabel>
-                                                  <FormControl><Input type="number" placeholder="mis. 30" {...field} 
-                                                  onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
-                                                  value={field.value === undefined ? '' : String(field.value)}
-                                                  /></FormControl>
-                                                  <FormMessage />
-                                              </FormItem>
-                                              )}
-                                          />
-                                        </div>
-                                      </CardContent>
-                                    </Card>
-                                  )}
-                                </>
-                              )}
+                                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <FormField
+                                                control={aiSettingsForm.control}
+                                                name="followUpDelays.firstAttemptHours"
+                                                render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Penundaan Pertama (Jam)</FormLabel>
+                                                    <FormControl><Input type="number" placeholder="mis. 24" {...field} 
+                                                    onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
+                                                    value={field.value === undefined ? '' : String(field.value)}
+                                                    /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={aiSettingsForm.control}
+                                                name="followUpDelays.secondAttemptDays"
+                                                render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Penundaan Ke-2 (Hari)</FormLabel>
+                                                    <FormControl><Input type="number" placeholder="mis. 7" {...field}
+                                                    onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
+                                                    value={field.value === undefined ? '' : String(field.value)}
+                                                    /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={aiSettingsForm.control}
+                                                name="followUpDelays.thirdAttemptDays"
+                                                render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Penundaan Ke-3 (Hari)</FormLabel>
+                                                    <FormControl><Input type="number" placeholder="mis. 7" {...field} 
+                                                    onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
+                                                    value={field.value === undefined ? '' : String(field.value)}
+                                                    /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={aiSettingsForm.control}
+                                                name="followUpDelays.fourthAttemptDays"
+                                                render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Penundaan Ke-4 (Hari)</FormLabel>
+                                                    <FormControl><Input type="number" placeholder="mis. 30" {...field} 
+                                                    onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
+                                                    value={field.value === undefined ? '' : String(field.value)}
+                                                    /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                                )}
+                                            />
+                                          </div>
+                                        </CardContent>
+                                      </Card>
+                                    )}
+                                  </>
+                                )}
+                              </CardContent>
+                              <CardFooter className="p-6 border-t sticky bottom-0 bg-background/95 backdrop-blur z-10">
+                                <Button type="submit" disabled={isSavingAiSettings || isLoadingAiSettings}>
+                                  {isSavingAiSettings ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                  Simpan Pengaturan Agen AI
+                                </Button>
+                              </CardFooter>
+                            </form>
+                          </Form>
+                        </TabsContent>
+
+                        <TabsContent value="knowledge-base">
+                            <CardContent className="p-6 space-y-4">
+                                <div className="flex justify-end mb-4">
+                                    <Button onClick={() => handleOpenKbForm(null)}>
+                                        <PlusCircle className="mr-2 h-4 w-4" /> Tambah Entri KB
+                                    </Button>
+                                </div>
+                                {isLoadingKnowledgeBase ? (
+                                    <div className="flex items-center justify-center py-10">
+                                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                    </div>
+                                ) : knowledgeBaseEntries.length === 0 ? (
+                                    <p className="text-center text-muted-foreground py-8">Belum ada entri knowledge base.</p>
+                                ) : (
+                                    <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                        <TableHead>Topik</TableHead>
+                                        <TableHead>Potongan Konten</TableHead>
+                                        <TableHead>Kata Kunci</TableHead>
+                                        <TableHead className="text-center">Status</TableHead>
+                                        <TableHead className="text-right">Aksi</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {knowledgeBaseEntries.map((entry) => (
+                                        <TableRow key={entry.id}>
+                                            <TableCell className="font-medium max-w-xs truncate">{entry.topic}</TableCell>
+                                            <TableCell className="max-w-md truncate">{entry.content}</TableCell>
+                                            <TableCell className="text-xs max-w-xs">
+                                            {entry.keywords.map(kw => <Badge key={kw} variant="outline" className="mr-1 mb-1">{kw}</Badge>)}
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                            <Badge variant={entry.isActive ? "default" : "outline"}>
+                                                {entry.isActive ? "Aktif" : "Nonaktif"}
+                                            </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                            <Button variant="ghost" size="icon" onClick={() => handleOpenKbForm(entry)} className="hover:text-primary">
+                                                <Edit2 className="h-4 w-4" />
+                                            </Button>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="ghost" size="icon" onClick={() => setKbEntryToDelete(entry)} className="text-destructive hover:text-destructive">
+                                                    <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeaderEl>
+                                                    <AlertDialogTitleEl>Konfirmasi Penghapusan</AlertDialogTitleEl>
+                                                    <AlertDialogDescriptionEl>
+                                                        Apakah Anda yakin ingin menghapus entri knowledge base dengan topik "{kbEntryToDelete?.topic}"? Tindakan ini tidak dapat diurungkan.
+                                                    </AlertDialogDescriptionEl>
+                                                    </AlertDialogHeaderEl>
+                                                    <AlertDialogFooter>
+                                                    <AlertDialogCancel onClick={() => setKbEntryToDelete(null)} disabled={isSubmittingKbEntry}>Batal</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={handleDeleteKbEntry} disabled={isSubmittingKbEntry} className={buttonVariants({variant: "destructive"})}>
+                                                        {isSubmittingKbEntry ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                                        Hapus
+                                                    </AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                            </TableCell>
+                                        </TableRow>
+                                        ))}
+                                    </TableBody>
+                                    </Table>
+                                )}
                             </CardContent>
-                            <CardFooter className="p-6 border-t sticky bottom-0 bg-background/95 backdrop-blur z-10">
-                              <Button type="submit" disabled={isSavingAiSettings || isLoadingAiSettings}>
-                                {isSavingAiSettings ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                Simpan Pengaturan Agen AI
+                        </TabsContent>
+                      </Tabs>
+                    </div>
+                    
+                    <Dialog open={isKbFormDialogOpen} onOpenChange={(isOpen) => {
+                      setIsKbFormDialogOpen(isOpen);
+                      if (!isOpen) setEditingKbEntry(null);
+                    }}>
+                      <DialogContent className="sm:max-w-xl">
+                        <DialogHeader>
+                          <DialogTitle>{editingKbEntry ? "Edit Entri Knowledge Base" : "Tambah Entri Knowledge Base Baru"}</DialogTitle>
+                          <DialogDescription>
+                            {editingKbEntry ? "Ubah detail entri di bawah ini." : "Isi detail untuk entri knowledge base baru."}
+                          </DialogDescription>
+                        </DialogHeader>
+                        <Form {...kbEntryForm}>
+                          <form onSubmit={kbEntryForm.handleSubmit(handleKbFormSubmit)} className="space-y-4 py-2 pb-4">
+                            <FormField
+                              control={kbEntryForm.control}
+                              name="topic"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Topik Utama</FormLabel>
+                                  <FormControl><Input placeholder="mis. Jam Buka, Kebijakan Garansi" {...field} /></FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={kbEntryForm.control}
+                              name="content"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Konten Informasi</FormLabel>
+                                  <FormControl><Textarea placeholder="Tuliskan detail informasi atau jawaban untuk topik ini..." {...field} rows={5} /></FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={kbEntryForm.control}
+                              name="keywordsInput"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Kata Kunci (pisahkan dengan koma)</FormLabel>
+                                  <FormControl><Textarea placeholder="mis. operasional, jadwal, garansi servis, syarat klaim" {...field} rows={2} /></FormControl>
+                                  <FormDescription className="text-xs">Kata kunci membantu AI menemukan informasi ini.</FormDescription>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={kbEntryForm.control}
+                              name="isActive"
+                              render={({ field }) => (
+                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                  <div className="space-y-0.5">
+                                    <FormLabel>Aktifkan Entri Ini</FormLabel>
+                                    <FormDescription className="text-xs">Entri ini akan digunakan oleh AI jika aktif.</FormDescription>
+                                  </div>
+                                  <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                </FormItem>
+                              )}
+                            />
+                            <DialogFooter>
+                              <Button type="button" variant="outline" onClick={() => setIsKbFormDialogOpen(false)} disabled={isSubmittingKbEntry}>Batal</Button>
+                              <Button type="submit" disabled={isSubmittingKbEntry} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                                {isSubmittingKbEntry && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Simpan Entri KB
                               </Button>
-                            </CardFooter>
+                            </DialogFooter>
                           </form>
                         </Form>
-                      </TabsContent>
+                      </DialogContent>
+                    </Dialog>
 
-                      <TabsContent value="knowledge-base">
-                          <CardContent className="p-6 space-y-4">
-                              <div className="flex justify-end mb-4">
-                                  <Button onClick={() => handleOpenKbForm(null)}>
-                                      <PlusCircle className="mr-2 h-4 w-4" /> Tambah Entri KB
-                                  </Button>
-                              </div>
-                              {isLoadingKnowledgeBase ? (
-                                  <div className="flex items-center justify-center py-10">
-                                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                                  </div>
-                              ) : knowledgeBaseEntries.length === 0 ? (
-                                  <p className="text-center text-muted-foreground py-8">Belum ada entri knowledge base.</p>
-                              ) : (
-                                  <Table>
-                                  <TableHeader>
-                                      <TableRow>
-                                      <TableHead>Topik</TableHead>
-                                      <TableHead>Potongan Konten</TableHead>
-                                      <TableHead>Kata Kunci</TableHead>
-                                      <TableHead className="text-center">Status</TableHead>
-                                      <TableHead className="text-right">Aksi</TableHead>
-                                      </TableRow>
-                                  </TableHeader>
-                                  <TableBody>
-                                      {knowledgeBaseEntries.map((entry) => (
-                                      <TableRow key={entry.id}>
-                                          <TableCell className="font-medium max-w-xs truncate">{entry.topic}</TableCell>
-                                          <TableCell className="max-w-md truncate">{entry.content}</TableCell>
-                                          <TableCell className="text-xs max-w-xs">
-                                          {entry.keywords.map(kw => <Badge key={kw} variant="outline" className="mr-1 mb-1">{kw}</Badge>)}
-                                          </TableCell>
-                                          <TableCell className="text-center">
-                                          <Badge variant={entry.isActive ? "default" : "outline"}>
-                                              {entry.isActive ? "Aktif" : "Nonaktif"}
-                                          </Badge>
-                                          </TableCell>
-                                          <TableCell className="text-right">
-                                          <Button variant="ghost" size="icon" onClick={() => handleOpenKbForm(entry)} className="hover:text-primary">
-                                              <Edit2 className="h-4 w-4" />
-                                          </Button>
-                                          <AlertDialog>
-                                              <AlertDialogTrigger asChild>
-                                                  <Button variant="ghost" size="icon" onClick={() => setKbEntryToDelete(entry)} className="text-destructive hover:text-destructive">
-                                                  <Trash2 className="h-4 w-4" />
-                                                  </Button>
-                                              </AlertDialogTrigger>
-                                              <AlertDialogContent>
-                                                  <AlertDialogHeaderEl>
-                                                  <AlertDialogTitleEl>Konfirmasi Penghapusan</AlertDialogTitleEl>
-                                                  <AlertDialogDescriptionEl>
-                                                      Apakah Anda yakin ingin menghapus entri knowledge base dengan topik "{kbEntryToDelete?.topic}"? Tindakan ini tidak dapat diurungkan.
-                                                  </AlertDialogDescriptionEl>
-                                                  </AlertDialogHeaderEl>
-                                                  <AlertDialogFooter>
-                                                  <AlertDialogCancel onClick={() => setKbEntryToDelete(null)} disabled={isSubmittingKbEntry}>Batal</AlertDialogCancel>
-                                                  <AlertDialogAction onClick={handleDeleteKbEntry} disabled={isSubmittingKbEntry} className={buttonVariants({variant: "destructive"})}>
-                                                      {isSubmittingKbEntry ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                                      Hapus
-                                                  </AlertDialogAction>
-                                                  </AlertDialogFooter>
-                                              </AlertDialogContent>
-                                          </AlertDialog>
-                                          </TableCell>
-                                      </TableRow>
-                                      ))}
-                                  </TableBody>
-                                  </Table>
-                              )}
-                          </CardContent>
-                      </TabsContent>
-                    </Tabs>
-                  </div>
-                  
-                  {/* Dialog untuk Form Knowledge Base */}
-                  <Dialog open={isKbFormDialogOpen} onOpenChange={(isOpen) => {
-                    setIsKbFormDialogOpen(isOpen);
-                    if (!isOpen) setEditingKbEntry(null);
-                  }}>
-                    <DialogContent className="sm:max-w-xl">
-                      <DialogHeader>
-                        <DialogTitle>{editingKbEntry ? "Edit Entri Knowledge Base" : "Tambah Entri Knowledge Base Baru"}</DialogTitle>
-                        <DialogDescription>
-                          {editingKbEntry ? "Ubah detail entri di bawah ini." : "Isi detail untuk entri knowledge base baru."}
-                        </DialogDescription>
-                      </DialogHeader>
-                      <Form {...kbEntryForm}>
-                        <form onSubmit={kbEntryForm.handleSubmit(handleKbFormSubmit)} className="space-y-4 py-2 pb-4">
-                          <FormField
-                            control={kbEntryForm.control}
-                            name="topic"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Topik Utama</FormLabel>
-                                <FormControl><Input placeholder="mis. Jam Buka, Kebijakan Garansi" {...field} /></FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={kbEntryForm.control}
-                            name="content"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Konten Informasi</FormLabel>
-                                <FormControl><Textarea placeholder="Tuliskan detail informasi atau jawaban untuk topik ini..." {...field} rows={5} /></FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={kbEntryForm.control}
-                            name="keywordsInput"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Kata Kunci (pisahkan dengan koma)</FormLabel>
-                                <FormControl><Textarea placeholder="mis. operasional, jadwal, garansi servis, syarat klaim" {...field} rows={2} /></FormControl>
-                                <FormDescription className="text-xs">Kata kunci membantu AI menemukan informasi ini.</FormDescription>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={kbEntryForm.control}
-                            name="isActive"
-                            render={({ field }) => (
-                              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                                <div className="space-y-0.5">
-                                  <FormLabel>Aktifkan Entri Ini</FormLabel>
-                                  <FormDescription className="text-xs">Entri ini akan digunakan oleh AI jika aktif.</FormDescription>
-                                </div>
-                                <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                              </FormItem>
-                            )}
-                          />
-                          <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setIsKbFormDialogOpen(false)} disabled={isSubmittingKbEntry}>Batal</Button>
-                            <Button type="submit" disabled={isSubmittingKbEntry} className="bg-primary text-primary-foreground hover:bg-primary/90">
-                              {isSubmittingKbEntry && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                              Simpan Entri KB
-                            </Button>
-                          </DialogFooter>
-                        </form>
-                      </Form>
-                    </DialogContent>
-                  </Dialog>
-
-                </Card>
-              </DialogContent>
-            </Dialog>
+                  </Card>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </React.Fragment>
   );
 }
-
-
-
 

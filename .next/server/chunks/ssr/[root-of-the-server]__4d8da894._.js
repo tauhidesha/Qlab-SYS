@@ -282,7 +282,7 @@ const ai = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$g
     plugins: [
         (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$genkit$2d$ai$2f$googleai$2f$lib$2f$index$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["googleAI"])()
     ],
-    model: 'googleai/gemini-1.5-flash-latest'
+    model: 'googleai/gemini-2.0-flash-exp'
 });
 }}),
 "[project]/src/ai/tools/extractMotorInfoTool.ts [app-rsc] (ecmascript)": ((__turbopack_context__) => {
