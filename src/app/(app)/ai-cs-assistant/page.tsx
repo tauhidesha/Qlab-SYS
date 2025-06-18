@@ -47,19 +47,22 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter, // Added DialogFooter
+  DialogClose // Added DialogClose
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogHeader as AlertDialogHeaderEl, // Renamed to avoid conflict with DialogHeader
-  AlertDialogTitle as AlertDialogTitleEl,   // Renamed
-  AlertDialogDescription as AlertDialogDescriptionEl, // Renamed
+  AlertDialogHeader as AlertDialogHeaderEl, 
+  AlertDialogTitle as AlertDialogTitleEl,   
+  AlertDialogDescription as AlertDialogDescriptionEl, 
   AlertDialogFooter,
 } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
 interface ChatMessageUi extends Omit<DirectMessage, 'timestamp' | 'id'> {
@@ -1346,3 +1349,4 @@ export default function AiCsAssistantPage() {
     </div>
   );
 }
+
