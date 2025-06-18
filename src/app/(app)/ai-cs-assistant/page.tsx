@@ -968,403 +968,396 @@ export default function AiCsAssistantPage() {
                     <Settings className="mr-2 h-4 w-4" /> Pengaturan Agen & Knowledge Base AI
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0">
-                  <DialogHeader className="sr-only"> 
-                    <DialogTitle>Pengaturan Agen dan Knowledge Base AI</DialogTitle>
-                    <DialogDescription>Konfigurasi detail untuk agen AI dan kelola basis pengetahuan.</DialogDescription>
+                <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0"> {/* Changed to flex flex-col */}
+                  <DialogHeader className="p-6 pb-0 sticky top-0 bg-background/95 backdrop-blur z-10 border-b shrink-0">
+                    <DialogTitle className="flex items-center"><BrainCircuit className="mr-2 h-5 w-5 text-primary" />Pengaturan Agen & Knowledge Base AI</DialogTitle>
+                    <DialogDescription>Konfigurasi perilaku agen AI dan kelola sumber pengetahuan di halaman ini.</DialogDescription>
                   </DialogHeader>
-
-                  <Card className="shadow-none border-none h-full flex flex-col"> 
-                    <CardHeader className="p-6 sticky top-0 bg-background/95 backdrop-blur z-10 border-b">
-                      <CardTitle className="flex items-center"><BrainCircuit className="mr-2 h-5 w-5 text-primary" />Pengaturan Agen & Knowledge Base AI</CardTitle>
-                      <CardDescription>Konfigurasi perilaku agen AI dan kelola sumber pengetahuan di halaman ini.</CardDescription>
-                    </CardHeader>
-                    
-                    <div className="flex-grow overflow-y-auto"> 
-                      <Tabs defaultValue="agent-settings" className="w-full">
-                        <TabsList className="grid w-full grid-cols-2 m-6 mb-0"> 
-                          <TabsTrigger value="agent-settings">Pengaturan Agen AI</TabsTrigger>
-                          <TabsTrigger value="knowledge-base">Manajemen Knowledge Base</TabsTrigger>
-                        </TabsList>
-                        
-                        <TabsContent value="agent-settings">
-                          <Form {...aiSettingsForm}>
-                            <form onSubmit={aiSettingsForm.handleSubmit(handleSaveAiAgentSettings)}>
-                              <CardContent className="p-6 space-y-6">
-                                {isLoadingAiSettings ? (
-                                    <div className="flex items-center space-x-2">
-                                      <Loader2 className="h-5 w-5 animate-spin" />
-                                      <span>Memuat pengaturan AI...</span>
-                                    </div>
-                                ) : (
-                                  <>
-                                    <FormField
-                                      control={aiSettingsForm.control}
-                                      name="mainPrompt"
-                                      render={({ field }) => (
-                                        <FormItem>
-                                          <FormLabel className="flex items-center"><Sparkles className="mr-2 h-4 w-4 text-muted-foreground" />Prompt Utama Zoya</FormLabel>
-                                          <FormControl><Textarea placeholder="Masukkan prompt utama untuk Zoya di sini..." {...field} rows={15} className="text-xs leading-relaxed font-mono" /></FormControl>
-                                          <FormDescription>Ini adalah instruksi inti yang mengarahkan Zoya. Gunakan placeholder seperti {`{\`{{{customerMessage}}}\`}`} atau {`{\`{{{currentDate}}}\`}`}. Perubahan di sini akan langsung mempengaruhi respon AI.</FormDescription>
-                                          <FormMessage />
-                                        </FormItem>
-                                      )}
-                                    />
-                                    <Separator />
-                                    <FormField
-                                      control={aiSettingsForm.control}
-                                      name="agentBehavior"
-                                      render={({ field }) => (
-                                        <FormItem>
-                                          <FormLabel>Perilaku Agen AI</FormLabel>
-                                          <Select onValueChange={field.onChange} value={field.value}>
-                                            <FormControl><SelectTrigger><SelectValue placeholder="Pilih perilaku agen" /></SelectTrigger></FormControl>
-                                            <SelectContent>
-                                              {AI_AGENT_BEHAVIORS.map(behavior => (
-                                                <SelectItem key={behavior} value={behavior}>{behavior}</SelectItem>
-                                              ))}
-                                            </SelectContent>
-                                          </Select>
-                                          <FormMessage />
-                                        </FormItem>
-                                      )}
-                                    />
-                                    <FormField
-                                      control={aiSettingsForm.control}
-                                      name="welcomeMessage"
-                                      render={({ field }) => (
-                                        <FormItem>
-                                          <FormLabel className="flex items-center"><MessageCircle className="mr-2 h-4 w-4 text-muted-foreground" />Pesan Selamat Datang</FormLabel>
-                                          <FormControl><Textarea placeholder="Tulis pesan selamat datang dari agen AI..." {...field} rows={3} /></FormControl>
-                                          <FormMessage />
-                                        </FormItem>
-                                      )}
-                                    />
-                                    <FormField
-                                      control={aiSettingsForm.control}
-                                      name="knowledgeBaseDescription"
-                                      render={({ field }) => (
-                                        <FormItem>
-                                          <FormLabel className="flex items-center"><Info className="mr-2 h-4 w-4 text-muted-foreground" />Deskripsi/Panduan Umum Knowledge Base AI</FormLabel>
-                                          <FormControl><Textarea placeholder="Panduan tingkat tinggi untuk AI tentang bagaimana menggunakan knowledge base..." {...field} rows={4} /></FormControl>
-                                          <FormDescription>Informasi ini akan membantu AI memahami konteks jawaban.</FormDescription>
-                                          <FormMessage />
-                                        </FormItem>
-                                      )}
-                                    />
-                                    <FormItem>
-                                      <FormLabel>Kondisi Transfer ke Manusia</FormLabel>
-                                      <FormDescription>Pilih kondisi kapan percakapan harus dialihkan ke staf manusia.</FormDescription>
-                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 pt-2">
-                                        {AI_TRANSFER_CONDITIONS.map((condition) => (
-                                          <FormField
-                                            key={condition}
-                                            control={aiSettingsForm.control}
-                                            name="transferConditions"
-                                            render={({ field }) => (
-                                              <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                                                <FormControl>
-                                                  <Checkbox
-                                                    checked={field.value?.includes(condition)}
-                                                    onCheckedChange={(checked) => {
-                                                      return checked
-                                                        ? field.onChange([...(field.value || []), condition])
-                                                        : field.onChange(
-                                                            (field.value || []).filter(
-                                                              (value) => value !== condition
-                                                            )
+                  
+                  <div className="overflow-y-auto flex-1"> {/* This div scrolls the Tabs component */}
+                    <Tabs defaultValue="agent-settings" className="w-full">
+                      <TabsList className="grid w-full grid-cols-2 sticky top-0 bg-background/95 backdrop-blur z-10 px-6 pt-6 pb-2 border-b">
+                        <TabsTrigger value="agent-settings">Pengaturan Agen AI</TabsTrigger>
+                        <TabsTrigger value="knowledge-base">Manajemen Knowledge Base</TabsTrigger>
+                      </TabsList>
+                      
+                      <TabsContent value="agent-settings">
+                        <Form {...aiSettingsForm}>
+                          {/* No explicit height or overflow here, let the parent handle scroll */}
+                          <form onSubmit={aiSettingsForm.handleSubmit(handleSaveAiAgentSettings)}>
+                            <CardContent className="p-6 space-y-6"> 
+                              {isLoadingAiSettings ? (
+                                  <div className="flex items-center space-x-2">
+                                    <Loader2 className="h-5 w-5 animate-spin" />
+                                    <span>Memuat pengaturan AI...</span>
+                                  </div>
+                              ) : (
+                                <>
+                                  <FormField
+                                    control={aiSettingsForm.control}
+                                    name="mainPrompt"
+                                    render={({ field }) => (
+                                      <FormItem>
+                                        <FormLabel className="flex items-center"><Sparkles className="mr-2 h-4 w-4 text-muted-foreground" />Prompt Utama Zoya</FormLabel>
+                                        <FormControl><Textarea placeholder="Masukkan prompt utama untuk Zoya di sini..." {...field} rows={15} className="text-xs leading-relaxed font-mono" /></FormControl>
+                                        <FormDescription>Ini adalah instruksi inti yang mengarahkan Zoya. Gunakan placeholder seperti {`{\`{{{customerMessage}}}\`}`} atau {`{\`{{{currentDate}}}\`}`}. Perubahan di sini akan langsung mempengaruhi respon AI.</FormDescription>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+                                  <Separator />
+                                  <FormField
+                                    control={aiSettingsForm.control}
+                                    name="agentBehavior"
+                                    render={({ field }) => (
+                                      <FormItem>
+                                        <FormLabel>Perilaku Agen AI</FormLabel>
+                                        <Select onValueChange={field.onChange} value={field.value}>
+                                          <FormControl><SelectTrigger><SelectValue placeholder="Pilih perilaku agen" /></SelectTrigger></FormControl>
+                                          <SelectContent>
+                                            {AI_AGENT_BEHAVIORS.map(behavior => (
+                                              <SelectItem key={behavior} value={behavior}>{behavior}</SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+                                  <FormField
+                                    control={aiSettingsForm.control}
+                                    name="welcomeMessage"
+                                    render={({ field }) => (
+                                      <FormItem>
+                                        <FormLabel className="flex items-center"><MessageCircle className="mr-2 h-4 w-4 text-muted-foreground" />Pesan Selamat Datang</FormLabel>
+                                        <FormControl><Textarea placeholder="Tulis pesan selamat datang dari agen AI..." {...field} rows={3} /></FormControl>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+                                  <FormField
+                                    control={aiSettingsForm.control}
+                                    name="knowledgeBaseDescription"
+                                    render={({ field }) => (
+                                      <FormItem>
+                                        <FormLabel className="flex items-center"><Info className="mr-2 h-4 w-4 text-muted-foreground" />Deskripsi/Panduan Umum Knowledge Base AI</FormLabel>
+                                        <FormControl><Textarea placeholder="Panduan tingkat tinggi untuk AI tentang bagaimana menggunakan knowledge base..." {...field} rows={4} /></FormControl>
+                                        <FormDescription>Informasi ini akan membantu AI memahami konteks jawaban.</FormDescription>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+                                  <FormItem>
+                                    <FormLabel>Kondisi Transfer ke Manusia</FormLabel>
+                                    <FormDescription>Pilih kondisi kapan percakapan harus dialihkan ke staf manusia.</FormDescription>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 pt-2">
+                                      {AI_TRANSFER_CONDITIONS.map((condition) => (
+                                        <FormField
+                                          key={condition}
+                                          control={aiSettingsForm.control}
+                                          name="transferConditions"
+                                          render={({ field }) => (
+                                            <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                              <FormControl>
+                                                <Checkbox
+                                                  checked={field.value?.includes(condition)}
+                                                  onCheckedChange={(checked) => {
+                                                    return checked
+                                                      ? field.onChange([...(field.value || []), condition])
+                                                      : field.onChange(
+                                                          (field.value || []).filter(
+                                                            (value) => value !== condition
                                                           )
-                                                    }}
-                                                  />
-                                                </FormControl>
-                                                <FormLabel className="font-normal text-sm">{condition}</FormLabel>
-                                              </FormItem>
-                                            )}
-                                          />
-                                        ))}
-                                      </div>
-                                      <FormMessage>{aiSettingsForm.formState.errors.transferConditions?.message}</FormMessage>
-                                    </FormItem>
+                                                        )
+                                                  }}
+                                                />
+                                              </FormControl>
+                                              <FormLabel className="font-normal text-sm">{condition}</FormLabel>
+                                            </FormItem>
+                                          )}
+                                        />
+                                      ))}
+                                    </div>
+                                    <FormMessage>{aiSettingsForm.formState.errors.transferConditions?.message}</FormMessage>
+                                  </FormItem>
 
-                                    <FormField
-                                      control={aiSettingsForm.control}
-                                      name="enableHumanHandoff"
-                                      render={({ field }) => (
-                                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                                          <div className="space-y-0.5">
-                                            <FormLabel className="flex items-center"><PhoneForwarded className="mr-2 h-4 w-4 text-muted-foreground"/>Aktifkan Notifikasi Handoff</FormLabel>
-                                            <FormDescription>Notifikasi dikirim jika kondisi transfer terpenuhi.</FormDescription>
-                                          </div>
-                                          <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                        </FormItem>
-                                      )}
-                                    />
-                                    {watchedEnableHumanHandoff && (
+                                  <FormField
+                                    control={aiSettingsForm.control}
+                                    name="enableHumanHandoff"
+                                    render={({ field }) => (
+                                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                        <div className="space-y-0.5">
+                                          <FormLabel className="flex items-center"><PhoneForwarded className="mr-2 h-4 w-4 text-muted-foreground"/>Aktifkan Notifikasi Handoff</FormLabel>
+                                          <FormDescription>Notifikasi dikirim jika kondisi transfer terpenuhi.</FormDescription>
+                                        </div>
+                                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                      </FormItem>
+                                    )}
+                                  />
+                                  {watchedEnableHumanHandoff && (
+                                      <FormField
+                                        control={aiSettingsForm.control}
+                                        name="humanAgentWhatsAppNumber"
+                                        render={({ field }) => (
+                                          <FormItem className="pl-4 mt-2">
+                                            <FormLabel>Nomor WhatsApp Agen Manusia</FormLabel>
+                                            <FormControl><Input type="tel" placeholder="mis. +6281234567890" {...field} /></FormControl>
+                                            <FormDescription>Nomor ini akan menerima notifikasi saat handoff.</FormDescription>
+                                            <FormMessage />
+                                          </FormItem>
+                                        )}
+                                      />
+                                  )}
+
+                                  <FormField
+                                    control={aiSettingsForm.control}
+                                    name="enableFollowUp"
+                                    render={({ field }) => (
+                                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                        <div className="space-y-0.5">
+                                          <FormLabel>Aktifkan Fitur Follow-up</FormLabel>
+                                          <FormDescription>AI mengirim follow-up jika pelanggan belum berkunjung/transaksi.</FormDescription>
+                                        </div>
+                                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                      </FormItem>
+                                    )}
+                                  />
+                                  {watchedEnableFollowUp && (
+                                    <Card className="p-4 bg-muted/50 border-dashed">
+                                      <CardHeader className="p-0 pb-3">
+                                          <CardTitle className="text-md">Pengaturan Jadwal Follow-up</CardTitle>
+                                      </CardHeader>
+                                      <CardContent className="p-0 space-y-4">
                                         <FormField
                                           control={aiSettingsForm.control}
-                                          name="humanAgentWhatsAppNumber"
+                                          name="followUpMessageTemplate"
                                           render={({ field }) => (
-                                            <FormItem className="pl-4 mt-2">
-                                              <FormLabel>Nomor WhatsApp Agen Manusia</FormLabel>
-                                              <FormControl><Input type="tel" placeholder="mis. +6281234567890" {...field} /></FormControl>
-                                              <FormDescription>Nomor ini akan menerima notifikasi saat handoff.</FormDescription>
+                                            <FormItem>
+                                              <FormLabel>Template Pesan Follow-up</FormLabel>
+                                              <FormControl><Textarea placeholder="Tulis template pesan untuk follow-up..." {...field} rows={3} /></FormControl>
                                               <FormMessage />
                                             </FormItem>
                                           )}
                                         />
-                                    )}
-
-                                    <FormField
-                                      control={aiSettingsForm.control}
-                                      name="enableFollowUp"
-                                      render={({ field }) => (
-                                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                                          <div className="space-y-0.5">
-                                            <FormLabel>Aktifkan Fitur Follow-up</FormLabel>
-                                            <FormDescription>AI mengirim follow-up jika pelanggan belum berkunjung/transaksi.</FormDescription>
-                                          </div>
-                                          <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                        </FormItem>
-                                      )}
-                                    />
-                                    {watchedEnableFollowUp && (
-                                      <Card className="p-4 bg-muted/50 border-dashed">
-                                        <CardHeader className="p-0 pb-3">
-                                            <CardTitle className="text-md">Pengaturan Jadwal Follow-up</CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="p-0 space-y-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                           <FormField
-                                            control={aiSettingsForm.control}
-                                            name="followUpMessageTemplate"
-                                            render={({ field }) => (
+                                              control={aiSettingsForm.control}
+                                              name="followUpDelays.firstAttemptHours"
+                                              render={({ field }) => (
                                               <FormItem>
-                                                <FormLabel>Template Pesan Follow-up</FormLabel>
-                                                <FormControl><Textarea placeholder="Tulis template pesan untuk follow-up..." {...field} rows={3} /></FormControl>
-                                                <FormMessage />
+                                                  <FormLabel>Penundaan Pertama (Jam)</FormLabel>
+                                                  <FormControl><Input type="number" placeholder="mis. 24" {...field} 
+                                                  onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
+                                                  value={field.value === undefined ? '' : String(field.value)}
+                                                  /></FormControl>
+                                                  <FormMessage />
                                               </FormItem>
-                                            )}
+                                              )}
                                           />
-                                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                            <FormField
-                                                control={aiSettingsForm.control}
-                                                name="followUpDelays.firstAttemptHours"
-                                                render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Penundaan Pertama (Jam)</FormLabel>
-                                                    <FormControl><Input type="number" placeholder="mis. 24" {...field} 
-                                                    onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
-                                                    value={field.value === undefined ? '' : String(field.value)}
-                                                    /></FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                                )}
-                                            />
-                                            <FormField
-                                                control={aiSettingsForm.control}
-                                                name="followUpDelays.secondAttemptDays"
-                                                render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Penundaan Ke-2 (Hari)</FormLabel>
-                                                    <FormControl><Input type="number" placeholder="mis. 7" {...field}
-                                                    onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
-                                                    value={field.value === undefined ? '' : String(field.value)}
-                                                    /></FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                                )}
-                                            />
-                                            <FormField
-                                                control={aiSettingsForm.control}
-                                                name="followUpDelays.thirdAttemptDays"
-                                                render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Penundaan Ke-3 (Hari)</FormLabel>
-                                                    <FormControl><Input type="number" placeholder="mis. 7" {...field} 
-                                                    onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
-                                                    value={field.value === undefined ? '' : String(field.value)}
-                                                    /></FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                                )}
-                                            />
-                                            <FormField
-                                                control={aiSettingsForm.control}
-                                                name="followUpDelays.fourthAttemptDays"
-                                                render={({ field }) => (
-                                                <FormItem>
-                                                    <FormLabel>Penundaan Ke-4 (Hari)</FormLabel>
-                                                    <FormControl><Input type="number" placeholder="mis. 30" {...field} 
-                                                    onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
-                                                    value={field.value === undefined ? '' : String(field.value)}
-                                                    /></FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                                )}
-                                            />
-                                          </div>
-                                        </CardContent>
-                                      </Card>
-                                    )}
-                                  </>
-                                )}
-                              </CardContent>
-                              <CardFooter className="p-6 border-t sticky bottom-0 bg-background/95 backdrop-blur z-10">
-                                <Button type="submit" disabled={isSavingAiSettings || isLoadingAiSettings}>
-                                  {isSavingAiSettings ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                  Simpan Pengaturan Agen AI
-                                </Button>
-                              </CardFooter>
-                            </form>
-                          </Form>
-                        </TabsContent>
-
-                        <TabsContent value="knowledge-base">
-                            <CardContent className="p-6 space-y-4">
-                                <div className="flex justify-end mb-4">
-                                    <Button onClick={() => handleOpenKbForm(null)}>
-                                        <PlusCircle className="mr-2 h-4 w-4" /> Tambah Entri KB
-                                    </Button>
-                                </div>
-                                {isLoadingKnowledgeBase ? (
-                                    <div className="flex items-center justify-center py-10">
-                                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                                    </div>
-                                ) : knowledgeBaseEntries.length === 0 ? (
-                                    <p className="text-center text-muted-foreground py-8">Belum ada entri knowledge base.</p>
-                                ) : (
-                                    <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                        <TableHead>Topik</TableHead>
-                                        <TableHead>Potongan Konten</TableHead>
-                                        <TableHead>Kata Kunci</TableHead>
-                                        <TableHead className="text-center">Status</TableHead>
-                                        <TableHead className="text-right">Aksi</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {knowledgeBaseEntries.map((entry) => (
-                                        <TableRow key={entry.id}>
-                                            <TableCell className="font-medium max-w-xs truncate">{entry.topic}</TableCell>
-                                            <TableCell className="max-w-md truncate">{entry.content}</TableCell>
-                                            <TableCell className="text-xs max-w-xs">
-                                            {entry.keywords.map(kw => <Badge key={kw} variant="outline" className="mr-1 mb-1">{kw}</Badge>)}
-                                            </TableCell>
-                                            <TableCell className="text-center">
-                                            <Badge variant={entry.isActive ? "default" : "outline"}>
-                                                {entry.isActive ? "Aktif" : "Nonaktif"}
-                                            </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                            <Button variant="ghost" size="icon" onClick={() => handleOpenKbForm(entry)} className="hover:text-primary">
-                                                <Edit2 className="h-4 w-4" />
-                                            </Button>
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <Button variant="ghost" size="icon" onClick={() => setKbEntryToDelete(entry)} className="text-destructive hover:text-destructive">
-                                                    <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeaderEl>
-                                                    <AlertDialogTitleEl>Konfirmasi Penghapusan</AlertDialogTitleEl>
-                                                    <AlertDialogDescriptionEl>
-                                                        Apakah Anda yakin ingin menghapus entri knowledge base dengan topik "{kbEntryToDelete?.topic}"? Tindakan ini tidak dapat diurungkan.
-                                                    </AlertDialogDescriptionEl>
-                                                    </AlertDialogHeaderEl>
-                                                    <AlertDialogFooter>
-                                                    <AlertDialogCancel onClick={() => setKbEntryToDelete(null)} disabled={isSubmittingKbEntry}>Batal</AlertDialogCancel>
-                                                    <AlertDialogAction onClick={handleDeleteKbEntry} disabled={isSubmittingKbEntry} className={buttonVariants({variant: "destructive"})}>
-                                                        {isSubmittingKbEntry ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                                        Hapus
-                                                    </AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                            </TableCell>
-                                        </TableRow>
-                                        ))}
-                                    </TableBody>
-                                    </Table>
-                                )}
+                                          <FormField
+                                              control={aiSettingsForm.control}
+                                              name="followUpDelays.secondAttemptDays"
+                                              render={({ field }) => (
+                                              <FormItem>
+                                                  <FormLabel>Penundaan Ke-2 (Hari)</FormLabel>
+                                                  <FormControl><Input type="number" placeholder="mis. 7" {...field}
+                                                  onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
+                                                  value={field.value === undefined ? '' : String(field.value)}
+                                                  /></FormControl>
+                                                  <FormMessage />
+                                              </FormItem>
+                                              )}
+                                          />
+                                          <FormField
+                                              control={aiSettingsForm.control}
+                                              name="followUpDelays.thirdAttemptDays"
+                                              render={({ field }) => (
+                                              <FormItem>
+                                                  <FormLabel>Penundaan Ke-3 (Hari)</FormLabel>
+                                                  <FormControl><Input type="number" placeholder="mis. 7" {...field} 
+                                                  onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
+                                                  value={field.value === undefined ? '' : String(field.value)}
+                                                  /></FormControl>
+                                                  <FormMessage />
+                                              </FormItem>
+                                              )}
+                                          />
+                                          <FormField
+                                              control={aiSettingsForm.control}
+                                              name="followUpDelays.fourthAttemptDays"
+                                              render={({ field }) => (
+                                              <FormItem>
+                                                  <FormLabel>Penundaan Ke-4 (Hari)</FormLabel>
+                                                  <FormControl><Input type="number" placeholder="mis. 30" {...field} 
+                                                  onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
+                                                  value={field.value === undefined ? '' : String(field.value)}
+                                                  /></FormControl>
+                                                  <FormMessage />
+                                              </FormItem>
+                                              )}
+                                          />
+                                        </div>
+                                      </CardContent>
+                                    </Card>
+                                  )}
+                                </>
+                              )}
                             </CardContent>
-                        </TabsContent>
-                      </Tabs>
-                    </div>
-                    
-                    <Dialog open={isKbFormDialogOpen} onOpenChange={(isOpen) => {
-                      setIsKbFormDialogOpen(isOpen);
-                      if (!isOpen) setEditingKbEntry(null);
-                    }}>
-                      <DialogContent className="sm:max-w-xl">
-                        <DialogHeader>
-                          <DialogTitle>{editingKbEntry ? "Edit Entri Knowledge Base" : "Tambah Entri Knowledge Base Baru"}</DialogTitle>
-                          <DialogDescription>
-                            {editingKbEntry ? "Ubah detail entri di bawah ini." : "Isi detail untuk entri knowledge base baru."}
-                          </DialogDescription>
-                        </DialogHeader>
-                        <Form {...kbEntryForm}>
-                          <form onSubmit={kbEntryForm.handleSubmit(handleKbFormSubmit)} className="space-y-4 py-2 pb-4">
-                            <FormField
-                              control={kbEntryForm.control}
-                              name="topic"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Topik Utama</FormLabel>
-                                  <FormControl><Input placeholder="mis. Jam Buka, Kebijakan Garansi" {...field} /></FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={kbEntryForm.control}
-                              name="content"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Konten Informasi</FormLabel>
-                                  <FormControl><Textarea placeholder="Tuliskan detail informasi atau jawaban untuk topik ini..." {...field} rows={5} /></FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={kbEntryForm.control}
-                              name="keywordsInput"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Kata Kunci (pisahkan dengan koma)</FormLabel>
-                                  <FormControl><Textarea placeholder="mis. operasional, jadwal, garansi servis, syarat klaim" {...field} rows={2} /></FormControl>
-                                  <FormDescription className="text-xs">Kata kunci membantu AI menemukan informasi ini.</FormDescription>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={kbEntryForm.control}
-                              name="isActive"
-                              render={({ field }) => (
-                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                                  <div className="space-y-0.5">
-                                    <FormLabel>Aktifkan Entri Ini</FormLabel>
-                                    <FormDescription className="text-xs">Entri ini akan digunakan oleh AI jika aktif.</FormDescription>
-                                  </div>
-                                  <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                </FormItem>
-                              )}
-                            />
-                            <DialogFooter>
-                              <Button type="button" variant="outline" onClick={() => setIsKbFormDialogOpen(false)} disabled={isSubmittingKbEntry}>Batal</Button>
-                              <Button type="submit" disabled={isSubmittingKbEntry} className="bg-primary text-primary-foreground hover:bg-primary/90">
-                                {isSubmittingKbEntry && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Simpan Entri KB
+                            <CardFooter className="p-6 border-t mt-auto sticky bottom-0 bg-background/95 backdrop-blur z-10"> {/* Footer for Agent Settings, now sticky to this form's scrollable area */}
+                              <Button type="submit" disabled={isSavingAiSettings || isLoadingAiSettings}>
+                                {isSavingAiSettings ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                Simpan Pengaturan Agen AI
                               </Button>
-                            </DialogFooter>
+                            </CardFooter>
                           </form>
                         </Form>
-                      </DialogContent>
-                    </Dialog>
+                      </TabsContent>
 
-                  </Card>
+                      <TabsContent value="knowledge-base">
+                          <CardContent className="p-6 space-y-4"> {/* Content for Knowledge Base */}
+                              <div className="flex justify-end mb-4">
+                                  <Button onClick={() => handleOpenKbForm(null)}>
+                                      <PlusCircle className="mr-2 h-4 w-4" /> Tambah Entri KB
+                                  </Button>
+                              </div>
+                              {isLoadingKnowledgeBase ? (
+                                  <div className="flex items-center justify-center py-10">
+                                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                  </div>
+                              ) : knowledgeBaseEntries.length === 0 ? (
+                                  <p className="text-center text-muted-foreground py-8">Belum ada entri knowledge base.</p>
+                              ) : (
+                                  <Table>
+                                  <TableHeader>
+                                      <TableRow>
+                                      <TableHead>Topik</TableHead>
+                                      <TableHead>Potongan Konten</TableHead>
+                                      <TableHead>Kata Kunci</TableHead>
+                                      <TableHead className="text-center">Status</TableHead>
+                                      <TableHead className="text-right">Aksi</TableHead>
+                                      </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                      {knowledgeBaseEntries.map((entry) => (
+                                      <TableRow key={entry.id}>
+                                          <TableCell className="font-medium max-w-xs truncate">{entry.topic}</TableCell>
+                                          <TableCell className="max-w-md truncate">{entry.content}</TableCell>
+                                          <TableCell className="text-xs max-w-xs">
+                                          {entry.keywords.map(kw => <Badge key={kw} variant="outline" className="mr-1 mb-1">{kw}</Badge>)}
+                                          </TableCell>
+                                          <TableCell className="text-center">
+                                          <Badge variant={entry.isActive ? "default" : "outline"}>
+                                              {entry.isActive ? "Aktif" : "Nonaktif"}
+                                          </Badge>
+                                          </TableCell>
+                                          <TableCell className="text-right">
+                                          <Button variant="ghost" size="icon" onClick={() => handleOpenKbForm(entry)} className="hover:text-primary">
+                                              <Edit2 className="h-4 w-4" />
+                                          </Button>
+                                          <AlertDialog>
+                                              <AlertDialogTrigger asChild>
+                                                  <Button variant="ghost" size="icon" onClick={() => setKbEntryToDelete(entry)} className="text-destructive hover:text-destructive">
+                                                  <Trash2 className="h-4 w-4" />
+                                                  </Button>
+                                              </AlertDialogTrigger>
+                                              <AlertDialogContent>
+                                                  <AlertDialogHeaderEl>
+                                                  <AlertDialogTitleEl>Konfirmasi Penghapusan</AlertDialogTitleEl>
+                                                  <AlertDialogDescriptionEl>
+                                                      Apakah Anda yakin ingin menghapus entri knowledge base dengan topik "{kbEntryToDelete?.topic}"? Tindakan ini tidak dapat diurungkan.
+                                                  </AlertDialogDescriptionEl>
+                                                  </AlertDialogHeaderEl>
+                                                  <AlertDialogFooter>
+                                                  <AlertDialogCancel onClick={() => setKbEntryToDelete(null)} disabled={isSubmittingKbEntry}>Batal</AlertDialogCancel>
+                                                  <AlertDialogAction onClick={handleDeleteKbEntry} disabled={isSubmittingKbEntry} className={buttonVariants({variant: "destructive"})}>
+                                                      {isSubmittingKbEntry ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                                      Hapus
+                                                  </AlertDialogAction>
+                                                  </AlertDialogFooter>
+                                              </AlertDialogContent>
+                                          </AlertDialog>
+                                          </TableCell>
+                                      </TableRow>
+                                      ))}
+                                  </TableBody>
+                                  </Table>
+                              )}
+                          </CardContent>
+                      </TabsContent>
+                    </Tabs>
+                  </div>
+                  
+                  <Dialog open={isKbFormDialogOpen} onOpenChange={(isOpen: boolean) => {
+                    setIsKbFormDialogOpen(isOpen);
+                    if (!isOpen) setEditingKbEntry(null);
+                  }}>
+                    <DialogContent className="sm:max-w-xl">
+                      <DialogHeader>
+                        <DialogTitle>{editingKbEntry ? "Edit Entri Knowledge Base" : "Tambah Entri Knowledge Base Baru"}</DialogTitle>
+                        <DialogDescription>
+                          {editingKbEntry ? "Ubah detail entri di bawah ini." : "Isi detail untuk entri knowledge base baru."}
+                        </DialogDescription>
+                      </DialogHeader>
+                      <Form {...kbEntryForm}>
+                        <form onSubmit={kbEntryForm.handleSubmit(handleKbFormSubmit)} className="space-y-4 py-2 pb-4">
+                          <FormField
+                            control={kbEntryForm.control}
+                            name="topic"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Topik Utama</FormLabel>
+                                <FormControl><Input placeholder="mis. Jam Buka, Kebijakan Garansi" {...field} /></FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={kbEntryForm.control}
+                            name="content"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Konten Informasi</FormLabel>
+                                <FormControl><Textarea placeholder="Tuliskan detail informasi atau jawaban untuk topik ini..." {...field} rows={5} /></FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={kbEntryForm.control}
+                            name="keywordsInput"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Kata Kunci (pisahkan dengan koma)</FormLabel>
+                                <FormControl><Textarea placeholder="mis. operasional, jadwal, garansi servis, syarat klaim" {...field} rows={2} /></FormControl>
+                                <FormDescription className="text-xs">Kata kunci membantu AI menemukan informasi ini.</FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={kbEntryForm.control}
+                            name="isActive"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                <div className="space-y-0.5">
+                                  <FormLabel>Aktifkan Entri Ini</FormLabel>
+                                  <FormDescription className="text-xs">Entri ini akan digunakan oleh AI jika aktif.</FormDescription>
+                                </div>
+                                <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                              </FormItem>
+                            )}
+                          />
+                          <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setIsKbFormDialogOpen(false)} disabled={isSubmittingKbEntry}>Batal</Button>
+                            <Button type="submit" disabled={isSubmittingKbEntry} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                              {isSubmittingKbEntry && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                              Simpan Entri KB
+                            </Button>
+                          </DialogFooter>
+                        </form>
+                      </Form>
+                    </DialogContent>
+                  </Dialog>
                 </DialogContent>
               </Dialog>
             </div>
@@ -1375,3 +1368,4 @@ export default function AiCsAssistantPage() {
   );
 }
 
+    
