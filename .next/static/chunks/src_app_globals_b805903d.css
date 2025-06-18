@@ -491,10 +491,6 @@ body {
   grid-column: 1 / -1;
 }
 
-.m-6 {
-  margin: 1.5rem;
-}
-
 .-mx-1 {
   margin-left: -.25rem;
   margin-right: -.25rem;
@@ -538,10 +534,6 @@ body {
 .my-4 {
   margin-top: 1rem;
   margin-bottom: 1rem;
-}
-
-.mb-0 {
-  margin-bottom: 0;
 }
 
 .mb-1 {
@@ -1399,10 +1391,6 @@ body {
   border-style: dashed;
 }
 
-.border-none {
-  border-style: none;
-}
-
 .border-\[--color-border\] {
   border-color: var(--color-border);
 }
@@ -1745,6 +1733,10 @@ body {
   padding-bottom: 2rem;
 }
 
+.pb-0 {
+  padding-bottom: 0;
+}
+
 .pb-2 {
   padding-bottom: .5rem;
 }
@@ -1813,16 +1805,12 @@ body {
   padding-top: 1rem;
 }
 
-.pt-8 {
-  padding-top: 2rem;
-}
-
-.pb-0 {
-  padding-bottom: 0;
-}
-
 .pt-6 {
   padding-top: 1.5rem;
+}
+
+.pt-8 {
+  padding-top: 2rem;
 }
 
 .text-left {

@@ -968,242 +968,243 @@ export default function AiCsAssistantPage() {
                     <Settings className="mr-2 h-4 w-4" /> Pengaturan Agen & Knowledge Base AI
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0"> {/* Changed to flex flex-col */}
-                  <DialogHeader className="p-6 pb-0 sticky top-0 bg-background/95 backdrop-blur z-10 border-b shrink-0">
+                <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0">
+                  <DialogHeader className="p-6 pb-0 sticky top-0 bg-background/95 backdrop-blur z-20 border-b shrink-0">
                     <DialogTitle className="flex items-center"><BrainCircuit className="mr-2 h-5 w-5 text-primary" />Pengaturan Agen & Knowledge Base AI</DialogTitle>
                     <DialogDescription>Konfigurasi perilaku agen AI dan kelola sumber pengetahuan di halaman ini.</DialogDescription>
                   </DialogHeader>
                   
-                  <div className="overflow-y-auto flex-1"> {/* This div scrolls the Tabs component */}
+                  <div className="overflow-y-auto flex-1">
                     <Tabs defaultValue="agent-settings" className="w-full">
                       <TabsList className="grid w-full grid-cols-2 sticky top-0 bg-background/95 backdrop-blur z-10 px-6 pt-6 pb-2 border-b">
                         <TabsTrigger value="agent-settings">Pengaturan Agen AI</TabsTrigger>
                         <TabsTrigger value="knowledge-base">Manajemen Knowledge Base</TabsTrigger>
                       </TabsList>
                       
-                      <TabsContent value="agent-settings">
+                      <TabsContent value="agent-settings" className="relative">
                         <Form {...aiSettingsForm}>
-                          {/* No explicit height or overflow here, let the parent handle scroll */}
-                          <form onSubmit={aiSettingsForm.handleSubmit(handleSaveAiAgentSettings)}>
-                            <CardContent className="p-6 space-y-6"> 
-                              {isLoadingAiSettings ? (
-                                  <div className="flex items-center space-x-2">
-                                    <Loader2 className="h-5 w-5 animate-spin" />
-                                    <span>Memuat pengaturan AI...</span>
-                                  </div>
-                              ) : (
-                                <>
-                                  <FormField
-                                    control={aiSettingsForm.control}
-                                    name="mainPrompt"
-                                    render={({ field }) => (
-                                      <FormItem>
-                                        <FormLabel className="flex items-center"><Sparkles className="mr-2 h-4 w-4 text-muted-foreground" />Prompt Utama Zoya</FormLabel>
-                                        <FormControl><Textarea placeholder="Masukkan prompt utama untuk Zoya di sini..." {...field} rows={15} className="text-xs leading-relaxed font-mono" /></FormControl>
-                                        <FormDescription>Ini adalah instruksi inti yang mengarahkan Zoya. Gunakan placeholder seperti {`{\`{{{customerMessage}}}\`}`} atau {`{\`{{{currentDate}}}\`}`}. Perubahan di sini akan langsung mempengaruhi respon AI.</FormDescription>
-                                        <FormMessage />
-                                      </FormItem>
-                                    )}
-                                  />
-                                  <Separator />
-                                  <FormField
-                                    control={aiSettingsForm.control}
-                                    name="agentBehavior"
-                                    render={({ field }) => (
-                                      <FormItem>
-                                        <FormLabel>Perilaku Agen AI</FormLabel>
-                                        <Select onValueChange={field.onChange} value={field.value}>
-                                          <FormControl><SelectTrigger><SelectValue placeholder="Pilih perilaku agen" /></SelectTrigger></FormControl>
-                                          <SelectContent>
-                                            {AI_AGENT_BEHAVIORS.map(behavior => (
-                                              <SelectItem key={behavior} value={behavior}>{behavior}</SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
-                                        <FormMessage />
-                                      </FormItem>
-                                    )}
-                                  />
-                                  <FormField
-                                    control={aiSettingsForm.control}
-                                    name="welcomeMessage"
-                                    render={({ field }) => (
-                                      <FormItem>
-                                        <FormLabel className="flex items-center"><MessageCircle className="mr-2 h-4 w-4 text-muted-foreground" />Pesan Selamat Datang</FormLabel>
-                                        <FormControl><Textarea placeholder="Tulis pesan selamat datang dari agen AI..." {...field} rows={3} /></FormControl>
-                                        <FormMessage />
-                                      </FormItem>
-                                    )}
-                                  />
-                                  <FormField
-                                    control={aiSettingsForm.control}
-                                    name="knowledgeBaseDescription"
-                                    render={({ field }) => (
-                                      <FormItem>
-                                        <FormLabel className="flex items-center"><Info className="mr-2 h-4 w-4 text-muted-foreground" />Deskripsi/Panduan Umum Knowledge Base AI</FormLabel>
-                                        <FormControl><Textarea placeholder="Panduan tingkat tinggi untuk AI tentang bagaimana menggunakan knowledge base..." {...field} rows={4} /></FormControl>
-                                        <FormDescription>Informasi ini akan membantu AI memahami konteks jawaban.</FormDescription>
-                                        <FormMessage />
-                                      </FormItem>
-                                    )}
-                                  />
-                                  <FormItem>
-                                    <FormLabel>Kondisi Transfer ke Manusia</FormLabel>
-                                    <FormDescription>Pilih kondisi kapan percakapan harus dialihkan ke staf manusia.</FormDescription>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 pt-2">
-                                      {AI_TRANSFER_CONDITIONS.map((condition) => (
-                                        <FormField
-                                          key={condition}
-                                          control={aiSettingsForm.control}
-                                          name="transferConditions"
-                                          render={({ field }) => (
-                                            <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                                              <FormControl>
-                                                <Checkbox
-                                                  checked={field.value?.includes(condition)}
-                                                  onCheckedChange={(checked) => {
-                                                    return checked
-                                                      ? field.onChange([...(field.value || []), condition])
-                                                      : field.onChange(
-                                                          (field.value || []).filter(
-                                                            (value) => value !== condition
-                                                          )
-                                                        )
-                                                  }}
-                                                />
-                                              </FormControl>
-                                              <FormLabel className="font-normal text-sm">{condition}</FormLabel>
-                                            </FormItem>
-                                          )}
-                                        />
-                                      ))}
+                          <form onSubmit={aiSettingsForm.handleSubmit(handleSaveAiAgentSettings)} className="flex flex-col h-full">
+                            <ScrollArea className="flex-1"> {/* ScrollArea wraps CardContent */}
+                              <CardContent className="p-6 space-y-6"> 
+                                {isLoadingAiSettings ? (
+                                    <div className="flex items-center space-x-2">
+                                      <Loader2 className="h-5 w-5 animate-spin" />
+                                      <span>Memuat pengaturan AI...</span>
                                     </div>
-                                    <FormMessage>{aiSettingsForm.formState.errors.transferConditions?.message}</FormMessage>
-                                  </FormItem>
+                                ) : (
+                                  <>
+                                    <FormField
+                                      control={aiSettingsForm.control}
+                                      name="mainPrompt"
+                                      render={({ field }) => (
+                                        <FormItem>
+                                          <FormLabel className="flex items-center"><Sparkles className="mr-2 h-4 w-4 text-muted-foreground" />Prompt Utama Zoya</FormLabel>
+                                          <FormControl><Textarea placeholder="Masukkan prompt utama untuk Zoya di sini..." {...field} rows={15} className="text-xs leading-relaxed font-mono" /></FormControl>
+                                          <FormDescription>Ini adalah instruksi inti yang mengarahkan Zoya. Gunakan placeholder seperti {`{\`{{{customerMessage}}}\`}`} atau {`{\`{{{currentDate}}}\`}`}. Perubahan di sini akan langsung mempengaruhi respon AI.</FormDescription>
+                                          <FormMessage />
+                                        </FormItem>
+                                      )}
+                                    />
+                                    <Separator />
+                                    <FormField
+                                      control={aiSettingsForm.control}
+                                      name="agentBehavior"
+                                      render={({ field }) => (
+                                        <FormItem>
+                                          <FormLabel>Perilaku Agen AI</FormLabel>
+                                          <Select onValueChange={field.onChange} value={field.value}>
+                                            <FormControl><SelectTrigger><SelectValue placeholder="Pilih perilaku agen" /></SelectTrigger></FormControl>
+                                            <SelectContent>
+                                              {AI_AGENT_BEHAVIORS.map(behavior => (
+                                                <SelectItem key={behavior} value={behavior}>{behavior}</SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                          <FormMessage />
+                                        </FormItem>
+                                      )}
+                                    />
+                                    <FormField
+                                      control={aiSettingsForm.control}
+                                      name="welcomeMessage"
+                                      render={({ field }) => (
+                                        <FormItem>
+                                          <FormLabel className="flex items-center"><MessageCircle className="mr-2 h-4 w-4 text-muted-foreground" />Pesan Selamat Datang</FormLabel>
+                                          <FormControl><Textarea placeholder="Tulis pesan selamat datang dari agen AI..." {...field} rows={3} /></FormControl>
+                                          <FormMessage />
+                                        </FormItem>
+                                      )}
+                                    />
+                                    <FormField
+                                      control={aiSettingsForm.control}
+                                      name="knowledgeBaseDescription"
+                                      render={({ field }) => (
+                                        <FormItem>
+                                          <FormLabel className="flex items-center"><Info className="mr-2 h-4 w-4 text-muted-foreground" />Deskripsi/Panduan Umum Knowledge Base AI</FormLabel>
+                                          <FormControl><Textarea placeholder="Panduan tingkat tinggi untuk AI tentang bagaimana menggunakan knowledge base..." {...field} rows={4} /></FormControl>
+                                          <FormDescription>Informasi ini akan membantu AI memahami konteks jawaban.</FormDescription>
+                                          <FormMessage />
+                                        </FormItem>
+                                      )}
+                                    />
+                                    <FormItem>
+                                      <FormLabel>Kondisi Transfer ke Manusia</FormLabel>
+                                      <FormDescription>Pilih kondisi kapan percakapan harus dialihkan ke staf manusia.</FormDescription>
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 pt-2">
+                                        {AI_TRANSFER_CONDITIONS.map((condition) => (
+                                          <FormField
+                                            key={condition}
+                                            control={aiSettingsForm.control}
+                                            name="transferConditions"
+                                            render={({ field }) => (
+                                              <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                                <FormControl>
+                                                  <Checkbox
+                                                    checked={field.value?.includes(condition)}
+                                                    onCheckedChange={(checked) => {
+                                                      return checked
+                                                        ? field.onChange([...(field.value || []), condition])
+                                                        : field.onChange(
+                                                            (field.value || []).filter(
+                                                              (value) => value !== condition
+                                                            )
+                                                          )
+                                                    }}
+                                                  />
+                                                </FormControl>
+                                                <FormLabel className="font-normal text-sm">{condition}</FormLabel>
+                                              </FormItem>
+                                            )}
+                                          />
+                                        ))}
+                                      </div>
+                                      <FormMessage>{aiSettingsForm.formState.errors.transferConditions?.message}</FormMessage>
+                                    </FormItem>
 
-                                  <FormField
-                                    control={aiSettingsForm.control}
-                                    name="enableHumanHandoff"
-                                    render={({ field }) => (
-                                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                                        <div className="space-y-0.5">
-                                          <FormLabel className="flex items-center"><PhoneForwarded className="mr-2 h-4 w-4 text-muted-foreground"/>Aktifkan Notifikasi Handoff</FormLabel>
-                                          <FormDescription>Notifikasi dikirim jika kondisi transfer terpenuhi.</FormDescription>
-                                        </div>
-                                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                      </FormItem>
-                                    )}
-                                  />
-                                  {watchedEnableHumanHandoff && (
-                                      <FormField
-                                        control={aiSettingsForm.control}
-                                        name="humanAgentWhatsAppNumber"
-                                        render={({ field }) => (
-                                          <FormItem className="pl-4 mt-2">
-                                            <FormLabel>Nomor WhatsApp Agen Manusia</FormLabel>
-                                            <FormControl><Input type="tel" placeholder="mis. +6281234567890" {...field} /></FormControl>
-                                            <FormDescription>Nomor ini akan menerima notifikasi saat handoff.</FormDescription>
-                                            <FormMessage />
-                                          </FormItem>
-                                        )}
-                                      />
-                                  )}
-
-                                  <FormField
-                                    control={aiSettingsForm.control}
-                                    name="enableFollowUp"
-                                    render={({ field }) => (
-                                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                                        <div className="space-y-0.5">
-                                          <FormLabel>Aktifkan Fitur Follow-up</FormLabel>
-                                          <FormDescription>AI mengirim follow-up jika pelanggan belum berkunjung/transaksi.</FormDescription>
-                                        </div>
-                                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                      </FormItem>
-                                    )}
-                                  />
-                                  {watchedEnableFollowUp && (
-                                    <Card className="p-4 bg-muted/50 border-dashed">
-                                      <CardHeader className="p-0 pb-3">
-                                          <CardTitle className="text-md">Pengaturan Jadwal Follow-up</CardTitle>
-                                      </CardHeader>
-                                      <CardContent className="p-0 space-y-4">
+                                    <FormField
+                                      control={aiSettingsForm.control}
+                                      name="enableHumanHandoff"
+                                      render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                          <div className="space-y-0.5">
+                                            <FormLabel className="flex items-center"><PhoneForwarded className="mr-2 h-4 w-4 text-muted-foreground"/>Aktifkan Notifikasi Handoff</FormLabel>
+                                            <FormDescription>Notifikasi dikirim jika kondisi transfer terpenuhi.</FormDescription>
+                                          </div>
+                                          <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                        </FormItem>
+                                      )}
+                                    />
+                                    {watchedEnableHumanHandoff && (
                                         <FormField
                                           control={aiSettingsForm.control}
-                                          name="followUpMessageTemplate"
+                                          name="humanAgentWhatsAppNumber"
                                           render={({ field }) => (
-                                            <FormItem>
-                                              <FormLabel>Template Pesan Follow-up</FormLabel>
-                                              <FormControl><Textarea placeholder="Tulis template pesan untuk follow-up..." {...field} rows={3} /></FormControl>
+                                            <FormItem className="pl-4 mt-2">
+                                              <FormLabel>Nomor WhatsApp Agen Manusia</FormLabel>
+                                              <FormControl><Input type="tel" placeholder="mis. +6281234567890" {...field} /></FormControl>
+                                              <FormDescription>Nomor ini akan menerima notifikasi saat handoff.</FormDescription>
                                               <FormMessage />
                                             </FormItem>
                                           )}
                                         />
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    )}
+
+                                    <FormField
+                                      control={aiSettingsForm.control}
+                                      name="enableFollowUp"
+                                      render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                                          <div className="space-y-0.5">
+                                            <FormLabel>Aktifkan Fitur Follow-up</FormLabel>
+                                            <FormDescription>AI mengirim follow-up jika pelanggan belum berkunjung/transaksi.</FormDescription>
+                                          </div>
+                                          <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                        </FormItem>
+                                      )}
+                                    />
+                                    {watchedEnableFollowUp && (
+                                      <Card className="p-4 bg-muted/50 border-dashed">
+                                        <CardHeader className="p-0 pb-3">
+                                            <CardTitle className="text-md">Pengaturan Jadwal Follow-up</CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="p-0 space-y-4">
                                           <FormField
-                                              control={aiSettingsForm.control}
-                                              name="followUpDelays.firstAttemptHours"
-                                              render={({ field }) => (
+                                            control={aiSettingsForm.control}
+                                            name="followUpMessageTemplate"
+                                            render={({ field }) => (
                                               <FormItem>
-                                                  <FormLabel>Penundaan Pertama (Jam)</FormLabel>
-                                                  <FormControl><Input type="number" placeholder="mis. 24" {...field} 
-                                                  onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
-                                                  value={field.value === undefined ? '' : String(field.value)}
-                                                  /></FormControl>
-                                                  <FormMessage />
+                                                <FormLabel>Template Pesan Follow-up</FormLabel>
+                                                <FormControl><Textarea placeholder="Tulis template pesan untuk follow-up..." {...field} rows={3} /></FormControl>
+                                                <FormMessage />
                                               </FormItem>
-                                              )}
+                                            )}
                                           />
-                                          <FormField
-                                              control={aiSettingsForm.control}
-                                              name="followUpDelays.secondAttemptDays"
-                                              render={({ field }) => (
-                                              <FormItem>
-                                                  <FormLabel>Penundaan Ke-2 (Hari)</FormLabel>
-                                                  <FormControl><Input type="number" placeholder="mis. 7" {...field}
-                                                  onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
-                                                  value={field.value === undefined ? '' : String(field.value)}
-                                                  /></FormControl>
-                                                  <FormMessage />
-                                              </FormItem>
-                                              )}
-                                          />
-                                          <FormField
-                                              control={aiSettingsForm.control}
-                                              name="followUpDelays.thirdAttemptDays"
-                                              render={({ field }) => (
-                                              <FormItem>
-                                                  <FormLabel>Penundaan Ke-3 (Hari)</FormLabel>
-                                                  <FormControl><Input type="number" placeholder="mis. 7" {...field} 
-                                                  onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
-                                                  value={field.value === undefined ? '' : String(field.value)}
-                                                  /></FormControl>
-                                                  <FormMessage />
-                                              </FormItem>
-                                              )}
-                                          />
-                                          <FormField
-                                              control={aiSettingsForm.control}
-                                              name="followUpDelays.fourthAttemptDays"
-                                              render={({ field }) => (
-                                              <FormItem>
-                                                  <FormLabel>Penundaan Ke-4 (Hari)</FormLabel>
-                                                  <FormControl><Input type="number" placeholder="mis. 30" {...field} 
-                                                  onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
-                                                  value={field.value === undefined ? '' : String(field.value)}
-                                                  /></FormControl>
-                                                  <FormMessage />
-                                              </FormItem>
-                                              )}
-                                          />
-                                        </div>
-                                      </CardContent>
-                                    </Card>
-                                  )}
-                                </>
-                              )}
-                            </CardContent>
-                            <CardFooter className="p-6 border-t mt-auto sticky bottom-0 bg-background/95 backdrop-blur z-10"> {/* Footer for Agent Settings, now sticky to this form's scrollable area */}
+                                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <FormField
+                                                control={aiSettingsForm.control}
+                                                name="followUpDelays.firstAttemptHours"
+                                                render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Penundaan Pertama (Jam)</FormLabel>
+                                                    <FormControl><Input type="number" placeholder="mis. 24" {...field} 
+                                                    onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
+                                                    value={field.value === undefined ? '' : String(field.value)}
+                                                    /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={aiSettingsForm.control}
+                                                name="followUpDelays.secondAttemptDays"
+                                                render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Penundaan Ke-2 (Hari)</FormLabel>
+                                                    <FormControl><Input type="number" placeholder="mis. 7" {...field}
+                                                    onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
+                                                    value={field.value === undefined ? '' : String(field.value)}
+                                                    /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={aiSettingsForm.control}
+                                                name="followUpDelays.thirdAttemptDays"
+                                                render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Penundaan Ke-3 (Hari)</FormLabel>
+                                                    <FormControl><Input type="number" placeholder="mis. 7" {...field} 
+                                                    onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
+                                                    value={field.value === undefined ? '' : String(field.value)}
+                                                    /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={aiSettingsForm.control}
+                                                name="followUpDelays.fourthAttemptDays"
+                                                render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>Penundaan Ke-4 (Hari)</FormLabel>
+                                                    <FormControl><Input type="number" placeholder="mis. 30" {...field} 
+                                                    onChange={e => field.onChange(parseInt(e.target.value, 10) || undefined)}
+                                                    value={field.value === undefined ? '' : String(field.value)}
+                                                    /></FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                                )}
+                                            />
+                                          </div>
+                                        </CardContent>
+                                      </Card>
+                                    )}
+                                  </>
+                                )}
+                              </CardContent>
+                            </ScrollArea>
+                            <CardFooter className="p-6 border-t shrink-0 bg-background/95 backdrop-blur"> 
                               <Button type="submit" disabled={isSavingAiSettings || isLoadingAiSettings}>
                                 {isSavingAiSettings ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                                 Simpan Pengaturan Agen AI
@@ -1213,8 +1214,9 @@ export default function AiCsAssistantPage() {
                         </Form>
                       </TabsContent>
 
-                      <TabsContent value="knowledge-base">
-                          <CardContent className="p-6 space-y-4"> {/* Content for Knowledge Base */}
+                      <TabsContent value="knowledge-base" className="relative">
+                        <ScrollArea className="flex-1"> {/* ScrollArea wraps CardContent */}
+                          <CardContent className="p-6 space-y-4"> 
                               <div className="flex justify-end mb-4">
                                   <Button onClick={() => handleOpenKbForm(null)}>
                                       <PlusCircle className="mr-2 h-4 w-4" /> Tambah Entri KB
@@ -1283,6 +1285,8 @@ export default function AiCsAssistantPage() {
                                   </Table>
                               )}
                           </CardContent>
+                        </ScrollArea>
+                         {/* Footer untuk tab Knowledge Base tidak ada, karena actionnya per baris */}
                       </TabsContent>
                     </Tabs>
                   </div>
