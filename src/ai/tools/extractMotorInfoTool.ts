@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview Genkit tool for extracting motorcycle information from text.
@@ -41,7 +42,7 @@ export const extractMotorInfoTool = ai.defineTool(
       throw new Error('Teks input untuk deteksi motor kosong.');
     }
 
-    console.log(`[extractMotorInfoTool] Menerima teks: "${text}", teks bersih: "${cleanText}"`);
+    console.log(`[extractMotorInfoTool] Menerima teks: "${text}", teks bersih untuk dicocokkan: "${cleanText}"`);
 
     try {
       const vehicleTypesRef = collection(db, 'vehicleTypes');
@@ -53,32 +54,37 @@ export const extractMotorInfoTool = ai.defineTool(
       }
 
       const allVehicleTypes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as VehicleTypeDoc & {id: string}));
-      console.log(`[extractMotorInfoTool] Mengambil ${allVehicleTypes.length} tipe kendaraan dari Firestore.`);
+      console.log(`[extractMotorInfoTool] Mengambil ${allVehicleTypes.length} tipe kendaraan dari Firestore untuk dicocokkan.`);
 
       for (const item of allVehicleTypes) {
         if (item.aliases && Array.isArray(item.aliases)) {
           for (const alias of item.aliases) {
             const cleanAlias = alias.toLowerCase().trim();
-            if (cleanAlias && cleanText.includes(cleanAlias)) {
-              console.log(`[extractMotorInfoTool] Cocok! Alias: "${cleanAlias}" dalam teks: "${cleanText}". Mengembalikan: Brand=${item.brand}, Model=${item.model}, Size=${item.size}`);
-              return {
-                brand: item.brand,
-                model: item.model,
-                size: item.size,
-              };
+            if (cleanAlias) { // Pastikan alias tidak kosong setelah dibersihkan
+              console.log(`[extractMotorInfoTool] Memeriksa: teks input ("${cleanText}") mengandung alias ("${cleanAlias}")? Untuk model: ${item.model}`);
+              if (cleanText.includes(cleanAlias)) {
+                console.log(`[extractMotorInfoTool] COCOK! Alias: "${cleanAlias}" ditemukan dalam teks: "${cleanText}". Mengembalikan: Brand=${item.brand}, Model=${item.model}, Size=${item.size}`);
+                return {
+                  brand: item.brand,
+                  model: item.model,
+                  size: item.size,
+                };
+              }
             }
           }
         }
       }
 
-      console.log(`[extractMotorInfoTool] Tidak ada kecocokan untuk teks: "${cleanText}" dalam alias kendaraan manapun.`);
+      console.log(`[extractMotorInfoTool] Tidak ada kecocokan untuk teks: "${cleanText}" dalam alias kendaraan manapun yang ada di database.`);
       throw new Error('Motor tidak dikenali dari teks yang diberikan. Coba minta pelanggan menyebutkan modelnya lebih jelas.');
     } catch (error: any) {
       console.error('[extractMotorInfoTool] Error saat eksekusi:', error);
+      // Re-throw known errors to be handled by AI flow, or a generic one for unexpected issues.
       if (error.message.startsWith('Motor tidak dikenali') || error.message.startsWith('Database jenis kendaraan tidak tersedia') || error.message.startsWith('Teks input untuk deteksi motor kosong')) {
-        throw error; // Lempar ulang error yang sudah diketahui
+        throw error;
       }
       throw new Error('Gagal memproses informasi motor: Terjadi kesalahan internal pada tool.');
     }
   }
 );
+
