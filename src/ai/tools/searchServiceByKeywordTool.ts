@@ -1,14 +1,13 @@
 
 'use server';
 /**
- * @fileOverview Genkit tool for searching services by keyword and optional size.
+ * @fileOverview Genkit tool for searching services by keyword and optional size/paint type.
  * - searchServiceByKeywordTool - The Genkit tool definition.
- * - SearchServiceInput - Input schema for the tool.
- * - SearchServiceOutput - Output schema for the tool.
  */
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit'; // Genkit's Zod
-import { adminDb } from '@/lib/firebase-admin';
+import { z } from 'genkit';
+import { db } from '@/lib/firebase'; // Use client-side SDK
+import { collection, getDocs, query as firestoreQuery } from 'firebase/firestore'; // Use client-side SDK functions
 import type { ServiceProduct } from '@/app/(app)/services/page'; // Assuming this type is suitable
 
 const SearchServiceInputSchema = z.object({
@@ -35,16 +34,15 @@ export const searchServiceByKeywordTool = ai.defineTool(
     inputSchema: SearchServiceInputSchema,
     outputSchema: SearchServiceOutputSchema,
   },
-  async (input) => {
-    if (!adminDb) {
-      console.error("[searchServiceByKeywordTool.ts] FATAL: adminDb is not available. Firebase Admin init failed or import order issue.");
-      throw new Error("Layanan database untuk informasi layanan tidak tersedia saat ini.");
-    }
+  async (input: SearchServiceInput): Promise<SearchServiceOutput> => {
+    // Firebase client 'db' is imported. It's assumed to be initialized.
+    // Error handling for db initialization is in '@/lib/firebase.ts'.
 
     const { keyword, size, paintType } = input;
     console.log(`[searchServiceByKeywordTool] Searching for keyword: "${keyword}", size: "${size || 'any'}", paintType: "${paintType || 'any'}"`);
     
-    const snapshot = await adminDb.collection('services').get();
+    const servicesCollectionRef = collection(db, 'services');
+    const snapshot = await getDocs(firestoreQuery(servicesCollectionRef)); // Use firestoreQuery if needed, or just servicesCollectionRef
     
     const servicesFromDb: ServiceProduct[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceProduct));
 
@@ -71,6 +69,7 @@ export const searchServiceByKeywordTool = ai.defineTool(
       if (svc.category?.toLowerCase().includes(keywordLower)) {
         currentScore += 2;
       }
+      // Assuming 'aliases' field exists and is an array of strings in ServiceProduct type
       if (svc.aliases && Array.isArray(svc.aliases)) {
         if (svc.aliases.some(alias => alias.toLowerCase().includes(keywordLower))) {
            currentScore += 8;
@@ -108,28 +107,21 @@ export const searchServiceByKeywordTool = ai.defineTool(
       if (size) {
         suitableVariants = suitableVariants.filter(v => v.name.toLowerCase().includes(size.toLowerCase()));
       }
-      if (paintType) {
+      if (paintType) { // Filter by paintType if provided
         suitableVariants = suitableVariants.filter(v => v.name.toLowerCase().includes(paintType.toLowerCase()));
       }
 
       if (suitableVariants.length > 0) {
-        const variantToUse = suitableVariants[0]; // Prefer the most specific match
+        const variantToUse = suitableVariants[0]; 
         finalPrice = variantToUse.price;
-        matchedVariantName = variantToUse.name; // This could be "Ukuran M - Doff"
+        matchedVariantName = variantToUse.name; 
         finalDuration = variantToUse.estimatedDuration || finalDuration;
-        // Variant description could override base description if available, or append
-        // finalDescription = variantToUse.description || finalDescription; 
       } else if (keyword.toLowerCase().includes("coating") && (size || paintType)) {
-         // If specific variant for coating with size/paintType not found, return general info
-         // Price will remain undefined, prompting Zoya to ask for more details or state price depends on type.
          console.log(`[searchServiceByKeywordTool] Coating query with size/paintType but no exact variant match. Returning general info for ${bestMatch.name}.`);
       } else if (bestMatch.variants.length > 0 && (!size && !paintType)) {
-        // No specific filter, but variants exist. Maybe return base price or first variant.
-        // Or, if it's coating, Zoya should ask more.
-        // For now, if it's not coating or no specific filter, try base price or first variant.
-        if (bestMatch.price && bestMatch.price > 0) {
+        if (bestMatch.price && bestMatch.price > 0) { // Fallback to base price if no specific variant criteria and base price exists
             finalPrice = bestMatch.price;
-        } else {
+        } else { // Or first variant if no base price
             finalPrice = bestMatch.variants[0].price;
             matchedVariantName = bestMatch.variants[0].name;
             finalDuration = bestMatch.variants[0].estimatedDuration || finalDuration;
