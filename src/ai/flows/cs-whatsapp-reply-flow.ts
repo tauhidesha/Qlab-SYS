@@ -7,7 +7,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit'; // Menggunakan z dari genkit
 import { extractMotorInfoTool } from '@/ai/tools/extractMotorInfoTool';
-import type { WhatsAppReplyInput, WhatsAppReplyOutput } from '@/types/ai/cs-whatsapp-reply'; // Pastikan path ini benar
+import type { WhatsAppReplyInput, WhatsAppReplyOutput, ChatMessage } from '@/types/ai/cs-whatsapp-reply'; // Pastikan path ini benar
 import { WhatsAppReplyInputSchema, WhatsAppReplyOutputSchema } from '@/types/ai/cs-whatsapp-reply'; // Pastikan path ini benar
 
 // Prompt Zoya yang baru (tidak diekspor)
@@ -73,15 +73,22 @@ export const whatsAppReplyFlowSimplified = ai.defineFlow(
     inputSchema: WhatsAppReplyInputSchema,
     outputSchema: WhatsAppReplyOutputSchema,
   },
-  async (input: WhatsAppReplyInput) => { // Menambahkan tipe eksplisit untuk input
-    console.log("whatsAppReplyFlowSimplified input:", JSON.stringify(input, null, 2));
-    const { output } = await replyPromptSimplified(input);
-    if (!output) {
-      console.error('❌ Gagal mendapatkan balasan dari AI.');
-      throw new Error('❌ Gagal mendapatkan balasan dari AI.');
+  async (input: WhatsAppReplyInput): Promise<WhatsAppReplyOutput> => {
+    console.log("[CS-FLOW] whatsAppReplyFlowSimplified input:", JSON.stringify(input, null, 2));
+    try {
+      const { output } = await replyPromptSimplified(input);
+      if (!output) { 
+        console.error('[CS-FLOW] ❌ Gagal mendapatkan balasan dari AI (output is null/undefined dari prompt). Mengembalikan default.');
+        return { suggestedReply: "Maaf, Zoya lagi bingung nih. Bisa diulang pertanyaannya atau coba beberapa saat lagi?" };
+      }
+      // Output should already be validated by definePrompt's outputSchema.
+      console.log("[CS-FLOW] whatsAppReplyFlowSimplified output dari prompt:", output);
+      return output;
+    } catch (e: any) {
+      // This catches errors during the execution of `replyPromptSimplified` itself (e.g., API errors from LLM provider)
+      console.error('[CS-FLOW] ❌ Error saat menjalankan prompt AI atau memproses outputnya:', e);
+      return { suggestedReply: "Duh, Zoya lagi pusing tujuh keliling. Tanya lagi nanti ya, bro!" };
     }
-    console.log("whatsAppReplyFlowSimplified output:", output);
-    return output;
   }
 );
 
@@ -94,7 +101,6 @@ export async function generateWhatsAppReply(input: WhatsAppReplyInput): Promise<
   // tidak di-passing ke flow baru ini untuk sementara.
   // Kita bisa tambahkan kembali jika diperlukan.
   
-  // Ambil data yang relevan dari input untuk flow
   const flowInput: WhatsAppReplyInput = {
     customerMessage: input.customerMessage,
     senderNumber: input.senderNumber,
@@ -107,5 +113,6 @@ export async function generateWhatsAppReply(input: WhatsAppReplyInput): Promise<
     // Tapi kita bisa pass jika promptnya diupdate untuk menggunakan itu
   };
 
+  // Flow whatsAppReplyFlowSimplified sekarang dijamin mengembalikan Promise<WhatsAppReplyOutput>
   return whatsAppReplyFlowSimplified(flowInput);
 }
