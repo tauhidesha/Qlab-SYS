@@ -1,0 +1,45 @@
+
+[
+  {
+    "brand": "Yamaha",
+    "model": "NMAX Connected",
+    "size": "M",
+    "aliases": ["nmax connected", "nmax baru", "n max connected", "nmx connected", "nmax"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "Aerox 155",
+    "size": "M",
+    "aliases": ["aerox", "aerox 155", "aerox connected"]
+  },
+  {
+    "brand": "Honda",
+    "model": "Vario 150",
+    "size": "M",
+    "aliases": ["vario 150", "vario techno 150", "honda vario 150", "vario"]
+  },
+  {
+    "brand": "Honda",
+    "model": "PCX 160",
+    "size": "L",
+    "aliases": ["pcx", "pcx 160", "honda pcx"]
+  },
+  {
+    "brand": "Suzuki",
+    "model": "Smash Titan",
+    "size": "S",
+    "aliases": ["smash", "smash titan", "smash fi", "suzuki smash"]
+  },
+  {
+    "brand": "Kawasaki",
+    "model": "Ninja 250",
+    "size": "L",
+    "aliases": ["ninja 250", "ninja", "kawasaki ninja"]
+  },
+  {
+    "brand": "Honda",
+    "model": "Beat Street",
+    "size": "S",
+    "aliases": ["beat street", "beat street esp", "honda beat street", "beat"]
+  }
+]
