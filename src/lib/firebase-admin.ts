@@ -22,16 +22,38 @@ try {
 }
 console.log(`  - FIREBASE_CONFIG (Project ID from it): ${firebaseConfigProjectId}`);
 console.log(`  - GCLOUD_PROJECT (often used as fallback for Project ID): ${process.env.GCLOUD_PROJECT || 'NOT SET'}`);
+console.log(`  - NEXT_PUBLIC_FIREBASE_PROJECT_ID (for explicit fallback): ${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'NOT SET'}`);
 
 
 if (!admin.apps.length) {
   try {
-    admin.initializeApp();
-    
-    if (admin.app().name) {
-      console.log(`[firebase-admin.ts] Firebase Admin SDK initialized successfully. App Name: ${admin.app().name}, Project ID: ${admin.app().options.projectId}`);
+    let appOptions: admin.AppOptions = {};
+    const explicitProjectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+
+    // Only use explicitProjectId if GOOGLE_APPLICATION_CREDENTIALS is not set
+    // and explicitProjectId is available.
+    if (!process.env.GOOGLE_APPLICATION_CREDENTIALS && explicitProjectId) {
+      appOptions.projectId = explicitProjectId;
+      console.log(`[firebase-admin.ts] Initializing Admin SDK with explicit projectId: ${explicitProjectId}`);
+    } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      console.log(`[firebase-admin.ts] GOOGLE_APPLICATION_CREDENTIALS is set, Admin SDK will use it.`);
     } else {
-      throw new Error("Firebase Admin SDK initializeApp() called, but app name is not available. Initialization may be incomplete.");
+      console.log(`[firebase-admin.ts] Initializing Admin SDK without explicit credentials or projectId. SDK will attempt to infer.`);
+    }
+
+    admin.initializeApp(appOptions);
+    
+    const adminApp = admin.app();
+    const currentProjectId = adminApp.options.projectId;
+
+    if (adminApp.name && currentProjectId) {
+      console.log(`[firebase-admin.ts] Firebase Admin SDK initialized successfully. App Name: ${adminApp.name}, Project ID: ${currentProjectId}`);
+    } else if (adminApp.name && !currentProjectId) {
+      const warningMessage = `[firebase-admin.ts] Firebase Admin SDK initialized (App Name: ${adminApp.name}), BUT Project ID is UNDEFINED. This will likely cause issues with Firestore/Auth access. Ensure GOOGLE_APPLICATION_CREDENTIALS is set and valid, or NEXT_PUBLIC_FIREBASE_PROJECT_ID is correctly picked up.`;
+      console.warn(`\n\n⚠️ ${warningMessage}\n\n`);
+      // Not throwing error here immediately to see if it can still obtain db, but it's a bad sign.
+    } else {
+      throw new Error("Firebase Admin SDK initializeApp() called, but app name or project ID is not available. Initialization may be incomplete.");
     }
 
   } catch (e:any) {
@@ -51,7 +73,7 @@ try {
   adminDb = admin.firestore();
   console.log('[firebase-admin.ts] Firestore Admin instance obtained.');
 } catch (e:any) {
-  const firestoreErrorMessage = `[firebase-admin.ts] FAILED to get Firestore Admin instance: ${e?.message}. Ini biasanya terjadi jika Firebase Admin SDK tidak terinisialisasi dengan benar.`;
+  const firestoreErrorMessage = `[firebase-admin.ts] FAILED to get Firestore Admin instance: ${e?.message}. Ini biasanya terjadi jika Firebase Admin SDK tidak terinisialisasi dengan benar atau Project ID tidak terresolve.`;
   console.error(`\n\n🛑 ${firestoreErrorMessage}\n\n`);
   throw new Error(firestoreErrorMessage, { cause: e });
 }
