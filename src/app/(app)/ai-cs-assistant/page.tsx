@@ -59,7 +59,7 @@ import {
   AlertDialogTitle as AlertDialogTitleEl,   
   AlertDialogDescription as AlertDialogDescriptionEl, 
   AlertDialogFooter,
-  AlertDialogTrigger, // Added missing import
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -772,7 +772,7 @@ export default function AiCsAssistantPage() {
                         className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                       >
                         <div
-                          className={`max-w-xs lg:max-w-md px-4 py-2 rounded-xl shadow ${
+                          className={`px-4 py-2 rounded-xl shadow ${
                             message.sender === 'user'
                               ? 'bg-primary text-primary-foreground'
                               : 'bg-secondary text-secondary-foreground'
@@ -805,7 +805,7 @@ export default function AiCsAssistantPage() {
                         </div>
                       )}
                       {message.sender === 'ai' && message.feedback === 'bad' && message.isEditingCorrection && !message.correction && (
-                        <div className="mt-2 ml-1 space-y-2 max-w-md">
+                        <div className="mt-2 ml-1 space-y-2">
                           <Textarea
                             placeholder="Tulis koreksi Anda di sini..."
                             value={message.currentCorrectionText || ''}
@@ -819,7 +819,7 @@ export default function AiCsAssistantPage() {
                         </div>
                       )}
                       {message.sender === 'ai' && message.correction && (
-                        <Card className="mt-2 ml-1 p-3 border-green-500 bg-green-50 dark:bg-green-900/30 max-w-md">
+                        <Card className="mt-2 ml-1 p-3 border-green-500 bg-green-50 dark:bg-green-900/30">
                           <p className="text-xs font-medium text-green-700 dark:text-green-300">Koreksi Anda:</p>
                           <p className="text-sm text-green-800 dark:text-green-200 whitespace-pre-wrap">{message.correction}</p>
                         </Card>
@@ -1350,5 +1350,6 @@ export default function AiCsAssistantPage() {
     </div>
   );
 }
+
 
 
