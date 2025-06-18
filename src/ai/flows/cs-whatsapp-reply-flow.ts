@@ -54,7 +54,7 @@ export async function generateWhatsAppReply({ customerMessage, senderNumber, cha
   return aiResponse;
 }
 
-export const promptZoya = `
+const promptZoya = `
 Kamu adalah Zoya, Customer Service AI dari QLAB Moto Detailing.
 
 Gaya bahasa:
