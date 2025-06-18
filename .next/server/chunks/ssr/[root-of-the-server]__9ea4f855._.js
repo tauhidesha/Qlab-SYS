@@ -476,12 +476,13 @@ const searchServiceByKeywordTool = __TURBOPACK__imported__module__$5b$project$5d
     inputSchema: SearchServiceInputSchema,
     outputSchema: SearchServiceOutputSchema
 }, async (input)=>{
-    // Firebase client 'db' is imported. It's assumed to be initialized.
-    // Error handling for db initialization is in '@/lib/firebase.ts'.
+    if (!__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"]) {
+        throw new Error("[searchServiceByKeywordTool.ts] FATAL: Client Firestore 'db' is not available at module load time. Firebase Client init failed or import order issue.");
+    }
     const { keyword, size, paintType } = input;
     console.log(`[searchServiceByKeywordTool] Searching for keyword: "${keyword}", size: "${size || 'any'}", paintType: "${paintType || 'any'}"`);
     const servicesCollectionRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'services');
-    const snapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["query"])(servicesCollectionRef)); // Use firestoreQuery if needed, or just servicesCollectionRef
+    const snapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["query"])(servicesCollectionRef));
     const servicesFromDb = snapshot.docs.map((doc)=>({
             id: doc.id,
             ...doc.data()
@@ -506,7 +507,6 @@ const searchServiceByKeywordTool = __TURBOPACK__imported__module__$5b$project$5d
         if (svc.category?.toLowerCase().includes(keywordLower)) {
             currentScore += 2;
         }
-        // Assuming 'aliases' field exists and is an array of strings in ServiceProduct type
         if (svc.aliases && Array.isArray(svc.aliases)) {
             if (svc.aliases.some((alias)=>alias.toLowerCase().includes(keywordLower))) {
                 currentScore += 8;
@@ -529,7 +529,7 @@ const searchServiceByKeywordTool = __TURBOPACK__imported__module__$5b$project$5d
         console.log(`[searchServiceByKeywordTool] No service found matching keyword: "${keyword}"`);
         throw new Error(`Layanan tidak ditemukan untuk kata kunci "${keyword}".`);
     }
-    console.log(`[searchServiceByKeywordTool] Best match found: ${bestMatch.name} with score ${highestScore}`);
+    console.log(`[searchServiceByKeywordTool] Best match found for keyword "${keyword}": ${bestMatch.name} with score ${highestScore}`);
     let finalPrice = undefined;
     let matchedVariantName = undefined;
     let finalDuration = bestMatch.estimatedDuration || undefined;
@@ -537,10 +537,21 @@ const searchServiceByKeywordTool = __TURBOPACK__imported__module__$5b$project$5d
     if (bestMatch.variants && bestMatch.variants.length > 0) {
         let suitableVariants = bestMatch.variants;
         if (size) {
-            suitableVariants = suitableVariants.filter((v)=>v.name.toLowerCase().includes(size.toLowerCase()));
+            const sizeLower = size.toLowerCase();
+            const sizeRegex = new RegExp(`(?:\\bsize\\s+${sizeLower}\\b|\\b${sizeLower}\\b)`, 'i');
+            suitableVariants = suitableVariants.filter((v)=>sizeRegex.test(v.name));
+            console.log(`[searchServiceByKeywordTool] After size filter ("${size}"): ${suitableVariants.length} variants remaining for ${bestMatch.name}. Candidates: ${suitableVariants.map((v)=>v.name).join(', ')}`);
         }
         if (paintType) {
-            suitableVariants = suitableVariants.filter((v)=>v.name.toLowerCase().includes(paintType.toLowerCase()));
+            const bestMatchNameLower = bestMatch.name.toLowerCase();
+            const paintTypeLower = paintType.toLowerCase();
+            // Only filter variants by paintType if bestMatch.name itself doesn't already clearly specify this paintType
+            if (!bestMatchNameLower.includes(paintTypeLower)) {
+                suitableVariants = suitableVariants.filter((v)=>v.name.toLowerCase().includes(paintTypeLower));
+                console.log(`[searchServiceByKeywordTool] After paintType filter ("${paintType}") for variants of "${bestMatch.name}": ${suitableVariants.length} variants remaining. Candidates: ${suitableVariants.map((v)=>v.name).join(', ')}`);
+            } else {
+                console.log(`[searchServiceByKeywordTool] Skipping paintType filter on variants for "${bestMatch.name}" because base name already contains "${paintType}".`);
+            }
         }
         if (suitableVariants.length > 0) {
             const variantToUse = suitableVariants[0];
@@ -548,18 +559,11 @@ const searchServiceByKeywordTool = __TURBOPACK__imported__module__$5b$project$5d
             matchedVariantName = variantToUse.name;
             finalDuration = variantToUse.estimatedDuration || finalDuration;
         } else if (keyword.toLowerCase().includes("coating") && (size || paintType)) {
-            console.log(`[searchServiceByKeywordTool] Coating query with size/paintType but no exact variant match. Returning general info for ${bestMatch.name}.`);
+            console.log(`[searchServiceByKeywordTool] Coating query with size/paintType but no exact variant match for '${bestMatch.name}'. Price will be undefined.`);
         } else if (bestMatch.variants.length > 0 && !size && !paintType) {
-            if (bestMatch.price && bestMatch.price > 0) {
-                finalPrice = bestMatch.price;
-            } else {
-                finalPrice = bestMatch.variants[0].price;
-                matchedVariantName = bestMatch.variants[0].name;
-                finalDuration = bestMatch.variants[0].estimatedDuration || finalDuration;
-            }
+            console.log(`[searchServiceByKeywordTool] Variants exist for '${bestMatch.name}', but no size/paintType provided. Price will be undefined.`);
         }
     } else {
-        // No variants for the service
         finalPrice = bestMatch.price;
     }
     console.log(`[searchServiceByKeywordTool] Final price for "${bestMatch.name}" (Keyword: ${keyword}, Size: ${size || 'any'}, Paint: ${paintType || 'any'}, MatchedVariant: ${matchedVariantName || 'N/A'}): ${finalPrice === undefined ? 'Not Found/Specific' : finalPrice}`);

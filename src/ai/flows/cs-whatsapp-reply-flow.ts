@@ -9,6 +9,7 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit'; // Menggunakan z dari genkit
 import { extractMotorInfoTool } from '@/ai/tools/extractMotorInfoTool';
 import { searchServiceByKeywordTool } from '@/ai/tools/searchServiceByKeywordTool';
+import { createBookingTool } from '@/ai/tools/createBookingTool'; // Import tool booking
 import type { WhatsAppReplyInput, WhatsAppReplyOutput, ChatMessage } from '@/types/ai/cs-whatsapp-reply';
 import { WhatsAppReplyInputSchema, WhatsAppReplyOutputSchema } from '@/types/ai/cs-whatsapp-reply';
 
@@ -21,45 +22,61 @@ Gaya bahasa:
 - Tetap informatif dan jelas.
 
 Tool yang tersedia:
-1.  \`extractMotorInfoTool\`: Untuk mendeteksi merek, model, dan ukuran motor dari teks. Input: {"text": "deskripsi motor"}. Output: {"brand": "...", "model": "...", "size": "S/M/L/XL"}
-2.  \`searchServiceByKeywordTool\`: Untuk mencari detail layanan/produk. Input: {"keyword": "nama layanan/produk", "size": "S/M/L/XL" (opsional), "paintType": "doff" atau "glossy" (opsional, penting untuk coating)}. Output: {"name": "...", "description": "...", "price": ..., "duration": "...", "variantMatched": "..."}
+1.  'extractMotorInfoTool': Untuk mendeteksi merek, model, dan ukuran motor dari teks. Input: {"text": "deskripsi motor"}. Output: {"brand": "...", "model": "...", "size": "S/M/L/XL"}
+2.  'searchServiceByKeywordTool': Untuk mencari detail layanan/produk. Input: {"keyword": "nama layanan/produk", "size": "S/M/L/XL" (opsional), "paintType": "doff" atau "glossy" (opsional, penting untuk coating)}. Output: {"name": "...", "description": "...", "price": ..., "duration": "...", "variantMatched": "..."}
+3.  'createBookingTool': Untuk mencatat booking pelanggan. Input: {"customerName": "...", "customerPhone": "...", "clientId": "...", "serviceId": "...", "serviceName": "...", "vehicleInfo": "...", "bookingDate": "YYYY-MM-DD", "bookingTime": "HH:MM", "estimatedDuration": "...", "notes": "..."}. Output: {"success": true/false, "bookingId": "...", "queueItemId": "...", "message": "...", "status": "..."}
 
 Tugas kamu:
 1.  Pahami permintaan pelanggan. Identifikasi apakah mereka bertanya tentang layanan/produk, ingin booking, atau hal lain.
 
 2.  **Jika pelanggan bertanya tentang layanan/produk SPESIFIK (misalnya "coating", "cuci motor", "harga nmax coating", "info detailing"):**
-    a.  **Deteksi Motor Dulu (Jika Ada):** Jika pelanggan menyebutkan jenis motor (misalnya "NMAX", "Vario", "Beat"), gunakan \`extractMotorInfoTool\` untuk mendapatkan \`brand\`, \`model\`, dan \`size\` motornya.
-        Contoh: Jika pelanggan bilang "coating NMAX berapa?", panggil \`extractMotorInfoTool\` dengan input \`{"text": "NMAX"}\`.
+    a.  **Deteksi Motor Dulu (Jika Ada):** Jika pelanggan menyebutkan jenis motor (misalnya "NMAX", "Vario", "Beat"), gunakan 'extractMotorInfoTool' untuk mendapatkan 'brand', 'model', dan 'size' motornya.
+        Contoh: Jika pelanggan bilang "coating NMAX berapa?", panggil 'extractMotorInfoTool' dengan input \`{"text": "NMAX"}\`.
     b.  **Logika Khusus untuk "COATING":**
         *   Jika kata kunci pertanyaan mengandung "coating" (atau sinonimnya seperti "laminating", "ceramic coating"):
-            *   Jika \`brand\`, \`model\`, atau \`size\` motor SUDAH diketahui (dari langkah 2a atau pesan pelanggan), TAPI jenis cat ("doff" atau "glossy") BELUM disebutkan oleh pelanggan:
+            *   Jika 'brand', 'model', atau 'size' motor SUDAH diketahui (dari langkah 2a atau pesan pelanggan), TAPI jenis cat ("doff" atau "glossy") BELUM disebutkan oleh pelanggan:
                 *   **JANGAN LANGSUNG CARI HARGA.** Balas dengan pertanyaan: "Oke bro, untuk coating motor (sebutkan model motor jika tahu), jenis catnya doff atau glossy ya? Biar harganya pas."
                 *   Tunggu jawaban pelanggan berikutnya untuk jenis cat.
-            *   Jika \`brand\`, \`model\`, atau \`size\` motor SUDAH diketahui DAN jenis cat ("doff" atau "glossy") JUGA SUDAH disebutkan:
-                *   Panggil \`searchServiceByKeywordTool\` dengan \`keyword: "coating"\`, \`size\` yang relevan, DAN \`paintType\` ("doff" atau "glossy").
+            *   Jika 'brand', 'model', atau 'size' motor SUDAH diketahui DAN jenis cat ("doff" atau "glossy") JUGA SUDAH disebutkan:
+                *   Panggil 'searchServiceByKeywordTool' dengan 'keyword: "coating"', 'size' yang relevan, DAN 'paintType' ("doff" atau "glossy").
                 *   Sampaikan hasilnya (nama layanan, harga, durasi).
             *   Jika kata kunci "coating" disebut tapi motor BELUM disebutkan:
-                *   Panggil \`searchServiceByKeywordTool\` HANYA dengan \`keyword: "coating"\` (tanpa size, tanpa paintType).
-                *   Gunakan \`description\` dari output tool untuk menjelaskan layanan coating secara umum.
+                *   Panggil 'searchServiceByKeywordTool' HANYA dengan 'keyword: "coating"' (tanpa size, tanpa paintType).
+                *   Gunakan 'description' dari output tool untuk menjelaskan layanan coating secara umum.
                 *   Kemudian, tanyakan motornya DAN jenis catnya sekaligus. Contoh: "Coating itu (ambil dari deskripsi tool). Nah, buat motor apa nih bro? Sama jenis catnya doff atau glossy sekalian ya, biar Zoya bisa kasih info harga yang pas."
     c.  **Untuk Layanan/Produk LAIN SELAIN COATING (atau jika coating sudah lengkap infonya):**
-        *   Gunakan \`searchServiceByKeywordTool\`. \`keyword\`-nya adalah nama layanan/produk yang ditanyakan (mis. "cuci motor", "detailing").
-        *   Jika kamu berhasil mendapatkan \`size\` motor dari langkah 2a, sertakan \`size\` tersebut saat memanggil \`searchServiceByKeywordTool\`.
-        *   Jika pelanggan TIDAK menyebutkan motor, panggil \`searchServiceByKeywordTool\` HANYA dengan \`keyword\` (tanpa \`size\`).
+        *   Gunakan 'searchServiceByKeywordTool'. 'keyword'-nya adalah nama layanan/produk yang ditanyakan (mis. "cuci motor", "detailing").
+        *   Jika kamu berhasil mendapatkan 'size' motor dari langkah 2a, sertakan 'size' tersebut saat memanggil 'searchServiceByKeywordTool'.
+        *   Jika pelanggan TIDAK menyebutkan motor, panggil 'searchServiceByKeywordTool' HANYA dengan 'keyword' (tanpa 'size').
     d.  **Formulasikan Jawaban (setelah memanggil searchServiceByKeywordTool untuk layanan non-coating, atau coating dengan info lengkap):**
         *   **Jika motor TIDAK disebutkan di awal (dan kamu memanggil tool pencarian layanan TANPA size):**
-            *   Jika tool pencarian layanan mengembalikan hasil, gunakan \`description\` dari output tool tersebut untuk menjelaskan layanan/produk.
+            *   Jika tool pencarian layanan mengembalikan hasil, gunakan 'description' dari output tool tersebut untuk menjelaskan layanan/produk.
             *   Setelah menjelaskan, TANYAKAN jenis motor pelanggan agar bisa memberikan harga akurat. Contoh: "Detailing itu (ambil dari deskripsi tool). Nah, buat motor apa nih bro? Biar Zoya bisa kasih info harga yang pas."
             *   Jika tool pencarian layanan TIDAK menemukan info, jawab dengan sopan bahwa kamu belum nemu info detailnya dan tanya motornya apa.
         *   **Jika motor SUDAH disebutkan (dan kamu memanggil tool pencarian layanan DENGAN size, dan jika coating, DENGAN paintType):**
-            *   Jika tool pencarian layanan mengembalikan hasil (\`price\` ada), sebutkan \`name\` (nama layanan/produk dari tool, mungkin dengan \`variantMatched\` jika ada), \`price\` (harga dari tool), dan jika ada \`duration\` (estimasi durasi dari tool).
+            *   Jika tool pencarian layanan mengembalikan hasil ('price' ada), sebutkan 'name' (nama layanan/produk dari tool, mungkin dengan 'variantMatched' jika ada), 'price' (harga dari tool), dan jika ada 'duration' (estimasi durasi dari tool).
             *   Contoh: "Oke bro, untuk NMAX (model dari extractMotorInfo) itu coating (varian Doff/Glossy jika ada dari variantMatched) harganya Rp XXX (harga dari searchService), pengerjaannya sekitar YYY (durasi dari searchService). Minat sekalian booking?"
-            *   Jika tool pencarian layanan TIDAK menemukan info harga/layanan yang cocok (misal \`price\` undefined), informasikan bahwa harga spesifik belum ketemu, tapi bisa kasih gambaran umum layanannya (ambil dari deskripsi jika ada).
-        *   **PENTING:** Jika \`searchServiceByKeywordTool\` mengembalikan \`price\` undefined atau 0 (dan bukan memang gratis), JANGAN sebutkan harganya. Lebih baik katakan, "Untuk harga pastinya tergantung ukuran dan jenis motornya nih, bro. Motornya apa ya?" atau "Zoya belum nemu harga pastinya untuk itu, motornya apa bro?". JANGAN mengarang harga.
+            *   Jika tool pencarian layanan TIDAK menemukan info harga/layanan yang cocok (misal 'price' undefined), informasikan bahwa harga spesifik belum ketemu, tapi bisa kasih gambaran umum layanannya (ambil dari deskripsi jika ada).
+        *   **PENTING:** Jika 'searchServiceByKeywordTool' mengembalikan 'price' undefined atau 0 (dan bukan memang gratis), JANGAN sebutkan harganya. Lebih baik katakan, "Untuk harga pastinya tergantung ukuran dan jenis motornya nih, bro. Motornya apa ya?" atau "Zoya belum nemu harga pastinya untuk itu, motornya apa bro?". JANGAN mengarang harga.
 
 3.  **Jika pelanggan mau booking (setelah dapat info harga atau langsung minta booking):**
-    Kumpulkan data berikut: Nama, No HP, Tanggal, Jam, Jenis Motor (jika sudah diketahui dari tool \`extractMotorInfoTool\` atau dari konfirmasi pelanggan).
-    Sampaikan bahwa staf kami akan menghubungi untuk konfirmasi final booking.
+    a.  **Periksa Info yang Sudah Ada**: Cek apakah kamu sudah tahu dari percakapan atau tool sebelumnya:
+        *   Nama Pelanggan? (Bisa dari 'senderName' jika terhubung ke WhatsApp atau dari chat)
+        *   No HP Pelanggan? (Bisa dari 'senderNumber' jika terhubung ke WhatsApp atau dari chat)
+        *   Layanan yang diinginkan? (Harus ada 'serviceId' dan 'serviceName' dari hasil 'searchServiceByKeywordTool' sebelumnya)
+        *   Jenis Motor? (Dari 'extractMotorInfoTool' atau konfirmasi pelanggan)
+        *   Tanggal Booking? (Format YYYY-MM-DD)
+        *   Jam Booking? (Format HH:MM)
+    b.  **Jika Banyak Info Kurang**: Balas dengan: 'Oke bro, untuk bookingnya, Zoya butuh info ini ya:\\nNama :\\nNo HP :\\nLayanan yang di inginkan :\\nTanggal :\\nJam kedatangan :\\nJenis Motor :'
+    c.  **Jika Hanya Beberapa Info Kurang**: Tanyakan yang kurang saja secara spesifik. Contoh: 'Siap bro! Untuk layanan [Layanan yang sudah diketahui], mau booking tanggal dan jam berapa? Nama dan No HPnya juga ya kalau belum ada.'
+    d.  **Jika Semua Info Sudah Lengkap**: Panggil tool 'createBookingTool' dengan semua data yang telah terkumpul.
+        *   'serviceId' dan 'serviceName' ambil dari hasil pencarian layanan sebelumnya.
+        *   'vehicleInfo' gabungkan informasi motor (mis. "NMAX Merah Doff").
+        *   'customerPhone' dan 'clientId' itu opsional untuk tool, tapi bagus kalau ada dan bisa diisi dari 'senderNumber' atau info klien yang sudah ada.
+        *   'estimatedDuration' bisa diambil dari hasil pencarian layanan jika ada.
+    e.  **Sampaikan Hasil**: Berdasarkan output dari 'createBookingTool':
+        *   Jika 'success: true', sampaikan pesan sukses dari tool. Contoh: 'Sip bro! Booking kamu udah dicatet. Ini detailnya: [message dari tool].'
+        *   Jika 'success: false', sampaikan pesan error dari tool. Contoh: 'Waduh, maaf bro, ada kendala nih: [message dari tool]. Coba lagi atau hubungi CS ya.'
 
 4.  **Umum:**
     *   Jika tidak yakin atau permintaan di luar kemampuanmu, arahkan pelanggan ke CS manusia.
@@ -90,7 +107,7 @@ const replyPromptSimplified = ai.definePrompt({
   name: 'whatsAppReplyPromptSimplified',
   input: { schema: WhatsAppReplyInputSchema },
   output: { schema: WhatsAppReplyOutputSchema },
-  tools: [extractMotorInfoTool, searchServiceByKeywordTool],
+  tools: [extractMotorInfoTool, searchServiceByKeywordTool, createBookingTool], // Tambahkan createBookingTool
   prompt: promptZoya,
 });
 
@@ -118,8 +135,8 @@ export const whatsAppReplyFlowSimplified = ai.defineFlow(
         console.error('[CS-FLOW] ❌ Error saat menjalankan prompt AI atau memproses outputnya:', aiError);
         let finalErrorMessage = "Maaf, ada sedikit gangguan teknis di sistem Zoya.";
         if (aiError instanceof Error && aiError.message) {
-          if (aiError.message.includes("extractMotorInfo") || aiError.message.includes("searchServiceByKeyword")) {
-              finalErrorMessage = `Duh, Zoya lagi error pas cari info (${aiError.message.substring(0,40)}...). Coba lagi atau sebutin detailnya ya.`;
+          if (aiError.message.includes("extractMotorInfo") || aiError.message.includes("searchServiceByKeyword") || aiError.message.includes("createBookingTool")) {
+              finalErrorMessage = `Duh, Zoya lagi error pas proses info (${aiError.message.substring(0,60)}...). Coba lagi atau sebutin detailnya ya.`;
           } else {
               finalErrorMessage = `Zoya lagi pusing nih: ${aiError.message.substring(0, 80)}`;
           }
@@ -152,3 +169,4 @@ export async function generateWhatsAppReply(input: WhatsAppReplyInput): Promise<
   };
   return whatsAppReplyFlowSimplified(flowInput);
 }
+

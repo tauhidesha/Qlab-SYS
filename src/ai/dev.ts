@@ -8,12 +8,14 @@ console.log(`  - Google API Key (from env): ${process.env.GOOGLE_API_KEY ? 'Exis
 
 // Ensure Firebase is imported AFTER dotenv config() and minimal logging
 import '@/lib/firebase'; 
+import '@/lib/firebase-admin'; // Keep admin import for potential other uses, though tools might not use it
 
 // Only import the core WhatsApp reply flow and the new tool
 import '@/ai/flows/cs-whatsapp-reply-flow.ts';
 import '@/ai/tools/extractMotorInfoTool.ts';
-import '@/ai/tools/searchServiceByKeywordTool.ts'; // Mengganti productLookupTool dengan tool baru
+import '@/ai/tools/searchServiceByKeywordTool.ts';
+import '@/ai/tools/createBookingTool.ts'; // Import the new booking tool
 
 
-console.log("[src/ai/dev.ts] Core WhatsApp reply flow, extractMotorInfoTool, & searchServiceByKeywordTool imported.");
+console.log("[src/ai/dev.ts] Core WhatsApp reply flow, extractMotorInfoTool, searchServiceByKeywordTool, & createBookingTool imported.");
 console.log("[src/ai/dev.ts] Genkit Developer UI should be available if no errors (default port: 4001).");

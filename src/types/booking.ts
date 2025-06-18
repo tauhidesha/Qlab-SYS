@@ -43,7 +43,7 @@ export interface CreateBookingToolOutput {
   success: boolean;
   bookingId?: string;
   queueItemId?: string;
-  message: string; // e.g., "Booking berhasil dibuat dan ditambahkan ke antrian." atau "Booking untuk besok berhasil."
+  message: string; // e.g., "Booking berhasil dibuat dan ditambahkan ke antrian." atau "Booking untuk [tanggal] berhasil."
   status?: BookingStatus;
 }
 
@@ -59,4 +59,3 @@ export interface ManualBookingFormData {
   notes?: string;
   source: 'Manual' | 'WhatsApp' | 'Online'; // Untuk membedakan sumber inputan
 }
-
