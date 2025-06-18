@@ -41,10 +41,10 @@ export const searchServiceByKeywordTool = ai.defineTool(
 
     const { keyword, size, paintType } = input;
     console.log(`[searchServiceByKeywordTool] Searching for keyword: "${keyword}", size: "${size || 'any'}", paintType: "${paintType || 'any'}"`);
-    
+
     const servicesCollectionRef = collection(db, 'services');
-    const snapshot = await getDocs(firestoreQuery(servicesCollectionRef)); 
-    
+    const snapshot = await getDocs(firestoreQuery(servicesCollectionRef));
+
     const servicesFromDb: ServiceProduct[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceProduct));
 
     if (servicesFromDb.length === 0) {
@@ -59,10 +59,10 @@ export const searchServiceByKeywordTool = ai.defineTool(
     for (const svc of servicesFromDb) {
       let currentScore = 0;
       const nameLower = svc.name.toLowerCase();
-      
+
       if (nameLower.includes(keywordLower)) {
         currentScore += 10;
-        if (nameLower === keywordLower) currentScore += 15; 
+        if (nameLower === keywordLower) currentScore += 15;
       }
       if (svc.description?.toLowerCase().includes(keywordLower)) {
         currentScore += 3;
@@ -79,7 +79,7 @@ export const searchServiceByKeywordTool = ai.defineTool(
       if (svc.variants && svc.variants.length > 0) {
         svc.variants.forEach(variant => {
           if (variant.name.toLowerCase().includes(keywordLower)) {
-            currentScore += 5; 
+            currentScore += 5;
           }
         });
       }
@@ -89,7 +89,7 @@ export const searchServiceByKeywordTool = ai.defineTool(
         bestMatch = svc;
       }
     }
-    
+
     if (!bestMatch || highestScore === 0) {
       console.log(`[searchServiceByKeywordTool] No service found matching keyword: "${keyword}"`);
       throw new Error(`Layanan tidak ditemukan untuk kata kunci "${keyword}".`);
@@ -106,54 +106,44 @@ export const searchServiceByKeywordTool = ai.defineTool(
 
       if (size) {
         const sizeLower = size.toLowerCase();
-        // Regex to match "size s" or "s" as a whole word, or just the letter if it's S,M,L,XL
-        // This handles cases like "SIZE S", "Variant S", "S - Doff"
         const sizeRegex = new RegExp(`(?:\\bsize\\s+${sizeLower}\\b|\\b${sizeLower}\\b)`, 'i');
         suitableVariants = suitableVariants.filter(v => sizeRegex.test(v.name));
         console.log(`[searchServiceByKeywordTool] After size filter ("${size}"): ${suitableVariants.length} variants remaining for ${bestMatch.name}. Candidates: ${suitableVariants.map(v=>v.name).join(', ')}`);
       }
 
-      if (paintType) { 
+      if (paintType) {
+        const bestMatchNameLower = bestMatch.name.toLowerCase();
         const paintTypeLower = paintType.toLowerCase();
-        suitableVariants = suitableVariants.filter(v => v.name.toLowerCase().includes(paintTypeLower));
-        console.log(`[searchServiceByKeywordTool] After paintType filter ("${paintType}"): ${suitableVariants.length} variants remaining for ${bestMatch.name}. Candidates: ${suitableVariants.map(v=>v.name).join(', ')}`);
+        // Only filter variants by paintType if bestMatch.name itself doesn't already clearly specify this paintType
+        if (!bestMatchNameLower.includes(paintTypeLower)) {
+          suitableVariants = suitableVariants.filter(v => v.name.toLowerCase().includes(paintTypeLower));
+          console.log(`[searchServiceByKeywordTool] After paintType filter ("${paintType}") for variants of "${bestMatch.name}": ${suitableVariants.length} variants remaining. Candidates: ${suitableVariants.map(v=>v.name).join(', ')}`);
+        } else {
+           console.log(`[searchServiceByKeywordTool] Skipping paintType filter on variants for "${bestMatch.name}" because base name already contains "${paintType}".`);
+        }
       }
 
       if (suitableVariants.length > 0) {
-        // If multiple variants match, pick the first one.
-        // More sophisticated matching (e.g., best name match) could be added here.
-        const variantToUse = suitableVariants[0]; 
+        const variantToUse = suitableVariants[0];
         finalPrice = variantToUse.price;
-        matchedVariantName = variantToUse.name; 
+        matchedVariantName = variantToUse.name;
         finalDuration = variantToUse.estimatedDuration || finalDuration;
       } else if (keyword.toLowerCase().includes("coating") && (size || paintType)) {
-         // If it's a coating query with size/paintType specified, but no exact variant match.
-         // Price should be undefined so Zoya asks for clarification or says price not found.
          console.log(`[searchServiceByKeywordTool] Coating query with size/paintType but no exact variant match for '${bestMatch.name}'. Price will be undefined.`);
-         // finalPrice remains undefined, matchedVariantName remains undefined
       } else if (bestMatch.variants.length > 0 && (!size && !paintType)) {
-        // This case: variants exist, but NO size AND NO paintType were provided by the user.
-        // Zoya should explain the service and ask for motor type/size.
-        // For the tool, it's okay to not return a price here, or return base service price if Zoya needs it.
-        // Let's keep price undefined for now to force Zoya to ask.
-        // If bestMatch.price is valid and we want to show it as a general price, uncomment next lines.
-        // if (bestMatch.price && bestMatch.price > 0) {
-        //     finalPrice = bestMatch.price;
-        // }
         console.log(`[searchServiceByKeywordTool] Variants exist for '${bestMatch.name}', but no size/paintType provided. Price will be undefined.`);
       }
     } else {
-      // No variants for the service, use base price of the bestMatch.
       finalPrice = bestMatch.price;
     }
-    
+
     console.log(`[searchServiceByKeywordTool] Final price for "${bestMatch.name}" (Keyword: ${keyword}, Size: ${size || 'any'}, Paint: ${paintType || 'any'}, MatchedVariant: ${matchedVariantName || 'N/A'}): ${finalPrice === undefined ? 'Not Found/Specific' : finalPrice}`);
 
     return {
       name: bestMatch.name,
       description: finalDescription,
       price: finalPrice,
-      size: size, 
+      size: size,
       duration: finalDuration,
       variantMatched: matchedVariantName,
     };
