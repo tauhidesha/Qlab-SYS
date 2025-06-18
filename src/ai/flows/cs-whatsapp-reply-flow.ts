@@ -104,37 +104,51 @@ export const whatsAppReplyFlowSimplified = ai.defineFlow(
     outputSchema: WhatsAppReplyOutputSchema,
   },
   async (input: WhatsAppReplyInput): Promise<WhatsAppReplyOutput> => {
-    console.log("[CS-FLOW] whatsAppReplyFlowSimplified input:", JSON.stringify(input, null, 2));
-    try {
-      const { output } = await replyPromptSimplified(input);
-      if (!output || !output.suggestedReply) { 
-        console.error('[CS-FLOW] ❌ Gagal mendapatkan balasan dari AI atau output tidak sesuai skema (output atau suggestedReply null/undefined). Mengembalikan default.');
-        return { suggestedReply: "Maaf, Zoya lagi bingung nih. Bisa diulang pertanyaannya atau coba beberapa saat lagi?" };
+    try { // Outer try block for the entire flow logic
+      console.log("[CS-FLOW] whatsAppReplyFlowSimplified input:", JSON.stringify(input, null, 2));
+      try { // Inner try block specifically for the AI call and its direct output processing
+        const { output } = await replyPromptSimplified(input);
+        if (!output || !output.suggestedReply) { 
+          console.error('[CS-FLOW] ❌ Gagal mendapatkan balasan dari AI atau output tidak sesuai skema (output atau suggestedReply null/undefined). Mengembalikan default.');
+          return { suggestedReply: "Maaf, Zoya lagi bingung nih. Bisa diulang pertanyaannya atau coba beberapa saat lagi?" };
+        }
+        console.log("[CS-FLOW] whatsAppReplyFlowSimplified output dari prompt:", output);
+        return output;
+      } catch (aiError: any) { // Catch errors specifically from the AI prompt/tool execution
+        console.error('[CS-FLOW] ❌ Error saat menjalankan prompt AI atau memproses outputnya:', aiError);
+        let finalErrorMessage = "Maaf, ada sedikit gangguan teknis di sistem Zoya.";
+        if (aiError instanceof Error && aiError.message) {
+          if (aiError.message.includes("extractMotorInfo") || aiError.message.includes("searchServiceByKeyword")) {
+              finalErrorMessage = `Duh, Zoya lagi error pas cari info (${aiError.message.substring(0,40)}...). Coba lagi atau sebutin detailnya ya.`;
+          } else {
+              finalErrorMessage = `Zoya lagi pusing nih: ${aiError.message.substring(0, 80)}`;
+          }
+        } else if (typeof aiError === 'string') {
+          finalErrorMessage = `Zoya lagi error: ${aiError.substring(0, 80)}`;
+        }
+        return { suggestedReply: finalErrorMessage };
       }
-      console.log("[CS-FLOW] whatsAppReplyFlowSimplified output dari prompt:", output);
-      return output;
-    } catch (e: any) {
-      console.error('[CS-FLOW] ❌ Error saat menjalankan prompt AI atau memproses outputnya:', e);
-      const errorMessage = e instanceof Error ? e.message : String(e);
-      // Logika untuk menangani error dari tool extractMotorInfoTool
-      if (errorMessage.includes("Kesalahan pada tool extractMotorInfo")) {
-          return { suggestedReply: `Duh, Zoya lagi error di bagian info motor nih (${errorMessage.substring(0,60)}...). Mungkin motornya belum Zoya kenal. Bisa sebutin lagi tipe motornya, bro? Atau kalau udah, mungkin Zoya butuh di-refresh dulu.` };
-      }
-      return { suggestedReply: `Duh, Zoya lagi pusing tujuh keliling (${errorMessage.substring(0,60)}...). Tanya lagi nanti ya, bro!` };
+    } catch (flowError: any) { // Catch any other errors within the flow (e.g., JSON.stringify, unexpected issues)
+        console.error('[CS-FLOW] ❌ Critical error dalam flow whatsAppReplyFlowSimplified:', flowError);
+        // Return a generic, safe, valid JSON response
+        return { suggestedReply: "Waduh, sistem Zoya lagi ada kendala besar nih. Mohon coba beberapa saat lagi ya." };
     }
   }
 );
 
 export async function generateWhatsAppReply(input: WhatsAppReplyInput): Promise<WhatsAppReplyOutput> {
+  // Memastikan semua properti opsional yang dibutuhkan oleh prompt ada, meskipun undefined
   const flowInput: WhatsAppReplyInput = {
     customerMessage: input.customerMessage,
-    senderNumber: input.senderNumber,
+    senderNumber: input.senderNumber, // Boleh undefined jika tidak ada
     chatHistory: input.chatHistory || [],
-    currentDate: input.currentDate,
-    currentTime: input.currentTime,
-    tomorrowDate: input.tomorrowDate,
-    dayAfterTomorrowDate: input.dayAfterTomorrowDate,
+    // Pastikan nilai default atau dari input ada untuk variabel tanggal/waktu
+    currentDate: input.currentDate || new Date().toLocaleDateString('id-ID', { year: 'numeric', month: '2-digit', day: '2-digit' }),
+    currentTime: input.currentTime || new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false }),
+    tomorrowDate: input.tomorrowDate || new Date(Date.now() + 86400000).toLocaleDateString('id-ID', { year: 'numeric', month: '2-digit', day: '2-digit' }),
+    dayAfterTomorrowDate: input.dayAfterTomorrowDate || new Date(Date.now() + 2 * 86400000).toLocaleDateString('id-ID', { year: 'numeric', month: '2-digit', day: '2-digit' }),
+    agentBehavior: input.agentBehavior, // Boleh undefined
+    knowledgeBase: input.knowledgeBase, // Boleh undefined
   };
   return whatsAppReplyFlowSimplified(flowInput);
 }
-
