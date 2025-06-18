@@ -304,33 +304,44 @@ __turbopack_context__.s({
 });
 var __TURBOPACK__imported__module__$5b$externals$5d2f$firebase$2d$admin__$5b$external$5d$__$28$firebase$2d$admin$2c$__cjs$29$__ = __turbopack_context__.i("[externals]/firebase-admin [external] (firebase-admin, cjs)");
 ;
-// Minimal logging
+// Enhanced logging
 console.log("[firebase-admin.ts] Attempting to initialize Firebase Admin SDK...");
+console.log(`[firebase-admin.ts] Current working directory: ${process.cwd()}`);
+console.log(`[firebase-admin.ts] Checking environment variables for Admin SDK:`);
+console.log(`  - GOOGLE_APPLICATION_CREDENTIALS: ${process.env.GOOGLE_APPLICATION_CREDENTIALS || 'NOT SET'}`);
+console.log(`  - FIRESTORE_EMULATOR_HOST: ${process.env.FIRESTORE_EMULATOR_HOST || 'NOT SET'}`);
+console.log(`  - FIREBASE_AUTH_EMULATOR_HOST: ${process.env.FIREBASE_AUTH_EMULATOR_HOST || 'NOT SET'}`);
+let firebaseConfigProjectId = 'NOT PARSED YET';
+try {
+    if (process.env.FIREBASE_CONFIG) {
+        const fbConfig = JSON.parse(process.env.FIREBASE_CONFIG);
+        firebaseConfigProjectId = fbConfig.projectId || 'projectId NOT FOUND in FIREBASE_CONFIG';
+    } else {
+        firebaseConfigProjectId = 'FIREBASE_CONFIG NOT SET';
+    }
+} catch (e) {
+    firebaseConfigProjectId = 'Error parsing FIREBASE_CONFIG';
+}
+console.log(`  - FIREBASE_CONFIG (Project ID from it): ${firebaseConfigProjectId}`);
+console.log(`  - GCLOUD_PROJECT (often used as fallback for Project ID): ${process.env.GCLOUD_PROJECT || 'NOT SET'}`);
 if (!__TURBOPACK__imported__module__$5b$externals$5d2f$firebase$2d$admin__$5b$external$5d$__$28$firebase$2d$admin$2c$__cjs$29$__["apps"].length) {
     try {
-        // When deployed to App Hosting or running with emulators (e.g., via `firebase emulators:start`),
-        // the SDK should auto-configure based on the environment.
-        // For local development outside emulators, GOOGLE_APPLICATION_CREDENTIALS environment variable
-        // pointing to your service account key JSON file is typically required.
         (0, __TURBOPACK__imported__module__$5b$externals$5d2f$firebase$2d$admin__$5b$external$5d$__$28$firebase$2d$admin$2c$__cjs$29$__["initializeApp"])();
-        // Verify initialization by checking app name
         if ((0, __TURBOPACK__imported__module__$5b$externals$5d2f$firebase$2d$admin__$5b$external$5d$__$28$firebase$2d$admin$2c$__cjs$29$__["app"])().name) {
-            console.log(`[firebase-admin.ts] Firebase Admin SDK initialized successfully. App Name: ${(0, __TURBOPACK__imported__module__$5b$externals$5d2f$firebase$2d$admin__$5b$external$5d$__$28$firebase$2d$admin$2c$__cjs$29$__["app"])().name}`);
+            console.log(`[firebase-admin.ts] Firebase Admin SDK initialized successfully. App Name: ${(0, __TURBOPACK__imported__module__$5b$externals$5d2f$firebase$2d$admin__$5b$external$5d$__$28$firebase$2d$admin$2c$__cjs$29$__["app"])().name}, Project ID: ${(0, __TURBOPACK__imported__module__$5b$externals$5d2f$firebase$2d$admin__$5b$external$5d$__$28$firebase$2d$admin$2c$__cjs$29$__["app"])().options.projectId}`);
         } else {
-            // This case might be rare if initializeApp() itself doesn't throw for common issues
             throw new Error("Firebase Admin SDK initializeApp() called, but app name is not available. Initialization may be incomplete.");
         }
     } catch (e) {
         const errorMessage = `[firebase-admin.ts] Firebase Admin SDK initialization FAILED. Details: ${e.message}. Pastikan environment Anda sudah benar (mis. GOOGLE_APPLICATION_CREDENTIALS untuk pengembangan lokal di luar emulator, atau Anda sedang menjalankan di dalam environment Firebase/GCP). Cek juga apakah Project ID Firebase terkonfigurasi dengan benar.`;
         console.error(`\n\n🛑 ${errorMessage}\n\n`);
-        // Re-throw the error to make it clear that initialization failed and stop the process
-        // This is better than letting it proceed with potentially undefined db/auth.
+        console.error('[firebase-admin.ts] Full error object during initialization:', e);
         throw new Error(errorMessage, {
             cause: e
         });
     }
 } else {
-    console.log(`[firebase-admin.ts] Firebase Admin SDK already initialized. Using existing app: ${(0, __TURBOPACK__imported__module__$5b$externals$5d2f$firebase$2d$admin__$5b$external$5d$__$28$firebase$2d$admin$2c$__cjs$29$__["app"])().name}`);
+    console.log(`[firebase-admin.ts] Firebase Admin SDK already initialized. Using existing app: ${(0, __TURBOPACK__imported__module__$5b$externals$5d2f$firebase$2d$admin__$5b$external$5d$__$28$firebase$2d$admin$2c$__cjs$29$__["app"])().name}, Project ID: ${(0, __TURBOPACK__imported__module__$5b$externals$5d2f$firebase$2d$admin__$5b$external$5d$__$28$firebase$2d$admin$2c$__cjs$29$__["app"])().options.projectId}`);
 }
 let adminDb;
 let adminAuth;
@@ -348,7 +359,6 @@ try {
     adminAuth = (0, __TURBOPACK__imported__module__$5b$externals$5d2f$firebase$2d$admin__$5b$external$5d$__$28$firebase$2d$admin$2c$__cjs$29$__["auth"])();
     console.log('[firebase-admin.ts] Auth Admin instance obtained.');
 } catch (e) {
-    // Non-critical for current tools if Auth is not used, but good to log.
     console.warn(`[firebase-admin.ts] FAILED to get Auth Admin instance: ${e?.message}. Jika tidak menggunakan Admin Auth, ini bisa diabaikan.`);
     // @ts-ignore
     adminAuth = undefined;
@@ -378,6 +388,9 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 ;
 ;
 ;
+if (!__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2d$admin$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["adminDb"]) {
+    throw new Error("[extractMotorInfoTool.ts] FATAL: adminDb is not available at module load time. Firebase Admin init failed or import order issue.");
+}
 // Skema input untuk tool
 const ExtractMotorInfoInputSchema = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$common$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["z"].object({
     text: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$common$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["z"].string().describe('Teks dari pengguna yang mungkin berisi nama atau deskripsi motor.')
@@ -507,6 +520,9 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 ;
 ;
 ;
+if (!__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2d$admin$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["adminDb"]) {
+    throw new Error("[searchServiceByKeywordTool.ts] FATAL: adminDb is not available at module load time. Firebase Admin init failed or import order issue.");
+}
 const SearchServiceInputSchema = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$common$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["z"].object({
     keyword: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$common$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["z"].string().describe("Kata kunci untuk mencari layanan, mis. 'cuci', 'coating', 'nmax'."),
     size: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$common$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["z"].enum([
@@ -794,40 +810,71 @@ const whatsAppReplyFlowSimplified = __TURBOPACK__imported__module__$5b$project$5
     inputSchema: __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$ai$2f$cs$2d$whatsapp$2d$reply$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["WhatsAppReplyInputSchema"],
     outputSchema: __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$ai$2f$cs$2d$whatsapp$2d$reply$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["WhatsAppReplyOutputSchema"]
 }, async (input)=>{
-    console.log("[CS-FLOW] whatsAppReplyFlowSimplified input:", JSON.stringify(input, null, 2));
     try {
-        const { output } = await replyPromptSimplified(input);
-        if (!output || !output.suggestedReply) {
-            console.error('[CS-FLOW] ❌ Gagal mendapatkan balasan dari AI atau output tidak sesuai skema (output atau suggestedReply null/undefined). Mengembalikan default.');
+        console.log("[CS-FLOW] whatsAppReplyFlowSimplified input:", JSON.stringify(input, null, 2));
+        try {
+            const { output } = await replyPromptSimplified(input);
+            if (!output || !output.suggestedReply) {
+                console.error('[CS-FLOW] ❌ Gagal mendapatkan balasan dari AI atau output tidak sesuai skema (output atau suggestedReply null/undefined). Mengembalikan default.');
+                return {
+                    suggestedReply: "Maaf, Zoya lagi bingung nih. Bisa diulang pertanyaannya atau coba beberapa saat lagi?"
+                };
+            }
+            console.log("[CS-FLOW] whatsAppReplyFlowSimplified output dari prompt:", output);
+            return output;
+        } catch (aiError) {
+            console.error('[CS-FLOW] ❌ Error saat menjalankan prompt AI atau memproses outputnya:', aiError);
+            let finalErrorMessage = "Maaf, ada sedikit gangguan teknis di sistem Zoya.";
+            if (aiError instanceof Error && aiError.message) {
+                if (aiError.message.includes("extractMotorInfo") || aiError.message.includes("searchServiceByKeyword")) {
+                    finalErrorMessage = `Duh, Zoya lagi error pas cari info (${aiError.message.substring(0, 40)}...). Coba lagi atau sebutin detailnya ya.`;
+                } else {
+                    finalErrorMessage = `Zoya lagi pusing nih: ${aiError.message.substring(0, 80)}`;
+                }
+            } else if (typeof aiError === 'string') {
+                finalErrorMessage = `Zoya lagi error: ${aiError.substring(0, 80)}`;
+            }
             return {
-                suggestedReply: "Maaf, Zoya lagi bingung nih. Bisa diulang pertanyaannya atau coba beberapa saat lagi?"
+                suggestedReply: finalErrorMessage
             };
         }
-        console.log("[CS-FLOW] whatsAppReplyFlowSimplified output dari prompt:", output);
-        return output;
-    } catch (e) {
-        console.error('[CS-FLOW] ❌ Error saat menjalankan prompt AI atau memproses outputnya:', e);
-        const errorMessage = e instanceof Error ? e.message : String(e);
-        // Logika untuk menangani error dari tool extractMotorInfoTool
-        if (errorMessage.includes("Kesalahan pada tool extractMotorInfo")) {
-            return {
-                suggestedReply: `Duh, Zoya lagi error di bagian info motor nih (${errorMessage.substring(0, 60)}...). Mungkin motornya belum Zoya kenal. Bisa sebutin lagi tipe motornya, bro? Atau kalau udah, mungkin Zoya butuh di-refresh dulu.`
-            };
-        }
+    } catch (flowError) {
+        console.error('[CS-FLOW] ❌ Critical error dalam flow whatsAppReplyFlowSimplified:', flowError);
+        // Return a generic, safe, valid JSON response
         return {
-            suggestedReply: `Duh, Zoya lagi pusing tujuh keliling (${errorMessage.substring(0, 60)}...). Tanya lagi nanti ya, bro!`
+            suggestedReply: "Waduh, sistem Zoya lagi ada kendala besar nih. Mohon coba beberapa saat lagi ya."
         };
     }
 });
 async function generateWhatsAppReply(input) {
+    // Memastikan semua properti opsional yang dibutuhkan oleh prompt ada, meskipun undefined
     const flowInput = {
         customerMessage: input.customerMessage,
         senderNumber: input.senderNumber,
         chatHistory: input.chatHistory || [],
-        currentDate: input.currentDate,
-        currentTime: input.currentTime,
-        tomorrowDate: input.tomorrowDate,
-        dayAfterTomorrowDate: input.dayAfterTomorrowDate
+        // Pastikan nilai default atau dari input ada untuk variabel tanggal/waktu
+        currentDate: input.currentDate || new Date().toLocaleDateString('id-ID', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }),
+        currentTime: input.currentTime || new Date().toLocaleTimeString('id-ID', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        }),
+        tomorrowDate: input.tomorrowDate || new Date(Date.now() + 86400000).toLocaleDateString('id-ID', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }),
+        dayAfterTomorrowDate: input.dayAfterTomorrowDate || new Date(Date.now() + 2 * 86400000).toLocaleDateString('id-ID', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }),
+        agentBehavior: input.agentBehavior,
+        knowledgeBase: input.knowledgeBase
     };
     return whatsAppReplyFlowSimplified(flowInput);
 }
