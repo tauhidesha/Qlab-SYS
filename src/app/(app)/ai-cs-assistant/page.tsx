@@ -47,8 +47,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter, // Added DialogFooter
-  DialogClose // Added DialogClose
+  DialogFooter, 
+  DialogClose 
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -59,6 +59,7 @@ import {
   AlertDialogTitle as AlertDialogTitleEl,   
   AlertDialogDescription as AlertDialogDescriptionEl, 
   AlertDialogFooter,
+  AlertDialogTrigger, // Added missing import
 } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -1349,4 +1350,5 @@ export default function AiCsAssistantPage() {
     </div>
   );
 }
+
 
