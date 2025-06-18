@@ -35,14 +35,15 @@ export const searchServiceByKeywordTool = ai.defineTool(
     outputSchema: SearchServiceOutputSchema,
   },
   async (input: SearchServiceInput): Promise<SearchServiceOutput> => {
-    // Firebase client 'db' is imported. It's assumed to be initialized.
-    // Error handling for db initialization is in '@/lib/firebase.ts'.
+    if (!db) {
+      throw new Error("[searchServiceByKeywordTool.ts] FATAL: Client Firestore 'db' is not available. Firebase Client init failed or import order issue.");
+    }
 
     const { keyword, size, paintType } = input;
     console.log(`[searchServiceByKeywordTool] Searching for keyword: "${keyword}", size: "${size || 'any'}", paintType: "${paintType || 'any'}"`);
     
     const servicesCollectionRef = collection(db, 'services');
-    const snapshot = await getDocs(firestoreQuery(servicesCollectionRef)); // Use firestoreQuery if needed, or just servicesCollectionRef
+    const snapshot = await getDocs(firestoreQuery(servicesCollectionRef)); 
     
     const servicesFromDb: ServiceProduct[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceProduct));
 
@@ -69,7 +70,6 @@ export const searchServiceByKeywordTool = ai.defineTool(
       if (svc.category?.toLowerCase().includes(keywordLower)) {
         currentScore += 2;
       }
-      // Assuming 'aliases' field exists and is an array of strings in ServiceProduct type
       if (svc.aliases && Array.isArray(svc.aliases)) {
         if (svc.aliases.some(alias => alias.toLowerCase().includes(keywordLower))) {
            currentScore += 8;
@@ -78,6 +78,7 @@ export const searchServiceByKeywordTool = ai.defineTool(
       }
       if (svc.variants && svc.variants.length > 0) {
         svc.variants.forEach(variant => {
+          // Check if variant name itself contains the keyword (e.g., keyword "doff", variant "Coating Doff")
           if (variant.name.toLowerCase().includes(keywordLower)) {
             currentScore += 5; 
           }
@@ -94,7 +95,7 @@ export const searchServiceByKeywordTool = ai.defineTool(
       console.log(`[searchServiceByKeywordTool] No service found matching keyword: "${keyword}"`);
       throw new Error(`Layanan tidak ditemukan untuk kata kunci "${keyword}".`);
     }
-    console.log(`[searchServiceByKeywordTool] Best match found: ${bestMatch.name} with score ${highestScore}`);
+    console.log(`[searchServiceByKeywordTool] Best match found for keyword "${keyword}": ${bestMatch.name} with score ${highestScore}`);
 
     let finalPrice: number | undefined = undefined;
     let matchedVariantName: string | undefined = undefined;
@@ -107,7 +108,7 @@ export const searchServiceByKeywordTool = ai.defineTool(
       if (size) {
         suitableVariants = suitableVariants.filter(v => v.name.toLowerCase().includes(size.toLowerCase()));
       }
-      if (paintType) { // Filter by paintType if provided
+      if (paintType) { 
         suitableVariants = suitableVariants.filter(v => v.name.toLowerCase().includes(paintType.toLowerCase()));
       }
 
@@ -117,18 +118,24 @@ export const searchServiceByKeywordTool = ai.defineTool(
         matchedVariantName = variantToUse.name; 
         finalDuration = variantToUse.estimatedDuration || finalDuration;
       } else if (keyword.toLowerCase().includes("coating") && (size || paintType)) {
-         console.log(`[searchServiceByKeywordTool] Coating query with size/paintType but no exact variant match. Returning general info for ${bestMatch.name}.`);
+         console.log(`[searchServiceByKeywordTool] Coating query with size/paintType but no exact variant match for '${bestMatch.name}'. Price will be undefined.`);
+         // finalPrice remains undefined, matchedVariantName remains undefined
       } else if (bestMatch.variants.length > 0 && (!size && !paintType)) {
-        if (bestMatch.price && bestMatch.price > 0) { // Fallback to base price if no specific variant criteria and base price exists
+        // This case: variants exist, but NO size AND NO paintType were provided by the user.
+        // Fallback to base price of the main service if it exists and is > 0, otherwise use first variant's price.
+        if (bestMatch.price && bestMatch.price > 0) {
             finalPrice = bestMatch.price;
-        } else { // Or first variant if no base price
+            // matchedVariantName remains undefined as we are using the base service price
+        } else {
             finalPrice = bestMatch.variants[0].price;
             matchedVariantName = bestMatch.variants[0].name;
             finalDuration = bestMatch.variants[0].estimatedDuration || finalDuration;
         }
       }
+      // If suitableVariants is empty and it wasn't a coating query with specifics, or if size/paintType were not provided
+      // and the above fallback didn't set a price (e.g. base price 0 and no variants), price remains undefined.
     } else {
-      // No variants for the service
+      // No variants for the service, use base price of the bestMatch.
       finalPrice = bestMatch.price;
     }
     
@@ -144,3 +151,4 @@ export const searchServiceByKeywordTool = ai.defineTool(
     };
   }
 );
+
