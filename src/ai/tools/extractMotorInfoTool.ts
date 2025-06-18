@@ -1,4 +1,3 @@
-
 'use server';
 /**
  * @fileOverview Genkit tool for extracting motorcycle information from text.
@@ -7,84 +6,92 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { adminDb } from '@/lib/firebase-admin'; // Pastikan file ini ada dan terkonfigurasi
 
+// Skema input untuk tool
 const ExtractMotorInfoInputSchema = z.object({
-  text: z.string().describe("Teks deskriptif dari pelanggan yang menyebutkan jenis motor, mis. 'motor saya vario 150' atau 'nmax connected'."),
+  text: z.string().describe('Teks dari pengguna yang mungkin berisi nama atau deskripsi motor.'),
 });
+export type ExtractMotorInfoInput = z.infer<typeof ExtractMotorInfoInputSchema>;
 
+// Skema output untuk tool
 const ExtractMotorInfoOutputSchema = z.object({
-  brand: z.string().describe("Merek motor yang terdeteksi, mis. 'Honda', 'Yamaha'."),
-  model: z.string().describe("Model motor yang terdeteksi, mis. 'Vario 150', 'NMAX Connected'."),
-  size: z.enum(['S', 'M', 'L', 'XL']).describe("Ukuran motor yang terdeteksi berdasarkan modelnya."),
+  brand: z.string().describe('Merek motor yang terdeteksi.'),
+  model: z.string().describe('Model motor yang terdeteksi.'),
+  size: z.enum(['S', 'M', 'L', 'XL']).describe('Ukuran motor yang terdeteksi (S, M, L, XL).'),
 });
 export type ExtractMotorInfoOutput = z.infer<typeof ExtractMotorInfoOutputSchema>;
 
-interface VehicleTypeDoc {
-  brand: string;
-  model: string;
-  size: 'S' | 'M' | 'L' | 'XL';
-  aliases: string[];
-}
-
+// Definisi tool Genkit
 export const extractMotorInfoTool = ai.defineTool(
   {
-    name: 'extractMotorInfo',
-    description: 'Mendeteksi dan mengekstrak informasi merek, model, dan ukuran motor dari teks deskriptif pelanggan dengan membandingkannya terhadap database alias jenis kendaraan. Hanya panggil jika pelanggan menyebutkan jenis motornya secara spesifik.',
+    name: 'extractMotorInfoTool', // Nama tool di Genkit, bisa beda dari nama variabel
+    description: 'Mendeteksi merek, model, dan ukuran motor dari teks deskriptif pengguna dengan mencocokkan ke database tipe kendaraan.',
     inputSchema: ExtractMotorInfoInputSchema,
     outputSchema: ExtractMotorInfoOutputSchema,
   },
-  async ({ text }) => {
-    const cleanText = text.toLowerCase().trim();
+  async (input: ExtractMotorInfoInput): Promise<ExtractMotorInfoOutput> => {
+    const cleanText = input.text.toLowerCase().trim();
+    console.log(`[extractMotorInfoTool] Input text: "${input.text}", Cleaned text: "${cleanText}"`);
+
     if (!cleanText) {
-      console.warn('[extractMotorInfoTool] Input teks kosong.');
-      throw new Error('Teks input untuk deteksi motor kosong.');
+      console.log('[extractMotorInfoTool] Input text is empty. Throwing error.');
+      throw new Error('Teks input kosong, tidak bisa mendeteksi motor.');
     }
 
-    console.log(`[extractMotorInfoTool] Menerima teks: "${text}", teks bersih untuk dicocokkan: "${cleanText}"`);
-
     try {
-      const vehicleTypesRef = collection(db, 'vehicleTypes');
-      const snapshot = await getDocs(vehicleTypesRef);
-
-      if (snapshot.empty) {
-        console.warn('[extractMotorInfoTool] Koleksi "vehicleTypes" kosong atau tidak ditemukan di Firestore.');
-        throw new Error('Database jenis kendaraan tidak tersedia saat ini.');
+      const vehicleTypesSnapshot = await adminDb.collection('vehicleTypes').get();
+      
+      if (vehicleTypesSnapshot.empty) {
+        console.log('[extractMotorInfoTool] Collection "vehicleTypes" is empty or does not exist.');
+        throw new Error('Database tipe kendaraan kosong atau tidak ditemukan.');
       }
 
-      const allVehicleTypes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as VehicleTypeDoc & {id: string}));
-      console.log(`[extractMotorInfoTool] Mengambil ${allVehicleTypes.length} tipe kendaraan dari Firestore untuk dicocokkan.`);
+      const allVehicleTypes = vehicleTypesSnapshot.docs.map(doc => {
+        const data = doc.data();
+        // Validasi dasar struktur data dari Firestore
+        if (!data.brand || !data.model || !data.size || !Array.isArray(data.aliases)) {
+            console.warn(`[extractMotorInfoTool] Dokumen ${doc.id} memiliki format tidak lengkap/valid.`);
+            return null; 
+        }
+        return {
+          id: doc.id, // Sertakan ID untuk debugging jika perlu
+          brand: data.brand as string,
+          model: data.model as string,
+          size: data.size as 'S' | 'M' | 'L' | 'XL',
+          aliases: (data.aliases as string[]).map(alias => alias.toLowerCase()), // Pastikan alias juga lowercase
+        };
+      }).filter(item => item !== null) as { id: string; brand: string; model: string; size: 'S' | 'M' | 'L' | 'XL'; aliases: string[]; }[];
 
-      for (const item of allVehicleTypes) {
-        if (item.aliases && Array.isArray(item.aliases)) {
-          for (const alias of item.aliases) {
-            const cleanAlias = alias.toLowerCase().trim();
-            if (cleanAlias) { // Pastikan alias tidak kosong setelah dibersihkan
-              console.log(`[extractMotorInfoTool] Memeriksa: teks input ("${cleanText}") mengandung alias ("${cleanAlias}")? Untuk model: ${item.model}`);
-              if (cleanText.includes(cleanAlias)) {
-                console.log(`[extractMotorInfoTool] COCOK! Alias: "${cleanAlias}" ditemukan dalam teks: "${cleanText}". Mengembalikan: Brand=${item.brand}, Model=${item.model}, Size=${item.size}`);
-                return {
-                  brand: item.brand,
-                  model: item.model,
-                  size: item.size,
-                };
-              }
-            }
+      console.log(`[extractMotorInfoTool] Fetched ${allVehicleTypes.length} vehicle types from Firestore.`);
+
+      for (const vehicleType of allVehicleTypes) {
+        // console.log(`[extractMotorInfoTool] Checking vehicle: ${vehicleType.brand} ${vehicleType.model}, Aliases: ${vehicleType.aliases.join(', ')}`);
+        for (const alias of vehicleType.aliases) {
+          if (cleanText.includes(alias)) {
+            console.log(`[extractMotorInfoTool] MATCH FOUND! Alias "${alias}" in "${cleanText}". Returning: ${vehicleType.brand} ${vehicleType.model} (${vehicleType.size})`);
+            return {
+              brand: vehicleType.brand,
+              model: vehicleType.model,
+              size: vehicleType.size,
+            };
           }
         }
       }
 
-      console.log(`[extractMotorInfoTool] Tidak ada kecocokan untuk teks: "${cleanText}" dalam alias kendaraan manapun yang ada di database.`);
+      console.log('[extractMotorInfoTool] No match found for the input text.');
       throw new Error('Motor tidak dikenali dari teks yang diberikan. Coba minta pelanggan menyebutkan modelnya lebih jelas.');
+
     } catch (error: any) {
-      console.error('[extractMotorInfoTool] Error saat eksekusi:', error);
-      // Re-throw known errors to be handled by AI flow, or a generic one for unexpected issues.
-      if (error.message.startsWith('Motor tidak dikenali') || error.message.startsWith('Database jenis kendaraan tidak tersedia') || error.message.startsWith('Teks input untuk deteksi motor kosong')) {
-        throw error;
+      console.error('[extractMotorInfoTool] Error during execution:', error);
+      // Lempar ulang error agar bisa ditangani oleh Genkit atau flow pemanggil
+      if (error instanceof Error) {
+        throw error; // Lempar ulang error yang sudah Error instance
       }
-      throw new Error('Gagal memproses informasi motor: Terjadi kesalahan internal pada tool.');
+      throw new Error(`Terjadi kesalahan internal pada tool extractMotorInfo: ${error.message || String(error)}`);
     }
   }
 );
 
+// Anda juga bisa mengekspor tool-nya jika ingin menggunakannya di tempat lain secara langsung
+// export { extractMotorInfoTool };
