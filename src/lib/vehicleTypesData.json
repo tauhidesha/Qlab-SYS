@@ -1,450 +1,6 @@
 [
   {
     "brand": "Honda",
-    "model": "Vario",
-    "size": "M",
-    "aliases": ["vario", "vario 110", "vario 125", "vario 150", "vario 160", "honda vario"]
-  },
-  {
-    "brand": "Honda",
-    "model": "PCX",
-    "size": "M",
-    "aliases": ["pcx", "pcx 125", "pcx 150", "pcx 160", "honda pcx"]
-  },
-  {
-    "brand": "Honda",
-    "model": "Supra GTR 150",
-    "size": "M",
-    "aliases": ["supra gtr", "supra gtr 150", "honda supra gtr"]
-  },
-  {
-    "brand": "Honda",
-    "model": "ADV",
-    "size": "M",
-    "aliases": ["adv", "adv 150", "adv 160", "honda adv"]
-  },
-  {
-    "brand": "Yamaha",
-    "model": "Jupiter",
-    "size": "M",
-    "aliases": ["jupiter", "jupiter z", "jupiter z1", "yamaha jupiter"]
-  },
-  {
-    "brand": "Yamaha",
-    "model": "Jupiter MX",
-    "size": "M",
-    "aliases": ["jupiter mx", "mx", "mx king", "mx king 150", "yamaha jupiter mx"]
-  },
-  {
-    "brand": "Yamaha",
-    "model": "Lexi",
-    "size": "M",
-    "aliases": ["lexi", "lexi standard", "lexi s", "lexi abs", "yamaha lexi"]
-  },
-  {
-    "brand": "Yamaha",
-    "model": "FreeGo",
-    "size": "M",
-    "aliases": ["freego", "freego standard", "freego s", "freego connected", "yamaha freego"]
-  },
-  {
-    "brand": "Yamaha",
-    "model": "Soul GT",
-    "size": "M",
-    "aliases": ["soul gt", "yamaha soul gt"]
-  },
-  {
-    "brand": "Yamaha",
-    "model": "X-Ride",
-    "size": "M",
-    "aliases": ["x-ride", "yamaha xride", "yamaha x-ride"]
-  },
-  {
-    "brand": "Yamaha",
-    "model": "NMAX",
-    "size": "M",
-    "aliases": ["nmax", "nmax standard", "nmax abs", "nmax connected", "yamaha nmax"]
-  },
-  {
-    "brand": "Yamaha",
-    "model": "Aerox 155",
-    "size": "M",
-    "aliases": ["aerox", "aerox 155", "aerox connected", "aerox abs", "yamaha aerox"]
-  },
-  {
-    "brand": "Yamaha",
-    "model": "Grand Filano Hybrid",
-    "size": "M",
-    "aliases": ["grand filano", "filano hybrid", "yamaha grand filano"]
-  },
-  {
-    "brand": "Yamaha",
-    "model": "Fazzio Hybrid",
-    "size": "M",
-    "aliases": ["fazzio", "fazzio hybrid", "yamaha fazzio"]
-  },
-  {
-    "brand": "Suzuki",
-    "model": "Satria F150",
-    "size": "M",
-    "aliases": ["satria", "satria f150", "satria fi", "satria karbu", "suzuki satria"]
-  },
-  {
-    "brand": "Kawasaki",
-    "model": "W175",
-    "size": "M",
-    "aliases": ["w175", "w175 standard", "w175 se", "w175 cafe", "kawasaki w175"]
-  },
-  {
-    "brand": "Viar",
-    "model": "Cross X 200",
-    "size": "M",
-    "aliases": ["viar cross x", "cross x 200", "viar 200"]
-  },
-  {
-    "brand": "Viar",
-    "model": "E-Cross",
-    "size": "M",
-    "aliases": ["e-cross", "viar e-cross"]
-  },
-  {
-    "brand": "Gesits",
-    "model": "Electric",
-    "size": "M",
-    "aliases": ["gesits", "gesits electric", "motor listrik gesits"]
-  },
-  {
-    "brand": "Polytron",
-    "model": "T-Rex",
-    "size": "M",
-    "aliases": ["polytron t-rex", "t-rex", "motor listrik polytron"]
-  },
-  {
-    "brand": "United",
-    "model": "T1800",
-    "size": "M",
-    "aliases": ["united t1800", "t1800", "motor listrik united"]
-  },
-  {
-    "brand": "Alva",
-    "model": "One",
-    "size": "M",
-    "aliases": ["alva one", "alva 1", "motor listrik alva"]
-  },
-  {
-    "brand": "Alva",
-    "model": "Cervo",
-    "size": "M",
-    "aliases": ["alva cervo", "motor listrik cervo"]
-  },
-  {
-    "brand": "Suzuki",
-    "model": "Burgman Street 125",
-    "size": "M",
-    "aliases": ["burgman 125", "burgman street", "burgman suzuki"]
-  },
-  {
-    "brand": "Kymco",
-    "model": "Like 150i",
-    "size": "M",
-    "aliases": ["like 150i", "kymco like", "like kymco"]
-  },
-  {
-    "brand": "Selis",
-    "model": "Go Plus",
-    "size": "M",
-    "aliases": ["selis go plus", "go plus", "goplus"]
-  },
-  {
-    "brand": "Honda",
-    "model": "CBR150R",
-    "size": "L",
-    "aliases": ["cbr 150", "cbr150r", "cbr 150r", "cbr k45a", "cbr k45g", "cbr k45n"]
-  },
-  {
-    "brand": "Honda",
-    "model": "CB150R StreetFire",
-    "size": "L",
-    "aliases": ["cb150r", "cb150r streetfire", "streetfire honda"]
-  },
-  {
-    "brand": "Honda",
-    "model": "Verza 150",
-    "size": "L",
-    "aliases": ["verza 150", "honda verza"]
-  },
-  {
-    "brand": "Honda",
-    "model": "CBR250RR",
-    "size": "L",
-    "aliases": ["cbr250rr", "cbr 250", "cbr 250rr", "cbr250rr sp", "cbr250rr sp qs"]
-  },
-  {
-    "brand": "Honda",
-    "model": "CRF150L",
-    "size": "L",
-    "aliases": ["crf 150l", "crf150l"]
-  },
-  {
-    "brand": "Honda",
-    "model": "CRF250 Rally",
-    "size": "L",
-    "aliases": ["crf 250", "crf250 rally", "crf rally"]
-  },
-  {
-    "brand": "Yamaha",
-    "model": "XMAX 250",
-    "size": "L",
-    "aliases": ["xmax", "xmax 250"]
-  },
-  {
-    "brand": "Yamaha",
-    "model": "R15",
-    "size": "L",
-    "aliases": ["r15 v1", "r15 v2", "r15 v3", "r15 v4", "r15m"]
-  },
-  {
-    "brand": "Yamaha",
-    "model": "Vixion",
-    "size": "L",
-    "aliases": ["vixion old", "vixion new", "vixion advance", "vixion r", "vixion monster"]
-  },
-  {
-    "brand": "Yamaha",
-    "model": "Byson",
-    "size": "L",
-    "aliases": ["byson", "yamaha byson"]
-  },
-  {
-    "brand": "Yamaha",
-    "model": "MT-15",
-    "size": "L",
-    "aliases": ["mt 15", "mt15"]
-  },
-  {
-    "brand": "Yamaha",
-    "model": "R25",
-    "size": "L",
-    "aliases": ["r25", "r25 abs", "r25 movistar"]
-  },
-  {
-    "brand": "Yamaha",
-    "model": "MT-25",
-    "size": "L",
-    "aliases": ["mt25", "mt 25"]
-  },
-  {
-    "brand": "Yamaha",
-    "model": "WR 155 R",
-    "size": "L",
-    "aliases": ["wr155r", "wr 155", "wr 155r"]
-  },
-  {
-    "brand": "Suzuki",
-    "model": "GSX-R150",
-    "size": "L",
-    "aliases": ["gsx r150", "gsxr150", "gsx r"]
-  },
-  {
-    "brand": "Suzuki",
-    "model": "GSX-S150",
-    "size": "L",
-    "aliases": ["gsx s150", "gsxs150", "gsx s"]
-  },
-  {
-    "brand": "Suzuki",
-    "model": "Thunder 125",
-    "size": "L",
-    "aliases": ["thunder 125", "suzuki thunder"]
-  },
-  {
-    "brand": "Kawasaki",
-    "model": "Ninja 250",
-    "size": "L",
-    "aliases": ["ninja 250", "ninja 250 fi", "ninja 250 se", "ninja 250 abs", "ninja 250 krt"]
-  },
-  {
-    "brand": "Kawasaki",
-    "model": "Ninja 250SL",
-    "size": "L",
-    "aliases": ["ninja 250sl", "ninja sl"]
-  },
-  {
-    "brand": "Kawasaki",
-    "model": "Ninja ZX-25R",
-    "size": "L",
-    "aliases": ["zx25r", "ninja zx 25r", "zx-25r abs", "zx25r se"]
-  },
-  {
-    "brand": "Kawasaki",
-    "model": "KLX 150",
-    "size": "L",
-    "aliases": ["klx 150", "klx 150 bf", "klx 150 bf se"]
-  },
-  {
-    "brand": "Kawasaki",
-    "model": "KLX 250",
-    "size": "L",
-    "aliases": ["klx 250"]
-  },
-  {
-    "brand": "Kawasaki",
-    "model": "D-Tracker 150",
-    "size": "L",
-    "aliases": ["dtracker 150", "d-tracker 150"]
-  },
-  {
-    "brand": "Kawasaki",
-    "model": "D-Tracker 250",
-    "size": "L",
-    "aliases": ["dtracker 250", "d-tracker 250"]
-  },
-  {
-    "brand": "Kawasaki",
-    "model": "Versys 250",
-    "size": "L",
-    "aliases": ["versys 250"]
-  },
-  {
-    "brand": "Kymco",
-    "model": "Downtown 250i",
-    "size": "L",
-    "aliases": ["downtown 250", "downtown 250i"]
-  },
-  {
-    "brand": "Kymco",
-    "model": "X-Town 250i",
-    "size": "L",
-    "aliases": ["xtown 250i", "x-town 250", "kymco xtown"]
-  },
-  {
-    "brand": "Alva",
-    "model": "Cervo",
-    "size": "L",
-    "aliases": ["alva cervo"]
-  },
-  {
-    "brand": "Zero",
-    "model": "FX",
-    "size": "L",
-    "aliases": ["zero fx"]
-  },
-  {
-    "brand": "Kawasaki",
-    "model": "Ninja 650",
-    "size": "XL",
-    "aliases": ["ninja 650"]
-  },
-  {
-    "brand": "Kawasaki",
-    "model": "Ninja 1000SX",
-    "size": "XL",
-    "aliases": ["ninja 1000sx", "ninja 1000", "ninja sx"]
-  },
-  {
-    "brand": "Kawasaki",
-    "model": "Ninja H2",
-    "size": "XL",
-    "aliases": ["ninja h2", "h2 kawasaki"]
-  },
-  {
-    "brand": "Kawasaki",
-    "model": "Ninja H2R",
-    "size": "XL",
-    "aliases": ["ninja h2r", "h2r kawasaki"]
-  },
-  {
-    "brand": "Kawasaki",
-    "model": "Ninja H2SX",
-    "size": "XL",
-    "aliases": ["ninja h2sx", "h2sx kawasaki"]
-  },
-  {
-    "brand": "Kawasaki",
-    "model": "Z650",
-    "size": "XL",
-    "aliases": ["z650"]
-  },
-  {
-    "brand": "Kawasaki",
-    "model": "Z900",
-    "size": "XL",
-    "aliases": ["z900"]
-  },
-  {
-    "brand": "Kawasaki",
-    "model": "Z1000",
-    "size": "XL",
-    "aliases": ["z1000"]
-  },
-  {
-    "brand": "Kawasaki",
-    "model": "Versys 650",
-    "size": "XL",
-    "aliases": ["versys 650"]
-  },
-  {
-    "brand": "Kawasaki",
-    "model": "Versys 1000",
-    "size": "XL",
-    "aliases": ["versys 1000"]
-  },
-  {
-    "brand": "Kymco",
-    "model": "AK 550",
-    "size": "XL",
-    "aliases": ["ak 550", "kymco ak 550"]
-  },
-  {
-    "brand": "Harley Davidson",
-    "model": "Street 500",
-    "size": "XL",
-    "aliases": ["harley street 500", "street 500"]
-  },
-  {
-    "brand": "Harley Davidson",
-    "model": "LiveWire",
-    "size": "XL",
-    "aliases": ["harley livewire", "livewire"]
-  },
-  {
-    "brand": "BMW",
-    "model": "G 310 R",
-    "size": "XL",
-    "aliases": ["bmw g310r", "g 310 r"]
-  },
-  {
-    "brand": "BMW",
-    "model": "F 800 R",
-    "size": "XL",
-    "aliases": ["f800r", "f 800 r"]
-  },
-  {
-    "brand": "BMW",
-    "model": "F 700 GS",
-    "size": "XL",
-    "aliases": ["f700gs", "f 700 gs"]
-  },
-  {
-    "brand": "BMW",
-    "model": "R Nine T Pure",
-    "size": "XL",
-    "aliases": ["r nine t", "r nine t pure"]
-  },
-  {
-    "brand": "Zero",
-    "model": "SR/F",
-    "size": "XL",
-    "aliases": ["zero srf", "zero sr/f"]
-  },
-  {
-    "brand": "Energica",
-    "model": "Ego",
-    "size": "XL",
-    "aliases": ["energica ego"]
-  },
-  {
-    "brand": "Honda",
     "model": "BeAT",
     "size": "S",
     "aliases": ["beat", "honda beat", "beat esp", "beat street"]
@@ -459,13 +15,19 @@
     "brand": "Honda",
     "model": "Supra X 125",
     "size": "S",
-    "aliases": ["supra x", "supra x 125", "supra"]
+    "aliases": ["supra x", "supra x 125"]
   },
   {
     "brand": "Honda",
     "model": "Revo",
     "size": "S",
     "aliases": ["revo", "revo fit", "revo x"]
+  },
+  {
+    "brand": "Honda",
+    "model": "Vario 110",
+    "size": "S",
+    "aliases": ["vario 110"]
   },
   {
     "brand": "Honda",
@@ -531,7 +93,7 @@
     "brand": "Yamaha",
     "model": "Vega R",
     "size": "S",
-    "aliases": ["vega r", "vega zr", "vega force", "vega"]
+    "aliases": ["vega r", "vega zr", "vega force"]
   },
   {
     "brand": "Suzuki",
@@ -549,7 +111,7 @@
     "brand": "Suzuki",
     "model": "Smash Titan",
     "size": "S",
-    "aliases": ["smash", "smash titan", "smash fi", "suzuki smash"]
+    "aliases": ["smash", "smash titan", "smash fi"]
   },
   {
     "brand": "Suzuki",
@@ -586,7 +148,667 @@
     "model": "Tempur",
     "size": "S",
     "aliases": ["smoot tempur", "tempur"]
+  },
+  {
+    "brand": "Honda",
+    "model": "Vario 125",
+    "size": "M",
+    "aliases": ["vario 125"]
+  },
+  {
+    "brand": "Honda",
+    "model": "Vario 150",
+    "size": "M",
+    "aliases": ["vario 150"]
+  },
+  {
+    "brand": "Honda",
+    "model": "Vario 160",
+    "size": "M",
+    "aliases": ["vario 160"]
+  },
+  {
+    "brand": "Honda",
+    "model": "PCX 125",
+    "size": "M",
+    "aliases": ["pcx 125"]
+  },
+  {
+    "brand": "Honda",
+    "model": "PCX 150",
+    "size": "M",
+    "aliases": ["pcx 150"]
+  },
+  {
+    "brand": "Honda",
+    "model": "PCX 160",
+    "size": "M",
+    "aliases": ["pcx 160"]
+  },
+  {
+    "brand": "Honda",
+    "model": "Supra GTR 150",
+    "size": "M",
+    "aliases": ["supra gtr", "supra gtr 150"]
+  },
+  {
+    "brand": "Honda",
+    "model": "ADV 150",
+    "size": "M",
+    "aliases": ["adv 150"]
+  },
+  {
+    "brand": "Honda",
+    "model": "ADV 160",
+    "size": "M",
+    "aliases": ["adv 160"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "Jupiter Z",
+    "size": "M",
+    "aliases": ["jupiter z", "z1"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "Jupiter MX",
+    "size": "M",
+    "aliases": ["jupiter mx", "mx", "mx king 150"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "Lexi Standard",
+    "size": "M",
+    "aliases": ["lexi", "lexi standard"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "Lexi S",
+    "size": "M",
+    "aliases": ["lexi s"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "Lexi ABS",
+    "size": "M",
+    "aliases": ["lexi abs"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "FreeGo Standard",
+    "size": "M",
+    "aliases": ["freego", "freego standard"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "FreeGo S",
+    "size": "M",
+    "aliases": ["freego s"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "FreeGo Connected",
+    "size": "M",
+    "aliases": ["freego connected"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "Soul GT",
+    "size": "M",
+    "aliases": ["soul gt"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "X-Ride",
+    "size": "M",
+    "aliases": ["x-ride"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "NMAX Standard",
+    "size": "M",
+    "aliases": ["nmax", "nmax standard"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "NMAX ABS",
+    "size": "M",
+    "aliases": ["nmax abs"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "NMAX Connected",
+    "size": "M",
+    "aliases": ["nmax connected"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "Aerox 155 Standard",
+    "size": "M",
+    "aliases": ["aerox", "aerox 155 standard"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "Aerox 155 Connected",
+    "size": "M",
+    "aliases": ["aerox connected"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "Aerox 155 ABS",
+    "size": "M",
+    "aliases": ["aerox abs"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "Grand Filano Hybrid",
+    "size": "M",
+    "aliases": ["grand filano", "filano hybrid"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "Fazzio Hybrid",
+    "size": "M",
+    "aliases": ["fazzio", "fazzio hybrid"]
+  },
+  {
+    "brand": "Suzuki",
+    "model": "Satria F150 Karbu",
+    "size": "M",
+    "aliases": ["satria f150", "satria karbu"]
+  },
+  {
+    "brand": "Suzuki",
+    "model": "Satria F150 FI",
+    "size": "M",
+    "aliases": ["satria f150 fi"]
+  },
+  {
+    "brand": "Kawasaki",
+    "model": "W175 Standard",
+    "size": "M",
+    "aliases": ["w175", "w175 standard"]
+  },
+  {
+    "brand": "Kawasaki",
+    "model": "W175 SE",
+    "size": "M",
+    "aliases": ["w175 se"]
+  },
+  {
+    "brand": "Kawasaki",
+    "model": "W175 Cafe",
+    "size": "M",
+    "aliases": ["w175 cafe"]
+  },
+  {
+    "brand": "Viar",
+    "model": "Cross X 200",
+    "size": "M",
+    "aliases": ["viar cross x 200", "cross x 200"]
+  },
+  {
+    "brand": "Viar",
+    "model": "E-Cross",
+    "size": "M",
+    "aliases": ["viar e-cross", "e-cross"]
+  },
+  {
+    "brand": "Gesits",
+    "model": "Electric",
+    "size": "M",
+    "aliases": ["gesits", "gesits electric"]
+  },
+  {
+    "brand": "Polytron",
+    "model": "T-Rex",
+    "size": "M",
+    "aliases": ["polytron t-rex", "t-rex"]
+  },
+  {
+    "brand": "United",
+    "model": "T1800",
+    "size": "M",
+    "aliases": ["united t1800"]
+  },
+  {
+    "brand": "Alva",
+    "model": "One",
+    "size": "M",
+    "aliases": ["alva one"]
+  },
+  {
+    "brand": "Alva",
+    "model": "Cervo",
+    "size": "M",
+    "aliases": ["alva cervo"]
+  },
+  {
+    "brand": "Honda",
+    "model": "CBR150R Karbu",
+    "size": "L",
+    "aliases": ["cbr150r karbu", "cbr karbu"]
+  },
+  {
+    "brand": "Honda",
+    "model": "CBR150R FI",
+    "size": "L",
+    "aliases": ["cbr150r fi", "cbr fi"]
+  },
+  {
+    "brand": "Honda",
+    "model": "CBR150R K45A",
+    "size": "L",
+    "aliases": ["cbr150r k45a", "k45a"]
+  },
+  {
+    "brand": "Honda",
+    "model": "CBR150R K45G",
+    "size": "L",
+    "aliases": ["cbr150r k45g", "k45g"]
+  },
+  {
+    "brand": "Honda",
+    "model": "CBR150R K45N",
+    "size": "L",
+    "aliases": ["cbr150r k45n", "k45n"]
+  },
+  {
+    "brand": "Honda",
+    "model": "CB150R StreetFire",
+    "size": "L",
+    "aliases": ["cb150r streetfire"]
+  },
+  {
+    "brand": "Honda",
+    "model": "Verza 150",
+    "size": "L",
+    "aliases": ["verza", "verza 150"]
+  },
+  {
+    "brand": "Honda",
+    "model": "CBR250RR Standard",
+    "size": "L",
+    "aliases": ["cbr250rr", "cbr250rr standard"]
+  },
+  {
+    "brand": "Honda",
+    "model": "CBR250RR SP",
+    "size": "L",
+    "aliases": ["cbr250rr sp"]
+  },
+  {
+    "brand": "Honda",
+    "model": "CBR250RR SP QS",
+    "size": "L",
+    "aliases": ["cbr250rr sp qs"]
+  },
+  {
+    "brand": "Honda",
+    "model": "CRF150L",
+    "size": "L",
+    "aliases": ["crf150l", "crf 150l"]
+  },
+  {
+    "brand": "Honda",
+    "model": "CRF250 Rally",
+    "size": "L",
+    "aliases": ["crf250", "crf 250", "crf 250 rally"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "XMAX 250",
+    "size": "L",
+    "aliases": ["xmax", "xmax 250"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "R15 V1",
+    "size": "L",
+    "aliases": ["r15 v1"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "R15 V2",
+    "size": "L",
+    "aliases": ["r15 v2"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "R15 V3",
+    "size": "L",
+    "aliases": ["r15 v3"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "R15 V4",
+    "size": "L",
+    "aliases": ["r15 v4"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "R15M",
+    "size": "L",
+    "aliases": ["r15m"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "Vixion Old",
+    "size": "L",
+    "aliases": ["vixion old"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "Vixion New",
+    "size": "L",
+    "aliases": ["vixion new"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "Vixion Advance",
+    "size": "L",
+    "aliases": ["vixion advance"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "Vixion R",
+    "size": "L",
+    "aliases": ["vixion r"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "Vixion Monster",
+    "size": "L",
+    "aliases": ["vixion monster"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "Byson",
+    "size": "L",
+    "aliases": ["byson"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "MT-15",
+    "size": "L",
+    "aliases": ["mt15", "mt-15"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "R25 Standard",
+    "size": "L",
+    "aliases": ["r25", "r25 standard"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "R25 ABS",
+    "size": "L",
+    "aliases": ["r25 abs"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "R25 Movistar",
+    "size": "L",
+    "aliases": ["r25 movistar"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "MT-25",
+    "size": "L",
+    "aliases": ["mt25", "mt-25"]
+  },
+  {
+    "brand": "Yamaha",
+    "model": "WR 155 R",
+    "size": "L",
+    "aliases": ["wr 155", "wr155", "wr155r"]
+  },
+  {
+    "brand": "Suzuki",
+    "model": "GSX-R150",
+    "size": "L",
+    "aliases": ["gsxr150", "gsx-r150"]
+  },
+  {
+    "brand": "Suzuki",
+    "model": "GSX-S150",
+    "size": "L",
+    "aliases": ["gsxs150", "gsx-s150"]
+  },
+  {
+    "brand": "Suzuki",
+    "model": "Thunder 125",
+    "size": "L",
+    "aliases": ["thunder", "thunder 125"]
+  },
+  {
+    "brand": "Kawasaki",
+    "model": "Ninja 250 Karbu",
+    "size": "L",
+    "aliases": ["ninja 250 karbu"]
+  },
+  {
+    "brand": "Kawasaki",
+    "model": "Ninja 250 FI",
+    "size": "L",
+    "aliases": ["ninja 250 fi"]
+  },
+  {
+    "brand": "Kawasaki",
+    "model": "Ninja 250 FI SE",
+    "size": "L",
+    "aliases": ["ninja 250 se"]
+  },
+  {
+    "brand": "Kawasaki",
+    "model": "Ninja 250 FI ABS",
+    "size": "L",
+    "aliases": ["ninja 250 abs"]
+  },
+  {
+    "brand": "Kawasaki",
+    "model": "Ninja 250 FI KRT",
+    "size": "L",
+    "aliases": ["ninja 250 krt"]
+  },
+  {
+    "brand": "Kawasaki",
+    "model": "Ninja 250SL",
+    "size": "L",
+    "aliases": ["ninja 250sl"]
+  },
+  {
+    "brand": "Kawasaki",
+    "model": "Ninja ZX-25R Standard",
+    "size": "L",
+    "aliases": ["zx25r", "zx-25r standard"]
+  },
+  {
+    "brand": "Kawasaki",
+    "model": "Ninja ZX-25R ABS SE",
+    "size": "L",
+    "aliases": ["zx25r abs", "zx-25r abs se"]
+  },
+  {
+    "brand": "Kawasaki",
+    "model": "KLX 150 Standard",
+    "size": "L",
+    "aliases": ["klx150", "klx 150"]
+  },
+  {
+    "brand": "Kawasaki",
+    "model": "KLX 150 BF",
+    "size": "L",
+    "aliases": ["klx150 bf", "klx 150 bf"]
+  },
+  {
+    "brand": "Kawasaki",
+    "model": "KLX 150 BF SE",
+    "size": "L",
+    "aliases": ["klx150 bf se"]
+  },
+  {
+    "brand": "Kawasaki",
+    "model": "KLX 250",
+    "size": "L",
+    "aliases": ["klx250", "klx 250"]
+  },
+  {
+    "brand": "Kawasaki",
+    "model": "D-Tracker 150",
+    "size": "L",
+    "aliases": ["d-tracker 150"]
+  },
+  {
+    "brand": "Kawasaki",
+    "model": "D-Tracker 250",
+    "size": "L",
+    "aliases": ["d-tracker 250"]
+  },
+  {
+    "brand": "Kawasaki",
+    "model": "Versys 250",
+    "size": "L",
+    "aliases": ["versys 250"]
+  },
+  {
+    "brand": "Kymco",
+    "model": "Downtown 250i",
+    "size": "L",
+    "aliases": ["kymco downtown 250i"]
+  },
+  {
+    "brand": "Kymco",
+    "model": "X-Town 250i",
+    "size": "L",
+    "aliases": ["kymco x-town 250i"]
+  },
+  {
+    "brand": "Alva",
+    "model": "Cervo",
+    "size": "L",
+    "aliases": ["alva cervo"]
+  },
+  {
+    "brand": "Zero",
+    "model": "FX",
+    "size": "L",
+    "aliases": ["zero fx"]
+  },
+  {
+    "brand": "Kawasaki",
+    "model": "Ninja 650",
+    "size": "XL",
+    "aliases": ["ninja 650"]
+  },
+  {
+    "brand": "Kawasaki",
+    "model": "Ninja 1000SX",
+    "size": "XL",
+    "aliases": ["ninja 1000", "ninja 1000sx"]
+  },
+  {
+    "brand": "Kawasaki",
+    "model": "Ninja H2",
+    "size": "XL",
+    "aliases": ["ninja h2"]
+  },
+  {
+    "brand": "Kawasaki",
+    "model": "Ninja H2R",
+    "size": "XL",
+    "aliases": ["ninja h2r"]
+  },
+  {
+    "brand": "Kawasaki",
+    "model": "Ninja H2SX",
+    "size": "XL",
+    "aliases": ["ninja h2sx"]
+  },
+  {
+    "brand": "Kawasaki",
+    "model": "Z650",
+    "size": "XL",
+    "aliases": ["z650"]
+  },
+  {
+    "brand": "Kawasaki",
+    "model": "Z900",
+    "size": "XL",
+    "aliases": ["z900"]
+  },
+  {
+    "brand": "Kawasaki",
+    "model": "Z1000",
+    "size": "XL",
+    "aliases": ["z1000"]
+  },
+  {
+    "brand": "Kawasaki",
+    "model": "Versys 650",
+    "size": "XL",
+    "aliases": ["versys 650"]
+  },
+  {
+    "brand": "Kawasaki",
+    "model": "Versys 1000",
+    "size": "XL",
+    "aliases": ["versys 1000"]
+  },
+  {
+    "brand": "Kymco",
+    "model": "AK 550",
+    "size": "XL",
+    "aliases": ["ak550", "kymco ak 550"]
+  },
+  {
+    "brand": "Harley Davidson",
+    "model": "Street 500",
+    "size": "XL",
+    "aliases": ["street 500"]
+  },
+  {
+    "brand": "Harley Davidson",
+    "model": "LiveWire",
+    "size": "XL",
+    "aliases": ["livewire"]
+  },
+  {
+    "brand": "BMW",
+    "model": "G 310 R",
+    "size": "XL",
+    "aliases": ["g310r", "g 310r"]
+  },
+  {
+    "brand": "BMW",
+    "model": "F 800 R",
+    "size": "XL",
+    "aliases": ["f800r", "f 800r"]
+  },
+  {
+    "brand": "BMW",
+    "model": "F 700 GS",
+    "size": "XL",
+    "aliases": ["f700gs", "f 700 gs"]
+  },
+  {
+    "brand": "BMW",
+    "model": "R Nine T Pure",
+    "size": "XL",
+    "aliases": ["r nine t pure", "r nine t"]
+  },
+  {
+    "brand": "Zero",
+    "model": "SR/F",
+    "size": "XL",
+    "aliases": ["zero srf", "zero sr/f"]
+  },
+  {
+    "brand": "Energica",
+    "model": "Ego",
+    "size": "XL",
+    "aliases": ["energica ego"]
   }
 ]
 
-    
+  
