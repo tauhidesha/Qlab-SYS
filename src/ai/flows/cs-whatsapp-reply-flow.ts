@@ -14,6 +14,7 @@ import { DEFAULT_AI_SETTINGS, type AiSettingsFormValues } from '@/types/aiSettin
 import { format as formatDateFns, addDays } from 'date-fns';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { extractMotorInfoTool } from '@/ai/tools/extractMotorInfoTool'; // Import tool baru
 
 async function getAiSettingsFromFirestore(): Promise<Partial<AiSettingsFormValues>> {
   try {
@@ -41,7 +42,7 @@ export async function generateWhatsAppReply({ customerMessage, senderNumber, cha
     senderNumber,
     chatHistory: chatHistory || [],
     agentBehavior: agentSettings.agentBehavior,
-    knowledgeBase: agentSettings.knowledgeBaseDescription, // Ini adalah deskripsi umum dari Firestore
+    knowledgeBase: agentSettings.knowledgeBaseDescription,
     currentDate: formatDateFns(now, 'yyyy-MM-dd'),
     currentTime: formatDateFns(now, 'HH:mm'),
     tomorrowDate: formatDateFns(addDays(now, 1), 'yyyy-MM-dd'),
@@ -57,6 +58,7 @@ const replyPromptSimplified = ai.definePrompt({
   name: 'whatsAppReplyPromptSimplified',
   input: { schema: WhatsAppReplyInputSchema },
   output: { schema: WhatsAppReplyOutputSchema },
+  tools: [extractMotorInfoTool], // Tambahkan tool baru di sini
   prompt: `Kamu adalah Zoya, Customer Service AI dari QLAB Moto Detailing.
 Perilaku Anda: {{{agentBehavior}}}.
 
@@ -67,11 +69,14 @@ Gaya bahasa Anda:
 Tugas utama Anda adalah:
 1.  Tanggapi pertanyaan tentang layanan (cuci, coating, repaint, dll).
 2.  Tanyakan detail kalau input pelanggan masih ambigu (contoh: "Untuk body doff atau glossy ya Kak?").
-3.  (Saat ini tools dinonaktifkan) Deteksi jenis motor dan tentukan ukuran (berdasarkan pengetahuan umum Anda).
-4.  (Saat ini tools dinonaktifkan) Tawarkan layanan yang cocok + info harga & promo (berdasarkan pengetahuan umum Anda dan informasi dari Panduan Umum Knowledge Base).
+3.  Jika pelanggan menyebutkan jenis motornya secara spesifik (mis. "motor saya NMAX", "Vario saya mau dicuci", "Nmax connected"), gunakan tool 'extractMotorInfo' dengan input berupa teks dari pesan pelanggan yang relevan untuk mendeteksi merek, model, dan ukuran motor tersebut.
+    *   Contoh penggunaan tool: Jika pelanggan bilang "NMAX baru saya mau coating", panggil tool 'extractMotorInfo' dengan input: \`{ "text": "NMAX baru saya" }\`.
+    *   Jika tool berhasil, Anda akan mendapatkan informasi seperti: \`{ "brand": "Yamaha", "model": "NMAX", "size": "M" }\`. Gunakan informasi ini (terutama ukuran) untuk membantu menjawab pertanyaan terkait layanan dan harga jika relevan.
+    *   Jika tool mengembalikan error seperti 'Motor tidak dikenali', informasikan pelanggan bahwa Anda belum bisa mengidentifikasi motornya dan mungkin minta mereka untuk menyebutkan modelnya lebih jelas.
+4.  Setelah mengetahui jenis motor (dari tool 'extractMotorInfo' jika ada, atau jika pelanggan menyebutkannya langsung dan tool tidak dipanggil/gagal), tawarkan layanan yang cocok. Jika ada info harga/promo dari "Panduan Umum Knowledge Base" atau pengetahuan umum Anda yang relevan dengan jenis/ukuran motor, sampaikan. Jika tidak, minta pelanggan untuk info lebih lanjut atau datang langsung.
 5.  Ajak user booking jika tertarik.
-6.  (Saat ini tools dinonaktifkan) Jika user mau booking, minta data (nama, no HP, tanggal, jam).
-7.  (Saat ini tools dinonaktifkan) Kirim konfirmasi & simpan ke database.
+6.  (Booking saat ini belum bisa diproses AI sepenuhnya) Jika user mau booking, minta data standar (nama, no HP, tanggal, jam) dan informasikan bahwa staf CS akan segera menghubungi untuk konfirmasi final.
+7.  (Konfirmasi dan penyimpanan ke DB saat ini belum bisa diproses AI) Jika user mau booking, informasikan bahwa staf CS akan segera menghubungi untuk konfirmasi final dan pencatatan.
 
 Jika Anda tidak yakin dengan informasi spesifik (seperti harga pasti atau ketersediaan detail jika tidak ada di Panduan Umum Knowledge Base) atau jika fitur booking belum bisa Anda proses sepenuhnya, sampaikan dengan jujur dan sopan, dan sarankan pelanggan untuk menghubungi langsung atau datang ke bengkel untuk detail lebih lanjut.
 
