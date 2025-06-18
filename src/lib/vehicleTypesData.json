@@ -1,4 +1,3 @@
-
 [
   {
     "brand": "Honda",
@@ -156,7 +155,7 @@
     "size": "M",
     "aliases": ["selis go plus", "go plus", "goplus"]
   },
-   {
+  {
     "brand": "Honda",
     "model": "CBR150R",
     "size": "L",
@@ -330,7 +329,7 @@
     "size": "L",
     "aliases": ["zero fx"]
   },
-   {
+  {
     "brand": "Kawasaki",
     "model": "Ninja 650",
     "size": "XL",
@@ -589,3 +588,5 @@
     "aliases": ["smoot tempur", "tempur"]
   }
 ]
+
+    
