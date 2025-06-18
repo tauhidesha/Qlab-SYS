@@ -36,7 +36,7 @@ export const searchServiceByKeywordTool = ai.defineTool(
   },
   async (input: SearchServiceInput): Promise<SearchServiceOutput> => {
     if (!db) {
-      throw new Error("[searchServiceByKeywordTool.ts] FATAL: Client Firestore 'db' is not available. Firebase Client init failed or import order issue.");
+      throw new Error("[searchServiceByKeywordTool.ts] FATAL: Client Firestore 'db' is not available at module load time. Firebase Client init failed or import order issue.");
     }
 
     const { keyword, size, paintType } = input;
@@ -78,7 +78,6 @@ export const searchServiceByKeywordTool = ai.defineTool(
       }
       if (svc.variants && svc.variants.length > 0) {
         svc.variants.forEach(variant => {
-          // Check if variant name itself contains the keyword (e.g., keyword "doff", variant "Coating Doff")
           if (variant.name.toLowerCase().includes(keywordLower)) {
             currentScore += 5; 
           }
@@ -106,34 +105,43 @@ export const searchServiceByKeywordTool = ai.defineTool(
       let suitableVariants = bestMatch.variants;
 
       if (size) {
-        suitableVariants = suitableVariants.filter(v => v.name.toLowerCase().includes(size.toLowerCase()));
+        const sizeLower = size.toLowerCase();
+        // Regex to match "size s" or "s" as a whole word, or just the letter if it's S,M,L,XL
+        // This handles cases like "SIZE S", "Variant S", "S - Doff"
+        const sizeRegex = new RegExp(`(?:\\bsize\\s+${sizeLower}\\b|\\b${sizeLower}\\b)`, 'i');
+        suitableVariants = suitableVariants.filter(v => sizeRegex.test(v.name));
+        console.log(`[searchServiceByKeywordTool] After size filter ("${size}"): ${suitableVariants.length} variants remaining for ${bestMatch.name}. Candidates: ${suitableVariants.map(v=>v.name).join(', ')}`);
       }
+
       if (paintType) { 
-        suitableVariants = suitableVariants.filter(v => v.name.toLowerCase().includes(paintType.toLowerCase()));
+        const paintTypeLower = paintType.toLowerCase();
+        suitableVariants = suitableVariants.filter(v => v.name.toLowerCase().includes(paintTypeLower));
+        console.log(`[searchServiceByKeywordTool] After paintType filter ("${paintType}"): ${suitableVariants.length} variants remaining for ${bestMatch.name}. Candidates: ${suitableVariants.map(v=>v.name).join(', ')}`);
       }
 
       if (suitableVariants.length > 0) {
+        // If multiple variants match, pick the first one.
+        // More sophisticated matching (e.g., best name match) could be added here.
         const variantToUse = suitableVariants[0]; 
         finalPrice = variantToUse.price;
         matchedVariantName = variantToUse.name; 
         finalDuration = variantToUse.estimatedDuration || finalDuration;
       } else if (keyword.toLowerCase().includes("coating") && (size || paintType)) {
+         // If it's a coating query with size/paintType specified, but no exact variant match.
+         // Price should be undefined so Zoya asks for clarification or says price not found.
          console.log(`[searchServiceByKeywordTool] Coating query with size/paintType but no exact variant match for '${bestMatch.name}'. Price will be undefined.`);
          // finalPrice remains undefined, matchedVariantName remains undefined
       } else if (bestMatch.variants.length > 0 && (!size && !paintType)) {
         // This case: variants exist, but NO size AND NO paintType were provided by the user.
-        // Fallback to base price of the main service if it exists and is > 0, otherwise use first variant's price.
-        if (bestMatch.price && bestMatch.price > 0) {
-            finalPrice = bestMatch.price;
-            // matchedVariantName remains undefined as we are using the base service price
-        } else {
-            finalPrice = bestMatch.variants[0].price;
-            matchedVariantName = bestMatch.variants[0].name;
-            finalDuration = bestMatch.variants[0].estimatedDuration || finalDuration;
-        }
+        // Zoya should explain the service and ask for motor type/size.
+        // For the tool, it's okay to not return a price here, or return base service price if Zoya needs it.
+        // Let's keep price undefined for now to force Zoya to ask.
+        // If bestMatch.price is valid and we want to show it as a general price, uncomment next lines.
+        // if (bestMatch.price && bestMatch.price > 0) {
+        //     finalPrice = bestMatch.price;
+        // }
+        console.log(`[searchServiceByKeywordTool] Variants exist for '${bestMatch.name}', but no size/paintType provided. Price will be undefined.`);
       }
-      // If suitableVariants is empty and it wasn't a coating query with specifics, or if size/paintType were not provided
-      // and the above fallback didn't set a price (e.g. base price 0 and no variants), price remains undefined.
     } else {
       // No variants for the service, use base price of the bestMatch.
       finalPrice = bestMatch.price;
