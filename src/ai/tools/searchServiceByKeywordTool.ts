@@ -13,29 +13,30 @@ import type { ServiceProduct } from '@/app/(app)/services/page'; // Assuming thi
 const SearchServiceInputSchema = z.object({
   keyword: z.string().describe("Kata kunci untuk mencari layanan, mis. 'cuci', 'coating', 'nmax'.") ,
   size: z.enum(['S', 'M', 'L', 'XL']).optional().describe("Ukuran motor (S, M, L, XL) jika spesifik."),
+  paintType: z.enum(['doff', 'glossy']).optional().describe("Jenis cat motor (doff atau glossy) jika relevan, terutama untuk coating."),
 });
 export type SearchServiceInput = z.infer<typeof SearchServiceInputSchema>;
 
 const SearchServiceOutputSchema = z.object({
   name: z.string().describe("Nama layanan yang ditemukan."),
   description: z.string().optional().describe("Deskripsi layanan."),
-  price: z.number().optional().describe("Harga layanan untuk ukuran yang cocok (jika ada)."),
+  price: z.number().optional().describe("Harga layanan untuk ukuran/jenis cat yang cocok (jika ada)."),
   size: z.enum(['S', 'M', 'L', 'XL']).optional().describe("Ukuran motor yang dicari (jika relevan dengan varian)."),
   duration: z.string().optional().describe("Estimasi durasi pengerjaan layanan."),
-  variantMatched: z.string().optional().describe("Nama varian yang cocok (jika ada dan relevan).")
+  variantMatched: z.string().optional().describe("Nama varian yang cocok (jika ada dan relevan, mis. 'Doff', 'Glossy', 'Ukuran M - Doff').")
 });
 export type SearchServiceOutput = z.infer<typeof SearchServiceOutputSchema>;
 
 export const searchServiceByKeywordTool = ai.defineTool(
   {
     name: 'searchServiceByKeywordTool',
-    description: 'Cari layanan berdasarkan keyword dari pelanggan dan ukuran motor (opsional). Berguna untuk menemukan layanan yang relevan beserta harganya.',
+    description: 'Cari layanan berdasarkan keyword dari pelanggan dan (opsional) ukuran motor serta jenis cat. Berguna untuk menemukan layanan yang relevan beserta harganya.',
     inputSchema: SearchServiceInputSchema,
     outputSchema: SearchServiceOutputSchema,
   },
   async (input) => {
-    const { keyword, size } = input;
-    console.log(`[searchServiceByKeywordTool] Searching for keyword: "${keyword}", size: "${size || 'any'}"`);
+    const { keyword, size, paintType } = input;
+    console.log(`[searchServiceByKeywordTool] Searching for keyword: "${keyword}", size: "${size || 'any'}", paintType: "${paintType || 'any'}"`);
     
     const snapshot = await adminDb.collection('services').get();
     
@@ -56,7 +57,7 @@ export const searchServiceByKeywordTool = ai.defineTool(
       
       if (nameLower.includes(keywordLower)) {
         currentScore += 10;
-        if (nameLower === keywordLower) currentScore += 15; // Stronger match for exact name
+        if (nameLower === keywordLower) currentScore += 15; 
       }
       if (svc.description?.toLowerCase().includes(keywordLower)) {
         currentScore += 3;
@@ -64,18 +65,16 @@ export const searchServiceByKeywordTool = ai.defineTool(
       if (svc.category?.toLowerCase().includes(keywordLower)) {
         currentScore += 2;
       }
-      // Consider aliases from ServiceProduct if it exists and is an array of strings
       if (svc.aliases && Array.isArray(svc.aliases)) {
         if (svc.aliases.some(alias => alias.toLowerCase().includes(keywordLower))) {
            currentScore += 8;
-           if (svc.aliases.some(alias => alias.toLowerCase() === keywordLower)) currentScore += 7; // Exact alias match
+           if (svc.aliases.some(alias => alias.toLowerCase() === keywordLower)) currentScore += 7;
         }
       }
-      // Consider variant names in scoring too
       if (svc.variants && svc.variants.length > 0) {
         svc.variants.forEach(variant => {
           if (variant.name.toLowerCase().includes(keywordLower)) {
-            currentScore += 5; // Add score if keyword matches a variant name
+            currentScore += 5; 
           }
         });
       }
@@ -88,8 +87,6 @@ export const searchServiceByKeywordTool = ai.defineTool(
     
     if (!bestMatch || highestScore === 0) {
       console.log(`[searchServiceByKeywordTool] No service found matching keyword: "${keyword}"`);
-      // Returning a structured error or a specific "not found" object might be better for the AI
-      // For now, throwing error as in original user code.
       throw new Error(`Layanan tidak ditemukan untuk kata kunci "${keyword}".`);
     }
     console.log(`[searchServiceByKeywordTool] Best match found: ${bestMatch.name} with score ${highestScore}`);
@@ -97,64 +94,53 @@ export const searchServiceByKeywordTool = ai.defineTool(
     let finalPrice: number | undefined = undefined;
     let matchedVariantName: string | undefined = undefined;
     let finalDuration = bestMatch.estimatedDuration || undefined;
+    let finalDescription = bestMatch.description || undefined;
 
     if (bestMatch.variants && bestMatch.variants.length > 0) {
-      let variantToUse;
+      let suitableVariants = bestMatch.variants;
+
       if (size) {
-        // Attempt to find a variant that explicitly mentions the size
-        variantToUse = bestMatch.variants.find(variant => 
-          variant.name.toLowerCase().includes(size.toLowerCase())
-        );
-        if (variantToUse) {
-          console.log(`[searchServiceByKeywordTool] Matched variant by size "${size}": ${variantToUse.name}`);
-        } else {
-          console.log(`[searchServiceByKeywordTool] No variant specifically matched size "${size}", considering first variant or base price.`);
-        }
+        suitableVariants = suitableVariants.filter(v => v.name.toLowerCase().includes(size.toLowerCase()));
+      }
+      if (paintType) {
+        suitableVariants = suitableVariants.filter(v => v.name.toLowerCase().includes(paintType.toLowerCase()));
       }
 
-      // If size-specific variant not found, or no size provided, use the first variant.
-      // Or, if base price is relevant and variants are add-ons, this logic might need adjustment.
-      // For now, if a size-specific variant is found, use it. Otherwise, if variants exist, pick first.
-      if (variantToUse) {
+      if (suitableVariants.length > 0) {
+        const variantToUse = suitableVariants[0]; // Prefer the most specific match
         finalPrice = variantToUse.price;
-        matchedVariantName = variantToUse.name;
+        matchedVariantName = variantToUse.name; // This could be "Ukuran M - Doff"
         finalDuration = variantToUse.estimatedDuration || finalDuration;
-      } else if (bestMatch.variants.length > 0) {
-        // Fallback to first variant if no size match or no size provided, but variants exist.
-        // This mirrors user's original logic of `bestMatch.variants?.[0]` somewhat.
-        // finalPrice = bestMatch.variants[0].price;
-        // matchedVariantName = bestMatch.variants[0].name;
-        // finalDuration = bestMatch.variants[0].estimatedDuration || finalDuration;
-        // console.log(`[searchServiceByKeywordTool] No size specific match, or no size provided. Using first variant: ${matchedVariantName}`);
-        // Let's default to base price if no specific variant matched, and only use first variant if base price is 0/undefined
+        // Variant description could override base description if available, or append
+        // finalDescription = variantToUse.description || finalDescription; 
+      } else if (keyword.toLowerCase().includes("coating") && (size || paintType)) {
+         // If specific variant for coating with size/paintType not found, return general info
+         // Price will remain undefined, prompting Zoya to ask for more details or state price depends on type.
+         console.log(`[searchServiceByKeywordTool] Coating query with size/paintType but no exact variant match. Returning general info for ${bestMatch.name}.`);
+      } else if (bestMatch.variants.length > 0 && (!size && !paintType)) {
+        // No specific filter, but variants exist. Maybe return base price or first variant.
+        // Or, if it's coating, Zoya should ask more.
+        // For now, if it's not coating or no specific filter, try base price or first variant.
         if (bestMatch.price && bestMatch.price > 0) {
             finalPrice = bestMatch.price;
         } else {
             finalPrice = bestMatch.variants[0].price;
             matchedVariantName = bestMatch.variants[0].name;
             finalDuration = bestMatch.variants[0].estimatedDuration || finalDuration;
-            console.log(`[searchServiceByKeywordTool] Base price is 0 or undefined. Using first variant: ${matchedVariantName}`);
         }
-
-      } else { // No variants, use base price
-         finalPrice = bestMatch.price;
       }
     } else {
       // No variants for the service
       finalPrice = bestMatch.price;
     }
     
-    console.log(`[searchServiceByKeywordTool] Final price for "${bestMatch.name}" (Size: ${size || 'any'}, Variant: ${matchedVariantName || 'N/A'}): ${finalPrice}`);
-
-    if (finalPrice === undefined) {
-        console.warn(`[searchServiceByKeywordTool] Could not determine a price for "${bestMatch.name}" with keyword "${keyword}" and size "${size}".`);
-    }
+    console.log(`[searchServiceByKeywordTool] Final price for "${bestMatch.name}" (Keyword: ${keyword}, Size: ${size || 'any'}, Paint: ${paintType || 'any'}, MatchedVariant: ${matchedVariantName || 'N/A'}): ${finalPrice === undefined ? 'Not Found/Specific' : finalPrice}`);
 
     return {
       name: bestMatch.name,
-      description: bestMatch.description || undefined,
+      description: finalDescription,
       price: finalPrice,
-      size: size, // Echo back the input size
+      size: size, 
       duration: finalDuration,
       variantMatched: matchedVariantName,
     };
