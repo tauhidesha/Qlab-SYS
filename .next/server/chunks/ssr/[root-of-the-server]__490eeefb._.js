@@ -536,16 +536,18 @@ Gaya bahasa:
 
 Tugas kamu:
 1. Jawab pertanyaan seputar layanan (cuci, coating, detailing, repaint).
-2. Kalau pelanggan menyebutkan motor seperti "nmax connected", panggil tool 'extractMotorInfoTool' dengan input: {"text": "nmax connected"}
-3. Gunakan hasil dari tool untuk menentukan ukuran motor (S/M/L/XL) lalu sesuaikan dengan layanan dan harga.
-4. Kalau berhasil deteksi motor, jelaskan layanan yang cocok dan tawarkan booking.
-5. Kalau pelanggan mau booking, minta data berikut:
+2. Jika pelanggan menyebutkan ingin coating tapi tidak menyebut jenis motornya, jawab dengan semangat dan tanya balik: "Motornya apa nih? Doff atau glossy?".
+3. Jika pelanggan menyebutkan jenis motor seperti “nmax connected”, gunakan tool 'extractMotorInfo' untuk deteksi.
+4. Kalau pelanggan menyebutkan motor seperti "nmax connected", panggil tool 'extractMotorInfoTool' dengan input: {"text": "nmax connected"}
+5. Gunakan hasil dari tool untuk menentukan ukuran motor (S/M/L/XL) lalu sesuaikan dengan layanan dan harga.
+6. Kalau berhasil deteksi motor, jelaskan layanan yang cocok dan tawarkan booking.
+7. Kalau pelanggan mau booking, minta data berikut:
    - Nama
    - No HP
    - Tanggal
    - Jam
    - Jenis Motor (gunakan dari hasil extract)
-6. Booking belum diproses AI sepenuhnya, jadi cukup kumpulkan datanya lalu katakan bahwa staf kami akan hubungi untuk konfirmasi final.
+8. Booking belum diproses AI sepenuhnya, jadi cukup kumpulkan datanya lalu katakan bahwa staf kami akan hubungi untuk konfirmasi final.
 
 Jika tidak yakin, arahkan pelanggan ke CS manusia.
 
@@ -588,21 +590,31 @@ const whatsAppReplyFlowSimplified = __TURBOPACK__imported__module__$5b$project$5
     inputSchema: __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$ai$2f$cs$2d$whatsapp$2d$reply$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["WhatsAppReplyInputSchema"],
     outputSchema: __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$ai$2f$cs$2d$whatsapp$2d$reply$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["WhatsAppReplyOutputSchema"]
 }, async (input)=>{
-    console.log("whatsAppReplyFlowSimplified input:", JSON.stringify(input, null, 2));
-    const { output } = await replyPromptSimplified(input);
-    if (!output) {
-        console.error('❌ Gagal mendapatkan balasan dari AI.');
-        throw new Error('❌ Gagal mendapatkan balasan dari AI.');
+    console.log("[CS-FLOW] whatsAppReplyFlowSimplified input:", JSON.stringify(input, null, 2));
+    try {
+        const { output } = await replyPromptSimplified(input);
+        if (!output) {
+            console.error('[CS-FLOW] ❌ Gagal mendapatkan balasan dari AI (output is null/undefined dari prompt). Mengembalikan default.');
+            return {
+                suggestedReply: "Maaf, Zoya lagi bingung nih. Bisa diulang pertanyaannya atau coba beberapa saat lagi?"
+            };
+        }
+        // Output should already be validated by definePrompt's outputSchema.
+        console.log("[CS-FLOW] whatsAppReplyFlowSimplified output dari prompt:", output);
+        return output;
+    } catch (e) {
+        // This catches errors during the execution of `replyPromptSimplified` itself (e.g., API errors from LLM provider)
+        console.error('[CS-FLOW] ❌ Error saat menjalankan prompt AI atau memproses outputnya:', e);
+        return {
+            suggestedReply: "Duh, Zoya lagi pusing tujuh keliling. Tanya lagi nanti ya, bro!"
+        };
     }
-    console.log("whatsAppReplyFlowSimplified output:", output);
-    return output;
 });
 async function generateWhatsAppReply(input) {
     // Untuk saat ini, kita asumsikan input ke flow sama dengan input ke fungsi ini.
     // Parameter seperti agentBehavior, knowledgeBase, dll. dari firestore settings
     // tidak di-passing ke flow baru ini untuk sementara.
     // Kita bisa tambahkan kembali jika diperlukan.
-    // Ambil data yang relevan dari input untuk flow
     const flowInput = {
         customerMessage: input.customerMessage,
         senderNumber: input.senderNumber,
@@ -612,6 +624,7 @@ async function generateWhatsAppReply(input) {
         tomorrowDate: input.tomorrowDate,
         dayAfterTomorrowDate: input.dayAfterTomorrowDate
     };
+    // Flow whatsAppReplyFlowSimplified sekarang dijamin mengembalikan Promise<WhatsAppReplyOutput>
     return whatsAppReplyFlowSimplified(flowInput);
 }
 ;

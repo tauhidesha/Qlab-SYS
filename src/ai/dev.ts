@@ -11,8 +11,9 @@ import '@/lib/firebase';
 
 // Only import the core WhatsApp reply flow and the new tool
 import '@/ai/flows/cs-whatsapp-reply-flow.ts';
-import '@/ai/tools/extractMotorInfoTool.ts'; // Pastikan ini diimpor
+import '@/ai/tools/extractMotorInfoTool.ts';
+import '@/ai/tools/productLookupTool.ts'; // Aktifkan import productLookupTool
 
 
-console.log("[src/ai/dev.ts] Core WhatsApp reply flow & extractMotorInfoTool imported. Other custom tools are disabled.");
+console.log("[src/ai/dev.ts] Core WhatsApp reply flow, extractMotorInfoTool, & productLookupTool imported.");
 console.log("[src/ai/dev.ts] Genkit Developer UI should be available if no errors (default port: 4001).");
