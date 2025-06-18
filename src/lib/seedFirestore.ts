@@ -1,7 +1,7 @@
 
 import { adminDb } from './firebase-admin';
 import * as fs from 'fs';
-import * => path from 'path';
+import * as path from 'path'; // Perbaikan di sini
 
 // Define the structure of a single vehicle type object in your JSON
 interface VehicleTypeSeed {
