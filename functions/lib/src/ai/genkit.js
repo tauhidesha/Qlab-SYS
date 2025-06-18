@@ -7,7 +7,7 @@ exports.ai = (0, genkit_1.genkit)({
     plugins: [
         (0, googleai_1.googleAI)(),
     ],
-    model: 'googleai/gemini-1.5-flash-latest', // Mengatur model default
+    model: 'googleai/gemini-2.0-flash-exp', // Model diubah ke Gemini 2.0 Flash Experimental
     telemetry: {
         instrumentation: {
             llm: true,
