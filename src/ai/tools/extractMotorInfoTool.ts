@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview Genkit tool for extracting motorcycle information from text.
@@ -77,7 +78,8 @@ export const extractMotorInfoTool = ai.defineTool(
         // console.log(`[extractMotorInfoTool] Checking vehicle: ${vehicleType.brand} ${vehicleType.model}, Aliases: ${vehicleType.aliases.join(', ')}`);
         for (const alias of vehicleType.aliases) {
           if (cleanText.includes(alias)) {
-            console.log(`[extractMotorInfoTool] MATCH FOUND! Alias "${alias}" in "${cleanText}". Returning: ${vehicleType.brand} ${vehicleType.model} (${vehicleType.size})`);
+            // Log tambahan untuk melihat alias mana yang cocok
+            console.log(`[extractMotorInfoTool] !!! MATCH FOUND !!! Alias "${alias}" (from vehicle: ${vehicleType.brand} ${vehicleType.model}) found in cleaned text: "${cleanText}"`);
             return {
               brand: vehicleType.brand,
               model: vehicleType.model,
