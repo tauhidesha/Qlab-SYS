@@ -9,6 +9,10 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { adminDb } from '@/lib/firebase-admin'; // Pastikan file ini ada dan terkonfigurasi
 
+if (!adminDb) {
+  throw new Error("[extractMotorInfoTool.ts] FATAL: adminDb is not available at module load time. Firebase Admin init failed or import order issue.");
+}
+
 // Skema input untuk tool
 const ExtractMotorInfoInputSchema = z.object({
   text: z.string().describe('Teks dari pengguna yang mungkin berisi nama atau deskripsi motor.'),

@@ -273,6 +273,11 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$genkit$2d$
 ;
 ;
 ;
+if (!process.env.GOOGLE_API_KEY) {
+    const errorMessage = "Kesalahan Konfigurasi: GOOGLE_API_KEY tidak ditemukan di environment variables. Ini dibutuhkan oleh plugin Google AI. Pastikan sudah di-set di file .env Anda.";
+    console.error(`\n\n🛑 ${errorMessage}\n\n`);
+    throw new Error(errorMessage);
+}
 const ai = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$genkit$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["genkit"])({
     plugins: [
         (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$genkit$2d$ai$2f$googleai$2f$lib$2f$index$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["googleAI"])()
@@ -300,26 +305,32 @@ __turbopack_context__.s({
 var __TURBOPACK__imported__module__$5b$externals$5d2f$firebase$2d$admin__$5b$external$5d$__$28$firebase$2d$admin$2c$__cjs$29$__ = __turbopack_context__.i("[externals]/firebase-admin [external] (firebase-admin, cjs)");
 ;
 // Minimal logging
-console.log("[firebase-admin.ts] Initializing Firebase Admin SDK...");
+console.log("[firebase-admin.ts] Attempting to initialize Firebase Admin SDK...");
 if (!__TURBOPACK__imported__module__$5b$externals$5d2f$firebase$2d$admin__$5b$external$5d$__$28$firebase$2d$admin$2c$__cjs$29$__["apps"].length) {
     try {
         // When deployed to App Hosting or running with emulators (e.g., via `firebase emulators:start`),
         // the SDK should auto-configure based on the environment.
-        // For local development outside emulators, you might need to set
-        // GOOGLE_APPLICATION_CREDENTIALS environment variable pointing to your service account key JSON file.
+        // For local development outside emulators, GOOGLE_APPLICATION_CREDENTIALS environment variable
+        // pointing to your service account key JSON file is typically required.
         (0, __TURBOPACK__imported__module__$5b$externals$5d2f$firebase$2d$admin__$5b$external$5d$__$28$firebase$2d$admin$2c$__cjs$29$__["initializeApp"])();
-        console.log('[firebase-admin.ts] Firebase Admin SDK initialized successfully.');
-        if ((0, __TURBOPACK__imported__module__$5b$externals$5d2f$firebase$2d$admin__$5b$external$5d$__$28$firebase$2d$admin$2c$__cjs$29$__["instanceId"])()) {
-            console.log('[firebase-admin.ts] Firebase Admin App Name:', (0, __TURBOPACK__imported__module__$5b$externals$5d2f$firebase$2d$admin__$5b$external$5d$__$28$firebase$2d$admin$2c$__cjs$29$__["app"])().name);
+        // Verify initialization by checking app name
+        if ((0, __TURBOPACK__imported__module__$5b$externals$5d2f$firebase$2d$admin__$5b$external$5d$__$28$firebase$2d$admin$2c$__cjs$29$__["app"])().name) {
+            console.log(`[firebase-admin.ts] Firebase Admin SDK initialized successfully. App Name: ${(0, __TURBOPACK__imported__module__$5b$externals$5d2f$firebase$2d$admin__$5b$external$5d$__$28$firebase$2d$admin$2c$__cjs$29$__["app"])().name}`);
+        } else {
+            // This case might be rare if initializeApp() itself doesn't throw for common issues
+            throw new Error("Firebase Admin SDK initializeApp() called, but app name is not available. Initialization may be incomplete.");
         }
     } catch (e) {
-        console.error('[firebase-admin.ts] Firebase Admin SDK initialization failed. Details:', e.message);
-        console.error('[firebase-admin.ts] Ensure your environment is configured correctly for Firebase Admin (e.g., GOOGLE_APPLICATION_CREDENTIALS for local dev, or running within a Firebase/GCP environment).');
-    // Depending on your error handling strategy, you might want to re-throw or handle this.
-    // For now, we'll let it proceed, but db/auth might be undefined.
+        const errorMessage = `[firebase-admin.ts] Firebase Admin SDK initialization FAILED. Details: ${e.message}. Pastikan environment Anda sudah benar (mis. GOOGLE_APPLICATION_CREDENTIALS untuk pengembangan lokal di luar emulator, atau Anda sedang menjalankan di dalam environment Firebase/GCP). Cek juga apakah Project ID Firebase terkonfigurasi dengan benar.`;
+        console.error(`\n\n🛑 ${errorMessage}\n\n`);
+        // Re-throw the error to make it clear that initialization failed and stop the process
+        // This is better than letting it proceed with potentially undefined db/auth.
+        throw new Error(errorMessage, {
+            cause: e
+        });
     }
 } else {
-    console.log('[firebase-admin.ts] Firebase Admin SDK already initialized. Using existing app.');
+    console.log(`[firebase-admin.ts] Firebase Admin SDK already initialized. Using existing app: ${(0, __TURBOPACK__imported__module__$5b$externals$5d2f$firebase$2d$admin__$5b$external$5d$__$28$firebase$2d$admin$2c$__cjs$29$__["app"])().name}`);
 }
 let adminDb;
 let adminAuth;
@@ -327,15 +338,18 @@ try {
     adminDb = (0, __TURBOPACK__imported__module__$5b$externals$5d2f$firebase$2d$admin__$5b$external$5d$__$28$firebase$2d$admin$2c$__cjs$29$__["firestore"])();
     console.log('[firebase-admin.ts] Firestore Admin instance obtained.');
 } catch (e) {
-    console.error('[firebase-admin.ts] FAILED to get Firestore Admin instance:', e?.message);
-    // @ts-ignore
-    adminDb = undefined;
+    const firestoreErrorMessage = `[firebase-admin.ts] FAILED to get Firestore Admin instance: ${e?.message}. Ini biasanya terjadi jika Firebase Admin SDK tidak terinisialisasi dengan benar.`;
+    console.error(`\n\n🛑 ${firestoreErrorMessage}\n\n`);
+    throw new Error(firestoreErrorMessage, {
+        cause: e
+    });
 }
 try {
     adminAuth = (0, __TURBOPACK__imported__module__$5b$externals$5d2f$firebase$2d$admin__$5b$external$5d$__$28$firebase$2d$admin$2c$__cjs$29$__["auth"])();
     console.log('[firebase-admin.ts] Auth Admin instance obtained.');
 } catch (e) {
-    console.error('[firebase-admin.ts] FAILED to get Auth Admin instance:', e?.message);
+    // Non-critical for current tools if Auth is not used, but good to log.
+    console.warn(`[firebase-admin.ts] FAILED to get Auth Admin instance: ${e?.message}. Jika tidak menggunakan Admin Auth, ini bisa diabaikan.`);
     // @ts-ignore
     adminAuth = undefined;
 }

@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview Genkit tool for searching services by keyword and optional size.
@@ -9,6 +10,10 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit'; // Genkit's Zod
 import { adminDb } from '@/lib/firebase-admin';
 import type { ServiceProduct } from '@/app/(app)/services/page'; // Assuming this type is suitable
+
+if (!adminDb) {
+  throw new Error("[searchServiceByKeywordTool.ts] FATAL: adminDb is not available at module load time. Firebase Admin init failed or import order issue.");
+}
 
 const SearchServiceInputSchema = z.object({
   keyword: z.string().describe("Kata kunci untuk mencari layanan, mis. 'cuci', 'coating', 'nmax'.") ,
@@ -146,4 +151,3 @@ export const searchServiceByKeywordTool = ai.defineTool(
     };
   }
 );
-
