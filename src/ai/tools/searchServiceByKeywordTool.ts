@@ -11,10 +11,6 @@ import { z } from 'genkit'; // Genkit's Zod
 import { adminDb } from '@/lib/firebase-admin';
 import type { ServiceProduct } from '@/app/(app)/services/page'; // Assuming this type is suitable
 
-if (!adminDb) {
-  throw new Error("[searchServiceByKeywordTool.ts] FATAL: adminDb is not available at module load time. Firebase Admin init failed or import order issue.");
-}
-
 const SearchServiceInputSchema = z.object({
   keyword: z.string().describe("Kata kunci untuk mencari layanan, mis. 'cuci', 'coating', 'nmax'.") ,
   size: z.enum(['S', 'M', 'L', 'XL']).optional().describe("Ukuran motor (S, M, L, XL) jika spesifik."),
@@ -40,6 +36,11 @@ export const searchServiceByKeywordTool = ai.defineTool(
     outputSchema: SearchServiceOutputSchema,
   },
   async (input) => {
+    if (!adminDb) {
+      console.error("[searchServiceByKeywordTool.ts] FATAL: adminDb is not available. Firebase Admin init failed or import order issue.");
+      throw new Error("Layanan database untuk informasi layanan tidak tersedia saat ini.");
+    }
+
     const { keyword, size, paintType } = input;
     console.log(`[searchServiceByKeywordTool] Searching for keyword: "${keyword}", size: "${size || 'any'}", paintType: "${paintType || 'any'}"`);
     

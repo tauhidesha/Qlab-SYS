@@ -415,9 +415,6 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 ;
 ;
 ;
-if (!__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2d$admin$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["adminDb"]) {
-    throw new Error("[extractMotorInfoTool.ts] FATAL: adminDb is not available at module load time. Firebase Admin init failed or import order issue.");
-}
 // Skema input untuk tool
 const ExtractMotorInfoInputSchema = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$common$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["z"].object({
     text: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$common$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["z"].string().describe('Teks dari pengguna yang mungkin berisi nama atau deskripsi motor.')
@@ -439,6 +436,10 @@ const extractMotorInfoTool = __TURBOPACK__imported__module__$5b$project$5d2f$src
     inputSchema: ExtractMotorInfoInputSchema,
     outputSchema: ExtractMotorInfoOutputSchema
 }, async (input)=>{
+    if (!__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2d$admin$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["adminDb"]) {
+        console.error("[extractMotorInfoTool] FATAL: adminDb is not available. Firebase Admin init failed or import order issue.");
+        throw new Error("Layanan database untuk informasi motor tidak tersedia saat ini.");
+    }
     const cleanText = input.text.toLowerCase().trim();
     console.log(`[extractMotorInfoTool] Input text: "${input.text}", Cleaned text: "${cleanText}"`);
     if (!cleanText) {
@@ -547,9 +548,6 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 ;
 ;
 ;
-if (!__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2d$admin$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["adminDb"]) {
-    throw new Error("[searchServiceByKeywordTool.ts] FATAL: adminDb is not available at module load time. Firebase Admin init failed or import order issue.");
-}
 const SearchServiceInputSchema = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$common$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["z"].object({
     keyword: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$common$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["z"].string().describe("Kata kunci untuk mencari layanan, mis. 'cuci', 'coating', 'nmax'."),
     size: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$common$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["z"].enum([
@@ -582,6 +580,10 @@ const searchServiceByKeywordTool = __TURBOPACK__imported__module__$5b$project$5d
     inputSchema: SearchServiceInputSchema,
     outputSchema: SearchServiceOutputSchema
 }, async (input)=>{
+    if (!__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2d$admin$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["adminDb"]) {
+        console.error("[searchServiceByKeywordTool.ts] FATAL: adminDb is not available. Firebase Admin init failed or import order issue.");
+        throw new Error("Layanan database untuk informasi layanan tidak tersedia saat ini.");
+    }
     const { keyword, size, paintType } = input;
     console.log(`[searchServiceByKeywordTool] Searching for keyword: "${keyword}", size: "${size || 'any'}", paintType: "${paintType || 'any'}"`);
     const snapshot = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2d$admin$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["adminDb"].collection('services').get();
