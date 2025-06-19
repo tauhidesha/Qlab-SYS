@@ -273,6 +273,11 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$genkit$2d$
 ;
 ;
 ;
+if (!process.env.GOOGLE_API_KEY) {
+    const errorMessage = "Kesalahan Konfigurasi: GOOGLE_API_KEY tidak ditemukan di environment variables. Ini dibutuhkan oleh plugin Google AI. Pastikan sudah di-set di file .env Anda.";
+    console.error(`\n\n🛑 ${errorMessage}\n\n`);
+    throw new Error(errorMessage);
+}
 const ai = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$genkit$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["genkit"])({
     plugins: [
         (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$genkit$2d$ai$2f$googleai$2f$lib$2f$index$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["googleAI"])()
@@ -309,7 +314,8 @@ const WhatsAppReplyInputSchema = __TURBOPACK__imported__module__$5b$project$5d2f
     currentDate: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$common$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["z"].string().optional().describe('Tanggal saat ini dalam format YYYY-MM-DD. Berguna untuk konteks booking.'),
     currentTime: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$common$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["z"].string().optional().describe('Waktu saat ini dalam format HH:MM (24 jam). Berguna untuk konteks booking.'),
     tomorrowDate: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$common$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["z"].string().optional().describe('Tanggal besok dalam format YYYY-MM-DD. Berguna untuk konteks booking.'),
-    dayAfterTomorrowDate: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$common$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["z"].string().optional().describe('Tanggal lusa (besoknya besok) dalam format YYYY-MM-DD. Berguna untuk konteks booking.')
+    dayAfterTomorrowDate: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$common$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["z"].string().optional().describe('Tanggal lusa (besoknya besok) dalam format YYYY-MM-DD. Berguna untuk konteks booking.'),
+    mainPromptString: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$common$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["z"].string().optional().describe('String prompt utama yang diambil dari pengaturan.')
 });
 const WhatsAppReplyOutputSchema = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$common$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["z"].object({
     suggestedReply: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$common$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["z"].string().describe('Saran balasan yang dihasilkan AI untuk dikirim ke pelanggan.')
@@ -367,7 +373,8 @@ const AiSettingsFormSchema = __TURBOPACK__imported__module__$5b$project$5d2f$nod
     humanAgentWhatsAppNumber: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].string().regex(/^\+?[0-9\s-]{10,18}$|^$/, "Format nomor WhatsApp agen tidak valid (mis. +628123456789 atau kosong).").optional().describe("Nomor WhatsApp agen manusia untuk notifikasi handoff."),
     enableFollowUp: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].boolean().default(false).describe("Aktifkan fitur follow-up otomatis untuk pelanggan yang pernah menghubungi via WhatsApp namun belum melakukan kunjungan atau transaksi. Follow-up berhenti jika pelanggan tercatat datang/bertransaksi."),
     followUpMessageTemplate: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].string().max(300, "Template pesan follow-up maksimal 300 karakter.").optional(),
-    followUpDelays: FollowUpDelaysSchema.optional()
+    followUpDelays: FollowUpDelaysSchema.optional(),
+    mainPrompt: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].string().min(100, "Prompt utama minimal 100 karakter.").max(15000, "Prompt utama maksimal 15000 karakter.").optional().describe("Prompt utama yang mengarahkan perilaku dan logika Zoya.")
 }).superRefine((data, ctx)=>{
     if (data.enableFollowUp) {
         if (!data.followUpMessageTemplate || data.followUpMessageTemplate.trim() === "") {
@@ -400,14 +407,118 @@ const AiSettingsFormSchema = __TURBOPACK__imported__module__$5b$project$5d2f$nod
         });
     }
 });
+// Default Main Prompt - diambil dari prompt terakhir yang kamu berikan
+const DEFAULT_MAIN_PROMPT_ZOYA = `
+Kamu adalah Zoya, Customer Service AI dari QLAB Moto Detailing.
+
+🎯 Gaya Bahasa:
+- Santai dan akrab, kayak ngobrol sama temen tongkrongan.
+- Gunakan sapaan seperti "bro", "kak", atau "mas".
+- Tetap informatif, jelas, dan cepat nangkep maksud pelanggan.
+
+🛠 Tool yang Bisa Kamu Pakai:
+1. 'extractMotorInfoTool': Deteksi jenis motor dan ukurannya dari teks.
+   Input: {"text": "deskripsi motor"}
+   Output: {"brand": "...", "model": "...", "size": "S/M/L/XL"}
+
+2. 'searchServiceByKeywordTool': Cari detail layanan berdasarkan kata kunci + ukuran motor (optional) + jenis cat (optional)
+   Input: {"keyword": "...", "size": "...", "paintType": "doff/glossy"}
+   Output: {"name": "...", "description": "...", "price": ..., "duration": "...", "variantMatched": "..."}
+
+3. 'createBookingTool': Catat booking.
+   Input: {
+     customerName, customerPhone, clientId,
+     serviceId, serviceName,
+     vehicleInfo, bookingDate, bookingTime,
+     estimatedDuration, notes
+   }
+
+🧠 Logika Utama:
+
+1. **Kalau pelanggan menyebut jenis motor (kayak "nmax", "xmax", "supra", dll)**:
+   - Langsung panggil 'extractMotorInfoTool' dengan input \`{"text": customerMessage}\`
+   - Simpan hasilnya untuk dipakai di langkah selanjutnya (khususnya size)
+
+2. **Kalau pelanggan nanya tentang coating**:
+   - Selalu pastikan dulu data motor dan cat (doff/glossy)
+   - Kalau belum disebut:
+     - Belum jelas motor & cat → tanya: "Motornya apa nih? Doff atau glossy, bro?"
+     - Motor doang → tanya: "Oke bro, motornya {{model}} ya. Catnya doff atau glossy, bro?"
+     - Cat doang → tanya: "Sip, coating doff ya. Motornya apa nih, bro?"
+   - Kalau **motor & cat udah jelas**:
+     - Panggil 'extractMotorInfoTool' (jika belum dan size belum diketahui dari histori)
+     - Panggil 'searchServiceByKeywordTool' dengan keyword "coating" + size (dari extractMotorInfoTool atau histori) + paintType.
+     - Kalau dapet harga (field 'price' ada dan bukan 0 atau null) → kasih info detail (nama layanan, harga, durasi) + tawarkan booking.
+     - Kalau TIDAK dapet harga (field 'price' undefined/null/0 dan bukan gratis) dari tool → SANGAT PENTING: JANGAN bilang "sebentar aku cek" lagi. LANGSUNG informasikan bahwa harga spesifik belum ketemu, tapi bisa kasih gambaran umum layanannya (ambil dari deskripsi jika ada). Misal: "Untuk coating NMAX doff, deskripsinya sih [deskripsi layanan]. Tapi buat harga pastinya, Zoya belum nemu nih bro, mungkin tergantung kondisi motornya juga. Mau Zoya bantu tanyain ke tim CS langsung?" atau "Coating NMAX doff ya, bro. Detailnya sih [deskripsi]. Untuk harganya Zoya belum dapet info pasti nih, biasanya tergantung ukuran & kondisi motor. Mau dibantu booking dulu aja biar nanti dikonfirmasi tim kami?"
+
+3. **Kalau pelanggan nanya layanan lain (cuci, detailing, poles, repaint, dll)**:
+   - Cek apakah menyebut motor → panggil 'extractMotorInfoTool' jika ada dan size belum diketahui.
+   - Panggil 'searchServiceByKeywordTool' dengan keyword sesuai + size (jika ada dari extractMotorInfoTool atau histori).
+   - Kalau dapet harga → langsung kasih info detail (nama layanan, harga, durasi) + tawarkan booking.
+   - Kalau cuma dapet deskripsi (TIDAK dapet harga dari tool) → kasih deskripsi + tanya motornya buat bisa kasih info harga (jika size belum diketahui). Jika size sudah diketahui tapi harga tetap tidak ada, sampaikan seperti poin 2 (harga tidak ketemu).
+
+4. **Kalau pelanggan mau booking** (atau menyebutkan niat booking seperti "mau booking", "jadwalin dong", atau memberikan info tanggal/jam):
+   - **Cek & Ekstrak Info dari Pesan Pelanggan & Riwayat:**
+     *   Nama Pelanggan? (Dari histori atau 'senderName' jika ada)
+     *   No HP? (Dari histori atau 'senderNumber' jika ada)
+     *   Jenis Motor? (Dari hasil 'extractMotorInfoTool' sebelumnya, atau dari histori/pesan pelanggan)
+     *   Layanan? (Dari hasil 'searchServiceByKeywordTool' sebelumnya, atau dari histori/pesan pelanggan. Ingat untuk dapatkan 'serviceId' dan 'serviceName' yang tepat.)
+     *   Tanggal & Jam?
+         -   Kalau pelanggan bilang 'hari ini', isi Tanggal dengan '{{{currentDate}}}'. Formatnya harus YYYY-MM-DD. (Contoh: jika {{{currentDate}}} adalah '18/06/2024', ubah jadi '2024-06-18').
+         -   Kalau pelanggan bilang 'besok', isi Tanggal dengan '{{{tomorrowDate}}}'. Formatnya harus YYYY-MM-DD.
+         -   Kalau pelanggan bilang 'lusa', isi Tanggal dengan '{{{dayAfterTomorrowDate}}}'. Formatnya harus YYYY-MM-DD.
+         -   Kalau pelanggan sebut jam spesifik (mis. 'jam 5 sore', 'jam 10 pagi', 'jam 14.30'):
+             -   'jam 5 sore' -> Jam: '17:00'
+             -   'jam 10 pagi' -> Jam: '10:00'
+             -   'jam 2 siang' -> Jam: '14:00'
+             -   'jam 7 malam' -> Jam: '19:00'
+             -   'jam 14.30' -> Jam: '14:30'
+             -   Jika hanya jam tanpa keterangan hari, dan belum ada tanggal, asumsikan 'hari ini' (gunakan '{{{currentDate}}}' yang sudah diformat YYYY-MM-DD).
+         -   Jika pelanggan menyebut tanggal dan bulan (mis. "17 Agustus"), coba pahami dan format ke YYYY-MM-DD. Jika ragu, tanyakan tahunnya atau konfirmasi.
+   - **Formulasikan Pertanyaan (Jika Info Kurang):**
+     *   Sebutkan dulu info yang SUDAH kamu pahami.
+     *   Contoh jika layanan, motor, tanggal, jam sudah ada: "Oke bro, NMAX doff buat coating ya, hari ini ({DD/MM/YYYY}) jam 17:00. Boleh minta Nama sama No HP-nya buat konfirmasi booking?" (Ganti {DD/MM/YYYY} dengan tanggal sebenarnya dari {{{currentDate}}})
+     *   Contoh jika hanya layanan & motor: "Sip, coating buat NMAX doff ya. Mau booking tanggal dan jam berapa nih, bro? Sekalian Nama sama No HP-nya ya."
+     *   Contoh jika banyak kurang: "Oke bro, untuk bookingnya, Zoya butuh info ini ya:\\nNama : [isi jika sudah tahu]\\nNo HP : [isi jika sudah tahu]\\nLayanan : [isi jika sudah tahu]\\nTanggal : [isi jika sudah tahu dari 'hari ini/besok/lusa']\\nJam kedatangan : [isi jika sudah tahu]\\nJenis Motor : [isi jika sudah tahu]"
+   - **Jika Semua Info Sudah Lengkap**:
+     *   Panggil tool 'createBookingTool' dengan semua data yang telah terkumpul.
+     *   Pastikan 'bookingDate' dalam format YYYY-MM-DD dan 'bookingTime' dalam format HH:MM.
+     *   'serviceId' dan 'serviceName' ambil dari hasil pencarian layanan sebelumnya.
+     *   'vehicleInfo' gabungkan informasi motor (mis. "NMAX Merah Doff").
+     *   Kalau sukses → balas: "Sip bro, booking kamu udah Zoya catat ya. Jadwalnya: [Nama Layanan] untuk [Jenis Motor] pada tanggal [Tanggal Booking format DD MMMM YYYY] jam [Jam Booking]. 👍"
+     *   Kalau gagal → minta maaf, arahkan ke CS manusia.
+
+📌 **Catatan Tambahan:**
+- Usahakan jawab dengan data real dari tools, jangan ngarang kalau tool belum kasih data.
+- Kalau info belum lengkap dari pelanggan, pancing dengan gaya ngobrol santai.
+- Kalau ada pertanyaan yang di luar kapasitas kamu, jawab kayak gini:
+  > "Waduh, ini agak di luar kepala gue bro... Zoya bantu terusin ke tim CS ya. #unanswered"
+
+📤 Output HARUS dalam format JSON:
+Contoh:
+{ "suggestedReply": "Oke bro, untuk coating doff ukuran M harganya 400rb. Mau sekalian booking?" }
+
+📩 Chat Pelanggan:
+user: {{{customerMessage}}}
+
+📚 Riwayat Sebelumnya:
+{{#if chatHistory.length}}
+{{#each chatHistory}}
+{{this.role}}: {{this.content}}
+{{/each}}
+{{/if}}
+
+🕒 Tanggal hari ini: {{{currentDate}}}, waktu: {{{currentTime}}}
+Besok: {{{tomorrowDate}}}, Lusa: {{{dayAfterTomorrowDate}}}
+`;
 const DEFAULT_AI_SETTINGS = {
     agentBehavior: "Humoris & Santai",
-    welcomeMessage: "Selamat datang di QLAB Auto Detailing! Ada yang bisa saya bantu hari ini?",
+    welcomeMessage: "Halo bro! Zoya di sini, siap bantu seputar QLAB Moto Detailing. Ada yang bisa Zoya bantu?",
     transferConditions: [
-        "Pelanggan Meminta Secara Eksplisit",
-        "AI Tidak Menemukan Jawaban (Setelah 2x Coba)"
+        "Pelanggan Meminta Secara Eksplisit"
     ],
-    knowledgeBaseDescription: `Anda adalah asisten AI untuk QLAB Auto Detailing. Tugas utama Anda adalah membantu pelanggan dan staf. Gunakan tools yang tersedia untuk mencari informasi produk, layanan, klien, atau detail dari knowledge base. Prioritaskan penggunaan 'getKnowledgeBaseInfoTool' untuk pertanyaan umum atau detail kebijakan, dan 'getProductServiceDetailsByNameTool' untuk harga/durasi spesifik.`,
+    knowledgeBaseDescription: `Anda adalah asisten AI untuk QLAB Moto Detailing. Tugas utama Anda adalah membantu pelanggan dan staf. Gunakan tools yang tersedia untuk mencari informasi produk, layanan, klien, atau detail dari knowledge base. Prioritaskan penggunaan 'getKnowledgeBaseInfoTool' untuk pertanyaan umum atau detail kebijakan, dan 'searchServiceByKeywordTool' untuk harga/durasi spesifik.`,
+    mainPrompt: DEFAULT_MAIN_PROMPT_ZOYA,
     enableHumanHandoff: false,
     humanAgentWhatsAppNumber: '',
     enableFollowUp: false,
@@ -425,23 +536,21 @@ const DEFAULT_AI_SETTINGS = {
 
 var { g: global, __dirname } = __turbopack_context__;
 {
-/* __next_internal_action_entry_do_not_use__ [{"4053660f6447b38038e1d20965a3df3cd57a2a7b51":"generateWhatsAppReply"},"",""] */ __turbopack_context__.s({
-    "generateWhatsAppReply": (()=>generateWhatsAppReply)
+/* __next_internal_action_entry_do_not_use__ [{"4053660f6447b38038e1d20965a3df3cd57a2a7b51":"generateWhatsAppReply","7fd8afbeff99eab53697d6b0516bcfa4f9d9184f1f":"whatsAppReplyFlowSimplified"},"",""] */ __turbopack_context__.s({
+    "generateWhatsAppReply": (()=>generateWhatsAppReply),
+    "whatsAppReplyFlowSimplified": (()=>whatsAppReplyFlowSimplified)
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$server$2d$reference$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/build/webpack/loaders/next-flight-loader/server-reference.js [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$app$2d$render$2f$encryption$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/app-render/encryption.js [app-rsc] (ecmascript)");
 /**
- * @fileOverview AI flow for WhatsApp customer service replies.
- * Integrates with Firestore settings for dynamic AI behavior.
- * - generateWhatsAppReply - Function to generate a draft reply.
+ * @fileOverview AI flow for WhatsApp customer service replies,
+ * using direct Firestore lookups for context and dynamic system prompt generation.
  */ var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/ai/genkit.ts [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$ai$2f$cs$2d$whatsapp$2d$reply$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/types/ai/cs-whatsapp-reply.ts [app-rsc] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/types/aiSettings.ts [app-rsc] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__ = __turbopack_context__.i("[project]/node_modules/date-fns/format.mjs [app-rsc] (ecmascript) <locals>");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$addDays$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/date-fns/addDays.mjs [app-rsc] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$firestore$2f$dist$2f$index$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/firestore/dist/index.mjs [app-rsc] (ecmascript) <module evaluation>");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@firebase/firestore/dist/index.node.mjs [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/firebase.ts [app-rsc] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$firestore$2f$dist$2f$index$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/firestore/dist/index.mjs [app-rsc] (ecmascript) <module evaluation>"); // Renamed query to firestoreQuery
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@firebase/firestore/dist/index.node.mjs [app-rsc] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/types/aiSettings.ts [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$action$2d$validate$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/build/webpack/loaders/next-flight-loader/action-validate.js [app-rsc] (ecmascript)");
 ;
 ;
@@ -450,107 +559,266 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 ;
 ;
 ;
-;
-async function getAiSettingsFromFirestore() {
+// Helper Function: Adapted from src/flow.ts to work with Firestore client SDK
+// and ServiceProduct variant structure (array of objects).
+async function getServicePrice(vehicleModel, serviceName) {
+    if (!__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"]) {
+        console.error("[CS-FLOW] Firestore client (db) is not initialized in getServicePrice.");
+        return null;
+    }
     try {
-        const settingsDocRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["doc"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'appSettings', 'aiAgentConfig');
-        const docSnap = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDoc"])(settingsDocRef);
-        if (docSnap.exists()) {
-            console.log("AI settings fetched from Firestore:", docSnap.data());
-            return docSnap.data();
+        const vehicleTypesRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'vehicleTypes');
+        const vehicleQuery = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["query"])(vehicleTypesRef, // Assuming aliases in vehicleTypes includes the model name itself in lowercase
+        (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["where"])('aliases', 'array-contains', vehicleModel.toLowerCase()), (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["limit"])(1));
+        const vehicleSnapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(vehicleQuery);
+        let vehicleSize = null;
+        if (!vehicleSnapshot.empty) {
+            vehicleSize = vehicleSnapshot.docs[0].data().size; // e.g., "L"
+        } else {
+            // Fallback: try matching model field directly if alias match fails
+            const modelDirectQuery = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["query"])(vehicleTypesRef, (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["where"])('model', '==', vehicleModel), (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["limit"])(1));
+            const modelDirectSnapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(modelDirectQuery);
+            if (!modelDirectSnapshot.empty) {
+                vehicleSize = modelDirectSnapshot.docs[0].data().size;
+            } else {
+                console.log(`[CS-FLOW] getServicePrice: Vehicle model '${vehicleModel}' not found via aliases or direct model name.`);
+                return null;
+            }
         }
-        console.log("No AI settings found in Firestore, using defaults.");
-        return {};
+        if (!vehicleSize) {
+            console.log(`[CS-FLOW] getServicePrice: Vehicle size not found for model '${vehicleModel}'.`);
+            return null;
+        }
+        const servicesRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'services');
+        // Try matching by name directly first (case-insensitive equivalent)
+        // Firestore is case-sensitive, so this requires a more complex query or fetching and filtering.
+        // For simplicity here, we'll fetch and filter, or rely on a lowercase name field if available.
+        // Let's assume we fetch and filter for name first.
+        const servicesSnapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(servicesRef);
+        const serviceDoc = servicesSnapshot.docs.find((doc1)=>doc1.data().name?.toLowerCase() === serviceName.toLowerCase());
+        if (!serviceDoc) {
+            console.log(`[CS-FLOW] getServicePrice: Service name '${serviceName}' not found by direct name match.`);
+            return null;
+        }
+        const serviceData = serviceDoc.data();
+        let price = null;
+        if (serviceData.variants && Array.isArray(serviceData.variants)) {
+            // Variants is an array of objects: [{name: "L", price: 50000}, ...]
+            const variant = serviceData.variants.find((v)=>v.name && v.name.toUpperCase() === vehicleSize.toUpperCase());
+            if (variant && typeof variant.price === 'number') {
+                price = variant.price;
+            }
+        }
+        if (price === null) {
+            console.log(`[CS-FLOW] getServicePrice: Price not found for service '${serviceName}' with size '${vehicleSize}'. Trying base price.`);
+            return typeof serviceData.price === 'number' ? serviceData.price : null; // Fallback ke harga dasar
+        }
+        return price;
     } catch (error) {
-        console.error("Error fetching AI settings from Firestore:", error);
-        return {}; // Fallback to empty object, defaults will apply
+        console.error("[CS-FLOW] Error in getServicePrice:", error);
+        return null;
     }
 }
-async function generateWhatsAppReply({ customerMessage, senderNumber, chatHistory }) {
-    const firestoreSettings = await getAiSettingsFromFirestore();
-    const agentSettings = {
-        ...__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"],
-        ...firestoreSettings
-    };
-    const now = new Date();
-    const flowInput = {
-        customerMessage,
-        senderNumber,
-        chatHistory: chatHistory || [],
-        agentBehavior: agentSettings.agentBehavior,
-        knowledgeBase: agentSettings.knowledgeBaseDescription,
-        currentDate: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(now, 'yyyy-MM-dd'),
-        currentTime: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(now, 'HH:mm'),
-        tomorrowDate: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$addDays$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["addDays"])(now, 1), 'yyyy-MM-dd'),
-        dayAfterTomorrowDate: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$addDays$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["addDays"])(now, 2), 'yyyy-MM-dd')
-    };
-    console.log("generateWhatsAppReply input to flow (simplified):", JSON.stringify(flowInput, null, 2));
-    const aiResponse = await whatsAppReplyFlowSimplified(flowInput);
-    return aiResponse;
-}
-const replyPromptSimplified = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].definePrompt({
-    name: 'whatsAppReplyPromptSimplified',
-    input: {
-        schema: __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$ai$2f$cs$2d$whatsapp$2d$reply$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["WhatsAppReplyInputSchema"]
-    },
-    output: {
-        schema: __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$ai$2f$cs$2d$whatsapp$2d$reply$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["WhatsAppReplyOutputSchema"]
-    },
-    // TOOLS DIHAPUS DARI SINI
-    prompt: `Anda adalah Zoya, seorang Customer Service Assistant AI untuk QLAB Auto Detailing.
-Perilaku Anda: {{{agentBehavior}}}.
-Anda bertugas membantu pengguna dengan menjawab pertanyaan mengenai layanan dan produk QLAB.
-Gunakan informasi dari "Panduan Umum Knowledge Base" di bawah ini sebagai sumber informasi utama Anda.
-
-Tugas Utama Anda adalah menghasilkan balasan dalam format JSON dengan field "suggestedReply".
-
-Alur Kerja Utama Anda:
-1.  PAHAMI PESAN PELANGGAN: Identifikasi apa yang dibutuhkan pelanggan.
-2.  RUJUK KE PANDUAN UMUM: Gunakan informasi dari "Panduan Umum Knowledge Base" untuk menjawab pertanyaan pelanggan.
-    *   Panduan Umum Knowledge Base (dari {{{knowledgeBase}}}): Ini berisi informasi umum tentang layanan, produk, jam operasional, kebijakan, dll.
-    *   Jika pertanyaan pelanggan spesifik tentang harga atau durasi, dan informasi tersebut tidak ada di "Panduan Umum Knowledge Base", informasikan bahwa Anda tidak memiliki detail tersebut dan sarankan untuk menghubungi langsung atau datang ke bengkel. JANGAN MENGARANG HARGA ATAU DURASI.
-3.  KONTEKS TAMBAHAN:
-    *   Tanggal & Waktu Saat Ini: Tanggal {{{currentDate}}}, jam {{{currentTime}}}. Besok: {{{tomorrowDate}}}. Lusa: {{{dayAfterTomorrowDate}}}.
-
-4.  SUSUN BALASAN: Berdasarkan informasi yang Anda miliki dari "Panduan Umum Knowledge Base", buatlah balasan yang membantu.
-
-GAYA BAHASA:
-Gunakan bahasa Indonesia yang baku, sopan, ramah, dan natural untuk percakapan WhatsApp.
-Jika pertanyaan di luar lingkup informasi yang ada di "Panduan Umum Knowledge Base", sarankan pelanggan untuk datang ke bengkel atau hubungi nomor resmi.
-Jaga balasan ringkas namun lengkap.
-Selalu akhiri dengan sapaan sopan atau kalimat positif.
-
-RIWAYAT PERCAKAPAN SEBELUMNYA (jika ada):
-{{#if chatHistory.length}}
-{{#each chatHistory}}
-  {{this.role}}: {{{this.content}}}
-{{/each}}
-{{/if}}
-
-PESAN PELANGGAN TERBARU:
-user: {{{customerMessage}}}
-
-FORMAT BALASAN (SANGAT PENTING):
-Format balasan ANDA HARUS SELALU berupa objek JSON dengan satu field bernama "suggestedReply" yang berisi teks balasan Anda.
-Contoh balasan JSON: {"suggestedReply": "Tentu, Kak. Jam operasional kami adalah Senin-Sabtu pukul 09.00-21.00."}
-Hasilkan hanya objek JSON sebagai balasan Anda.
-`
-});
 const whatsAppReplyFlowSimplified = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].defineFlow({
     name: 'whatsAppReplyFlowSimplified',
     inputSchema: __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$ai$2f$cs$2d$whatsapp$2d$reply$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["WhatsAppReplyInputSchema"],
     outputSchema: __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$ai$2f$cs$2d$whatsapp$2d$reply$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["WhatsAppReplyOutputSchema"]
 }, async (input)=>{
-    console.log("whatsAppReplyFlowSimplified input:", JSON.stringify(input, null, 2));
-    const { output } = await replyPromptSimplified(input);
-    if (!output) throw new Error('Gagal mendapatkan saran balasan dari AI.');
-    console.log("whatsAppReplyFlowSimplified output:", output);
-    return output;
+    try {
+        console.log("[CS-FLOW] whatsAppReplyFlowSimplified input received. customerMessage:", input.customerMessage);
+        const lastUserMessageContent = input.customerMessage.toLowerCase();
+        let vehicleModel = null;
+        let serviceName = null;
+        let dynamicContext = "INFO_UMUM_BENGKEL: QLAB Moto Detailing adalah bengkel perawatan dan detailing motor.";
+        if (__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"]) {
+            try {
+                // Deteksi model kendaraan
+                const vehicleTypesRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'vehicleTypes');
+                const modelsSnapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(vehicleTypesRef);
+                for (const doc1 of modelsSnapshot.docs){
+                    const data = doc1.data();
+                    const modelAliases = (data.aliases || []).map((a)=>a.toLowerCase());
+                    const originalModelName = data.model;
+                    if (modelAliases.some((alias)=>lastUserMessageContent.includes(alias)) || lastUserMessageContent.includes(originalModelName.toLowerCase())) {
+                        vehicleModel = originalModelName;
+                        console.log(`[CS-FLOW] Vehicle model detected: ${vehicleModel}`);
+                        break;
+                    }
+                }
+                // Deteksi layanan
+                const servicesRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'services');
+                const servicesSnapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(servicesRef);
+                for (const doc1 of servicesSnapshot.docs){
+                    const data = doc1.data();
+                    const serviceAliases = (data.aliases || []).map((a)=>a.toLowerCase());
+                    const originalServiceName = data.name;
+                    if (serviceAliases.some((alias)=>lastUserMessageContent.includes(alias)) || lastUserMessageContent.includes(originalServiceName.toLowerCase())) {
+                        serviceName = originalServiceName;
+                        console.log(`[CS-FLOW] Service name detected: ${serviceName}`);
+                        break;
+                    }
+                }
+            } catch (dbError) {
+                console.error("[CS-FLOW] Error during Firestore entity detection:", dbError);
+                dynamicContext += " WARNING: Gagal mengambil data detail dari database.";
+            }
+        } else {
+            console.warn("[CS-FLOW] Firestore (db) is not initialized. Entity detection and pricing will be skipped.");
+            dynamicContext += " WARNING: Database tidak terhubung, info harga mungkin tidak akurat.";
+        }
+        if (vehicleModel && serviceName) {
+            const price = await getServicePrice(vehicleModel, serviceName);
+            if (serviceName.toLowerCase().includes('full detailing') && lastUserMessageContent.includes('doff')) {
+                dynamicContext = `VALIDATION_ERROR: Full Detailing tidak bisa untuk motor doff (motor terdeteksi: ${vehicleModel}, layanan diminta: ${serviceName}). Tawarkan Coating Doff sebagai alternatif.`;
+            } else {
+                dynamicContext = `DATA_PRODUK: Untuk motor ${vehicleModel}, layanan ${serviceName}, estimasi harganya adalah Rp ${price?.toLocaleString('id-ID') || 'belum tersedia, mohon tanyakan detail motor lebih lanjut atau jenis catnya (doff/glossy) jika coating'}.`;
+            }
+        } else if (vehicleModel) {
+            dynamicContext = `INFO_MOTOR_TERDETEKSI: ${vehicleModel}. Tanyakan layanan apa yang diinginkan.`;
+        } else if (serviceName) {
+            dynamicContext = `INFO_LAYANAN_TERDETEKSI: ${serviceName}. Tanyakan jenis motornya apa untuk estimasi harga.`;
+        }
+        console.log(`[CS-FLOW] Dynamic context built: ${dynamicContext}`);
+        const systemInstruction = `
+Anda adalah "Zoya" - CS QLAB Moto Detailing.
+GAYA BAHASA:
+- Santai tapi profesional (contoh: "Halo boskuu", "Gas booking sekarang!", "Siap bos!")
+- Pakai istilah: "kinclong", "cuci premium level spa motor", "poles", "coating"
+- Hindari kata kasar (boleh pakai "anjay" jika pas konteksnya)
+- Gunakan emoji secukupnya: ✅😎✨💸🛠️👋
+
+ATURAN WAJIB:
+1. Layanan "Full Detailing" HANYA untuk motor tipe glossy. JANGAN tawarkan ke motor doff. Jika user minta, tolak dengan sopan dan berikan alternatif lain seperti "Coating Doff".
+2. Layanan "Coating" memiliki harga yang BERBEDA untuk glossy dan doff. Selalu pastikan tipe motornya dan jenis catnya (jika belum jelas dari KONTEKS DARI SISTEM). Jika harga belum ada di KONTEKS, tanyakan spesifikasi motor atau jenis cat.
+3. Motor besar (Moge) seperti Harley, CBR600RR, dll, otomatis menggunakan ukuran "SIZE XL". Info ukuran ini akan otomatis didapat dari sistem jika model terdeteksi.
+
+KONTEKS DARI SISTEM (gunakan data ini untuk menjawab, JANGAN tampilkan KONTEKS ini ke user secara langsung, olah jadi jawaban natural, jangan JSON):
+${dynamicContext}
+
+PETUNJUK TAMBAHAN:
+- Jika KONTEKS berisi VALIDATION_ERROR, jelaskan error tersebut ke user dengan bahasa yang sopan dan berikan solusi/alternatif.
+- Jika KONTEKS berisi DATA_PRODUK dan harganya ada, sebutkan harganya. Jika harga 'belum tersedia', JANGAN mengarang harga. Informasikan bahwa harga spesifik belum ada dan tanyakan detail lebih lanjut jika diperlukan (misal jenis cat untuk coating, atau ukuran motor jika belum terdeteksi).
+- Jika user bertanya di luar topik detailing motor, jawab dengan sopan bahwa Anda hanya bisa membantu soal QLAB Moto Detailing.
+- Tujuan utama: Memberikan informasi akurat dan membantu user melakukan booking jika mereka mau.
+
+JAWABAN (format natural):
+      `;
+        const historyForAI = (input.chatHistory || []).filter((msg)=>msg.content && msg.content.trim() !== '').map((msg)=>({
+                role: msg.role,
+                parts: [
+                    {
+                        text: msg.content
+                    }
+                ]
+            }));
+        const messagesForAI = [
+            ...historyForAI,
+            {
+                role: 'user',
+                parts: [
+                    {
+                        text: input.customerMessage
+                    }
+                ]
+            }
+        ];
+        console.log("[CS-FLOW] Calling ai.generate with model googleai/gemini-1.5-flash-latest");
+        const result = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].generate({
+            model: 'googleai/gemini-1.5-flash-latest',
+            messages: messagesForAI,
+            system: systemInstruction,
+            config: {
+                temperature: 0.5
+            }
+        });
+        const suggestedReply = result.text();
+        if (!suggestedReply) {
+            console.error('[CS-FLOW] ❌ Gagal mendapatkan balasan dari AI atau output tidak sesuai skema (output atau suggestedReply null/undefined). Mengembalikan default.');
+            return {
+                suggestedReply: "Maaf, Zoya lagi bingung nih. Bisa diulang pertanyaannya atau coba beberapa saat lagi?"
+            };
+        }
+        console.log("[CS-FLOW] AI generate output:", suggestedReply);
+        return {
+            suggestedReply
+        };
+    } catch (flowError) {
+        console.error('[CS-FLOW] ❌ Critical error dalam flow whatsAppReplyFlowSimplified:', flowError);
+        return {
+            suggestedReply: "Waduh, sistem Zoya lagi ada kendala besar nih. Mohon coba beberapa saat lagi ya."
+        };
+    }
 });
+async function generateWhatsAppReply(input) {
+    let promptFromSettings = "";
+    try {
+        const settingsDocRef = doc(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'appSettings', 'aiAgentConfig');
+        const settingsSnap = await getDoc(settingsDocRef);
+        if (settingsSnap.exists() && settingsSnap.data()?.mainPrompt && settingsSnap.data()?.mainPrompt.trim() !== "") {
+            promptFromSettings = settingsSnap.data()?.mainPrompt;
+        } else {
+            console.warn("[CS-FLOW] generateWhatsAppReply: mainPrompt not found in Firestore or is empty. Checking default.");
+            if (__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"].mainPrompt && __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"].mainPrompt.trim() !== "") {
+                promptFromSettings = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"].mainPrompt;
+            } else {
+                console.error("[CS-FLOW] generateWhatsAppReply: CRITICAL - mainPrompt is also empty in DEFAULT_AI_SETTINGS. Using emergency fallback prompt.");
+                promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna: {{{customerMessage}}}";
+            }
+        }
+    } catch (error) {
+        console.error("[CS-FLOW] generateWhatsAppReply: Error fetching prompt from Firestore. Using default/emergency fallback.", error);
+        if (__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"].mainPrompt && __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"].mainPrompt.trim() !== "") {
+            promptFromSettings = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"].mainPrompt;
+        } else {
+            console.error("[CS-FLOW] generateWhatsAppReply: CRITICAL - mainPrompt is also empty in DEFAULT_AI_SETTINGS post-error. Using emergency fallback prompt.");
+            promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna: {{{customerMessage}}}";
+        }
+    }
+    // Fallback one last time if somehow promptFromSettings is still empty
+    if (!promptFromSettings || promptFromSettings.trim() === "") {
+        console.error("[CS-FLOW] generateWhatsAppReply: CRITICAL - promptFromSettings is STILL empty after all checks. Using emergency fallback prompt.");
+        promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna: {{{customerMessage}}}";
+    }
+    const flowInput = {
+        ...input,
+        // mainPromptString is part of WhatsAppReplyInputSchema but will be ignored by the flow's current logic.
+        // The system instruction is now built dynamically inside whatsAppReplyFlowSimplified.
+        // We pass it here for schema compliance and potential future use if logic changes.
+        mainPromptString: promptFromSettings,
+        customerMessage: input.customerMessage,
+        senderNumber: input.senderNumber,
+        chatHistory: input.chatHistory || [],
+        currentDate: input.currentDate || new Date().toLocaleDateString('id-ID', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }),
+        currentTime: input.currentTime || new Date().toLocaleTimeString('id-ID', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        }),
+        tomorrowDate: input.tomorrowDate || new Date(Date.now() + 86400000).toLocaleDateString('id-ID', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }),
+        dayAfterTomorrowDate: input.dayAfterTomorrowDate || new Date(Date.now() + 2 * 86400000).toLocaleDateString('id-ID', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }),
+        agentBehavior: input.agentBehavior || __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"].agentBehavior,
+        knowledgeBase: input.knowledgeBase || __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"].knowledgeBaseDescription
+    };
+    return whatsAppReplyFlowSimplified(flowInput);
+}
 ;
 (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$action$2d$validate$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ensureServerEntryExports"])([
+    whatsAppReplyFlowSimplified,
     generateWhatsAppReply
 ]);
+(0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$server$2d$reference$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["registerServerReference"])(whatsAppReplyFlowSimplified, "7fd8afbeff99eab53697d6b0516bcfa4f9d9184f1f", null);
 (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$server$2d$reference$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["registerServerReference"])(generateWhatsAppReply, "4053660f6447b38038e1d20965a3df3cd57a2a7b51", null);
 }}),
 "[project]/.next-internal/server/app/(app)/ai-cs-assistant/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/ai/flows/cs-whatsapp-reply-flow.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript) <locals>": ((__turbopack_context__) => {

@@ -11,7 +11,7 @@ import type { WhatsAppReplyInput, WhatsAppReplyOutput, ChatMessage } from '@/typ
 import { WhatsAppReplyInputSchema, WhatsAppReplyOutputSchema } from '@/types/ai/cs-whatsapp-reply';
 
 import { db } from '@/lib/firebase';
-import { collection, query as firestoreQuery, where, limit, getDocs, Timestamp } from 'firebase/firestore'; // Renamed query to firestoreQuery
+import { collection, query as firestoreQuery, where, limit, getDocs, Timestamp, doc as firestoreDoc, getDoc as getFirestoreDoc } from 'firebase/firestore'; // Renamed query to firestoreQuery and added doc, getDoc
 import { DEFAULT_AI_SETTINGS } from '@/types/aiSettings';
 
 
@@ -191,16 +191,12 @@ JAWABAN (format natural):
           parts: [{ text: msg.content }],
         }));
       
-      const messagesForAI = [
-          ...historyForAI,
-          { role: 'user' as const, parts: [{ text: input.customerMessage }] }
-      ];
-
-      console.log("[CS-FLOW] Calling ai.generate with model googleai/gemini-1.5-flash-latest");
+      console.log("[CS-FLOW] Calling ai.generate with model googleai/gemini-1.5-flash-latest. History:", historyForAI, "Prompt:", input.customerMessage);
       const result = await ai.generate({
         model: 'googleai/gemini-1.5-flash-latest',
-        messages: messagesForAI,
         system: systemInstruction,
+        history: historyForAI, 
+        prompt: input.customerMessage,
         config: { temperature: 0.5 },
       });
 
@@ -220,10 +216,10 @@ JAWABAN (format natural):
 );
 
 export async function generateWhatsAppReply(input: Omit<WhatsAppReplyInput, 'mainPromptString'>): Promise<WhatsAppReplyOutput> {
-  let promptFromSettings = "";
+  let promptFromSettings = ""; // Ini tidak lagi digunakan untuk System Instruction di flow ini, tapi tetap ada untuk tipe
   try {
-    const settingsDocRef = doc(db, 'appSettings', 'aiAgentConfig');
-    const settingsSnap = await getDoc(settingsDocRef);
+    const settingsDocRef = firestoreDoc(db, 'appSettings', 'aiAgentConfig'); // Menggunakan firestoreDoc
+    const settingsSnap = await getFirestoreDoc(settingsDocRef); // Menggunakan getFirestoreDoc
     if (settingsSnap.exists() && settingsSnap.data()?.mainPrompt && settingsSnap.data()?.mainPrompt.trim() !== "") {
       promptFromSettings = settingsSnap.data()?.mainPrompt;
     } else {
@@ -250,13 +246,9 @@ export async function generateWhatsAppReply(input: Omit<WhatsAppReplyInput, 'mai
     promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna: {{{customerMessage}}}";
   }
 
-
   const flowInput: WhatsAppReplyInput = {
     ...input,
-    // mainPromptString is part of WhatsAppReplyInputSchema but will be ignored by the flow's current logic.
-    // The system instruction is now built dynamically inside whatsAppReplyFlowSimplified.
-    // We pass it here for schema compliance and potential future use if logic changes.
-    mainPromptString: promptFromSettings,
+    mainPromptString: promptFromSettings, // Tetap ada di input untuk tipe, tapi tidak dipakai oleh systemInstruction flow
     customerMessage: input.customerMessage,
     senderNumber: input.senderNumber,
     chatHistory: input.chatHistory || [],
@@ -269,3 +261,4 @@ export async function generateWhatsAppReply(input: Omit<WhatsAppReplyInput, 'mai
   };
   return whatsAppReplyFlowSimplified(flowInput);
 }
+
