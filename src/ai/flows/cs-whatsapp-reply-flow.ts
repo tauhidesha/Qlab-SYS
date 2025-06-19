@@ -11,7 +11,7 @@ import type { WhatsAppReplyInput, WhatsAppReplyOutput, ChatMessage } from '@/typ
 import { WhatsAppReplyInputSchema, WhatsAppReplyOutputSchema } from '@/types/ai/cs-whatsapp-reply';
 
 import { db } from '@/lib/firebase';
-import { collection, query as firestoreQuery, where, limit, getDocs, Timestamp, doc as firestoreDoc, getDoc as getFirestoreDoc } from 'firebase/firestore'; // Renamed query to firestoreQuery and added doc, getDoc
+import { collection, query as firestoreQuery, where, limit, getDocs, Timestamp, doc as firestoreDoc, getDoc as getFirestoreDoc } from 'firebase/firestore';
 import { DEFAULT_AI_SETTINGS } from '@/types/aiSettings';
 
 
@@ -26,7 +26,6 @@ async function getServicePrice(vehicleModel: string, serviceName: string): Promi
     const vehicleTypesRef = collection(db, 'vehicleTypes');
     const vehicleQuery = firestoreQuery(
         vehicleTypesRef,
-        // Assuming aliases in vehicleTypes includes the model name itself in lowercase
         where('aliases', 'array-contains', vehicleModel.toLowerCase()),
         limit(1)
     );
@@ -36,7 +35,6 @@ async function getServicePrice(vehicleModel: string, serviceName: string): Promi
     if (!vehicleSnapshot.empty) {
         vehicleSize = vehicleSnapshot.docs[0].data().size as string; // e.g., "L"
     } else {
-        // Fallback: try matching model field directly if alias match fails
         const modelDirectQuery = firestoreQuery(vehicleTypesRef, where('model', '==', vehicleModel), limit(1));
         const modelDirectSnapshot = await getDocs(modelDirectQuery);
         if (!modelDirectSnapshot.empty) {
@@ -53,10 +51,6 @@ async function getServicePrice(vehicleModel: string, serviceName: string): Promi
     }
 
     const servicesRef = collection(db, 'services');
-    // Try matching by name directly first (case-insensitive equivalent)
-    // Firestore is case-sensitive, so this requires a more complex query or fetching and filtering.
-    // For simplicity here, we'll fetch and filter, or rely on a lowercase name field if available.
-    // Let's assume we fetch and filter for name first.
     const servicesSnapshot = await getDocs(servicesRef);
     const serviceDoc = servicesSnapshot.docs.find(doc => doc.data().name?.toLowerCase() === serviceName.toLowerCase());
 
@@ -69,7 +63,6 @@ async function getServicePrice(vehicleModel: string, serviceName: string): Promi
     let price: number | null = null;
 
     if (serviceData.variants && Array.isArray(serviceData.variants)) {
-        // Variants is an array of objects: [{name: "L", price: 50000}, ...]
         const variant = serviceData.variants.find((v: any) => v.name && v.name.toUpperCase() === vehicleSize.toUpperCase());
         if (variant && typeof variant.price === 'number') {
             price = variant.price;
@@ -78,7 +71,7 @@ async function getServicePrice(vehicleModel: string, serviceName: string): Promi
     
     if (price === null) {
         console.log(`[CS-FLOW] getServicePrice: Price not found for service '${serviceName}' with size '${vehicleSize}'. Trying base price.`);
-        return typeof serviceData.price === 'number' ? serviceData.price : null; // Fallback ke harga dasar
+        return typeof serviceData.price === 'number' ? serviceData.price : null;
     }
     return price;
 
@@ -88,10 +81,6 @@ async function getServicePrice(vehicleModel: string, serviceName: string): Promi
   }
 }
 
-
-/**
- * Flow utama untuk digunakan di API/function/genkit handler
- */
 export const whatsAppReplyFlowSimplified = ai.defineFlow(
   {
     name: 'whatsAppReplyFlowSimplified',
@@ -100,9 +89,7 @@ export const whatsAppReplyFlowSimplified = ai.defineFlow(
   },
   async (input: WhatsAppReplyInput): Promise<WhatsAppReplyOutput> => {
     try {
-      // Simplified console log:
       console.log("[CS-FLOW] whatsAppReplyFlowSimplified input. Customer Message:", input.customerMessage, "History Length:", input.chatHistory?.length || 0);
-
 
       const lastUserMessageContent = input.customerMessage.toLowerCase();
       let vehicleModel: string | null = null;
@@ -111,7 +98,6 @@ export const whatsAppReplyFlowSimplified = ai.defineFlow(
 
       if (db) {
         try {
-          // Deteksi model kendaraan
           const vehicleTypesRef = collection(db, 'vehicleTypes');
           const modelsSnapshot = await getDocs(vehicleTypesRef);
           for (const doc of modelsSnapshot.docs) {
@@ -125,7 +111,6 @@ export const whatsAppReplyFlowSimplified = ai.defineFlow(
             }
           }
 
-          // Deteksi layanan
           const servicesRef = collection(db, 'services');
           const servicesSnapshot = await getDocs(servicesRef);
           for (const doc of servicesSnapshot.docs) {
@@ -182,8 +167,6 @@ PETUNJUK TAMBAHAN:
 - Jika KONTEKS berisi DATA_PRODUK dan harganya ada, sebutkan harganya. Jika harga 'belum tersedia', JANGAN mengarang harga. Informasikan bahwa harga spesifik belum ada dan tanyakan detail lebih lanjut jika diperlukan (misal jenis cat untuk coating, atau ukuran motor jika belum terdeteksi).
 - Jika user bertanya di luar topik detailing motor, jawab dengan sopan bahwa Anda hanya bisa membantu soal QLAB Moto Detailing.
 - Tujuan utama: Memberikan informasi akurat dan membantu user melakukan booking jika mereka mau.
-
-JAWABAN (format natural):
       `;
 
       const historyForAI: { role: 'user' | 'model'; parts: {text: string}[] }[] = (input.chatHistory || [])
@@ -193,7 +176,6 @@ JAWABAN (format natural):
           parts: [{ text: msg.content }],
         }));
       
-      // Gabungkan instruksi sistem dan prompt user menjadi satu
       const fullPrompt = `${systemInstruction}
 
 ---
@@ -204,13 +186,22 @@ USER_INPUT: "${input.customerMessage}"`;
       const result = await ai.generate({
         model: 'googleai/gemini-1.5-flash-latest',
         history: historyForAI, 
-        prompt: fullPrompt, // Menggunakan prompt yang sudah digabung
+        prompt: fullPrompt,
         config: { temperature: 0.5 },
       });
 
+      // >>> TAMBAHKAN BLOK DIAGNOSIS INI <<<
+      const finishReason = result.candidates[0]?.finishReason;
+      const safetyRatings = result.candidates[0]?.safetyRatings;
+      console.log(`[CS-FLOW] AI Finish Reason: ${finishReason}`);
+      if (safetyRatings && safetyRatings.length > 0) {
+        console.log('[CS-FLOW] AI Safety Ratings:', JSON.stringify(safetyRatings, null, 2));
+      }
+      // >>> AKHIR BLOK DIAGNOSIS <<<
+
       const suggestedReply = result.candidates?.[0]?.message.content?.[0]?.text || "";
       
-      if (!suggestedReply) { // Ini akan true jika suggestedReply adalah string kosong ""
+      if (!suggestedReply) { 
         console.error('[CS-FLOW] ❌ AI returned an empty reply or response structure was unexpected. Mengembalikan default.');
         return { suggestedReply: "Maaf, Zoya lagi bingung nih. Bisa diulang pertanyaannya atau coba beberapa saat lagi?" };
       }
@@ -239,7 +230,7 @@ export async function generateWhatsAppReply(input: Omit<WhatsAppReplyInput, 'mai
         console.log("[CS-FLOW] generateWhatsAppReply: Using DEFAULT_AI_SETTINGS.mainPrompt.");
       } else {
         console.error("[CS-FLOW] generateWhatsAppReply: CRITICAL - mainPrompt is also empty in DEFAULT_AI_SETTINGS. Using emergency fallback prompt.");
-        promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna."; // Prompt fallback yang lebih sederhana
+        promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna.";
       }
     }
   } catch (error) {
@@ -249,13 +240,13 @@ export async function generateWhatsAppReply(input: Omit<WhatsAppReplyInput, 'mai
         console.log("[CS-FLOW] generateWhatsAppReply: Using DEFAULT_AI_SETTINGS.mainPrompt after Firestore error.");
       } else {
         console.error("[CS-FLOW] generateWhatsAppReply: CRITICAL - mainPrompt is also empty in DEFAULT_AI_SETTINGS post-error. Using emergency fallback prompt.");
-        promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna."; // Prompt fallback yang lebih sederhana
+        promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna.";
       }
   }
   
   if (!promptFromSettings || promptFromSettings.trim() === "") {
     console.error("[CS-FLOW] generateWhatsAppReply: CRITICAL - promptFromSettings is STILL empty after all checks. Using emergency fallback prompt.");
-    promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna."; // Prompt fallback yang lebih sederhana
+    promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna.";
   }
 
   const flowInput: WhatsAppReplyInput = {
@@ -271,6 +262,8 @@ export async function generateWhatsAppReply(input: Omit<WhatsAppReplyInput, 'mai
     agentBehavior: input.agentBehavior || DEFAULT_AI_SETTINGS.agentBehavior,
     knowledgeBase: input.knowledgeBase || DEFAULT_AI_SETTINGS.knowledgeBaseDescription,
   };
+  // Meskipun promptFromSettings diambil, whatsAppReplyFlowSimplified saat ini menggunakan systemInstruction yang di-hardcode
+  // dan tidak secara langsung memakai flowInput.mainPromptString untuk system instructionnya.
+  // Jika ingin kembali ke prompt dinamis, modifikasi di dalam whatsAppReplyFlowSimplified diperlukan.
   return whatsAppReplyFlowSimplified(flowInput);
 }
-

@@ -625,7 +625,8 @@ const whatsAppReplyFlowSimplified = __TURBOPACK__imported__module__$5b$project$5
     outputSchema: __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$ai$2f$cs$2d$whatsapp$2d$reply$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["WhatsAppReplyOutputSchema"]
 }, async (input)=>{
     try {
-        console.log("[CS-FLOW] whatsAppReplyFlowSimplified input received. customerMessage:", input.customerMessage);
+        // Simplified console log:
+        console.log("[CS-FLOW] whatsAppReplyFlowSimplified input. Customer Message:", input.customerMessage, "History Length:", input.chatHistory?.length || 0);
         const lastUserMessageContent = input.customerMessage.toLowerCase();
         let vehicleModel = null;
         let serviceName = null;
@@ -711,12 +712,13 @@ JAWABAN (format natural):
                     }
                 ]
             }));
+        // Gabungkan instruksi sistem dan prompt user menjadi satu
         const fullPrompt = `${systemInstruction}
 
 ---
 
 USER_INPUT: "${input.customerMessage}"`;
-        console.log("[CS-FLOW] Calling ai.generate with model googleai/gemini-1.5-flash-latest. History:", historyForAI, "Full Prompt:", fullPrompt);
+        console.log("[CS-FLOW] Calling ai.generate with model googleai/gemini-1.5-flash-latest. History:", historyForAI, "Full Prompt Preview:", fullPrompt.substring(0, 200) + "...");
         const result = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].generate({
             model: 'googleai/gemini-1.5-flash-latest',
             history: historyForAI,
@@ -725,9 +727,9 @@ USER_INPUT: "${input.customerMessage}"`;
                 temperature: 0.5
             }
         });
-        const suggestedReply = result.text();
+        const suggestedReply = result.candidates?.[0]?.message.content?.[0]?.text || "";
         if (!suggestedReply) {
-            console.error('[CS-FLOW] ❌ Gagal mendapatkan balasan dari AI atau output tidak sesuai skema (output atau suggestedReply null/undefined). Mengembalikan default.');
+            console.error('[CS-FLOW] ❌ AI returned an empty reply or response structure was unexpected. Mengembalikan default.');
             return {
                 suggestedReply: "Maaf, Zoya lagi bingung nih. Bisa diulang pertanyaannya atau coba beberapa saat lagi?"
             };
@@ -758,7 +760,7 @@ async function generateWhatsAppReply(input) {
                 console.log("[CS-FLOW] generateWhatsAppReply: Using DEFAULT_AI_SETTINGS.mainPrompt.");
             } else {
                 console.error("[CS-FLOW] generateWhatsAppReply: CRITICAL - mainPrompt is also empty in DEFAULT_AI_SETTINGS. Using emergency fallback prompt.");
-                promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna: {{{customerMessage}}}";
+                promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna."; // Prompt fallback yang lebih sederhana
             }
         }
     } catch (error) {
@@ -768,12 +770,12 @@ async function generateWhatsAppReply(input) {
             console.log("[CS-FLOW] generateWhatsAppReply: Using DEFAULT_AI_SETTINGS.mainPrompt after Firestore error.");
         } else {
             console.error("[CS-FLOW] generateWhatsAppReply: CRITICAL - mainPrompt is also empty in DEFAULT_AI_SETTINGS post-error. Using emergency fallback prompt.");
-            promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna: {{{customerMessage}}}";
+            promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna."; // Prompt fallback yang lebih sederhana
         }
     }
     if (!promptFromSettings || promptFromSettings.trim() === "") {
         console.error("[CS-FLOW] generateWhatsAppReply: CRITICAL - promptFromSettings is STILL empty after all checks. Using emergency fallback prompt.");
-        promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna: {{{customerMessage}}}";
+        promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna."; // Prompt fallback yang lebih sederhana
     }
     const flowInput = {
         ...input,
