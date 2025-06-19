@@ -1016,7 +1016,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
         __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$searchServiceByKeywordTool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["searchServiceByKeywordTool"],
         __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$createBookingTool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["createBookingTool"]
     ],
-    prompt: (input)=>{
+    prompt: async (input)=>{
         if (!input.mainPromptString) {
             console.warn("[CS-FLOW] mainPromptString is missing from input to prompt function. Using fallback.");
             // Fallback jika prompt tidak berhasil diambil dari settings
@@ -1032,10 +1032,6 @@ const whatsAppReplyFlowSimplified = __TURBOPACK__imported__module__$5b$project$5
 }, async (input)=>{
     try {
         console.log("[CS-FLOW] whatsAppReplyFlowSimplified input (sudah termasuk prompt dari settings):", JSON.stringify(input, null, 2));
-        // Helper untuk memformat DD/MM/YYYY ke YYYY-MM-DD (jika masih diperlukan di dalam prompt dinamis)
-        // const formatDateToYYYYMMDD = (dateStr?: string) => { ... }
-        // Namun, karena prompt sekarang dinamis dan semua {{variable}} sudah di handle Genkit,
-        // kita hanya perlu memastikan semua field di WhatsAppReplyInput (termasuk mainPromptString) terisi.
         try {
             const { output } = await replyPromptSimplified(input); // Langsung pass input
             if (!output || !output.suggestedReply) {

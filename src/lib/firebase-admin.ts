@@ -36,77 +36,73 @@ let adminDb: admin.firestore.Firestore | undefined = undefined;
 let adminAuth: admin.auth.Auth | undefined = undefined;
 
 if (!admin.apps.length) {
-  let appInitialized = false;
-  let initializationError: any = null;
+  const appOptions: admin.AppOptions = {};
+  let initializationDescription = "";
 
-  try {
-    console.log("[firebase-admin.ts] Attempt 1: Initializing with default options (environment inference)...");
-    adminApp = admin.initializeApp();
-    appInitialized = true;
-    console.log(`[firebase-admin.ts] Default initialization SUCCEEDED. App Name: ${adminApp.name}, Project ID: ${adminApp.options.projectId}`);
-  } catch (e1: any) {
-    console.warn(`[firebase-admin.ts] Default initialization FAILED: ${e1.message}`);
-    initializationError = e1;
-  }
-
-  if ((!appInitialized || !adminApp?.options.projectId) && explicitProjectIdFromEnv) {
-    console.warn(`[firebase-admin.ts] Default init failed or projectId undefined. Attempt 2: Initializing with explicit projectId: ${explicitProjectIdFromEnv}`);
-    try {
-      // Only attempt re-initialization if the first one completely failed
-      if (!appInitialized) {
-        adminApp = admin.initializeApp({ projectId: explicitProjectIdFromEnv });
-        appInitialized = true;
-        console.log(`[firebase-admin.ts] Explicit projectId initialization SUCCEEDED. App Name: ${adminApp.name}, Project ID: ${adminApp.options.projectId}`);
-        initializationError = null; 
-      } else if (adminApp && !adminApp.options.projectId) {
-        // This case is tricky; re-init of an existing app instance is not standard.
-        // For now, we log that projectId is still missing.
-        console.warn(`[firebase-admin.ts] Default init succeeded but Project ID is still undefined even after providing explicit one. This is unusual.`);
-      }
-    } catch (e2: any) {
-      console.error(`[firebase-admin.ts] Explicit projectId initialization FAILED: ${e2.message}`);
-      initializationError = e2; 
-    }
+  if (explicitProjectIdFromEnv) {
+    appOptions.projectId = explicitProjectIdFromEnv;
+    initializationDescription = `using explicit projectId from NEXT_PUBLIC_FIREBASE_PROJECT_ID: '${explicitProjectIdFromEnv}'`;
+  } else if (process.env.GCLOUD_PROJECT) {
+    appOptions.projectId = process.env.GCLOUD_PROJECT;
+    initializationDescription = `using projectId from GCLOUD_PROJECT: '${process.env.GCLOUD_PROJECT}'`;
+  } else {
+    initializationDescription = `with default options (relying on GAC or other inference)`;
   }
   
-  if (appInitialized && adminApp) {
+  console.log(`[firebase-admin.ts] Attempting Firebase Admin SDK initialization ${initializationDescription}...`);
+
+  try {
+    adminApp = admin.initializeApp(appOptions); // Pass options directly
+    console.log(`[firebase-admin.ts] Firebase Admin SDK initialization SUCCEEDED. App Name: ${adminApp.name}, Project ID: ${adminApp.options.projectId}`);
+
     if (!adminApp.options.projectId) {
-       console.error(`[firebase-admin.ts] CRITICAL: Firebase Admin SDK initialized, BUT Project ID is UNDEFINED. GAC was ${gacSet ? 'SET' : 'NOT SET'}. Explicit ProjectID from env was ${explicitProjectIdFromEnv || 'NOT SET'}. Firestore/Auth will likely fail if adminDb is used.`);
+      console.error(`[firebase-admin.ts] CRITICAL: Firebase Admin SDK initialized, BUT Project ID is UNDEFINED.`);
+      console.error(`  - This occurred DESPITE attempting to use options: ${JSON.stringify(appOptions)}`);
+      console.error(`  - GAC was ${gacSet ? 'SET' : 'NOT SET'}.`);
+      console.error(`  - Firestore/Auth Admin features will likely fail.`);
     }
+
+    // Obtain Firestore and Auth instances
     try {
       adminDb = admin.firestore();
       console.log('[firebase-admin.ts] Firestore Admin instance obtained.');
     } catch (dbError: any) {
-      console.error(`[firebase-admin.ts] FAILED to get Firestore Admin instance: ${dbError?.message}`);
-      adminDb = undefined; // Ensure it's undefined on failure
+      console.error(`[firebase-admin.ts] FAILED to get Firestore Admin instance: ${dbError?.message}. Firestore calls will fail.`);
+      adminDb = undefined;
     }
     try {
       adminAuth = admin.auth();
       console.log('[firebase-admin.ts] Auth Admin instance obtained.');
     } catch (authError: any) {
-      console.warn(`[firebase-admin.ts] FAILED to get Auth Admin instance: ${authError?.message}.`);
-      adminAuth = undefined; // Ensure it's undefined on failure
+      console.warn(`[firebase-admin.ts] FAILED to get Auth Admin instance: ${authError?.message}. Some Auth features might fail.`);
+      adminAuth = undefined;
     }
-  } else {
-    const finalErrorMessage = initializationError?.message || "Unknown initialization failure";
-    console.error(`\n\n🛑 [firebase-admin.ts] Firebase Admin SDK initialization FAILED COMPLETELY. Details: ${finalErrorMessage}. GAC was ${gacSet ? 'SET' : 'NOT SET'}. Explicit ProjectID from env was ${explicitProjectIdFromEnv || 'NOT SET'}.\n   Admin features relying on this will not work.\n\n`);
-    // DO NOT THROW an error from this module itself to prevent app-wide crashes.
-    // Let consuming modules handle the undefined adminDb/adminAuth.
+
+  } catch (initError: any) {
+    console.error(`[firebase-admin.ts] Firebase Admin SDK initialization FAILED ${initializationDescription}. Error: ${initError.message}`);
+    console.error(`  Context: GAC ${gacSet ? 'SET' : 'NOT SET'}, Explicit ProjectID: ${explicitProjectIdFromEnv || 'NOT SET'}, GCLOUD_PROJECT: ${process.env.GCLOUD_PROJECT || 'NOT SET'}.`);
+    // adminApp, adminDb, adminAuth will remain undefined
   }
+
 } else {
   adminApp = admin.app(); // Get the default app if already initialized
   console.log(`[firebase-admin.ts] Firebase Admin SDK already initialized. Using existing app: ${adminApp.name}, Project ID: ${adminApp.options.projectId}`);
-  try {
-    adminDb = adminApp.firestore();
-    console.log('[firebase-admin.ts] Firestore Admin instance obtained from existing app.');
-  } catch(e: any) {
-    console.error(`[firebase-admin.ts] Failed to get Firestore from existing app: ${e.message}`);
-  }
-  try {
-    adminAuth = adminApp.auth();
-    console.log('[firebase-admin.ts] Auth Admin instance obtained from existing app.');
-  } catch (e: any) {
-    console.warn(`[firebase-admin.ts] Failed to get Auth from existing app: ${e.message}`);
+  // Attempt to get db and auth from existing app, with error handling
+  if (adminApp) {
+    try {
+      adminDb = adminApp.firestore();
+      console.log('[firebase-admin.ts] Firestore Admin instance obtained from existing app.');
+    } catch (dbError: any) {
+      console.error(`[firebase-admin.ts] FAILED to get Firestore from existing app: ${dbError.message}.`);
+      adminDb = undefined;
+    }
+    try {
+      adminAuth = adminApp.auth();
+      console.log('[firebase-admin.ts] Auth Admin instance obtained from existing app.');
+    } catch (authError: any) {
+      console.warn(`[firebase-admin.ts] FAILED to get Auth from existing app: ${authError.message}.`);
+      adminAuth = undefined;
+    }
   }
 }
 
