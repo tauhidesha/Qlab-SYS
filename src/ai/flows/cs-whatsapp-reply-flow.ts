@@ -100,7 +100,9 @@ export const whatsAppReplyFlowSimplified = ai.defineFlow(
   },
   async (input: WhatsAppReplyInput): Promise<WhatsAppReplyOutput> => {
     try {
-      console.log("[CS-FLOW] whatsAppReplyFlowSimplified input received. customerMessage:", input.customerMessage);
+      // Simplified console log:
+      console.log("[CS-FLOW] whatsAppReplyFlowSimplified input. Customer Message:", input.customerMessage, "History Length:", input.chatHistory?.length || 0);
+
 
       const lastUserMessageContent = input.customerMessage.toLowerCase();
       let vehicleModel: string | null = null;
@@ -191,24 +193,25 @@ JAWABAN (format natural):
           parts: [{ text: msg.content }],
         }));
       
+      // Gabungkan instruksi sistem dan prompt user menjadi satu
       const fullPrompt = `${systemInstruction}
 
 ---
 
 USER_INPUT: "${input.customerMessage}"`;
       
-      console.log("[CS-FLOW] Calling ai.generate with model googleai/gemini-1.5-flash-latest. History:", historyForAI, "Full Prompt:", fullPrompt);
+      console.log("[CS-FLOW] Calling ai.generate with model googleai/gemini-1.5-flash-latest. History:", historyForAI, "Full Prompt Preview:", fullPrompt.substring(0, 200) + "...");
       const result = await ai.generate({
         model: 'googleai/gemini-1.5-flash-latest',
         history: historyForAI, 
         prompt: fullPrompt, // Menggunakan prompt yang sudah digabung
         config: { temperature: 0.5 },
-        // Parameter 'system' dihapus
       });
 
-      const suggestedReply = result.text();
-      if (!suggestedReply) {
-        console.error('[CS-FLOW] ❌ Gagal mendapatkan balasan dari AI atau output tidak sesuai skema (output atau suggestedReply null/undefined). Mengembalikan default.');
+      const suggestedReply = result.candidates?.[0]?.message.content?.[0]?.text || "";
+      
+      if (!suggestedReply) { // Ini akan true jika suggestedReply adalah string kosong ""
+        console.error('[CS-FLOW] ❌ AI returned an empty reply or response structure was unexpected. Mengembalikan default.');
         return { suggestedReply: "Maaf, Zoya lagi bingung nih. Bisa diulang pertanyaannya atau coba beberapa saat lagi?" };
       }
       console.log("[CS-FLOW] AI generate output:", suggestedReply);
@@ -236,7 +239,7 @@ export async function generateWhatsAppReply(input: Omit<WhatsAppReplyInput, 'mai
         console.log("[CS-FLOW] generateWhatsAppReply: Using DEFAULT_AI_SETTINGS.mainPrompt.");
       } else {
         console.error("[CS-FLOW] generateWhatsAppReply: CRITICAL - mainPrompt is also empty in DEFAULT_AI_SETTINGS. Using emergency fallback prompt.");
-        promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna: {{{customerMessage}}}"; 
+        promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna."; // Prompt fallback yang lebih sederhana
       }
     }
   } catch (error) {
@@ -246,13 +249,13 @@ export async function generateWhatsAppReply(input: Omit<WhatsAppReplyInput, 'mai
         console.log("[CS-FLOW] generateWhatsAppReply: Using DEFAULT_AI_SETTINGS.mainPrompt after Firestore error.");
       } else {
         console.error("[CS-FLOW] generateWhatsAppReply: CRITICAL - mainPrompt is also empty in DEFAULT_AI_SETTINGS post-error. Using emergency fallback prompt.");
-        promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna: {{{customerMessage}}}"; 
+        promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna."; // Prompt fallback yang lebih sederhana
       }
   }
   
   if (!promptFromSettings || promptFromSettings.trim() === "") {
     console.error("[CS-FLOW] generateWhatsAppReply: CRITICAL - promptFromSettings is STILL empty after all checks. Using emergency fallback prompt.");
-    promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna: {{{customerMessage}}}";
+    promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna."; // Prompt fallback yang lebih sederhana
   }
 
   const flowInput: WhatsAppReplyInput = {
