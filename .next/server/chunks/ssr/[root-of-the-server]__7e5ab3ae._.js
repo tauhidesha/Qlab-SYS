@@ -590,16 +590,16 @@ async function getServicePrice(vehicleModel, serviceName) {
         const servicesRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'services');
         // Attempt to find by exact name match first (case-insensitive)
         let serviceDoc;
-        const servicesSnapshotByName = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["query"])(servicesRef, (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["where"])("name", "==", serviceName))); // Exact match usually faster if name is precise
+        const servicesSnapshotByName = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["query"])(servicesRef, (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["where"])("name_lowercase", "==", serviceName.toLowerCase())));
         if (!servicesSnapshotByName.empty) {
-            serviceDoc = servicesSnapshotByName.docs.find((doc)=>doc.data().name?.toLowerCase() === serviceName.toLowerCase());
+            serviceDoc = servicesSnapshotByName.docs[0]; // Assumes name_lowercase is unique or first match is fine
         }
         if (!serviceDoc) {
             const servicesSnapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(servicesRef);
             serviceDoc = servicesSnapshot.docs.find((doc)=>doc.data().name?.toLowerCase() === serviceName.toLowerCase());
         }
         if (!serviceDoc) {
-            console.log(`[CS-FLOW] getServicePrice: Service name '${serviceName}' not found by direct name match.`);
+            console.log(`[CS-FLOW] getServicePrice: Service name '${serviceName}' not found by name match.`);
             return null;
         }
         const serviceData = serviceDoc.data();
@@ -711,16 +711,30 @@ PETUNJUK TAMBAHAN:
                     }
                 ]
             }));
-        const fullPrompt = `${systemInstruction}
+        // Gabungkan systemInstruction dengan pesan user terakhir
+        const userPromptWithSystemInstruction = `${systemInstruction}
 
 ---
 
 USER_INPUT: "${input.customerMessage}"`;
-        console.log("[CS-FLOW] Calling ai.generate with model googleai/gemini-1.5-flash-latest. History:", historyForAI, "Full Prompt Preview:", fullPrompt.substring(0, 200) + "...");
+        const messagesForAI = [
+            ...historyForAI,
+            {
+                role: 'user',
+                parts: [
+                    {
+                        text: userPromptWithSystemInstruction
+                    }
+                ]
+            }
+        ];
+        console.log("[CS-FLOW] Calling ai.generate with model googleai/gemini-1.5-flash-latest. Combined messagesForAI:", JSON.stringify(messagesForAI.map((m)=>({
+                role: m.role,
+                textPreview: m.parts[0].text.substring(0, 100) + "..."
+            })), null, 2));
         const result = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].generate({
             model: 'googleai/gemini-1.5-flash-latest',
-            history: historyForAI,
-            prompt: fullPrompt,
+            messages: messagesForAI,
             config: {
                 temperature: 0.5
             }
@@ -728,12 +742,11 @@ USER_INPUT: "${input.customerMessage}"`;
         console.log("[CS-FLOW] Raw AI generate result:", JSON.stringify(result, null, 2));
         // Akses finishReason dan safetyRatings dari level atas objek result
         const finishReason = result.finishReason;
-        const safetyRatings = result.safetyRatings; // Ini mungkin undefined jika tidak ada masalah safety
+        const safetyRatings = result.safetyRatings;
         console.log(`[CS-FLOW] AI Finish Reason: ${finishReason}`);
         if (safetyRatings && safetyRatings.length > 0) {
             console.log('[CS-FLOW] AI Safety Ratings:', JSON.stringify(safetyRatings, null, 2));
         }
-        // Akses teks dari kandidat pertama secara aman (jika result.candidates ada)
         const suggestedReply = result.candidates?.[0]?.message.content?.[0]?.text || "";
         if (!suggestedReply && finishReason !== "stop") {
             console.warn(`[CS-FLOW] ⚠️ AI returned an empty reply, but finishReason was '${finishReason}'. This might indicate an issue or unexpected model behavior. Safety Ratings: ${JSON.stringify(safetyRatings, null, 2)}. Mengembalikan default.`);
@@ -792,6 +805,9 @@ async function generateWhatsAppReply(input) {
         console.error("[CS-FLOW] generateWhatsAppReply: CRITICAL - promptFromSettings is STILL empty after all checks. Using emergency fallback prompt.");
         promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna.";
     }
+    // Untuk flow cs-whatsapp-reply-flow.ts yang baru, mainPromptString tidak lagi digunakan secara langsung
+    // untuk system instruction di dalam flow, karena system instruction dibangun secara dinamis di sana.
+    // Namun, kita tetap meneruskannya untuk menjaga struktur input dan jika ingin dipakai di masa depan.
     const flowInput = {
         ...input,
         mainPromptString: promptFromSettings,
