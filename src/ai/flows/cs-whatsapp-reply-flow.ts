@@ -204,27 +204,24 @@ USER_INPUT: "${input.customerMessage}"`;
         config: { temperature: 0.5 },
       });
 
-      console.log("[CS-FLOW] Raw AI generate result:", JSON.stringify(result, null, 2)); // Log mentah hasil AI
+      console.log("[CS-FLOW] Raw AI generate result:", JSON.stringify(result, null, 2));
 
-      // Ambil kandidat pertama dengan aman
-      const firstCandidate = result?.candidates?.[0];
-      
-      // >>> BLOK DIAGNOSIS YANG DIPERBARUI <<<
-      const finishReason = firstCandidate?.finishReason;
-      const safetyRatings = firstCandidate?.safetyRatings;
+      // Akses finishReason dan safetyRatings dari level atas objek result
+      const finishReason = result.finishReason;
+      const safetyRatings = result.safetyRatings; // Ini mungkin undefined jika tidak ada masalah safety
       console.log(`[CS-FLOW] AI Finish Reason: ${finishReason}`);
       if (safetyRatings && safetyRatings.length > 0) {
         console.log('[CS-FLOW] AI Safety Ratings:', JSON.stringify(safetyRatings, null, 2));
       }
-      // >>> AKHIR BLOK DIAGNOSIS <<<
-
-      const suggestedReply = firstCandidate?.message?.content?.[0]?.text || "";
       
-      if (!suggestedReply && finishReason !== "STOP") { 
+      // Akses teks dari kandidat pertama secara aman (jika result.candidates ada)
+      const suggestedReply = result.candidates?.[0]?.message.content?.[0]?.text || "";
+      
+      if (!suggestedReply && finishReason !== "stop") { // Perhatikan 'stop' lowercase sesuai dokumentasi Genkit v1
         console.warn(`[CS-FLOW] ⚠️ AI returned an empty reply, but finishReason was '${finishReason}'. This might indicate an issue or unexpected model behavior. Safety Ratings: ${JSON.stringify(safetyRatings, null, 2)}. Mengembalikan default.`);
         return { suggestedReply: "Maaf, Zoya lagi bingung nih. Bisa diulang pertanyaannya atau coba beberapa saat lagi?" };
-      } else if (!suggestedReply && finishReason === "STOP") {
-        console.warn(`[CS-FLOW] ⚠️ AI returned an empty reply with finishReason 'STOP'. This might be due to prompt design or a very short valid response. Safety Ratings: ${JSON.stringify(safetyRatings, null, 2)}. Mengembalikan default.`);
+      } else if (!suggestedReply && finishReason === "stop") {
+        console.warn(`[CS-FLOW] ⚠️ AI returned an empty reply with finishReason 'stop'. This might be due to prompt design or a very short valid response. Safety Ratings: ${JSON.stringify(safetyRatings, null, 2)}. Mengembalikan default.`);
         return { suggestedReply: "Hmm, Zoya lagi mikir keras nih. Coba tanya lagi dengan lebih spesifik ya?" };
       }
 
@@ -233,7 +230,6 @@ USER_INPUT: "${input.customerMessage}"`;
 
     } catch (flowError: any) {
         console.error('[CS-FLOW] ❌ Critical error dalam flow whatsAppReplyFlowSimplified:', flowError);
-        // Log detail error jika ada
         if (flowError.cause) {
             console.error('[CS-FLOW] Error Cause:', JSON.stringify(flowError.cause, null, 2));
         }
@@ -257,7 +253,7 @@ export async function generateWhatsAppReply(input: Omit<WhatsAppReplyInput, 'mai
         console.log("[CS-FLOW] generateWhatsAppReply: Using DEFAULT_AI_SETTINGS.mainPrompt.");
       } else {
         console.error("[CS-FLOW] generateWhatsAppReply: CRITICAL - mainPrompt is also empty in DEFAULT_AI_SETTINGS. Using emergency fallback prompt.");
-        promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna."; // Fallback darurat
+        promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna."; 
       }
     }
   } catch (error) {
@@ -267,21 +263,17 @@ export async function generateWhatsAppReply(input: Omit<WhatsAppReplyInput, 'mai
         console.log("[CS-FLOW] generateWhatsAppReply: Using DEFAULT_AI_SETTINGS.mainPrompt after Firestore error.");
       } else {
         console.error("[CS-FLOW] generateWhatsAppReply: CRITICAL - mainPrompt is also empty in DEFAULT_AI_SETTINGS post-error. Using emergency fallback prompt.");
-        promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna."; // Fallback darurat
+        promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna."; 
       }
   }
   
-  // Pengecekan akhir untuk memastikan promptFromSettings tidak kosong
   if (!promptFromSettings || promptFromSettings.trim() === "") {
     console.error("[CS-FLOW] generateWhatsAppReply: CRITICAL - promptFromSettings is STILL empty after all checks. Using emergency fallback prompt.");
-    promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna."; // Fallback darurat terakhir
+    promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna."; 
   }
 
   const flowInput: WhatsAppReplyInput = {
     ...input,
-    // mainPromptString TIDAK LAGI digunakan secara langsung oleh whatsAppReplyFlowSimplified untuk system instruction-nya,
-    // karena system instruction sekarang dibangun dinamis di dalam flow tersebut.
-    // Namun, kita tetap pass untuk menjaga struktur data input jika diperlukan di masa depan atau untuk logging.
     mainPromptString: promptFromSettings, 
     customerMessage: input.customerMessage,
     senderNumber: input.senderNumber,

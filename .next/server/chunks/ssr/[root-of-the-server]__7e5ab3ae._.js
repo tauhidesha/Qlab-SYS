@@ -588,8 +588,16 @@ async function getServicePrice(vehicleModel, serviceName) {
             return null;
         }
         const servicesRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'services');
-        const servicesSnapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(servicesRef);
-        const serviceDoc = servicesSnapshot.docs.find((doc)=>doc.data().name?.toLowerCase() === serviceName.toLowerCase());
+        // Attempt to find by exact name match first (case-insensitive)
+        let serviceDoc;
+        const servicesSnapshotByName = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["query"])(servicesRef, (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["where"])("name", "==", serviceName))); // Exact match usually faster if name is precise
+        if (!servicesSnapshotByName.empty) {
+            serviceDoc = servicesSnapshotByName.docs.find((doc)=>doc.data().name?.toLowerCase() === serviceName.toLowerCase());
+        }
+        if (!serviceDoc) {
+            const servicesSnapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(servicesRef);
+            serviceDoc = servicesSnapshot.docs.find((doc)=>doc.data().name?.toLowerCase() === serviceName.toLowerCase());
+        }
         if (!serviceDoc) {
             console.log(`[CS-FLOW] getServicePrice: Service name '${serviceName}' not found by direct name match.`);
             return null;
@@ -602,9 +610,12 @@ async function getServicePrice(vehicleModel, serviceName) {
                 price = variant.price;
             }
         }
-        if (price === null) {
-            console.log(`[CS-FLOW] getServicePrice: Price not found for service '${serviceName}' with size '${vehicleSize}'. Trying base price.`);
-            return typeof serviceData.price === 'number' ? serviceData.price : null;
+        // Fallback to base price if variant price not found or no variants
+        if (price === null && typeof serviceData.price === 'number') {
+            price = serviceData.price;
+        } else if (price === null) {
+            console.log(`[CS-FLOW] getServicePrice: Price not found for service '${serviceName}' with size '${vehicleSize}' (no variant match and no base price).`);
+            return null;
         }
         return price;
     } catch (error) {
@@ -662,7 +673,7 @@ const whatsAppReplyFlowSimplified = __TURBOPACK__imported__module__$5b$project$5
             if (serviceName.toLowerCase().includes('full detailing') && lastUserMessageContent.includes('doff')) {
                 dynamicContext = `VALIDATION_ERROR: Full Detailing tidak bisa untuk motor doff (motor terdeteksi: ${vehicleModel}, layanan diminta: ${serviceName}). Tawarkan Coating Doff sebagai alternatif.`;
             } else {
-                dynamicContext = `DATA_PRODUK: Untuk motor ${vehicleModel}, layanan ${serviceName}, estimasi harganya adalah Rp ${price?.toLocaleString('id-ID') || 'belum tersedia, mohon tanyakan detail motor lebih lanjut atau jenis catnya (doff/glossy) jika coating'}.`;
+                dynamicContext = `DATA_PRODUK: Untuk motor ${vehicleModel}, layanan ${serviceName}, estimasi harganya adalah Rp ${price !== null ? price.toLocaleString('id-ID') : 'belum tersedia, mohon tanyakan detail motor lebih lanjut atau jenis catnya (doff/glossy) jika coating'}.`;
             }
         } else if (vehicleModel) {
             dynamicContext = `INFO_MOTOR_TERDETEKSI: ${vehicleModel}. Tanyakan layanan apa yang diinginkan.`;
@@ -714,19 +725,27 @@ USER_INPUT: "${input.customerMessage}"`;
                 temperature: 0.5
             }
         });
-        // >>> TAMBAHKAN BLOK DIAGNOSIS INI <<<
-        const finishReason = result.candidates[0]?.finishReason;
-        const safetyRatings = result.candidates[0]?.safetyRatings;
+        console.log("[CS-FLOW] Raw AI generate result:", JSON.stringify(result, null, 2)); // Log mentah hasil AI
+        // Ambil kandidat pertama dengan aman
+        const firstCandidate = result?.candidates?.[0];
+        // >>> BLOK DIAGNOSIS YANG DIPERBARUI <<<
+        const finishReason = firstCandidate?.finishReason;
+        const safetyRatings = firstCandidate?.safetyRatings;
         console.log(`[CS-FLOW] AI Finish Reason: ${finishReason}`);
         if (safetyRatings && safetyRatings.length > 0) {
             console.log('[CS-FLOW] AI Safety Ratings:', JSON.stringify(safetyRatings, null, 2));
         }
         // >>> AKHIR BLOK DIAGNOSIS <<<
-        const suggestedReply = result.candidates?.[0]?.message.content?.[0]?.text || "";
-        if (!suggestedReply) {
-            console.error('[CS-FLOW] ❌ AI returned an empty reply or response structure was unexpected. Mengembalikan default.');
+        const suggestedReply = firstCandidate?.message?.content?.[0]?.text || "";
+        if (!suggestedReply && finishReason !== "STOP") {
+            console.warn(`[CS-FLOW] ⚠️ AI returned an empty reply, but finishReason was '${finishReason}'. This might indicate an issue or unexpected model behavior. Safety Ratings: ${JSON.stringify(safetyRatings, null, 2)}. Mengembalikan default.`);
             return {
                 suggestedReply: "Maaf, Zoya lagi bingung nih. Bisa diulang pertanyaannya atau coba beberapa saat lagi?"
+            };
+        } else if (!suggestedReply && finishReason === "STOP") {
+            console.warn(`[CS-FLOW] ⚠️ AI returned an empty reply with finishReason 'STOP'. This might be due to prompt design or a very short valid response. Safety Ratings: ${JSON.stringify(safetyRatings, null, 2)}. Mengembalikan default.`);
+            return {
+                suggestedReply: "Hmm, Zoya lagi mikir keras nih. Coba tanya lagi dengan lebih spesifik ya?"
             };
         }
         console.log("[CS-FLOW] AI generate output:", suggestedReply);
@@ -735,6 +754,10 @@ USER_INPUT: "${input.customerMessage}"`;
         };
     } catch (flowError) {
         console.error('[CS-FLOW] ❌ Critical error dalam flow whatsAppReplyFlowSimplified:', flowError);
+        // Log detail error jika ada
+        if (flowError.cause) {
+            console.error('[CS-FLOW] Error Cause:', JSON.stringify(flowError.cause, null, 2));
+        }
         return {
             suggestedReply: "Waduh, sistem Zoya lagi ada kendala besar nih. Mohon coba beberapa saat lagi ya."
         };
@@ -755,7 +778,7 @@ async function generateWhatsAppReply(input) {
                 console.log("[CS-FLOW] generateWhatsAppReply: Using DEFAULT_AI_SETTINGS.mainPrompt.");
             } else {
                 console.error("[CS-FLOW] generateWhatsAppReply: CRITICAL - mainPrompt is also empty in DEFAULT_AI_SETTINGS. Using emergency fallback prompt.");
-                promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna.";
+                promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna."; // Fallback darurat
             }
         }
     } catch (error) {
@@ -765,15 +788,19 @@ async function generateWhatsAppReply(input) {
             console.log("[CS-FLOW] generateWhatsAppReply: Using DEFAULT_AI_SETTINGS.mainPrompt after Firestore error.");
         } else {
             console.error("[CS-FLOW] generateWhatsAppReply: CRITICAL - mainPrompt is also empty in DEFAULT_AI_SETTINGS post-error. Using emergency fallback prompt.");
-            promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna.";
+            promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna."; // Fallback darurat
         }
     }
+    // Pengecekan akhir untuk memastikan promptFromSettings tidak kosong
     if (!promptFromSettings || promptFromSettings.trim() === "") {
         console.error("[CS-FLOW] generateWhatsAppReply: CRITICAL - promptFromSettings is STILL empty after all checks. Using emergency fallback prompt.");
-        promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna.";
+        promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna."; // Fallback darurat terakhir
     }
     const flowInput = {
         ...input,
+        // mainPromptString TIDAK LAGI digunakan secara langsung oleh whatsAppReplyFlowSimplified untuk system instruction-nya,
+        // karena system instruction sekarang dibangun dinamis di dalam flow tersebut.
+        // Namun, kita tetap pass untuk menjaga struktur data input jika diperlukan di masa depan atau untuk logging.
         mainPromptString: promptFromSettings,
         customerMessage: input.customerMessage,
         senderNumber: input.senderNumber,
@@ -801,9 +828,6 @@ async function generateWhatsAppReply(input) {
         agentBehavior: input.agentBehavior || __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"].agentBehavior,
         knowledgeBase: input.knowledgeBase || __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"].knowledgeBaseDescription
     };
-    // Meskipun promptFromSettings diambil, whatsAppReplyFlowSimplified saat ini menggunakan systemInstruction yang di-hardcode
-    // dan tidak secara langsung memakai flowInput.mainPromptString untuk system instructionnya.
-    // Jika ingin kembali ke prompt dinamis, modifikasi di dalam whatsAppReplyFlowSimplified diperlukan.
     return whatsAppReplyFlowSimplified(flowInput);
 }
 ;
