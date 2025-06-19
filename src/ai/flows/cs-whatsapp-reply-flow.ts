@@ -1,138 +1,93 @@
 
 'use server';
 /**
- * @fileOverview AI flow for WhatsApp customer service replies.
- * - whatsAppReplyFlowSimplified - Main flow for generating WhatsApp replies.
+ * @fileOverview AI flow for WhatsApp customer service replies,
+ * using direct Firestore lookups for context and dynamic system prompt generation.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { extractMotorInfoTool } from '@/ai/tools/extractMotorInfoTool';
-import { searchServiceByKeywordTool } from '@/ai/tools/searchServiceByKeywordTool';
-import { createBookingTool } from '@/ai/tools/createBookingTool';
 import type { WhatsAppReplyInput, WhatsAppReplyOutput, ChatMessage } from '@/types/ai/cs-whatsapp-reply';
 import { WhatsAppReplyInputSchema, WhatsAppReplyOutputSchema } from '@/types/ai/cs-whatsapp-reply';
 
-import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { collection, query as firestoreQuery, where, limit, getDocs, Timestamp } from 'firebase/firestore'; // Renamed query to firestoreQuery
 import { DEFAULT_AI_SETTINGS } from '@/types/aiSettings';
 
-// Hardcoded promptZoya (versi terakhir yang sudah perbaikan backtick)
-const promptZoya = `
-Kamu adalah Zoya, Customer Service AI dari QLAB Moto Detailing.
 
-🎯 Gaya Bahasa:
-- Santai dan akrab, kayak ngobrol sama temen tongkrongan.
-- Gunakan sapaan seperti 'bro', 'kak', atau 'mas'.
-- Tetap informatif, jelas, dan cepat nangkep maksud pelanggan.
+// Helper Function: Adapted from src/flow.ts to work with Firestore client SDK
+// and ServiceProduct variant structure (array of objects).
+async function getServicePrice(vehicleModel: string, serviceName: string): Promise<number | null> {
+  if (!db) {
+    console.error("[CS-FLOW] Firestore client (db) is not initialized in getServicePrice.");
+    return null;
+  }
+  try {
+    const vehicleTypesRef = collection(db, 'vehicleTypes');
+    const vehicleQuery = firestoreQuery(
+        vehicleTypesRef,
+        // Assuming aliases in vehicleTypes includes the model name itself in lowercase
+        where('aliases', 'array-contains', vehicleModel.toLowerCase()),
+        limit(1)
+    );
+    const vehicleSnapshot = await getDocs(vehicleQuery);
 
-🛠 Tool yang Bisa Kamu Pakai:
-1. 'extractMotorInfoTool': Deteksi jenis motor dan ukurannya dari teks.
-   Input: {'text': 'deskripsi motor'}
-   Output: {'brand': '...', 'model': '...', 'size': 'S/M/L/XL'}
+    let vehicleSize: string | null = null;
+    if (!vehicleSnapshot.empty) {
+        vehicleSize = vehicleSnapshot.docs[0].data().size as string; // e.g., "L"
+    } else {
+        // Fallback: try matching model field directly if alias match fails
+        const modelDirectQuery = firestoreQuery(vehicleTypesRef, where('model', '==', vehicleModel), limit(1));
+        const modelDirectSnapshot = await getDocs(modelDirectQuery);
+        if (!modelDirectSnapshot.empty) {
+            vehicleSize = modelDirectSnapshot.docs[0].data().size as string;
+        } else {
+            console.log(`[CS-FLOW] getServicePrice: Vehicle model '${vehicleModel}' not found via aliases or direct model name.`);
+            return null;
+        }
+    }
+    
+    if (!vehicleSize) {
+        console.log(`[CS-FLOW] getServicePrice: Vehicle size not found for model '${vehicleModel}'.`);
+        return null;
+    }
 
-2. 'searchServiceByKeywordTool': Cari detail layanan berdasarkan kata kunci + ukuran motor (optional) + jenis cat (optional)
-   Input: {'keyword': '...', 'size': '...', 'paintType': 'doff/glossy'}
-   Output: {'name': '...', 'description': '...', 'price': ..., 'duration': '...', 'variantMatched': '...'}
+    const servicesRef = collection(db, 'services');
+    // Try matching by name directly first (case-insensitive equivalent)
+    // Firestore is case-sensitive, so this requires a more complex query or fetching and filtering.
+    // For simplicity here, we'll fetch and filter, or rely on a lowercase name field if available.
+    // Let's assume we fetch and filter for name first.
+    const servicesSnapshot = await getDocs(servicesRef);
+    const serviceDoc = servicesSnapshot.docs.find(doc => doc.data().name?.toLowerCase() === serviceName.toLowerCase());
 
-3. 'createBookingTool': Catat booking.
-   Input: {
-     customerName, customerPhone, clientId,
-     serviceId, serviceName,
-     vehicleInfo, bookingDate, bookingTime,
-     estimatedDuration, notes
-   }
+    if (!serviceDoc) {
+        console.log(`[CS-FLOW] getServicePrice: Service name '${serviceName}' not found by direct name match.`);
+        return null;
+    }
+    const serviceData = serviceDoc.data();
 
-🧠 Logika Utama:
+    let price: number | null = null;
 
-1. **Kalau pelanggan menyebut jenis motor (kayak 'nmax', 'xmax', 'supra', dll)**:
-   - Langsung panggil 'extractMotorInfoTool' dengan input {'text': customerMessage}
-   - Simpan hasilnya untuk dipakai di langkah selanjutnya (khususnya size)
+    if (serviceData.variants && Array.isArray(serviceData.variants)) {
+        // Variants is an array of objects: [{name: "L", price: 50000}, ...]
+        const variant = serviceData.variants.find((v: any) => v.name && v.name.toUpperCase() === vehicleSize.toUpperCase());
+        if (variant && typeof variant.price === 'number') {
+            price = variant.price;
+        }
+    }
+    
+    if (price === null) {
+        console.log(`[CS-FLOW] getServicePrice: Price not found for service '${serviceName}' with size '${vehicleSize}'. Trying base price.`);
+        return typeof serviceData.price === 'number' ? serviceData.price : null; // Fallback ke harga dasar
+    }
+    return price;
 
-2. **Kalau pelanggan nanya tentang coating**:
-   - Selalu pastikan dulu data motor dan cat (doff/glossy)
-   - Kalau belum disebut:
-     - Belum jelas motor & cat → tanya: 'Motornya apa nih? Doff atau glossy, bro?'
-     - Motor doang → tanya: 'Oke bro, motornya {{model}} ya. Catnya doff atau glossy, bro?'
-     - Cat doang → tanya: 'Sip, coating doff ya. Motornya apa nih, bro?'
-   - Kalau **motor & cat udah jelas**:
-     - Panggil 'extractMotorInfoTool' (jika belum dan size belum diketahui dari histori)
-     - Panggil 'searchServiceByKeywordTool' dengan keyword 'coating' + size (dari extractMotorInfoTool atau histori) + paintType.
-     - Kalau dapet harga (field 'price' ada dan bukan 0 atau null) → kasih info detail (nama layanan, harga, durasi) + tawarkan booking.
-     - Kalau TIDAK dapet harga (field 'price' undefined/null/0 dan bukan gratis) dari tool → SANGAT PENTING: JANGAN bilang 'sebentar aku cek' lagi. LANGSUNG informasikan bahwa harga spesifik belum ketemu, tapi bisa kasih gambaran umum layanannya (ambil dari deskripsi jika ada). Misal: 'Untuk coating NMAX doff, deskripsinya sih [deskripsi layanan]. Tapi buat harga pastinya, Zoya belum nemu nih bro, mungkin tergantung kondisi motornya juga. Mau Zoya bantu tanyain ke tim CS langsung?' atau 'Coating NMAX doff ya, bro. Detailnya sih [deskripsi]. Untuk harganya Zoya belum dapet info pasti nih, biasanya tergantung ukuran & kondisi motor. Mau dibantu booking dulu aja biar nanti dikonfirmasi tim kami?'
+  } catch (error) {
+    console.error("[CS-FLOW] Error in getServicePrice:", error);
+    return null;
+  }
+}
 
-3. **Kalau pelanggan nanya layanan lain (cuci, detailing, poles, repaint, dll)**:
-   - Cek apakah menyebut motor → panggil 'extractMotorInfoTool' jika ada dan size belum diketahui.
-   - Panggil 'searchServiceByKeywordTool' dengan keyword sesuai + size (jika ada dari extractMotorInfoTool atau histori).
-   - Kalau dapet harga → langsung kasih info detail (nama layanan, harga, durasi) + tawarkan booking.
-   - Kalau cuma dapet deskripsi (TIDAK dapet harga dari tool) → kasih deskripsi + tanya motornya buat bisa kasih info harga (jika size belum diketahui). Jika size sudah diketahui tapi harga tetap tidak ada, sampaikan seperti poin 2 (harga tidak ketemu).
-
-4. **Kalau pelanggan mau booking** (atau menyebutkan niat booking seperti 'mau booking', 'jadwalin dong', atau memberikan info tanggal/jam):
-   - **Cek & Ekstrak Info dari Pesan Pelanggan & Riwayat:**
-     *   Nama Pelanggan? (Dari histori atau 'senderName' jika ada)
-     *   No HP? (Dari histori atau 'senderNumber' jika ada)
-     *   Jenis Motor? (Dari hasil 'extractMotorInfoTool' sebelumnya, atau dari histori/pesan pelanggan)
-     *   Layanan? (Dari hasil 'searchServiceByKeywordTool' sebelumnya, atau dari histori/pesan pelanggan. Ingat untuk dapatkan 'serviceId' dan 'serviceName' yang tepat.)
-     *   Tanggal & Jam?
-         -   Kalau pelanggan bilang 'hari ini', isi Tanggal dengan '{{{currentDate}}}'. Formatnya harus YYYY-MM-DD. (Contoh: jika {{{currentDate}}} adalah '18/06/2024', ubah jadi '2024-06-18').
-         -   Kalau pelanggan bilang 'besok', isi Tanggal dengan '{{{tomorrowDate}}}'. Formatnya harus YYYY-MM-DD.
-         -   Kalau pelanggan bilang 'lusa', isi Tanggal dengan '{{{dayAfterTomorrowDate}}}'. Formatnya harus YYYY-MM-DD.
-         -   Kalau pelanggan sebut jam spesifik (mis. 'jam 5 sore', 'jam 10 pagi', 'jam 14.30'):
-             -   'jam 5 sore' -> Jam: '17:00'
-             -   'jam 10 pagi' -> Jam: '10:00'
-             -   'jam 2 siang' -> Jam: '14:00'
-             -   'jam 7 malam' -> Jam: '19:00'
-             -   'jam 14.30' -> Jam: '14:30'
-             -   Jika hanya jam tanpa keterangan hari, dan belum ada tanggal, asumsikan 'hari ini' (gunakan '{{{currentDate}}}' yang sudah diformat YYYY-MM-DD).
-         -   Jika pelanggan menyebut tanggal dan bulan (mis. '17 Agustus'), coba pahami dan format ke YYYY-MM-DD. Jika ragu, tanyakan tahunnya atau konfirmasi.
-   - **Formulasikan Pertanyaan (Jika Info Kurang):**
-     *   Sebutkan dulu info yang SUDAH kamu pahami.
-     *   Contoh jika layanan, motor, tanggal, jam sudah ada: 'Oke bro, NMAX doff buat coating ya, hari ini ({DD/MM/YYYY}) jam 17:00. Boleh minta Nama sama No HP-nya buat konfirmasi booking?' (Ganti {DD/MM/YYYY} dengan tanggal sebenarnya dari {{{currentDate}}})
-     *   Contoh jika hanya layanan & motor: 'Sip, coating buat NMAX doff ya. Mau booking tanggal dan jam berapa nih, bro? Sekalian Nama sama No HP-nya ya.'
-     *   Contoh jika banyak kurang: 'Oke bro, untuk bookingnya, Zoya butuh info ini ya:\\nNama : [isi jika sudah tahu]\\nNo HP : [isi jika sudah tahu]\\nLayanan : [isi jika sudah tahu]\\nTanggal : [isi jika sudah tahu dari 'hari ini/besok/lusa']\\nJam kedatangan : [isi jika sudah tahu]\\nJenis Motor : [isi jika sudah tahu]'
-   - **Jika Semua Info Sudah Lengkap**:
-     *   Panggil tool 'createBookingTool' dengan semua data yang telah terkumpul.
-     *   Pastikan 'bookingDate' dalam format YYYY-MM-DD dan 'bookingTime' dalam format HH:MM.
-     *   'serviceId' dan 'serviceName' ambil dari hasil pencarian layanan sebelumnya.
-     *   'vehicleInfo' gabungkan informasi motor (mis. 'NMAX Merah Doff').
-     *   Kalau sukses → balas: 'Sip bro, booking kamu udah Zoya catat ya. Jadwalnya: [Nama Layanan] untuk [Jenis Motor] pada tanggal [Tanggal Booking format DD MMMM YYYY] jam [Jam Booking]. 👍'
-     *   Kalau gagal → minta maaf, arahkan ke CS manusia.
-
-📌 **Catatan Tambahan:**
-- Usahakan jawab dengan data real dari tools, jangan ngarang kalau tool belum kasih data.
-- Kalau info belum lengkap dari pelanggan, pancing dengan gaya ngobrol santai.
-- Kalau ada pertanyaan yang di luar kapasitas kamu, jawab kayak gini:
-  > 'Waduh, ini agak di luar kepala gue bro... Zoya bantu terusin ke tim CS ya. #unanswered'
-
-📤 Output HARUS dalam format JSON:
-Contoh:
-{ 'suggestedReply': 'Oke bro, untuk coating doff ukuran M harganya 400rb. Mau sekalian booking?' }
-
-📩 Chat Pelanggan:
-user: {{{customerMessage}}}
-
-📚 Riwayat Sebelumnya:
-{{#if chatHistory.length}}
-{{#each chatHistory}}
-{{this.role}}: {{this.content}}
-{{/each}}
-{{/if}}
-
-🕒 Tanggal hari ini: {{{currentDate}}}, waktu: {{{currentTime}}}
-Besok: {{{tomorrowDate}}}, Lusa: {{{dayAfterTomorrowDate}}}
-`;
-
-
-/**
- * Define prompt untuk Zoya dengan tool yang diperlukan
- */
-const replyPromptSimplified = ai.definePrompt({
-  name: 'whatsAppReplyPromptSimplified',
-  input: { schema: WhatsAppReplyInputSchema },
-  output: { schema: WhatsAppReplyOutputSchema },
-  tools: [extractMotorInfoTool, searchServiceByKeywordTool, createBookingTool],
-  prompt: promptZoya, // Langsung pakai promptZoya yang dihardcode
-});
 
 /**
  * Flow utama untuk digunakan di API/function/genkit handler
@@ -145,32 +100,118 @@ export const whatsAppReplyFlowSimplified = ai.defineFlow(
   },
   async (input: WhatsAppReplyInput): Promise<WhatsAppReplyOutput> => {
     try {
-      // FIX: Menyederhanakan console.log untuk menghindari error parsing
-      const logInput = { ...input };
-      // Hapus atau ganti mainPromptString untuk log jika terlalu panjang atau bermasalah
-      if (logInput.mainPromptString) {
-        logInput.mainPromptString = `Prompt Length: ${logInput.mainPromptString.length} (Hardcoded prompt will be used)`;
+      console.log("[CS-FLOW] whatsAppReplyFlowSimplified input received. customerMessage:", input.customerMessage);
+
+      const lastUserMessageContent = input.customerMessage.toLowerCase();
+      let vehicleModel: string | null = null;
+      let serviceName: string | null = null;
+      let dynamicContext = "INFO_UMUM_BENGKEL: QLAB Moto Detailing adalah bengkel perawatan dan detailing motor.";
+
+      if (db) {
+        try {
+          // Deteksi model kendaraan
+          const vehicleTypesRef = collection(db, 'vehicleTypes');
+          const modelsSnapshot = await getDocs(vehicleTypesRef);
+          for (const doc of modelsSnapshot.docs) {
+            const data = doc.data();
+            const modelAliases = (data.aliases as string[] || []).map(a => a.toLowerCase());
+            const originalModelName = data.model as string;
+            if (modelAliases.some(alias => lastUserMessageContent.includes(alias)) || lastUserMessageContent.includes(originalModelName.toLowerCase())) {
+              vehicleModel = originalModelName;
+              console.log(`[CS-FLOW] Vehicle model detected: ${vehicleModel}`);
+              break;
+            }
+          }
+
+          // Deteksi layanan
+          const servicesRef = collection(db, 'services');
+          const servicesSnapshot = await getDocs(servicesRef);
+          for (const doc of servicesSnapshot.docs) {
+            const data = doc.data();
+            const serviceAliases = (data.aliases as string[] || []).map(a => a.toLowerCase());
+            const originalServiceName = data.name as string;
+             if (serviceAliases.some(alias => lastUserMessageContent.includes(alias)) || lastUserMessageContent.includes(originalServiceName.toLowerCase())) {
+              serviceName = originalServiceName;
+              console.log(`[CS-FLOW] Service name detected: ${serviceName}`);
+              break;
+            }
+          }
+        } catch (dbError) {
+          console.error("[CS-FLOW] Error during Firestore entity detection:", dbError);
+          dynamicContext += " WARNING: Gagal mengambil data detail dari database.";
+        }
+      } else {
+        console.warn("[CS-FLOW] Firestore (db) is not initialized. Entity detection and pricing will be skipped.");
+        dynamicContext += " WARNING: Database tidak terhubung, info harga mungkin tidak akurat.";
       }
-      console.log("[CS-FLOW] whatsAppReplyFlowSimplified input:", JSON.stringify(logInput, null, 2));
+
+      if (vehicleModel && serviceName) {
+        const price = await getServicePrice(vehicleModel, serviceName);
+        if (serviceName.toLowerCase().includes('full detailing') && lastUserMessageContent.includes('doff')) {
+            dynamicContext = `VALIDATION_ERROR: Full Detailing tidak bisa untuk motor doff (motor terdeteksi: ${vehicleModel}, layanan diminta: ${serviceName}). Tawarkan Coating Doff sebagai alternatif.`;
+        } else {
+            dynamicContext = `DATA_PRODUK: Untuk motor ${vehicleModel}, layanan ${serviceName}, estimasi harganya adalah Rp ${price?.toLocaleString('id-ID') || 'belum tersedia, mohon tanyakan detail motor lebih lanjut atau jenis catnya (doff/glossy) jika coating'}.`;
+        }
+      } else if (vehicleModel) {
+          dynamicContext = `INFO_MOTOR_TERDETEKSI: ${vehicleModel}. Tanyakan layanan apa yang diinginkan.`;
+      } else if (serviceName) {
+          dynamicContext = `INFO_LAYANAN_TERDETEKSI: ${serviceName}. Tanyakan jenis motornya apa untuk estimasi harga.`;
+      }
+      console.log(`[CS-FLOW] Dynamic context built: ${dynamicContext}`);
+
+      const systemInstruction = `
+Anda adalah "Zoya" - CS QLAB Moto Detailing.
+GAYA BAHASA:
+- Santai tapi profesional (contoh: "Halo boskuu", "Gas booking sekarang!", "Siap bos!")
+- Pakai istilah: "kinclong", "cuci premium level spa motor", "poles", "coating"
+- Hindari kata kasar (boleh pakai "anjay" jika pas konteksnya)
+- Gunakan emoji secukupnya: ✅😎✨💸🛠️👋
+
+ATURAN WAJIB:
+1. Layanan "Full Detailing" HANYA untuk motor tipe glossy. JANGAN tawarkan ke motor doff. Jika user minta, tolak dengan sopan dan berikan alternatif lain seperti "Coating Doff".
+2. Layanan "Coating" memiliki harga yang BERBEDA untuk glossy dan doff. Selalu pastikan tipe motornya dan jenis catnya (jika belum jelas dari KONTEKS DARI SISTEM). Jika harga belum ada di KONTEKS, tanyakan spesifikasi motor atau jenis cat.
+3. Motor besar (Moge) seperti Harley, CBR600RR, dll, otomatis menggunakan ukuran "SIZE XL". Info ukuran ini akan otomatis didapat dari sistem jika model terdeteksi.
+
+KONTEKS DARI SISTEM (gunakan data ini untuk menjawab, JANGAN tampilkan KONTEKS ini ke user secara langsung, olah jadi jawaban natural, jangan JSON):
+${dynamicContext}
+
+PETUNJUK TAMBAHAN:
+- Jika KONTEKS berisi VALIDATION_ERROR, jelaskan error tersebut ke user dengan bahasa yang sopan dan berikan solusi/alternatif.
+- Jika KONTEKS berisi DATA_PRODUK dan harganya ada, sebutkan harganya. Jika harga 'belum tersedia', JANGAN mengarang harga. Informasikan bahwa harga spesifik belum ada dan tanyakan detail lebih lanjut jika diperlukan (misal jenis cat untuk coating, atau ukuran motor jika belum terdeteksi).
+- Jika user bertanya di luar topik detailing motor, jawab dengan sopan bahwa Anda hanya bisa membantu soal QLAB Moto Detailing.
+- Tujuan utama: Memberikan informasi akurat dan membantu user melakukan booking jika mereka mau.
+
+JAWABAN (format natural):
+      `;
+
+      const historyForAI: { role: 'user' | 'model'; parts: {text: string}[] }[] = (input.chatHistory || [])
+        .filter(msg => msg.content && msg.content.trim() !== '')
+        .map(msg => ({
+          role: msg.role,
+          parts: [{ text: msg.content }],
+        }));
       
-      try {
-        const { output } = await replyPromptSimplified(input); // Pass input, tapi prompt-nya sudah hardcode.
-        if (!output || !output.suggestedReply) {
-          console.error('[CS-FLOW] ❌ Gagal mendapatkan balasan dari AI atau output tidak sesuai skema (output atau suggestedReply null/undefined). Mengembalikan default.');
-          return { suggestedReply: "Maaf, Zoya lagi bingung nih. Bisa diulang pertanyaannya atau coba beberapa saat lagi?" };
-        }
-        console.log("[CS-FLOW] whatsAppReplyFlowSimplified output dari prompt:", output);
-        return output;
-      } catch (aiError: any) {
-        console.error('[CS-FLOW] ❌ Error saat menjalankan prompt AI atau memproses outputnya:', aiError);
-        let finalErrorMessage = "Maaf, ada sedikit gangguan teknis di sistem Zoya.";
-        if (aiError instanceof Error && aiError.message) {
-            finalErrorMessage = `Duh, Zoya lagi ada kendala nih: ${aiError.message.substring(0, 80)}... Coba lagi ya.`;
-        } else if (typeof aiError === 'string') {
-            finalErrorMessage = `Duh, Zoya lagi ada kendala: ${aiError.substring(0, 80)}... Coba lagi ya.`;
-        }
-        return { suggestedReply: finalErrorMessage };
+      const messagesForAI = [
+          ...historyForAI,
+          { role: 'user' as const, parts: [{ text: input.customerMessage }] }
+      ];
+
+      console.log("[CS-FLOW] Calling ai.generate with model googleai/gemini-1.5-flash-latest");
+      const result = await ai.generate({
+        model: 'googleai/gemini-1.5-flash-latest',
+        messages: messagesForAI,
+        system: systemInstruction,
+        config: { temperature: 0.5 },
+      });
+
+      const suggestedReply = result.text();
+      if (!suggestedReply) {
+        console.error('[CS-FLOW] ❌ Gagal mendapatkan balasan dari AI atau output tidak sesuai skema (output atau suggestedReply null/undefined). Mengembalikan default.');
+        return { suggestedReply: "Maaf, Zoya lagi bingung nih. Bisa diulang pertanyaannya atau coba beberapa saat lagi?" };
       }
+      console.log("[CS-FLOW] AI generate output:", suggestedReply);
+      return { suggestedReply };
+
     } catch (flowError: any) {
         console.error('[CS-FLOW] ❌ Critical error dalam flow whatsAppReplyFlowSimplified:', flowError);
         return { suggestedReply: "Waduh, sistem Zoya lagi ada kendala besar nih. Mohon coba beberapa saat lagi ya." };
@@ -179,13 +220,43 @@ export const whatsAppReplyFlowSimplified = ai.defineFlow(
 );
 
 export async function generateWhatsAppReply(input: Omit<WhatsAppReplyInput, 'mainPromptString'>): Promise<WhatsAppReplyOutput> {
-  // Fungsi ini tetap menerima input seolah-olah prompt bisa dari luar,
-  // tapi flow `whatsAppReplyFlowSimplified` di atas akan menggunakan `promptZoya` yang hardcoded.
-  // Jika nanti ingin prompt dinamis lagi, perubahan utama ada di `replyPromptSimplified.prompt`.
+  let promptFromSettings = "";
+  try {
+    const settingsDocRef = doc(db, 'appSettings', 'aiAgentConfig');
+    const settingsSnap = await getDoc(settingsDocRef);
+    if (settingsSnap.exists() && settingsSnap.data()?.mainPrompt && settingsSnap.data()?.mainPrompt.trim() !== "") {
+      promptFromSettings = settingsSnap.data()?.mainPrompt;
+    } else {
+      console.warn("[CS-FLOW] generateWhatsAppReply: mainPrompt not found in Firestore or is empty. Checking default.");
+      if (DEFAULT_AI_SETTINGS.mainPrompt && DEFAULT_AI_SETTINGS.mainPrompt.trim() !== "") {
+        promptFromSettings = DEFAULT_AI_SETTINGS.mainPrompt;
+      } else {
+        console.error("[CS-FLOW] generateWhatsAppReply: CRITICAL - mainPrompt is also empty in DEFAULT_AI_SETTINGS. Using emergency fallback prompt.");
+        promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna: {{{customerMessage}}}"; 
+      }
+    }
+  } catch (error) {
+    console.error("[CS-FLOW] generateWhatsAppReply: Error fetching prompt from Firestore. Using default/emergency fallback.", error);
+    if (DEFAULT_AI_SETTINGS.mainPrompt && DEFAULT_AI_SETTINGS.mainPrompt.trim() !== "") {
+        promptFromSettings = DEFAULT_AI_SETTINGS.mainPrompt;
+      } else {
+        console.error("[CS-FLOW] generateWhatsAppReply: CRITICAL - mainPrompt is also empty in DEFAULT_AI_SETTINGS post-error. Using emergency fallback prompt.");
+        promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna: {{{customerMessage}}}"; 
+      }
+  }
+  // Fallback one last time if somehow promptFromSettings is still empty
+  if (!promptFromSettings || promptFromSettings.trim() === "") {
+    console.error("[CS-FLOW] generateWhatsAppReply: CRITICAL - promptFromSettings is STILL empty after all checks. Using emergency fallback prompt.");
+    promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna: {{{customerMessage}}}";
+  }
+
 
   const flowInput: WhatsAppReplyInput = {
     ...input,
-    mainPromptString: "PROMPT_DARI_SETTINGS_TAPI_DIABAIKAN_OLEH_FLOW_INI", // Nilai ini tidak akan dipakai oleh flow saat ini
+    // mainPromptString is part of WhatsAppReplyInputSchema but will be ignored by the flow's current logic.
+    // The system instruction is now built dynamically inside whatsAppReplyFlowSimplified.
+    // We pass it here for schema compliance and potential future use if logic changes.
+    mainPromptString: promptFromSettings,
     customerMessage: input.customerMessage,
     senderNumber: input.senderNumber,
     chatHistory: input.chatHistory || [],
