@@ -548,7 +548,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
  */ var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/ai/genkit.ts [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$ai$2f$cs$2d$whatsapp$2d$reply$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/types/ai/cs-whatsapp-reply.ts [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/firebase.ts [app-rsc] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$firestore$2f$dist$2f$index$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/firestore/dist/index.mjs [app-rsc] (ecmascript) <module evaluation>"); // Renamed query to firestoreQuery and added doc, getDoc
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$firestore$2f$dist$2f$index$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/firestore/dist/index.mjs [app-rsc] (ecmascript) <module evaluation>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@firebase/firestore/dist/index.node.mjs [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/types/aiSettings.ts [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$action$2d$validate$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/build/webpack/loaders/next-flight-loader/action-validate.js [app-rsc] (ecmascript)");
@@ -568,14 +568,12 @@ async function getServicePrice(vehicleModel, serviceName) {
     }
     try {
         const vehicleTypesRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'vehicleTypes');
-        const vehicleQuery = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["query"])(vehicleTypesRef, // Assuming aliases in vehicleTypes includes the model name itself in lowercase
-        (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["where"])('aliases', 'array-contains', vehicleModel.toLowerCase()), (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["limit"])(1));
+        const vehicleQuery = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["query"])(vehicleTypesRef, (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["where"])('aliases', 'array-contains', vehicleModel.toLowerCase()), (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["limit"])(1));
         const vehicleSnapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(vehicleQuery);
         let vehicleSize = null;
         if (!vehicleSnapshot.empty) {
             vehicleSize = vehicleSnapshot.docs[0].data().size; // e.g., "L"
         } else {
-            // Fallback: try matching model field directly if alias match fails
             const modelDirectQuery = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["query"])(vehicleTypesRef, (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["where"])('model', '==', vehicleModel), (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["limit"])(1));
             const modelDirectSnapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(modelDirectQuery);
             if (!modelDirectSnapshot.empty) {
@@ -590,10 +588,6 @@ async function getServicePrice(vehicleModel, serviceName) {
             return null;
         }
         const servicesRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'services');
-        // Try matching by name directly first (case-insensitive equivalent)
-        // Firestore is case-sensitive, so this requires a more complex query or fetching and filtering.
-        // For simplicity here, we'll fetch and filter, or rely on a lowercase name field if available.
-        // Let's assume we fetch and filter for name first.
         const servicesSnapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(servicesRef);
         const serviceDoc = servicesSnapshot.docs.find((doc)=>doc.data().name?.toLowerCase() === serviceName.toLowerCase());
         if (!serviceDoc) {
@@ -603,7 +597,6 @@ async function getServicePrice(vehicleModel, serviceName) {
         const serviceData = serviceDoc.data();
         let price = null;
         if (serviceData.variants && Array.isArray(serviceData.variants)) {
-            // Variants is an array of objects: [{name: "L", price: 50000}, ...]
             const variant = serviceData.variants.find((v)=>v.name && v.name.toUpperCase() === vehicleSize.toUpperCase());
             if (variant && typeof variant.price === 'number') {
                 price = variant.price;
@@ -611,7 +604,7 @@ async function getServicePrice(vehicleModel, serviceName) {
         }
         if (price === null) {
             console.log(`[CS-FLOW] getServicePrice: Price not found for service '${serviceName}' with size '${vehicleSize}'. Trying base price.`);
-            return typeof serviceData.price === 'number' ? serviceData.price : null; // Fallback ke harga dasar
+            return typeof serviceData.price === 'number' ? serviceData.price : null;
         }
         return price;
     } catch (error) {
@@ -625,7 +618,6 @@ const whatsAppReplyFlowSimplified = __TURBOPACK__imported__module__$5b$project$5
     outputSchema: __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$ai$2f$cs$2d$whatsapp$2d$reply$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["WhatsAppReplyOutputSchema"]
 }, async (input)=>{
     try {
-        // Simplified console log:
         console.log("[CS-FLOW] whatsAppReplyFlowSimplified input. Customer Message:", input.customerMessage, "History Length:", input.chatHistory?.length || 0);
         const lastUserMessageContent = input.customerMessage.toLowerCase();
         let vehicleModel = null;
@@ -633,7 +625,6 @@ const whatsAppReplyFlowSimplified = __TURBOPACK__imported__module__$5b$project$5
         let dynamicContext = "INFO_UMUM_BENGKEL: QLAB Moto Detailing adalah bengkel perawatan dan detailing motor.";
         if (__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"]) {
             try {
-                // Deteksi model kendaraan
                 const vehicleTypesRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'vehicleTypes');
                 const modelsSnapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(vehicleTypesRef);
                 for (const doc of modelsSnapshot.docs){
@@ -646,7 +637,6 @@ const whatsAppReplyFlowSimplified = __TURBOPACK__imported__module__$5b$project$5
                         break;
                     }
                 }
-                // Deteksi layanan
                 const servicesRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'services');
                 const servicesSnapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(servicesRef);
                 for (const doc of servicesSnapshot.docs){
@@ -701,8 +691,6 @@ PETUNJUK TAMBAHAN:
 - Jika KONTEKS berisi DATA_PRODUK dan harganya ada, sebutkan harganya. Jika harga 'belum tersedia', JANGAN mengarang harga. Informasikan bahwa harga spesifik belum ada dan tanyakan detail lebih lanjut jika diperlukan (misal jenis cat untuk coating, atau ukuran motor jika belum terdeteksi).
 - Jika user bertanya di luar topik detailing motor, jawab dengan sopan bahwa Anda hanya bisa membantu soal QLAB Moto Detailing.
 - Tujuan utama: Memberikan informasi akurat dan membantu user melakukan booking jika mereka mau.
-
-JAWABAN (format natural):
       `;
         const historyForAI = (input.chatHistory || []).filter((msg)=>msg.content && msg.content.trim() !== '').map((msg)=>({
                 role: msg.role,
@@ -712,7 +700,6 @@ JAWABAN (format natural):
                     }
                 ]
             }));
-        // Gabungkan instruksi sistem dan prompt user menjadi satu
         const fullPrompt = `${systemInstruction}
 
 ---
@@ -727,6 +714,14 @@ USER_INPUT: "${input.customerMessage}"`;
                 temperature: 0.5
             }
         });
+        // >>> TAMBAHKAN BLOK DIAGNOSIS INI <<<
+        const finishReason = result.candidates[0]?.finishReason;
+        const safetyRatings = result.candidates[0]?.safetyRatings;
+        console.log(`[CS-FLOW] AI Finish Reason: ${finishReason}`);
+        if (safetyRatings && safetyRatings.length > 0) {
+            console.log('[CS-FLOW] AI Safety Ratings:', JSON.stringify(safetyRatings, null, 2));
+        }
+        // >>> AKHIR BLOK DIAGNOSIS <<<
         const suggestedReply = result.candidates?.[0]?.message.content?.[0]?.text || "";
         if (!suggestedReply) {
             console.error('[CS-FLOW] ❌ AI returned an empty reply or response structure was unexpected. Mengembalikan default.');
@@ -760,7 +755,7 @@ async function generateWhatsAppReply(input) {
                 console.log("[CS-FLOW] generateWhatsAppReply: Using DEFAULT_AI_SETTINGS.mainPrompt.");
             } else {
                 console.error("[CS-FLOW] generateWhatsAppReply: CRITICAL - mainPrompt is also empty in DEFAULT_AI_SETTINGS. Using emergency fallback prompt.");
-                promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna."; // Prompt fallback yang lebih sederhana
+                promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna.";
             }
         }
     } catch (error) {
@@ -770,12 +765,12 @@ async function generateWhatsAppReply(input) {
             console.log("[CS-FLOW] generateWhatsAppReply: Using DEFAULT_AI_SETTINGS.mainPrompt after Firestore error.");
         } else {
             console.error("[CS-FLOW] generateWhatsAppReply: CRITICAL - mainPrompt is also empty in DEFAULT_AI_SETTINGS post-error. Using emergency fallback prompt.");
-            promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna."; // Prompt fallback yang lebih sederhana
+            promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna.";
         }
     }
     if (!promptFromSettings || promptFromSettings.trim() === "") {
         console.error("[CS-FLOW] generateWhatsAppReply: CRITICAL - promptFromSettings is STILL empty after all checks. Using emergency fallback prompt.");
-        promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna."; // Prompt fallback yang lebih sederhana
+        promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna.";
     }
     const flowInput = {
         ...input,
@@ -806,6 +801,9 @@ async function generateWhatsAppReply(input) {
         agentBehavior: input.agentBehavior || __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"].agentBehavior,
         knowledgeBase: input.knowledgeBase || __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"].knowledgeBaseDescription
     };
+    // Meskipun promptFromSettings diambil, whatsAppReplyFlowSimplified saat ini menggunakan systemInstruction yang di-hardcode
+    // dan tidak secara langsung memakai flowInput.mainPromptString untuk system instructionnya.
+    // Jika ingin kembali ke prompt dinamis, modifikasi di dalam whatsAppReplyFlowSimplified diperlukan.
     return whatsAppReplyFlowSimplified(flowInput);
 }
 ;
