@@ -1017,11 +1017,13 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
         __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$createBookingTool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["createBookingTool"]
     ],
     prompt: async (input)=>{
-        if (!input.mainPromptString) {
-            console.warn("[CS-FLOW] mainPromptString is missing from input to prompt function. Using fallback.");
-            // Fallback jika prompt tidak berhasil diambil dari settings
-            return "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna: {{{customerMessage}}}";
+        if (!input.mainPromptString || input.mainPromptString.trim() === "") {
+            console.warn("[CS-FLOW] mainPromptString from input is empty or missing. Using emergency fallback prompt.");
+            // Emergency fallback jika mainPromptString yang dilempar ke flow kosong
+            return "Anda adalah Customer Service AI. Tolong jawab pertanyaan pengguna: {{{customerMessage}}}";
         }
+        console.log("[CS-FLOW] Using mainPromptString for Handlebars template (length):", input.mainPromptString.length);
+        // console.log("[CS-FLOW] Full mainPromptString for Handlebars:", input.mainPromptString); // Uncomment for full prompt logging if needed
         return input.mainPromptString; // String prompt dari settings digunakan di sini
     }
 });
@@ -1031,7 +1033,10 @@ const whatsAppReplyFlowSimplified = __TURBOPACK__imported__module__$5b$project$5
     outputSchema: __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$ai$2f$cs$2d$whatsapp$2d$reply$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["WhatsAppReplyOutputSchema"]
 }, async (input)=>{
     try {
-        console.log("[CS-FLOW] whatsAppReplyFlowSimplified input (sudah termasuk prompt dari settings):", JSON.stringify(input, null, 2));
+        console.log("[CS-FLOW] whatsAppReplyFlowSimplified input (sudah termasuk prompt dari settings):", JSON.stringify({
+            ...input,
+            mainPromptString: `Prompt Length: ${input.mainPromptString?.length || 0}`
+        }, null, 2));
         try {
             const { output } = await replyPromptSimplified(input); // Langsung pass input
             if (!output || !output.suggestedReply) {
@@ -1062,23 +1067,38 @@ const whatsAppReplyFlowSimplified = __TURBOPACK__imported__module__$5b$project$5
     }
 });
 async function generateWhatsAppReply(input) {
-    let promptFromSettings = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"].mainPrompt;
+    let promptFromSettings = ""; // Initialize as empty string
     try {
         const settingsDocRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["doc"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'appSettings', 'aiAgentConfig');
         const settingsSnap = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDoc"])(settingsDocRef);
-        if (settingsSnap.exists() && settingsSnap.data()?.mainPrompt) {
+        if (settingsSnap.exists() && settingsSnap.data()?.mainPrompt && settingsSnap.data()?.mainPrompt.trim() !== "") {
             promptFromSettings = settingsSnap.data()?.mainPrompt;
             console.log("[CS-FLOW] Berhasil memuat prompt utama dari Firestore.");
         } else {
-            console.warn("[CS-FLOW] Gagal memuat prompt utama dari Firestore atau field tidak ada. Menggunakan prompt default.");
+            console.warn("[CS-FLOW] Gagal memuat prompt utama dari Firestore atau field mainPrompt kosong/tidak ada. Mencoba fallback ke default.");
+            // Fallback ke DEFAULT_AI_SETTINGS.mainPrompt jika Firestore gagal atau kosong
+            if (__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"].mainPrompt && __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"].mainPrompt.trim() !== "") {
+                promptFromSettings = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"].mainPrompt;
+                console.log("[CS-FLOW] Menggunakan prompt default dari DEFAULT_AI_SETTINGS.");
+            } else {
+                console.error("[CS-FLOW] KRITIS: Prompt utama dari Firestore KOSONG DAN prompt default juga KOSONG. Menggunakan fallback minimal darurat.");
+                promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna: {{{customerMessage}}}"; // Darurat fallback
+            }
         }
     } catch (error) {
         console.error("[CS-FLOW] Error saat mengambil prompt utama dari Firestore:", error);
-        console.warn("[CS-FLOW] Menggunakan prompt default karena gagal fetch.");
+        console.warn("[CS-FLOW] Menggunakan prompt default karena gagal fetch atau prompt Firestore kosong.");
+        if (__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"].mainPrompt && __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"].mainPrompt.trim() !== "") {
+            promptFromSettings = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"].mainPrompt;
+            console.log("[CS-FLOW] Menggunakan prompt default dari DEFAULT_AI_SETTINGS setelah error fetch.");
+        } else {
+            console.error("[CS-FLOW] KRITIS: Gagal fetch Firestore DAN prompt default juga KOSONG. Menggunakan fallback minimal darurat.");
+            promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna: {{{customerMessage}}}"; // Darurat fallback
+        }
     }
-    if (!promptFromSettings) {
-        console.error("[CS-FLOW] KRITIS: Prompt utama tidak tersedia (baik dari Firestore maupun default). Menggunakan fallback minimal.");
-        promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna: {{{customerMessage}}}";
+    if (!promptFromSettings || promptFromSettings.trim() === "") {
+        console.error("[CS-FLOW] KRITIS FINAL CHECK: Prompt utama tetap kosong setelah semua fallback. Ini tidak seharusnya terjadi. Menggunakan fallback minimal darurat terakhir.");
+        promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna: {{{customerMessage}}}"; // Darurat fallback paling akhir
     }
     const flowInput = {
         ...input,
@@ -1106,8 +1126,8 @@ async function generateWhatsAppReply(input) {
             month: '2-digit',
             day: '2-digit'
         }),
-        agentBehavior: input.agentBehavior,
-        knowledgeBase: input.knowledgeBase
+        agentBehavior: input.agentBehavior || __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"].agentBehavior,
+        knowledgeBase: input.knowledgeBase || __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"].knowledgeBaseDescription
     };
     return whatsAppReplyFlowSimplified(flowInput);
 }
