@@ -191,13 +191,19 @@ JAWABAN (format natural):
           parts: [{ text: msg.content }],
         }));
       
-      console.log("[CS-FLOW] Calling ai.generate with model googleai/gemini-1.5-flash-latest. History:", historyForAI, "Prompt:", input.customerMessage);
+      const fullPrompt = `${systemInstruction}
+
+---
+
+USER_INPUT: "${input.customerMessage}"`;
+      
+      console.log("[CS-FLOW] Calling ai.generate with model googleai/gemini-1.5-flash-latest. History:", historyForAI, "Full Prompt:", fullPrompt);
       const result = await ai.generate({
         model: 'googleai/gemini-1.5-flash-latest',
-        system: systemInstruction,
         history: historyForAI, 
-        prompt: input.customerMessage,
+        prompt: fullPrompt, // Menggunakan prompt yang sudah digabung
         config: { temperature: 0.5 },
+        // Parameter 'system' dihapus
       });
 
       const suggestedReply = result.text();
@@ -216,16 +222,18 @@ JAWABAN (format natural):
 );
 
 export async function generateWhatsAppReply(input: Omit<WhatsAppReplyInput, 'mainPromptString'>): Promise<WhatsAppReplyOutput> {
-  let promptFromSettings = ""; // Ini tidak lagi digunakan untuk System Instruction di flow ini, tapi tetap ada untuk tipe
+  let promptFromSettings = ""; 
   try {
-    const settingsDocRef = firestoreDoc(db, 'appSettings', 'aiAgentConfig'); // Menggunakan firestoreDoc
-    const settingsSnap = await getFirestoreDoc(settingsDocRef); // Menggunakan getFirestoreDoc
+    const settingsDocRef = firestoreDoc(db, 'appSettings', 'aiAgentConfig'); 
+    const settingsSnap = await getFirestoreDoc(settingsDocRef); 
     if (settingsSnap.exists() && settingsSnap.data()?.mainPrompt && settingsSnap.data()?.mainPrompt.trim() !== "") {
       promptFromSettings = settingsSnap.data()?.mainPrompt;
+      console.log("[CS-FLOW] generateWhatsAppReply: Loaded mainPrompt from Firestore.");
     } else {
       console.warn("[CS-FLOW] generateWhatsAppReply: mainPrompt not found in Firestore or is empty. Checking default.");
       if (DEFAULT_AI_SETTINGS.mainPrompt && DEFAULT_AI_SETTINGS.mainPrompt.trim() !== "") {
         promptFromSettings = DEFAULT_AI_SETTINGS.mainPrompt;
+        console.log("[CS-FLOW] generateWhatsAppReply: Using DEFAULT_AI_SETTINGS.mainPrompt.");
       } else {
         console.error("[CS-FLOW] generateWhatsAppReply: CRITICAL - mainPrompt is also empty in DEFAULT_AI_SETTINGS. Using emergency fallback prompt.");
         promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna: {{{customerMessage}}}"; 
@@ -235,12 +243,13 @@ export async function generateWhatsAppReply(input: Omit<WhatsAppReplyInput, 'mai
     console.error("[CS-FLOW] generateWhatsAppReply: Error fetching prompt from Firestore. Using default/emergency fallback.", error);
     if (DEFAULT_AI_SETTINGS.mainPrompt && DEFAULT_AI_SETTINGS.mainPrompt.trim() !== "") {
         promptFromSettings = DEFAULT_AI_SETTINGS.mainPrompt;
+        console.log("[CS-FLOW] generateWhatsAppReply: Using DEFAULT_AI_SETTINGS.mainPrompt after Firestore error.");
       } else {
         console.error("[CS-FLOW] generateWhatsAppReply: CRITICAL - mainPrompt is also empty in DEFAULT_AI_SETTINGS post-error. Using emergency fallback prompt.");
         promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna: {{{customerMessage}}}"; 
       }
   }
-  // Fallback one last time if somehow promptFromSettings is still empty
+  
   if (!promptFromSettings || promptFromSettings.trim() === "") {
     console.error("[CS-FLOW] generateWhatsAppReply: CRITICAL - promptFromSettings is STILL empty after all checks. Using emergency fallback prompt.");
     promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna: {{{customerMessage}}}";
@@ -248,7 +257,7 @@ export async function generateWhatsAppReply(input: Omit<WhatsAppReplyInput, 'mai
 
   const flowInput: WhatsAppReplyInput = {
     ...input,
-    mainPromptString: promptFromSettings, // Tetap ada di input untuk tipe, tapi tidak dipakai oleh systemInstruction flow
+    mainPromptString: promptFromSettings, 
     customerMessage: input.customerMessage,
     senderNumber: input.senderNumber,
     chatHistory: input.chatHistory || [],

@@ -548,7 +548,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
  */ var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/ai/genkit.ts [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$ai$2f$cs$2d$whatsapp$2d$reply$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/types/ai/cs-whatsapp-reply.ts [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/firebase.ts [app-rsc] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$firestore$2f$dist$2f$index$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/firestore/dist/index.mjs [app-rsc] (ecmascript) <module evaluation>"); // Renamed query to firestoreQuery
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$firestore$2f$dist$2f$index$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/firestore/dist/index.mjs [app-rsc] (ecmascript) <module evaluation>"); // Renamed query to firestoreQuery and added doc, getDoc
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@firebase/firestore/dist/index.node.mjs [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/types/aiSettings.ts [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$action$2d$validate$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/build/webpack/loaders/next-flight-loader/action-validate.js [app-rsc] (ecmascript)");
@@ -595,7 +595,7 @@ async function getServicePrice(vehicleModel, serviceName) {
         // For simplicity here, we'll fetch and filter, or rely on a lowercase name field if available.
         // Let's assume we fetch and filter for name first.
         const servicesSnapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(servicesRef);
-        const serviceDoc = servicesSnapshot.docs.find((doc1)=>doc1.data().name?.toLowerCase() === serviceName.toLowerCase());
+        const serviceDoc = servicesSnapshot.docs.find((doc)=>doc.data().name?.toLowerCase() === serviceName.toLowerCase());
         if (!serviceDoc) {
             console.log(`[CS-FLOW] getServicePrice: Service name '${serviceName}' not found by direct name match.`);
             return null;
@@ -635,8 +635,8 @@ const whatsAppReplyFlowSimplified = __TURBOPACK__imported__module__$5b$project$5
                 // Deteksi model kendaraan
                 const vehicleTypesRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'vehicleTypes');
                 const modelsSnapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(vehicleTypesRef);
-                for (const doc1 of modelsSnapshot.docs){
-                    const data = doc1.data();
+                for (const doc of modelsSnapshot.docs){
+                    const data = doc.data();
                     const modelAliases = (data.aliases || []).map((a)=>a.toLowerCase());
                     const originalModelName = data.model;
                     if (modelAliases.some((alias)=>lastUserMessageContent.includes(alias)) || lastUserMessageContent.includes(originalModelName.toLowerCase())) {
@@ -648,8 +648,8 @@ const whatsAppReplyFlowSimplified = __TURBOPACK__imported__module__$5b$project$5
                 // Deteksi layanan
                 const servicesRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'services');
                 const servicesSnapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(servicesRef);
-                for (const doc1 of servicesSnapshot.docs){
-                    const data = doc1.data();
+                for (const doc of servicesSnapshot.docs){
+                    const data = doc.data();
                     const serviceAliases = (data.aliases || []).map((a)=>a.toLowerCase());
                     const originalServiceName = data.name;
                     if (serviceAliases.some((alias)=>lastUserMessageContent.includes(alias)) || lastUserMessageContent.includes(originalServiceName.toLowerCase())) {
@@ -711,22 +711,12 @@ JAWABAN (format natural):
                     }
                 ]
             }));
-        const messagesForAI = [
-            ...historyForAI,
-            {
-                role: 'user',
-                parts: [
-                    {
-                        text: input.customerMessage
-                    }
-                ]
-            }
-        ];
-        console.log("[CS-FLOW] Calling ai.generate with model googleai/gemini-1.5-flash-latest");
+        console.log("[CS-FLOW] Calling ai.generate with model googleai/gemini-1.5-flash-latest. History:", historyForAI, "Prompt:", input.customerMessage);
         const result = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].generate({
             model: 'googleai/gemini-1.5-flash-latest',
-            messages: messagesForAI,
             system: systemInstruction,
+            history: historyForAI,
+            prompt: input.customerMessage,
             config: {
                 temperature: 0.5
             }
@@ -750,10 +740,10 @@ JAWABAN (format natural):
     }
 });
 async function generateWhatsAppReply(input) {
-    let promptFromSettings = "";
+    let promptFromSettings = ""; // Ini tidak lagi digunakan untuk System Instruction di flow ini, tapi tetap ada untuk tipe
     try {
-        const settingsDocRef = doc(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'appSettings', 'aiAgentConfig');
-        const settingsSnap = await getDoc(settingsDocRef);
+        const settingsDocRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["doc"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'appSettings', 'aiAgentConfig'); // Menggunakan firestoreDoc
+        const settingsSnap = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDoc"])(settingsDocRef); // Menggunakan getFirestoreDoc
         if (settingsSnap.exists() && settingsSnap.data()?.mainPrompt && settingsSnap.data()?.mainPrompt.trim() !== "") {
             promptFromSettings = settingsSnap.data()?.mainPrompt;
         } else {
@@ -781,9 +771,6 @@ async function generateWhatsAppReply(input) {
     }
     const flowInput = {
         ...input,
-        // mainPromptString is part of WhatsAppReplyInputSchema but will be ignored by the flow's current logic.
-        // The system instruction is now built dynamically inside whatsAppReplyFlowSimplified.
-        // We pass it here for schema compliance and potential future use if logic changes.
         mainPromptString: promptFromSettings,
         customerMessage: input.customerMessage,
         senderNumber: input.senderNumber,
