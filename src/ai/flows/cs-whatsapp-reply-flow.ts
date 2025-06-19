@@ -1,48 +1,45 @@
-
 'use server';
 
 // import { configureGenkit } from '@genkit-ai/core'; // configureGenkit sebaiknya di file genkit.ts utama
 import { ai } from '@/ai/genkit'; // Menggunakan objek 'ai' global dari genkit.ts
-// import { defineFlow } from 'genkit'; // DIUBAH: Tidak lagi di-import langsung
-import { googleAI } from '@genkit-ai/googleai'; // Pastikan ini sesuai dengan struktur Genkit v1.x
-// import { defineTool, type Tool } from 'genkit'; // DIUBAH: Tidak lagi di-import langsung
+// import { defineFlow } from 'genkit'; // DIUBAH: Tidak lagi di-import langsung, pakai ai.defineFlow
+// import { googleAI } from '@genkit-ai/googleai'; // Tidak perlu diimport di sini jika 'ai' sudah dikonfigurasi
+// import { defineTool, type Tool } from 'genkit'; // DIUBAH: Tidak lagi di-import langsung, pakai ai.defineTool
 import * as z from 'zod';
 
 // Firebase Admin SDK untuk koneksi ke Firestore
-// Pastikan firebase-admin diinisialisasi di tempat yang benar (misalnya, di firebase-admin.ts dan diimpor)
-import { adminDb } from '@/lib/firebase-admin'; // Menggunakan instance adminDb dari firebase-admin.ts
+import { adminDb } from '@/lib/firebase-admin';
 
-// Skema untuk input dan output Zoya Chat Flow, disesuaikan dengan kebutuhan baru
-export const ZoyaChatInputSchema = z.object({
+// Skema Zod untuk input, TIDAK DI-EXPORT
+const ZoyaChatInputSchema = z.object({
   messages: z.array(
     z.object({
       role: z.enum(['user', 'model']),
-      content: z.string(),
+      content: z.string(), // Konten sekarang string biasa, pembungkusan 'parts' dilakukan di flow
     })
-  ),
-  // Tambahkan properti yang mungkin dikirim dari UI, seperti dari WhatsAppReplyInput sebelumnya
-  customerMessage: z.string().optional(), // Ini akan jadi input utama ke 'prompt' AI
+  ).optional(), // Dibuat opsional agar bisa fallback ke customerMessage
+  customerMessage: z.string().optional(), // Ini akan jadi input utama ke 'prompt' AI jika messages kosong
   senderNumber: z.string().optional(),
-  chatHistory: z.array(z.object({ role: z.enum(['user', 'model']), content: z.string() })).optional(), // Sesuaikan schema jika perlu
-  agentBehavior: z.string().optional(),
-  knowledgeBase: z.string().optional(),
+  // chatHistory sudah tercakup dalam `messages`
+  agentBehavior: z.string().optional(), // Opsional, bisa di-handle di prompt utama
+  knowledgeBase: z.string().optional(), // Opsional
   currentDate: z.string().optional(),
   currentTime: z.string().optional(),
   tomorrowDate: z.string().optional(),
   dayAfterTomorrowDate: z.string().optional(),
-  mainPromptString: z.string().optional(),
+  mainPromptString: z.string().optional(), // Prompt utama dari pengaturan
 });
-export type ZoyaChatInput = z.infer<typeof ZoyaChatInputSchema>;
+export type ZoyaChatInput = z.infer<typeof ZoyaChatInputSchema>; // Tipe TETAP DI-EXPORT
 
-export const ZoyaChatOutputSchema = z.string(); // Output adalah string balasan
+// Skema Zod untuk output, TIDAK DI-EXPORT
+const ZoyaChatOutputSchema = z.string(); // Output adalah string balasan
 
 
 // =================================================================
-//  TOOLS: Kemampuan yang bisa digunakan oleh AI
+//  TOOLS: Kemampuan yang bisa digunakan oleh AI (TIDAK DI-EXPORT)
 // =================================================================
 
-// Tool untuk mencari harga layanan di Firestore
-export const getServicePriceTool = ai.defineTool( // DIUBAH: Menggunakan ai.defineTool
+const getServicePriceTool = ai.defineTool(
   {
     name: 'getServicePrice',
     description: 'Dapatkan harga untuk layanan spesifik pada model motor tertentu. Gunakan tool ini jika user menanyakan harga.',
@@ -71,6 +68,7 @@ export const getServicePriceTool = ai.defineTool( // DIUBAH: Menggunakan ai.defi
         .get();
 
       if (vehicleQuerySnapshot.empty) {
+        // Fallback to exact model match if alias not found
         vehicleQuerySnapshot = await vehiclesRef.where('model_lowercase', '==', vehicleModel.toLowerCase()).limit(1).get();
       }
       
@@ -79,13 +77,16 @@ export const getServicePriceTool = ai.defineTool( // DIUBAH: Menggunakan ai.defi
       }
 
       const vehicleData = vehicleQuerySnapshot.docs[0].data();
-      const vehicleSize = vehicleData.size; 
+      const vehicleSize = vehicleData.size; // e.g., "L"
       if (!vehicleSize) {
+         // Handle case where vehicle size might not be defined for a found model
          return { success: false, message: `Ukuran untuk model motor "${vehicleModel}" tidak ditemukan. Zoya bingung nih.` };
       }
-      const firestoreSizeVariant = vehicleSize;
+      // Varian di Firestore disimpan dengan nama ukuran (S, M, L, XL), bukan "SIZE S"
+      const firestoreSizeVariant = vehicleSize; // e.g., "L"
 
       const servicesRef = adminDb.collection('services');
+      // Query lebih sederhana: cari nama layanan yang mendekati
       const serviceQuerySnapshot = await servicesRef
         .where('name_lowercase', '>=', serviceName.toLowerCase())
         .where('name_lowercase', '<=', serviceName.toLowerCase() + '\uf8ff')
@@ -95,19 +96,20 @@ export const getServicePriceTool = ai.defineTool( // DIUBAH: Menggunakan ai.defi
         return { success: false, message: `Layanan "${serviceName}" sepertinya tidak tersedia.` };
       }
       
+      // Pilih kandidat terbaik jika query mengembalikan banyak (mis. "Cuci" bisa "Cuci Premium", "Cuci Wax")
       let foundServiceData: any = null;
       let bestMatchScore = -1;
 
       serviceQuerySnapshot.forEach(doc => {
         const service = doc.data();
-        const serviceNameLower = service.name_lowercase || service.name.toLowerCase();
+        const serviceNameLower = service.name_lowercase || service.name.toLowerCase(); // Pastikan ada name_lowercase
         let score = 0;
         if (serviceNameLower === serviceName.toLowerCase()) {
-            score = 100;
+            score = 100; // Exact match
         } else if (serviceNameLower.startsWith(serviceName.toLowerCase())) {
-            score = 50;
+            score = 50; // Starts with
         } else {
-            score = 10;
+            score = 10; // Contains (kurang relevan jika ada yang lebih spesifik)
         }
 
         if (score > bestMatchScore) {
@@ -120,27 +122,29 @@ export const getServicePriceTool = ai.defineTool( // DIUBAH: Menggunakan ai.defi
          return { success: false, message: `Layanan "${serviceName}" tidak ditemukan.` };
       }
       
+      // Filter varian secara manual setelah mendapatkan dokumen layanan
       let price: number | undefined = undefined;
-      let estimatedDuration: string | undefined = foundServiceData.estimatedDuration;
+      let estimatedDuration: string | undefined = foundServiceData.estimatedDuration; // Default ke durasi dasar
 
       if (foundServiceData.variants && Array.isArray(foundServiceData.variants)) {
         const variant = foundServiceData.variants.find((v: any) => v.name && v.name.toUpperCase() === firestoreSizeVariant.toUpperCase());
         if (variant && typeof variant.price === 'number') {
           price = variant.price;
-          estimatedDuration = variant.estimatedDuration || estimatedDuration;
+          estimatedDuration = variant.estimatedDuration || estimatedDuration; // Ambil durasi varian jika ada
         }
       }
       
+      // Jika tidak ada varian yang cocok atau tidak ada array varian, gunakan harga dasar
       if (price === undefined && typeof foundServiceData.price === 'number') {
         price = foundServiceData.price;
       }
 
-      if (price === undefined) {
+      if (price === undefined) { // Jika setelah semua cek harga masih undefined
         return { 
           success: false, 
           message: `Harga untuk layanan "${foundServiceData.name}" pada motor ukuran ${vehicleSize} (${vehicleModel}) belum tersedia saat ini. Mungkin Zoya bisa bantu carikan layanan lain?`,
-          size: vehicleSize,
-          estimatedDuration: estimatedDuration
+          size: vehicleSize, // Kembalikan ukuran agar AI tahu
+          estimatedDuration: estimatedDuration // Kembalikan durasi (dasar atau varian jika ada)
         };
       }
 
@@ -149,10 +153,11 @@ export const getServicePriceTool = ai.defineTool( // DIUBAH: Menggunakan ai.defi
         price: price,
         size: vehicleSize,
         message: `Harga untuk layanan ${foundServiceData.name} pada motor ${vehicleModel} (Size ${vehicleSize}) adalah Rp ${price.toLocaleString('id-ID')}. Estimasi durasi: ${estimatedDuration || 'N/A'}.`,
-        estimatedDuration: estimatedDuration || undefined
+        estimatedDuration: estimatedDuration || undefined // Pastikan selalu ada
       };
     } catch (error: any) {
-        console.error("[getServicePriceTool] Error executing tool:", error);
+        // Log error lebih detail
+        console.error("[getServicePriceTool] Error executing tool:", error.message, error.stack);
         return { success: false, message: `Waduh, Zoya lagi pusing nih, ada error pas ngecek harga: ${error.message}` };
     }
   }
@@ -160,10 +165,10 @@ export const getServicePriceTool = ai.defineTool( // DIUBAH: Menggunakan ai.defi
 
 
 // =================================================================
-//  FLOW: Logika utama chatbot Zoya
+//  FLOW: Logika utama chatbot Zoya (TIDAK DI-EXPORT)
 // =================================================================
 
-export const zoyaChatFlow = ai.defineFlow( // DIUBAH: Menggunakan ai.defineFlow
+const zoyaChatFlow = ai.defineFlow(
   {
     name: 'zoyaChatFlow',
     inputSchema: ZoyaChatInputSchema,
@@ -171,14 +176,11 @@ export const zoyaChatFlow = ai.defineFlow( // DIUBAH: Menggunakan ai.defineFlow
   },
   async (input) => { // input sekarang bertipe ZoyaChatInput
     
-    // Ambil pesan terakhir dari input.messages ATAU dari input.customerMessage jika input.messages kosong
-    const lastUserMessageContent = input.messages && input.messages.length > 0 
-                                  ? input.messages[input.messages.length - 1].content 
-                                  : input.customerMessage;
+    const lastUserMessageContent = input.customerMessage || (input.messages && input.messages.length > 0 ? input.messages[input.messages.length - 1].content : '');
 
     if (!lastUserMessageContent || lastUserMessageContent.trim() === '') {
       console.warn("[CS-FLOW] No valid last user message content. Returning empty reply.");
-      return ""; // Atau throw error jika diperlukan
+      return ""; 
     }
     const lastMessageLowerCase = lastUserMessageContent.toLowerCase();
     
@@ -236,6 +238,7 @@ export const zoyaChatFlow = ai.defineFlow( // DIUBAH: Menggunakan ai.defineFlow
       input.mainPromptString.replace("{{dynamicContext}}", dynamicContext) : 
       DEFAULT_AI_SETTINGS.mainPrompt.replace("{{dynamicContext}}", dynamicContext);
 
+    // Struktur messages untuk Genkit v1.x
     const historyForAI = (input.messages || []) // Gunakan input.messages untuk histori jika ada
       .slice(0, -1) // Semua kecuali pesan terakhir
       .filter(msg => msg.content && msg.content.trim() !== '') 
@@ -244,6 +247,7 @@ export const zoyaChatFlow = ai.defineFlow( // DIUBAH: Menggunakan ai.defineFlow
         parts: [{ text: msg.content }],
     }));
     
+    // Pesan user terakhir digabung dengan system instruction
     const userPromptWithSystemInstruction = `${systemInstruction}
 
 ---
@@ -252,25 +256,24 @@ USER_INPUT: "${lastUserMessageContent}"
 
 JAWABAN ZOYA:`;
 
-    console.log("[CS-FLOW] Calling ai.generate with model googleai/gemini-1.5-flash-latest. History:", historyForAI);
+    console.log("[CS-FLOW] Calling ai.generate with model googleai/gemini-1.5-flash-latest. History Length:", historyForAI.length);
     // console.log("[CS-FLOW] Full Prompt being sent:", userPromptWithSystemInstruction); // Log full prompt bisa sangat panjang
 
     try {
       const result = await ai.generate({
         model: 'googleai/gemini-1.5-flash-latest',
-        history: historyForAI,
-        prompt: userPromptWithSystemInstruction, // Prompt lengkap dengan instruksi sistem
+        history: historyForAI, // Riwayat chat sebelumnya
+        prompt: userPromptWithSystemInstruction, // Prompt lengkap dengan instruksi sistem dan pesan user terakhir
         tools: [getServicePriceTool as any], // Pastikan tool dikenali
         toolChoice: 'auto',
         config: { temperature: 0.5 },
-        // Hapus safetySettings untuk sementara guna troubleshooting, bisa ditambahkan lagi nanti jika perlu
       });
 
       console.log("[CS-FLOW] Raw AI generate result:", JSON.stringify(result, null, 2));
 
       const firstCandidate = result?.candidates?.[0];
-      const finishReason = result.finishReason; // Ambil dari level atas
-      const safetyRatings = result.safetyRatings; // Ambil dari level atas
+      const finishReason = result.finishReason; 
+      const safetyRatings = result.safetyRatings; 
 
       console.log(`[CS-FLOW] AI Finish Reason: ${finishReason}`);
       if (safetyRatings && safetyRatings.length > 0) {
@@ -280,7 +283,7 @@ JAWABAN ZOYA:`;
       const suggestedReply = firstCandidate?.message?.content?.[0]?.text || "";
 
       if (!suggestedReply) {
-        if (finishReason !== "stop") {
+        if (finishReason !== "stop") { // Genkit v1 finishReason is 'stop' (lowercase)
           console.error(`[CS-FLOW] ❌ AI generation failed. Finish Reason: ${finishReason}. Safety: ${JSON.stringify(safetyRatings)}`);
         } else {
           console.warn(`[CS-FLOW] ⚠️ AI returned an empty reply, but finishReason was 'stop'. This might indicate an issue or unexpected model behavior. Safety Ratings: ${JSON.stringify(safetyRatings)}`);
@@ -290,7 +293,7 @@ JAWABAN ZOYA:`;
       return suggestedReply;
 
     } catch (flowError: any) {
-        console.error("[CS-FLOW] ❌ Critical error dalam flow whatsAppReplyFlowSimplified:", flowError);
+        console.error("[CS-FLOW] ❌ Critical error dalam flow zoyaChatFlow:", flowError);
         if (flowError.cause) {
             console.error("[CS-FLOW] Error Cause:", JSON.stringify(flowError.cause, null, 2));
         }
@@ -299,16 +302,19 @@ JAWABAN ZOYA:`;
   }
 );
 
-// Fungsi wrapper, pastikan input-nya sesuai dengan ZoyaChatInputSchema
+// Fungsi wrapper, TETAP DI-EXPORT
 export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<{ suggestedReply: string }> {
-  // Mapping dari ZoyaChatInput ke format yang diharapkan oleh zoyaChatFlow (jika ada perbedaan)
-  // Untuk saat ini, kita asumsikan ZoyaChatInput sudah cukup mirip atau bisa langsung dipakai.
-  // Jika zoyaChatFlow hanya butuh 'messages', kita bisa mapping:
-  // const flowInput = { messages: input.chatHistory ? [...input.chatHistory, {role: 'user', content: input.customerMessage}] : [{role: 'user', content: input.customerMessage}]};
-  // Tapi karena zoyaChatFlow sudah dimodifikasi untuk ZoyaChatInput, kita bisa pass langsung.
+  console.log("[CS-FLOW] generateWhatsAppReply input:", JSON.stringify(input, null, 2));
+  if (!input.mainPromptString) {
+    const mainPromptFromSettings = DEFAULT_AI_SETTINGS.mainPrompt; // Ambil dari default jika tidak ada di input
+    console.log("[CS-FLOW] generateWhatsAppReply: mainPrompt not found in input or Firestore. Using DEFAULT_AI_SETTINGS.mainPrompt.");
+    input.mainPromptString = mainPromptFromSettings;
+  } else {
+    console.log("[CS-FLOW] generateWhatsAppReply: Using mainPromptString from input.");
+  }
 
   try {
-    const replyText = await zoyaChatFlow(input);
+    const replyText = await zoyaChatFlow(input); // Panggil flow internal
     return { suggestedReply: replyText };
   } catch (error: any) {
     console.error("[CS-FLOW Wrapper] Error running zoyaChatFlow:", error);
@@ -316,8 +322,6 @@ export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<{ sug
   }
 }
 
-// DEFAULT_AI_SETTINGS (mainPrompt perlu di-define di sini jika tidak di-pass dari UI/input)
-// Ini akan dipakai jika input.mainPromptString tidak ada.
 const DEFAULT_AI_SETTINGS = {
   mainPrompt: `
 Anda adalah "Zoya" - CS QLAB Moto Detailing.
@@ -345,5 +349,3 @@ PETUNJUK TAMBAHAN:
 - Untuk booking, pastikan Anda mendapatkan: Nama Pelanggan, Nomor HP, Jenis Motor, Layanan, Tanggal, dan Jam. Jika ada yang kurang, minta dengan sopan. Jika sudah lengkap, konfirmasi detailnya ke user.
 `,
 };
-
-    
