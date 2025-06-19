@@ -800,10 +800,6 @@ body {
   max-height: 70vh;
 }
 
-.max-h-\[90vh\] {
-  max-height: 90vh;
-}
-
 .max-h-\[calc\(100vh-200px\)\] {
   max-height: calc(100vh - 200px);
 }
@@ -982,10 +978,6 @@ body {
 
 .max-w-2xl {
   max-width: 42rem;
-}
-
-.max-w-3xl {
-  max-width: 48rem;
 }
 
 .max-w-\[--skeleton-width\] {
@@ -1733,10 +1725,6 @@ body {
   padding-bottom: 2rem;
 }
 
-.pb-0 {
-  padding-bottom: 0;
-}
-
 .pb-2 {
   padding-bottom: .5rem;
 }
@@ -1803,10 +1791,6 @@ body {
 
 .pt-4 {
   padding-top: 1rem;
-}
-
-.pt-6 {
-  padding-top: 1.5rem;
 }
 
 .pt-8 {

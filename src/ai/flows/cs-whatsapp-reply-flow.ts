@@ -26,7 +26,7 @@ const replyPromptSimplified = ai.definePrompt({
   input: { schema: WhatsAppReplyInputSchema }, // Skema input sekarang termasuk mainPromptString
   output: { schema: WhatsAppReplyOutputSchema },
   tools: [extractMotorInfoTool, searchServiceByKeywordTool, createBookingTool],
-  prompt: (input) => { // Diubah menjadi fungsi
+  prompt: async (input: WhatsAppReplyInput): Promise<string> => { // Diubah menjadi async dan return Promise<string>
     if (!input.mainPromptString) {
       console.warn("[CS-FLOW] mainPromptString is missing from input to prompt function. Using fallback.");
       // Fallback jika prompt tidak berhasil diambil dari settings
@@ -49,11 +49,6 @@ export const whatsAppReplyFlowSimplified = ai.defineFlow(
     try { 
       console.log("[CS-FLOW] whatsAppReplyFlowSimplified input (sudah termasuk prompt dari settings):", JSON.stringify(input, null, 2));
       
-      // Helper untuk memformat DD/MM/YYYY ke YYYY-MM-DD (jika masih diperlukan di dalam prompt dinamis)
-      // const formatDateToYYYYMMDD = (dateStr?: string) => { ... }
-      // Namun, karena prompt sekarang dinamis dan semua {{variable}} sudah di handle Genkit,
-      // kita hanya perlu memastikan semua field di WhatsAppReplyInput (termasuk mainPromptString) terisi.
-
       try { 
         const { output } = await replyPromptSimplified(input); // Langsung pass input
         if (!output || !output.suggestedReply) { 
@@ -115,3 +110,4 @@ export async function generateWhatsAppReply(input: Omit<WhatsAppReplyInput, 'mai
   };
   return whatsAppReplyFlowSimplified(flowInput);
 }
+
