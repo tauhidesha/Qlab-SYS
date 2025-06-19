@@ -13,7 +13,7 @@ export const ai = genkit({
   plugins: [
     googleAI(), // Gunakan plugin Google AI
   ],
-  model: 'googleai/gemini-2.0-flash-exp', // Model diubah ke Gemini 2.0 Flash Experimental
+  model: 'googleai/gemini-1.5-flash-latest', // Model diubah ke Gemini 1.5 Flash terbaru
   // Opsi telemetry tidak lagi dikonfigurasi di sini untuk Genkit v1.x
   // Jika butuh logging, konfigurasi dilakukan secara berbeda atau via environment.
 });

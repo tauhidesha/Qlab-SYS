@@ -1,7 +1,7 @@
 
 'use server'; // Menandakan bahwa ini adalah modul Server Components / bisa dijalankan di server
 
-import { geminiPro } from '@genkit-ai/googleai';
+// import { geminiPro } from '@genkit-ai/googleai'; // Tidak lagi digunakan, diganti string model langsung
 import { defineFlow } from '@genkit-ai/flow';
 import { z } from 'zod';
 import { generate } from 'genkit/ai';
@@ -15,7 +15,6 @@ async function getServicePrice(vehicleModel: string, serviceName: string): Promi
   }
   try {
     // 1. Cari tipe kendaraan berdasarkan model (menggunakan field lowercase)
-    // Asumsi: vehicleTypes punya field 'model_lowercase'
     const vehicleQuery = await db.collection('vehicleTypes')
         .where('model_lowercase', '==', vehicleModel.toLowerCase())
         .limit(1)
@@ -33,7 +32,6 @@ async function getServicePrice(vehicleModel: string, serviceName: string): Promi
     }
 
     // 2. Cari layanan berdasarkan nama (menggunakan field lowercase)
-    // Asumsi: services punya field 'name_lowercase'
     const serviceQuery = await db.collection('services')
         .where('name_lowercase', '==', serviceName.toLowerCase())
         .limit(1)
@@ -47,11 +45,27 @@ async function getServicePrice(vehicleModel: string, serviceName: string): Promi
 
     // 3. Ambil harga dari map 'variants' berdasarkan ukuran kendaraan
     // Asumsi: service.variants adalah objek/map seperti { "SIZE S": { price: ... }, ... }
-    const price = service.variants?.[`SIZE ${vehicleSize}`]?.price;
+    // atau bisa juga berupa array of objects dengan properti 'name' dan 'price'
+    let price: number | null = null;
+
+    if (service.variants) {
+        if (Array.isArray(service.variants)) {
+            // Jika variants adalah array of objects: [{name: "SIZE S", price: 50000}, ...]
+            const variant = service.variants.find((v: any) => v.name && v.name.toUpperCase() === `SIZE ${vehicleSize}`);
+            if (variant && variant.price !== undefined) {
+                price = variant.price;
+            }
+        } else if (typeof service.variants === 'object') {
+            // Jika variants adalah map: { "SIZE S": { price: 50000 }, ... }
+            if (service.variants[`SIZE ${vehicleSize}`] && service.variants[`SIZE ${vehicleSize}`].price !== undefined) {
+                price = service.variants[`SIZE ${vehicleSize}`].price;
+            }
+        }
+    }
     
-    if (price === undefined || price === null) {
+    if (price === null || price === undefined) {
         console.log(`getServicePrice: Price not found for service '${serviceName}' with size '${vehicleSize}'. Trying base price.`);
-        return service.price !== undefined && service.price !== null ? service.price : null; // Fallback ke harga dasar jika varian tidak ada atau harga varian tidak ada
+        return service.price !== undefined && service.price !== null ? service.price : null; // Fallback ke harga dasar
     }
     return price;
 
@@ -66,7 +80,7 @@ async function getServicePrice(vehicleModel: string, serviceName: string): Promi
 export const zoyaChatFlow = defineFlow(
   {
     name: 'zoyaChatFlow',
-    inputSchema: z.object({ messages: z.array(z.object({ // Lebih spesifik dari z.any()
+    inputSchema: z.object({ messages: z.array(z.object({ 
         role: z.enum(['user', 'model']),
         content: z.string(),
     })) }),
@@ -76,11 +90,8 @@ export const zoyaChatFlow = defineFlow(
     const { messages } = payload;
     const lastUserMessage = messages.findLast(m => m.role === 'user');
     
-    if (!lastUserMessage || !lastUserMessage.content) {
-        // Tidak ada pesan pengguna terakhir, mungkin stream teks kosong atau error
-        // Membuat stream kosong agar tidak error di client
-        const { stream } = generate({ model: geminiPro, prompt: "No input provided." }); // Dummy call
-        // Namun, kita akan mengosongkan stream ini
+    if (!lastUserMessage || !lastUserMessage.content || lastUserMessage.content.trim() === '') {
+        console.warn("zoyaChatFlow: No valid last user message found. Returning empty stream.");
         async function* emptyStream() {
             yield { content: '' }; 
         }
@@ -90,30 +101,28 @@ export const zoyaChatFlow = defineFlow(
     
     let vehicleModel: string | null = null;
     let serviceName: string | null = null;
-    let context = "INFO_UMUM_BENGKEL: QLAB Moto Detailing adalah bengkel perawatan dan detailing motor."; // Default context
+    let context = "INFO_UMUM_BENGKEL: QLAB Moto Detailing adalah bengkel perawatan dan detailing motor.";
 
-    if (db) { // Hanya jalankan jika db terinisialisasi
+    if (db) { 
         try {
-            // Deteksi model kendaraan
             const modelsSnapshot = await db.collection('vehicleTypes').get();
             for (const doc of modelsSnapshot.docs) {
-            const modelAliases = (doc.data().aliases as string[] || []).map(a => a.toLowerCase());
-            const originalModelName = doc.data().model as string;
-            if (modelAliases.some(alias => lastMessageContent.includes(alias))) {
-                vehicleModel = originalModelName;
-                break;
-            }
+                const modelAliases = (doc.data().aliases as string[] || []).map(a => a.toLowerCase());
+                const originalModelName = doc.data().model as string;
+                if (modelAliases.some(alias => lastMessageContent.includes(alias)) || lastMessageContent.includes(originalModelName.toLowerCase())) {
+                    vehicleModel = originalModelName;
+                    break;
+                }
             }
 
-            // Deteksi layanan
             const servicesSnapshot = await db.collection('services').get();
             for (const doc of servicesSnapshot.docs) {
-            const serviceAliases = (doc.data().aliases as string[] || []).map(a => a.toLowerCase());
-            const originalServiceName = doc.data().name as string;
-            if (serviceAliases.some(alias => lastMessageContent.includes(alias))) {
-                serviceName = originalServiceName;
-                break;
-            }
+                const serviceAliases = (doc.data().aliases as string[] || []).map(a => a.toLowerCase());
+                const originalServiceName = doc.data().name as string;
+                if (serviceAliases.some(alias => lastMessageContent.includes(alias)) || lastMessageContent.includes(originalServiceName.toLowerCase())) {
+                    serviceName = originalServiceName;
+                    break;
+                }
             }
         } catch (dbError) {
             console.error("Error during Firestore entity detection:", dbError);
@@ -138,8 +147,8 @@ export const zoyaChatFlow = defineFlow(
         context = `INFO_LAYANAN_TERDETEKSI: ${serviceName}. Tanyakan jenis motornya apa untuk estimasi harga.`;
     }
     
-    const historyForAI = messages.slice(0, -1) // Semua kecuali pesan terakhir
-      .filter(msg => msg.content && msg.content.trim() !== '') // Filter pesan kosong
+    const historyForAI = messages.slice(0, -1) 
+      .filter(msg => msg.content && msg.content.trim() !== '') 
       .map((msg) => ({
         role: msg.role, 
         parts: [{ text: msg.content }],
@@ -171,19 +180,17 @@ export const zoyaChatFlow = defineFlow(
       `;
 
     const result = await generate({
-        model: geminiPro,
-        messages: [ // Pesan untuk LLM, gabungkan histori dan pesan terakhir
+        model: 'googleai/gemini-1.5-flash-latest', // Menggunakan model gemini-1.5-flash-latest
+        messages: [ 
             ...historyForAI,
             { role: 'user', parts: [{ text: lastUserMessage.content }] }
         ],
-        system: dynamicSystemInstruction, // System instruction dinamis
-        config: { // Parameter LLM
-           temperature: 0.5, // Sedikit lebih kreatif tapi tetap jaga fakta
+        system: dynamicSystemInstruction, 
+        config: { 
+           temperature: 0.5, 
         },
     });
 
-    return result.stream(); // Kembalikan stream dari hasil generate
+    return result.stream(); 
   }
 );
-
-    
