@@ -26,12 +26,14 @@ const replyPromptSimplified = ai.definePrompt({
   input: { schema: WhatsAppReplyInputSchema }, // Skema input sekarang termasuk mainPromptString
   output: { schema: WhatsAppReplyOutputSchema },
   tools: [extractMotorInfoTool, searchServiceByKeywordTool, createBookingTool],
-  prompt: async (input: WhatsAppReplyInput): Promise<string> => { // Diubah menjadi async dan return Promise<string>
-    if (!input.mainPromptString) {
-      console.warn("[CS-FLOW] mainPromptString is missing from input to prompt function. Using fallback.");
-      // Fallback jika prompt tidak berhasil diambil dari settings
-      return "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna: {{{customerMessage}}}";
+  prompt: async (input: WhatsAppReplyInput): Promise<string> => {
+    if (!input.mainPromptString || input.mainPromptString.trim() === "") {
+      console.warn("[CS-FLOW] mainPromptString from input is empty or missing. Using emergency fallback prompt.");
+      // Emergency fallback jika mainPromptString yang dilempar ke flow kosong
+      return "Anda adalah Customer Service AI. Tolong jawab pertanyaan pengguna: {{{customerMessage}}}";
     }
+    console.log("[CS-FLOW] Using mainPromptString for Handlebars template (length):", input.mainPromptString.length);
+    // console.log("[CS-FLOW] Full mainPromptString for Handlebars:", input.mainPromptString); // Uncomment for full prompt logging if needed
     return input.mainPromptString; // String prompt dari settings digunakan di sini
   },
 });
@@ -47,7 +49,7 @@ export const whatsAppReplyFlowSimplified = ai.defineFlow(
   },
   async (input: WhatsAppReplyInput): Promise<WhatsAppReplyOutput> => {
     try { 
-      console.log("[CS-FLOW] whatsAppReplyFlowSimplified input (sudah termasuk prompt dari settings):", JSON.stringify(input, null, 2));
+      console.log("[CS-FLOW] whatsAppReplyFlowSimplified input (sudah termasuk prompt dari settings):", JSON.stringify({ ...input, mainPromptString: `Prompt Length: ${input.mainPromptString?.length || 0}` }, null, 2));
       
       try { 
         const { output } = await replyPromptSimplified(input); // Langsung pass input
@@ -75,24 +77,40 @@ export const whatsAppReplyFlowSimplified = ai.defineFlow(
 );
 
 export async function generateWhatsAppReply(input: Omit<WhatsAppReplyInput, 'mainPromptString'>): Promise<WhatsAppReplyOutput> {
-  let promptFromSettings = DEFAULT_AI_SETTINGS.mainPrompt;
+  let promptFromSettings = ""; // Initialize as empty string
+
   try {
     const settingsDocRef = doc(db, 'appSettings', 'aiAgentConfig');
     const settingsSnap = await getDoc(settingsDocRef);
-    if (settingsSnap.exists() && settingsSnap.data()?.mainPrompt) {
+    if (settingsSnap.exists() && settingsSnap.data()?.mainPrompt && settingsSnap.data()?.mainPrompt.trim() !== "") {
       promptFromSettings = settingsSnap.data()?.mainPrompt;
       console.log("[CS-FLOW] Berhasil memuat prompt utama dari Firestore.");
     } else {
-      console.warn("[CS-FLOW] Gagal memuat prompt utama dari Firestore atau field tidak ada. Menggunakan prompt default.");
+      console.warn("[CS-FLOW] Gagal memuat prompt utama dari Firestore atau field mainPrompt kosong/tidak ada. Mencoba fallback ke default.");
+      // Fallback ke DEFAULT_AI_SETTINGS.mainPrompt jika Firestore gagal atau kosong
+      if (DEFAULT_AI_SETTINGS.mainPrompt && DEFAULT_AI_SETTINGS.mainPrompt.trim() !== "") {
+        promptFromSettings = DEFAULT_AI_SETTINGS.mainPrompt;
+        console.log("[CS-FLOW] Menggunakan prompt default dari DEFAULT_AI_SETTINGS.");
+      } else {
+        console.error("[CS-FLOW] KRITIS: Prompt utama dari Firestore KOSONG DAN prompt default juga KOSONG. Menggunakan fallback minimal darurat.");
+        promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna: {{{customerMessage}}}"; // Darurat fallback
+      }
     }
   } catch (error) {
     console.error("[CS-FLOW] Error saat mengambil prompt utama dari Firestore:", error);
-    console.warn("[CS-FLOW] Menggunakan prompt default karena gagal fetch.");
+    console.warn("[CS-FLOW] Menggunakan prompt default karena gagal fetch atau prompt Firestore kosong.");
+    if (DEFAULT_AI_SETTINGS.mainPrompt && DEFAULT_AI_SETTINGS.mainPrompt.trim() !== "") {
+        promptFromSettings = DEFAULT_AI_SETTINGS.mainPrompt;
+        console.log("[CS-FLOW] Menggunakan prompt default dari DEFAULT_AI_SETTINGS setelah error fetch.");
+    } else {
+        console.error("[CS-FLOW] KRITIS: Gagal fetch Firestore DAN prompt default juga KOSONG. Menggunakan fallback minimal darurat.");
+        promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna: {{{customerMessage}}}"; // Darurat fallback
+    }
   }
 
-  if (!promptFromSettings) {
-      console.error("[CS-FLOW] KRITIS: Prompt utama tidak tersedia (baik dari Firestore maupun default). Menggunakan fallback minimal.");
-      promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna: {{{customerMessage}}}";
+  if (!promptFromSettings || promptFromSettings.trim() === "") {
+      console.error("[CS-FLOW] KRITIS FINAL CHECK: Prompt utama tetap kosong setelah semua fallback. Ini tidak seharusnya terjadi. Menggunakan fallback minimal darurat terakhir.");
+      promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna: {{{customerMessage}}}"; // Darurat fallback paling akhir
   }
   
   const flowInput: WhatsAppReplyInput = {
@@ -105,9 +123,8 @@ export async function generateWhatsAppReply(input: Omit<WhatsAppReplyInput, 'mai
     currentTime: input.currentTime || new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false }),
     tomorrowDate: input.tomorrowDate || new Date(Date.now() + 86400000).toLocaleDateString('id-ID', { year: 'numeric', month: '2-digit', day: '2-digit' }),
     dayAfterTomorrowDate: input.dayAfterTomorrowDate || new Date(Date.now() + 2 * 86400000).toLocaleDateString('id-ID', { year: 'numeric', month: '2-digit', day: '2-digit' }),
-    agentBehavior: input.agentBehavior, 
-    knowledgeBase: input.knowledgeBase, 
+    agentBehavior: input.agentBehavior || DEFAULT_AI_SETTINGS.agentBehavior, 
+    knowledgeBase: input.knowledgeBase || DEFAULT_AI_SETTINGS.knowledgeBaseDescription, 
   };
   return whatsAppReplyFlowSimplified(flowInput);
 }
-
