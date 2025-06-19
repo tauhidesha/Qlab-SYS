@@ -145,10 +145,14 @@ export const whatsAppReplyFlowSimplified = ai.defineFlow(
   },
   async (input: WhatsAppReplyInput): Promise<WhatsAppReplyOutput> => {
     try {
-      // Log input, tapi ingat bahwa input.mainPromptString tidak akan dipakai oleh `replyPromptSimplified` untuk prompt-nya.
-      // FIX: Mengganti nested template literal dengan string concatenation
-      console.log("[CS-FLOW] whatsAppReplyFlowSimplified input (mainPromptString dari input akan diabaikan oleh prompt hardcode):", JSON.stringify({ ...input, mainPromptString: "Prompt Length: " + (input.mainPromptString?.length || 0) + " (Hardcoded prompt will be used)" }, null, 2));
-
+      // FIX: Menyederhanakan console.log untuk menghindari error parsing
+      const logInput = { ...input };
+      // Hapus atau ganti mainPromptString untuk log jika terlalu panjang atau bermasalah
+      if (logInput.mainPromptString) {
+        logInput.mainPromptString = `Prompt Length: ${logInput.mainPromptString.length} (Hardcoded prompt will be used)`;
+      }
+      console.log("[CS-FLOW] whatsAppReplyFlowSimplified input:", JSON.stringify(logInput, null, 2));
+      
       try {
         const { output } = await replyPromptSimplified(input); // Pass input, tapi prompt-nya sudah hardcode.
         if (!output || !output.suggestedReply) {
