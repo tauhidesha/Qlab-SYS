@@ -3,9 +3,9 @@
 
 // import { configureGenkit } from '@genkit-ai/core'; // configureGenkit sebaiknya di file genkit.ts utama
 import { ai } from '@/ai/genkit'; // Menggunakan objek 'ai' global dari genkit.ts
-import { defineFlow } from '@genkit-ai/flow';
+import { defineFlow } from 'genkit'; // DIUBAH: Import defineFlow dari 'genkit'
 import { googleAI } from '@genkit-ai/googleai'; // Pastikan ini sesuai dengan struktur Genkit v1.x
-import { defineTool, type Tool } from '@genkit-ai/tool';
+import { defineTool, type Tool } from 'genkit'; // DIUBAH: Import defineTool dari 'genkit'
 import * as z from 'zod';
 
 // Firebase Admin SDK untuk koneksi ke Firestore
@@ -71,32 +71,26 @@ export const getServicePriceTool = defineTool(
     try {
       // 1. Cari ukuran kendaraan dari modelnya
       const vehiclesRef = adminDb.collection('vehicleTypes');
-      const vehicleSnapshot = await vehiclesRef
+      let vehicleQuerySnapshot = await vehiclesRef
         .where('aliases', 'array-contains', vehicleModel.toLowerCase())
         .limit(1)
         .get();
 
-      let vehicleData: FirebaseFirestore.DocumentData | undefined;
-      let vehicleSize: string | undefined;
-      let firestoreSizeVariant: string | undefined;
-
-      if (vehicleSnapshot.empty) {
+      if (vehicleQuerySnapshot.empty) {
         // Coba cari berdasarkan nama model langsung jika alias tidak ketemu
-        const modelDirectSnapshot = await vehiclesRef.where('model', '==', vehicleModel).limit(1).get();
-        if (modelDirectSnapshot.empty) {
-          return { success: false, message: `Maaf, Zoya belum kenal model motor "${vehicleModel}". Mungkin bisa sebutkan yang lebih umum atau pastikan ejaannya benar?` };
-        }
-        vehicleData = modelDirectSnapshot.docs[0].data();
-      } else {
-        vehicleData = vehicleSnapshot.docs[0].data();
+        vehicleQuerySnapshot = await vehiclesRef.where('model_lowercase', '==', vehicleModel.toLowerCase()).limit(1).get();
       }
       
-      vehicleSize = vehicleData.size; // e.g., "L"
+      if (vehicleQuerySnapshot.empty) {
+        return { success: false, message: `Maaf, Zoya belum kenal model motor "${vehicleModel}". Mungkin bisa sebutkan yang lebih umum atau pastikan ejaannya benar?` };
+      }
+
+      const vehicleData = vehicleQuerySnapshot.docs[0].data();
+      const vehicleSize = vehicleData.size; // e.g., "L"
       if (!vehicleSize) {
          return { success: false, message: `Ukuran untuk model motor "${vehicleModel}" tidak ditemukan. Zoya bingung nih.` };
       }
-      // Di Firestore, varian disimpan dengan nama seperti "L", "M", bukan "SIZE L"
-      firestoreSizeVariant = vehicleSize; // e.g., "L"
+      const firestoreSizeVariant = vehicleSize; // Di Firestore, varian disimpan dengan nama seperti "L", "M", bukan "SIZE L"
 
       // 2. Cari layanan berdasarkan nama (case-insensitive partial match, ambil yang paling relevan)
       const servicesRef = adminDb.collection('services');
@@ -140,6 +134,7 @@ export const getServicePriceTool = defineTool(
       let estimatedDuration: string | undefined = foundServiceData.estimatedDuration;
 
       if (foundServiceData.variants && Array.isArray(foundServiceData.variants)) {
+        // Di Firestore, varian disimpan dengan nama seperti "L", "M", bukan "SIZE L"
         const variant = foundServiceData.variants.find((v: any) => v.name && v.name.toUpperCase() === firestoreSizeVariant.toUpperCase());
         if (variant && typeof variant.price === 'number') {
           price = variant.price;
@@ -191,7 +186,7 @@ export const zoyaChatFlow = defineFlow(
     // const model = googleAI('gemini-1.5-flash-latest'); // Ini akan membuat instance baru
     // Sebaiknya gunakan instance dari ai.configureGenkit()
 
-    const messagesForGenkit = messages.map(msg => ({
+    const messagesForAI = messages.map(msg => ({
       role: msg.role,
       parts: [{ text: msg.content }], // Bungkus content string ke dalam Part
     }));
@@ -226,7 +221,7 @@ export const zoyaChatFlow = defineFlow(
           - Setelah memberikan informasi, selalu tawarkan langkah selanjutnya (misal: "Gimana boskuu, mau langsung di-booking jadwalnya?").
           - Jika user meminta booking, kumpulkan informasi yang dibutuhkan: nama pelanggan, nomor HP, jenis motor, layanan yang diinginkan, tanggal, dan jam. Lalu, panggil tool 'createBookingTool' (belum ada di sini, tapi siapkan untuk nanti). Untuk saat ini, cukup konfirmasi dan bilang akan dibantu CS manual.
           `,
-        messages: messagesForGenkit, // Riwayat percakapan dari user, sudah diformat
+        messages: messagesForAI, // Riwayat percakapan dari user, sudah diformat
         tools: [getServicePriceTool as Tool<any,any>], // Beri tahu AI tool apa saja yang bisa ia gunakan
         toolChoice: 'auto', // Biarkan AI memilih kapan menggunakan tool
         config: {
@@ -254,16 +249,22 @@ export const zoyaChatFlow = defineFlow(
         // Jika AI masih meminta tool (tidak menghasilkan teks akhir), maka kita perlu
         // mengembalikan ToolRequestPart atau memprosesnya.
         // Untuk sekarang, kita coba lihat apakah AI langsung memberikan jawaban teks setelah 'auto'
-        if (result.text()) {
-            return result.text();
+        if (result.candidates?.[0]?.message.content?.[0]?.text) {
+            return result.candidates[0].message.content[0].text;
         } else {
             // Ini skenario yang lebih kompleks di mana kita mungkin perlu iterasi dengan AI dan tool
             // Untuk saat ini, jika AI meminta tool dan tidak langsung memberi teks, kita beri pesan placeholder
             return "Zoya lagi ngecek sesuatu nih boskuu, bentar ya...";
         }
       }
+      
+      const suggestedReply = result.candidates?.[0]?.message.content?.[0]?.text || "";
+      if (!suggestedReply) {
+          console.warn("[zoyaChatFlow] AI returned an empty reply. Finish Reason:", result.finishReason, "Safety Ratings:", result.safetyRatings);
+          return "Maaf boskuu, Zoya lagi agak bingung nih. Coba tanya lagi ya.";
+      }
+      return suggestedReply;
 
-      return result.text();
     } catch (flowError: any) {
         console.error("[zoyaChatFlow] Error during AI generation or tool call:", flowError);
         if (flowError.cause) {
@@ -277,7 +278,7 @@ export const zoyaChatFlow = defineFlow(
 // Fungsi wrapper yang sudah ada, disesuaikan untuk input baru
 export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<{ suggestedReply: string }> {
   try {
-    const replyText = await runFlow(zoyaChatFlow, input);
+    const replyText = await zoyaChatFlow(input); // Menggunakan runFlow dari 'genkit'
     return { suggestedReply: replyText };
   } catch (error: any) {
     console.error("Error running zoyaChatFlow via wrapper:", error);
