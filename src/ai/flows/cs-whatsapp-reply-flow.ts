@@ -53,10 +53,11 @@ async function getServicePrice(vehicleModel: string, serviceName: string): Promi
     const servicesRef = collection(db, 'services');
     // Attempt to find by exact name match first (case-insensitive)
     let serviceDoc;
-    const servicesSnapshotByName = await getDocs(firestoreQuery(servicesRef, where("name", "==", serviceName))); // Exact match usually faster if name is precise
+    const servicesSnapshotByName = await getDocs(firestoreQuery(servicesRef, where("name_lowercase", "==", serviceName.toLowerCase())));
     if (!servicesSnapshotByName.empty) {
-        serviceDoc = servicesSnapshotByName.docs.find(doc => doc.data().name?.toLowerCase() === serviceName.toLowerCase());
+        serviceDoc = servicesSnapshotByName.docs[0]; // Assumes name_lowercase is unique or first match is fine
     }
+
 
     if (!serviceDoc) { // Fallback to broader search if exact match fails or if initial query was broad
         const servicesSnapshot = await getDocs(servicesRef);
@@ -65,7 +66,7 @@ async function getServicePrice(vehicleModel: string, serviceName: string): Promi
 
 
     if (!serviceDoc) {
-        console.log(`[CS-FLOW] getServicePrice: Service name '${serviceName}' not found by direct name match.`);
+        console.log(`[CS-FLOW] getServicePrice: Service name '${serviceName}' not found by name match.`);
         return null;
     }
     const serviceData = serviceDoc.data();
@@ -181,7 +182,7 @@ PETUNJUK TAMBAHAN:
 - Jika user bertanya di luar topik detailing motor, jawab dengan sopan bahwa Anda hanya bisa membantu soal QLAB Moto Detailing.
 - Tujuan utama: Memberikan informasi akurat dan membantu user melakukan booking jika mereka mau.
       `;
-
+      
       const historyForAI: { role: 'user' | 'model'; parts: {text: string}[] }[] = (input.chatHistory || [])
         .filter(msg => msg.content && msg.content.trim() !== '')
         .map(msg => ({
@@ -189,18 +190,23 @@ PETUNJUK TAMBAHAN:
           parts: [{ text: msg.content }],
         }));
       
-      const fullPrompt = `${systemInstruction}
+      // Gabungkan systemInstruction dengan pesan user terakhir
+      const userPromptWithSystemInstruction = `${systemInstruction}
 
 ---
 
 USER_INPUT: "${input.customerMessage}"`;
+
+      const messagesForAI = [
+        ...historyForAI,
+        { role: 'user' as const, parts: [{ text: userPromptWithSystemInstruction }] }
+      ];
       
-      console.log("[CS-FLOW] Calling ai.generate with model googleai/gemini-1.5-flash-latest. History:", historyForAI, "Full Prompt Preview:", fullPrompt.substring(0, 200) + "...");
+      console.log("[CS-FLOW] Calling ai.generate with model googleai/gemini-1.5-flash-latest. Combined messagesForAI:", JSON.stringify(messagesForAI.map(m => ({role: m.role, textPreview: m.parts[0].text.substring(0,100) + "..."})), null, 2));
       
       const result = await ai.generate({
         model: 'googleai/gemini-1.5-flash-latest',
-        history: historyForAI, 
-        prompt: fullPrompt,
+        messages: messagesForAI, // Menggunakan 'messages' untuk seluruh riwayat dan prompt terakhir
         config: { temperature: 0.5 },
       });
 
@@ -208,16 +214,15 @@ USER_INPUT: "${input.customerMessage}"`;
 
       // Akses finishReason dan safetyRatings dari level atas objek result
       const finishReason = result.finishReason;
-      const safetyRatings = result.safetyRatings; // Ini mungkin undefined jika tidak ada masalah safety
+      const safetyRatings = result.safetyRatings; 
       console.log(`[CS-FLOW] AI Finish Reason: ${finishReason}`);
       if (safetyRatings && safetyRatings.length > 0) {
         console.log('[CS-FLOW] AI Safety Ratings:', JSON.stringify(safetyRatings, null, 2));
       }
       
-      // Akses teks dari kandidat pertama secara aman (jika result.candidates ada)
       const suggestedReply = result.candidates?.[0]?.message.content?.[0]?.text || "";
       
-      if (!suggestedReply && finishReason !== "stop") { // Perhatikan 'stop' lowercase sesuai dokumentasi Genkit v1
+      if (!suggestedReply && finishReason !== "stop") { 
         console.warn(`[CS-FLOW] ⚠️ AI returned an empty reply, but finishReason was '${finishReason}'. This might indicate an issue or unexpected model behavior. Safety Ratings: ${JSON.stringify(safetyRatings, null, 2)}. Mengembalikan default.`);
         return { suggestedReply: "Maaf, Zoya lagi bingung nih. Bisa diulang pertanyaannya atau coba beberapa saat lagi?" };
       } else if (!suggestedReply && finishReason === "stop") {
@@ -272,6 +277,9 @@ export async function generateWhatsAppReply(input: Omit<WhatsAppReplyInput, 'mai
     promptFromSettings = "Anda adalah asisten AI. Tolong jawab pertanyaan pengguna."; 
   }
 
+  // Untuk flow cs-whatsapp-reply-flow.ts yang baru, mainPromptString tidak lagi digunakan secara langsung
+  // untuk system instruction di dalam flow, karena system instruction dibangun secara dinamis di sana.
+  // Namun, kita tetap meneruskannya untuk menjaga struktur input dan jika ingin dipakai di masa depan.
   const flowInput: WhatsAppReplyInput = {
     ...input,
     mainPromptString: promptFromSettings, 
