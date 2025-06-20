@@ -9,8 +9,9 @@ import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { DEFAULT_SERVICE_INQUIRY_SUB_FLOW_PROMPT } from '@/types/aiSettings';
 
-// Import tool yang akan digunakan oleh sub-flow ini
-import { cariInfoLayananTool, type CariInfoLayananInput, type CariInfoLayananOutput } from '@/ai/tools/cariInfoLayananTool';
+// Import FUNGSI implementasi tool, bukan objek tool Genkit-nya jika mau dipanggil langsung
+import { findLayananByCategory, type CariInfoLayananInput, type CariInfoLayananOutput } from '@/ai/tools/cariInfoLayananTool';
+// Import tool cariSizeMotorTool jika masih diperlukan untuk dipanggil via ai.generate, atau fungsi implementasinya jika mau direct call
 import { cariSizeMotorTool, type CariSizeMotorInput, type CariSizeMotorOutput } from '@/ai/tools/cari-size-motor-tool';
 
 // Schema input untuk sub-flow ini (TIDAK di-export, hanya tipenya)
@@ -41,15 +42,16 @@ const serviceInquirySpecialistFlow = ai.defineFlow(
     console.log("[SUB-FLOW handleServiceInquiry] Input:", JSON.stringify(input, null, 2));
     let responseText = "Maaf, ada sedikit kendala saat memproses permintaan layanan Anda.";
 
-    // LANGSUNG PANGGIL FUNGSI TOOL
+    // LANGSUNG PANGGIL FUNGSI IMPLEMENTASI TOOL
     const toolInputForLayanan: CariInfoLayananInput = { keyword: input.serviceKeyword };
-    const toolOutputLayanan: CariInfoLayananOutput = await (cariInfoLayananTool.fn as Function)(toolInputForLayanan);
-    console.log(`[SUB-FLOW handleServiceInquiry] Output LANGSUNG dari tool 'cariInfoLayananTool':`, JSON.stringify(toolOutputLayanan, null, 2));
+    // Panggil fungsi `findLayananByCategory` yang diekspor dari file tool
+    const toolOutputLayanan: CariInfoLayananOutput = await findLayananByCategory(toolInputForLayanan);
+    console.log(`[SUB-FLOW handleServiceInquiry] Output LANGSUNG dari fungsi 'findLayananByCategory':`, JSON.stringify(toolOutputLayanan, null, 2));
 
     // --- Sekarang, proses hasil tool dengan prompt utama sub-flow ---
     const systemPromptForProcessing = DEFAULT_SERVICE_INQUIRY_SUB_FLOW_PROMPT
       .replace("{{{serviceKeyword}}}", input.serviceKeyword)
-      .replace("{{{customerQuery}}}", input.customerQuery) // customerQuery masih ada di prompt untuk konteks
+      .replace("{{{customerQuery}}}", input.customerQuery)
       .replace("{{{knownMotorcycleName}}}", input.knownMotorcycleInfo?.name || "belum diketahui")
       .replace("{{{knownMotorcycleSize}}}", input.knownMotorcycleInfo?.size || "belum diketahui");
     
@@ -63,7 +65,7 @@ const serviceInquirySpecialistFlow = ai.defineFlow(
         role: 'model' as const,
         content: [{
           toolRequest: {
-            name: 'cariInfoLayananTool',
+            name: 'cariInfoLayananTool', // Nama tool seperti yang didefinisikan di ai.defineTool
             input: toolInputForLayanan,
           }
         }]
@@ -73,7 +75,7 @@ const serviceInquirySpecialistFlow = ai.defineFlow(
         role: 'tool' as const,
         content: [{
           toolResponse: {
-            name: 'cariInfoLayananTool',
+            name: 'cariInfoLayananTool', // Nama tool yang sama
             output: toolOutputLayanan,
           }
         }]
@@ -95,13 +97,24 @@ const serviceInquirySpecialistFlow = ai.defineFlow(
     // Logika jika AI di tahap ini meminta tool cariSizeMotor
     if (modelResponseAfterTool.toolRequest && modelResponseAfterTool.toolRequest.name === 'cariSizeMotor') {
       const sizeToolRequest = modelResponseAfterTool.toolRequest;
-      const sizeToolOutput = await (cariSizeMotorTool.fn as Function)(sizeToolRequest.input as CariSizeMotorInput);
+      // Jika cariSizeMotorTool juga dipanggil langsung, gunakan:
+      // const sizeToolOutput = await findMotorSizeFunction(sizeToolRequest.input as CariSizeMotorInput);
+      // Tapi karena kita menyediakannya sebagai tool ke ai.generate, kita bisa biarkan LLM memanggilnya
+      // Untuk konsistensi, jika ingin memanggil direct, perlu impor fungsi implementasinya
+      // Di sini kita asumsikan LLM akan memanggilnya jika perlu, dan kita akan menangani toolRequest-nya
+      // Namun, karena findMotorSize sudah ada sebagai fungsi async di tool cari-size-motor-tool, kita bisa panggil langsung juga
+      // Untuk contoh ini, kita tetap biarkan LLM yang meminta tool 'cariSizeMotor' jika perlu
+      // ATAU, jika kita ingin memaksa atau mempermudah, bisa juga dipanggil langsung seperti findLayananByCategory.
+      // Mari kita coba tetap dengan LLM yang meminta sizeTool untuk saat ini.
+      // Jika masih bermasalah, langkah selanjutnya adalah memanggil fungsi findMotorSize secara langsung.
+
+      const sizeToolOutput = await (cariSizeMotorTool.fn as Function)(sizeToolRequest.input as CariSizeMotorInput); // Ini asumsi .fn ada, jika tidak ada, perlu penyesuaian
       console.log(`[SUB-FLOW handleServiceInquiry] Output tool 'cariSizeMotor':`, JSON.stringify(sizeToolOutput, null, 2));
 
       const messagesAfterSizeTool = [
         ...messagesForProcessing,
-        modelResponseAfterTool.message, // Pesan AI yang minta sizeTool
-         { // Pesan hasil dari sizeTool
+        modelResponseAfterTool.message, 
+         { 
           role: 'tool' as const,
           content: [{
             toolResponse: {
@@ -113,7 +126,7 @@ const serviceInquirySpecialistFlow = ai.defineFlow(
       ];
       const finalResponseFromAI = await ai.generate({
           model: 'googleai/gemini-1.5-flash-latest',
-          prompt: systemPromptForProcessing, // Gunakan prompt yang sama untuk merangkai jawaban akhir
+          prompt: systemPromptForProcessing,
           messages: messagesAfterSizeTool,
           config: {temperature: 0.3},
       });
@@ -129,3 +142,5 @@ const serviceInquirySpecialistFlow = ai.defineFlow(
 export async function handleServiceInquiry(input: HandleServiceInquiryInput): Promise<HandleServiceInquiryOutput> {
   return serviceInquirySpecialistFlow(input);
 }
+
+    

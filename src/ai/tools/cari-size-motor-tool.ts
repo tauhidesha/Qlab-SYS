@@ -4,6 +4,7 @@
  * This tool is intended to be used by flows.
  *
  * - cariSizeMotorTool - The Genkit tool definition.
+ * - findMotorSize - The actual function performing the lookup (exported for direct use).
  * - CariSizeMotorInput - Zod type for the tool's input.
  * - CariSizeMotorOutput - Zod type for the tool's output.
  */
@@ -27,13 +28,14 @@ const CariSizeMotorOutputSchema = z.object({
 });
 export type CariSizeMotorOutput = z.infer<typeof CariSizeMotorOutputSchema>;
 
-async function findMotorSize(input: CariSizeMotorInput): Promise<CariSizeMotorOutput> {
+// Export this function so it can be called directly from other flows if needed.
+export async function findMotorSize(input: CariSizeMotorInput): Promise<CariSizeMotorOutput> {
     const { namaMotor } = input;
     const namaMotorLower = namaMotor.toLowerCase().trim();
-    console.log(`[findMotorSize Tool] Mencari ukuran untuk: "${namaMotorLower}"`);
+    console.log(`[findMotorSize Tool Function] Mencari ukuran untuk: "${namaMotorLower}"`);
 
     if (!db) {
-      console.error("[findMotorSize Tool] Firestore DB (db) is not initialized.");
+      console.error("[findMotorSize Tool Function] Firestore DB (db) is not initialized.");
       return { success: false, message: "Database tidak terhubung, tidak bisa mencari ukuran motor." };
     }
 
@@ -69,7 +71,7 @@ async function findMotorSize(input: CariSizeMotorInput): Promise<CariSizeMotorOu
       }
 
       if (foundVehicleData && foundVehicleData.size) {
-        console.log(`[findMotorSize Tool] Ditemukan: ${foundVehicleData.model} ukuran ${foundVehicleData.size}`);
+        console.log(`[findMotorSize Tool Function] Ditemukan: ${foundVehicleData.model} ukuran ${foundVehicleData.size}`);
         return {
           success: true,
           size: foundVehicleData.size,
@@ -77,14 +79,14 @@ async function findMotorSize(input: CariSizeMotorInput): Promise<CariSizeMotorOu
           vehicleModelFound: foundVehicleData.model,
         };
       } else {
-        console.log(`[findMotorSize Tool] Ukuran untuk "${namaMotor}" tidak ditemukan.`);
+        console.log(`[findMotorSize Tool Function] Ukuran untuk "${namaMotor}" tidak ditemukan.`);
         return {
           success: false,
           message: `Maaf, Zoya tidak menemukan ukuran untuk motor "${namaMotor}". Mungkin bisa coba nama model yang lebih spesifik atau umum?`,
         };
       }
     } catch (error) {
-      console.error("[findMotorSize Tool] Error saat mencari ukuran motor:", error);
+      console.error("[findMotorSize Tool Function] Error saat mencari ukuran motor:", error);
       return {
         success: false,
         message: "Terjadi kesalahan internal saat mencari ukuran motor. Coba lagi nanti.",
@@ -99,5 +101,8 @@ export const cariSizeMotorTool = ai.defineTool(
     inputSchema: CariSizeMotorInputSchema,
     outputSchema: CariSizeMotorOutputSchema,
   },
-  findMotorSize
+  findMotorSize // Pass the actual function here
 );
+
+
+    
