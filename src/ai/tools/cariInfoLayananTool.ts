@@ -14,10 +14,11 @@ import { db } from '@/lib/firebase';
 import { collection, query as firestoreQuery, getDocs, where } from 'firebase/firestore';
 import type { ProductServiceInfo } from '@/types/aiToolSchemas';
 import { ProductServiceInfoSchema } from '@/types/aiToolSchemas';
+import { v4 as uuidv4 } from 'uuid'; // Ensure uuid is imported if variants might need new IDs
 
 // Schemas for the actual tool (NOT exported directly from this file if it's not 'use server')
 const CariInfoLayananInputSchema = z.object({
-  keyword: z.string().min(1, "Kata kunci kategori pencarian tidak boleh kosong.").describe('Nama KATEGORI layanan yang ingin dicari, mis. "Cuci Motor", "Coating", "Detailing". Harus cocok persis (case-insensitive) dengan nama field "category_lowercase" di database.'),
+  keyword: z.string().min(1, "Kata kunci kategori pencarian tidak boleh kosong.").describe('Nama KATEGORI layanan yang ingin dicari, mis. "cuci", "coating", "detailing". Akan dicocokkan (case-insensitive) dengan field "category" pada data layanan.'),
 });
 export type CariInfoLayananInput = z.infer<typeof CariInfoLayananInputSchema>;
 
@@ -38,9 +39,9 @@ async function findLayananByCategory(input: CariInfoLayananInput): Promise<CariI
   const matchingServices: ProductServiceInfo[] = [];
   try {
     const servicesCollectionRef = collection(db, 'services');
-    // Query Firestore for documents where the 'category_lowercase' field matches the keyword
-    console.log(`[findLayananByCategory Tool] Firestore query: where("category_lowercase", "==", "${categoryKeywordLower}")`);
-    const q = firestoreQuery(servicesCollectionRef, where("category_lowercase", "==", categoryKeywordLower));
+    // Query Firestore for documents where the 'category' field (assuming it stores lowercase values) matches the keyword
+    console.log(`[findLayananByCategory Tool] Firestore query: where("category", "==", "${categoryKeywordLower}")`);
+    const q = firestoreQuery(servicesCollectionRef, where("category", "==", categoryKeywordLower));
     const querySnapshot = await getDocs(q);
 
     querySnapshot.forEach((docSnap) => {
@@ -50,7 +51,7 @@ async function findLayananByCategory(input: CariInfoLayananInput): Promise<CariI
         id: docSnap.id,
         name: serviceData.name,
         type: serviceData.type as 'Layanan' | 'Produk',
-        category: serviceData.category, // Ini kategori asli dari data (bisa mixed case)
+        category: serviceData.category, // Ini kategori asli dari data
         price: serviceData.price,
         description: serviceData.description || undefined,
         pointsAwarded: serviceData.pointsAwarded || undefined,
@@ -58,9 +59,9 @@ async function findLayananByCategory(input: CariInfoLayananInput): Promise<CariI
         variants: serviceData.variants?.map((v: any) => ({
           name: v.name,
           price: v.price,
-          pointsAwarded: v.pointsAwarded,
-          estimatedDuration: v.estimatedDuration,
-          id: v.id || undefined, 
+          pointsAwarded: v.pointsAwarded || undefined,
+          estimatedDuration: v.estimatedDuration || undefined,
+          id: v.id || uuidv4(), 
         })) || undefined,
       };
       
@@ -75,7 +76,7 @@ async function findLayananByCategory(input: CariInfoLayananInput): Promise<CariI
 
     console.log(`[findLayananByCategory Tool] Ditemukan ${matchingServices.length} layanan untuk KATEGORI "${categoryKeywordLower}".`);
     if (matchingServices.length === 0) {
-        console.log(`[findLayananByCategory Tool] INFO: Pastikan field 'category_lowercase' di dokumen 'services' Firestore Anda ada dan berisi nilai yang sama dengan "${categoryKeywordLower}".`);
+        console.log(`[findLayananByCategory Tool] INFO: Pastikan field 'category' di dokumen 'services' Firestore Anda ada dan berisi nilai yang sama persis (case-insensitive) dengan "${categoryKeywordLower}".`);
     }
     return matchingServices;
   } catch (error) {
@@ -94,4 +95,3 @@ export const cariInfoLayananTool = ai.defineTool(
   },
   findLayananByCategory
 );
-
