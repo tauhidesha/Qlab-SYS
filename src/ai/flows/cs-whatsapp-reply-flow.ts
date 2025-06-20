@@ -20,8 +20,8 @@ const ZoyaChatInputSchema = z.object({
       role: z.enum(['user', 'model']),
       content: z.string(),
     })
-  ).optional(), // Dijadikan opsional
-  customerMessage: z.string().optional(),
+  ).optional(), // Dijadikan opsional dan dinamai messages agar konsisten
+  customerMessage: z.string().optional(), // Pesan terakhir pelanggan, bisa undefined jika sudah ada di akhir messages
   senderNumber: z.string().optional(),
   agentBehavior: z.string().optional(),
   knowledgeBase: z.string().optional(),
@@ -68,11 +68,11 @@ const getServicePriceTool = ai.defineTool(
       let vehicleQuerySnapshot = await getDocs(vehicleQuery);
 
       if (vehicleQuerySnapshot.empty) {
-        // Fallback: coba cari berdasarkan field 'model' (jika model_lowercase belum ada/tidak cocok)
+        // Fallback: coba cari berdasarkan field 'model_lowercase' (jika model_lowercase belum ada/tidak cocok)
         // atau jika 'aliases' tidak mengandung nama model yang persis
         console.log(`[getServicePriceTool] No exact match for '${vehicleModel.toLowerCase()}' in aliases. Trying 'model_lowercase'...`);
-        vehicleQuery = firestoreQuery(vehiclesCollectionRef, where('model_lowercase', '==', vehicleModel.toLowerCase()), limit(1));
-        vehicleQuerySnapshot = await getDocs(vehicleQuery);
+        const modelLowerQuery = firestoreQuery(vehiclesCollectionRef, where('model_lowercase', '==', vehicleModel.toLowerCase()), limit(1));
+        vehicleQuerySnapshot = await getDocs(modelLowerQuery);
       }
       
       if (vehicleQuerySnapshot.empty) {
@@ -92,12 +92,10 @@ const getServicePriceTool = ai.defineTool(
       const servicesCollectionRef = collection(db, 'services');
       const serviceNameLower = serviceName.toLowerCase();
       
-      // Query dasar untuk mencocokkan awal nama layanan (lebih fleksibel)
       const serviceQuery = firestoreQuery(
         servicesCollectionRef,
         where('name_lowercase', '>=', serviceNameLower),
         where('name_lowercase', '<=', serviceNameLower + '\uf8ff')
-        //orderBy('name_lowercase') // Optional, bisa membantu jika banyak hasil
       );
       const serviceQuerySnapshot = await getDocs(serviceQuery);
 
@@ -106,25 +104,22 @@ const getServicePriceTool = ai.defineTool(
         return { success: false, message: `Layanan "${serviceName}" sepertinya tidak tersedia.` };
       }
       
-      // Filter manual untuk best match, karena Firestore tidak bisa filter array of objects secara kompleks
       let foundServiceData: any = null;
       let bestMatchScore = -1;
 
       serviceQuerySnapshot.forEach(doc => {
         const service = doc.data();
-        const currentServiceNameLower = service.name_lowercase || service.name.toLowerCase(); // Fallback jika name_lowercase belum ada
-        // Scoring sederhana: exact match > startsWith > includes
+        const currentServiceNameLower = service.name_lowercase || service.name.toLowerCase();
         let score = 0;
         if (currentServiceNameLower === serviceNameLower) {
             score = 100;
         } else if (currentServiceNameLower.startsWith(serviceNameLower)) {
-            score = 50; // Lebih baik dari sekadar 'includes'
-        } else if (serviceNameLower.includes(currentServiceNameLower)) { // User input mengandung nama layanan dari DB
+            score = 50;
+        } else if (serviceNameLower.includes(currentServiceNameLower)) { 
             score = 25;
-        } else { // Untuk kasus lain, beri skor rendah agar tidak terpilih jika ada yang lebih baik
+        } else { 
             score = 10;
         }
-
 
         if (score > bestMatchScore) {
             bestMatchScore = score;
@@ -137,20 +132,17 @@ const getServicePriceTool = ai.defineTool(
          return { success: false, message: `Layanan "${serviceName}" tidak ditemukan.` };
       }
       
-      // 3. Ambil harga dari array 'variants' berdasarkan ukuran kendaraan
       let price: number | undefined = undefined;
-      let estimatedDuration: string | undefined = foundServiceData.estimatedDuration; // Default ke durasi dasar
+      let estimatedDuration: string | undefined = foundServiceData.estimatedDuration; 
 
       if (foundServiceData.variants && Array.isArray(foundServiceData.variants)) {
-        // Cari varian yang nama nya (S, M, L, XL) cocok dengan vehicleSize
         const variant = foundServiceData.variants.find((v: any) => v.name && v.name.toUpperCase() === firestoreSizeVariant.toUpperCase());
         if (variant && typeof variant.price === 'number') {
           price = variant.price;
-          estimatedDuration = variant.estimatedDuration || estimatedDuration; // Ambil durasi varian jika ada
+          estimatedDuration = variant.estimatedDuration || estimatedDuration; 
         }
       }
       
-      // Jika tidak ada varian yang cocok ATAU tidak ada variants array, coba harga dasar
       if (price === undefined && typeof foundServiceData.price === 'number') {
         price = foundServiceData.price;
       }
@@ -160,8 +152,8 @@ const getServicePriceTool = ai.defineTool(
         return { 
           success: false, 
           message: `Harga untuk layanan "${foundServiceData.name}" pada motor ukuran ${vehicleSize} (${vehicleModel}) belum tersedia saat ini. Mungkin Zoya bisa bantu carikan layanan lain?`,
-          size: vehicleSize, // Kirimkan ukuran motornya
-          estimatedDuration: estimatedDuration // Kirimkan estimasi durasi (bisa dari dasar atau varian)
+          size: vehicleSize,
+          estimatedDuration: estimatedDuration 
         };
       }
 
@@ -187,11 +179,11 @@ const getServicePriceTool = ai.defineTool(
 const zoyaChatFlow = ai.defineFlow(
   {
     name: 'zoyaChatFlow',
-    inputSchema: ZoyaChatInputSchema, // Menggunakan skema yang diimpor dan dimodifikasi
-    outputSchema: ZoyaChatOutputSchema, // Tetap string
+    inputSchema: ZoyaChatInputSchema,
+    outputSchema: ZoyaChatOutputSchema,
   },
   async (input) => {
-    console.log("[CS-FLOW] zoyaChatFlow input.", "Customer Message:", input.customerMessage, "History Length:", (input.messages || []).length);
+    console.log("[CS-FLOW] zoyaChatFlow input. Customer Message:", input.customerMessage, "History Length:", (input.messages || []).length);
 
     const lastUserMessageContent = input.customerMessage || 
                                    (input.messages && input.messages.length > 0 ? input.messages[input.messages.length - 1].content : '');
@@ -202,8 +194,6 @@ const zoyaChatFlow = ai.defineFlow(
     }
     const lastMessageLowerCase = lastUserMessageContent.toLowerCase();
     
-    let vehicleModel: string | null = null;
-    let serviceName: string | null = null;
     let dynamicContext = `INFO_UMUM_BENGKEL: QLAB Moto Detailing adalah bengkel perawatan dan detailing motor.`;
 
     if (db) { 
@@ -215,7 +205,7 @@ const zoyaChatFlow = ai.defineFlow(
               const modelAliases = (modelData.aliases as string[] || []).map(a => a.toLowerCase());
               const originalModelName = modelData.model as string; 
               if (modelAliases.some(alias => lastMessageLowerCase.includes(alias)) || lastMessageLowerCase.includes(originalModelName.toLowerCase())) {
-                  vehicleModel = originalModelName;
+                  // vehicleModel = originalModelName; // Not used in prompt building directly anymore
                   break;
               }
           }
@@ -227,7 +217,7 @@ const zoyaChatFlow = ai.defineFlow(
               const serviceAliases = (serviceData.aliases as string[] || []).map(a => a.toLowerCase());
               const originalServiceName = serviceData.name as string;
               if (serviceAliases.some(alias => lastMessageLowerCase.includes(alias)) || lastMessageLowerCase.includes(originalServiceName.toLowerCase())) {
-                  serviceName = originalServiceName;
+                  // serviceName = originalServiceName; // Not used in prompt building directly anymore
                   break;
               }
           }
@@ -242,7 +232,8 @@ const zoyaChatFlow = ai.defineFlow(
     
     console.log(`[CS-FLOW] Dynamic context built: ${dynamicContext}`);
 
-    const historyForAI = (input.messages || []) // Menggunakan input.messages (sesuai ZoyaChatInputSchema)
+    // Map input.messages for history, if it exists
+    const historyForAI = (input.messages || [])
       .filter(msg => msg.content && msg.content.trim() !== '')
       .map((msg) => ({
         role: msg.role,
@@ -259,9 +250,10 @@ USER_INPUT: "${lastUserMessageContent}"
 
 JAWABAN ZOYA:`;
 
+    // Construct messages for AI, ensuring history is correctly prepended
     const messagesForAI = [
-      ...historyForAI,
-      { role: 'user' as const, parts: [{ text: userPromptWithSystemInstruction }] }
+      ...historyForAI, // This contains previous user/model messages
+      { role: 'user' as const, parts: [{ text: userPromptWithSystemInstruction }] } // The latest user prompt combined with system instructions
     ];
 
     console.log("[CS-FLOW] Calling ai.generate with model googleai/gemini-1.5-flash-latest. History Length:", historyForAI.length);
@@ -271,7 +263,7 @@ JAWABAN ZOYA:`;
       const result = await ai.generate({
         model: 'googleai/gemini-1.5-flash-latest',
         messages: messagesForAI,
-        // tools: [getServicePriceTool as any], // Tools sementara dinonaktifkan untuk debug 'map' error
+        // tools: [getServicePriceTool as any], // Tools temporarily disabled
         toolChoice: 'auto',
         config: { temperature: 0.5 },
       });
@@ -321,15 +313,11 @@ export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<{ sug
   }
 
   try {
-    // Pastikan input.messages ada, meskipun kosong, jika input.chatHistory tidak ada
-    // Ini karena zoyaChatFlow sekarang menerima input.messages
-    if (!input.messages && input.chatHistory) {
-        input.messages = input.chatHistory;
-    } else if (!input.messages && !input.chatHistory) {
+    // Ensure input.messages exists, even if empty.
+    // customerMessage will be the latest prompt.
+    if (!input.messages) {
         input.messages = [];
     }
-    // Hapus input.chatHistory jika input.messages sudah di-set, untuk menghindari duplikasi data
-    // delete input.chatHistory; // Hapus ini untuk menjaga kompatibilitas, input.messages lebih diutamakan oleh flow
 
     const replyText = await zoyaChatFlow(input); 
     return { suggestedReply: replyText };
@@ -368,26 +356,25 @@ PETUNJUK TAMBAHAN:
 `,
 };
 
-// Skema ChatMessage untuk validasi chatHistory (sekarang messages)
-const ChatMessageSchemaInternal = z.object({
-  role: z.enum(['user', 'model']),
-  content: z.string(),
-});
+// Skema ChatMessage untuk validasi chatHistory (sekarang messages) di ZoyaChatInputSchema
+// Tidak perlu diexport karena sudah diimpor dan ZoyaChatInputSchema sudah benar
+// const ChatMessageSchemaInternal = z.object({
+//   role: z.enum(['user', 'model']),
+//   content: z.string(),
+// });
 
-const WhatsAppReplyInputSchemaInternal = z.object({
-  customerMessage: z.string().optional(),
-  senderNumber: z.string().optional(),
-  // chatHistory sekarang digantikan oleh messages di ZoyaChatInputSchema
-  agentBehavior: z.string().optional(),
-  knowledgeBase: z.string().optional(),
-  currentDate: z.string().optional(),
-  currentTime: z.string().optional(),
-  tomorrowDate: z.string().optional(),
-  dayAfterTomorrowDate: z.string().optional(),
-  mainPromptString: z.string().optional(),
-  messages: z.array(ChatMessageSchemaInternal).optional(), 
-});
-
+// const WhatsAppReplyInputSchemaInternal = z.object({
+//   customerMessage: z.string().optional(),
+//   senderNumber: z.string().optional(),
+//   agentBehavior: z.string().optional(),
+//   knowledgeBase: z.string().optional(),
+//   currentDate: z.string().optional(),
+//   currentTime: z.string().optional(),
+//   tomorrowDate: z.string().optional(),
+//   dayAfterTomorrowDate: z.string().optional(),
+//   mainPromptString: z.string().optional(),
+//   messages: z.array(ChatMessageSchemaInternal).optional(), 
+// });
 // Tidak perlu export schema atau flow/tool lagi
 // export { ZoyaChatInputSchema, ZoyaChatOutputSchema };
     

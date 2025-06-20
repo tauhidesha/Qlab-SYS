@@ -11,7 +11,8 @@ import { Label } from '@/components/ui/label';
 import { Loader2, MessageSquareText, Sparkles, Copy, Send, User, Search, Bot, MessageCircle, ThumbsUp, ThumbsDown, Edit2, ShieldAlert, Settings } from 'lucide-react'; // Removed BrainCircuit, PhoneForwarded, Info, PlusCircle, Trash2
 import { useToast } from '@/hooks/use-toast';
 import { generateWhatsAppReply } from '@/ai/flows/cs-whatsapp-reply-flow';
-import type { WhatsAppReplyOutput, ChatMessage } from '@/types/ai/cs-whatsapp-reply';
+import type { ChatMessage, ZoyaChatInput, WhatsAppReplyOutput } from '@/ai/flows/cs-whatsapp-reply-flow'; // Updated import path for ZoyaChatInput
+
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -248,18 +249,23 @@ export default function AiCsAssistantPage() {
     setCurrentPlaygroundInput('');
     setIsLoadingPlaygroundSuggestion(true);
 
-    const genkitChatHistory: ChatMessage[] = updatedPlaygroundHistory
-      .slice(0, -1)
+    // Map playground history to Genkit ChatMessage format
+    const genkitMessagesForFlow: ChatMessage[] = updatedPlaygroundHistory
+      .filter(msg => msg.sender === 'user' || msg.sender === 'ai') // Only include user and AI messages
       .map(msg => ({
-        role: msg.sender === 'user' ? 'user' : 'model',
+        role: msg.sender === 'user' ? 'user' : 'model', // 'model' for AI replies
         content: msg.text,
       }));
+    
+    // Prepare ZoyaChatInput
+    const flowInput: ZoyaChatInput = {
+      messages: genkitMessagesForFlow.slice(0, -1), // All messages except the last user message
+      customerMessage: userMessageText, // The last user message
+      // Other optional fields like senderNumber, currentDate, etc., can be added if needed
+    };
 
     try {
-      const result: WhatsAppReplyOutput = await generateWhatsAppReply({
-        customerMessage: userMessageText,
-        chatHistory: genkitChatHistory,
-      });
+      const result: WhatsAppReplyOutput = await generateWhatsAppReply(flowInput);
 
       const aiMessage: PlaygroundMessage = {
         id: uuidv4(),
@@ -273,16 +279,17 @@ export default function AiCsAssistantPage() {
 
     } catch (error) {
       console.error("Error generating AI reply for playground:", error);
+      const errorMessageText = error instanceof Error ? error.message : "Terjadi kesalahan.";
       const errorMessage: PlaygroundMessage = {
         id: uuidv4(),
         sender: 'ai',
-        text: "Maaf, terjadi kesalahan saat menghubungi AI. Silakan coba lagi.",
+        text: `Maaf, terjadi kesalahan saat menghubungi AI: ${errorMessageText}`,
         timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
       };
       setPlaygroundChatHistory(prev => [...prev, errorMessage]);
       toast({
         title: "Error AI",
-        description: "Gagal mendapatkan respon dari AI.",
+        description: `Gagal mendapatkan respon dari AI. ${errorMessageText}`,
         variant: "destructive",
       });
     } finally {
