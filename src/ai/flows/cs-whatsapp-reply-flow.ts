@@ -1,17 +1,17 @@
-
 'use server';
 /**
  * @fileOverview Flow AI untuk WhatsApp Customer Service QLAB.
- * Versi ini fokus pada pemanggilan model dengan tool 'cariSizeMotor'.
+ * Versi ini fokus pada pemanggilan model dengan tool 'cariSizeMotor' dan 'cariInfoLayanan'.
  */
 import { ai } from '@/ai/genkit';
 import * as z from 'zod';
 import { db } from '@/lib/firebase';
 import { collection, query as firestoreQuery, where, getDocs as getFirestoreDocs, Timestamp, doc, getDoc as getFirestoreDoc, limit } from 'firebase/firestore';
 import { DEFAULT_AI_SETTINGS } from '@/types/aiSettings';
-// Import tool tidak lagi diperlukan karena tool didefinisikan di sini
+import { cariInfoLayananTool, type CariInfoLayananInput, type CariInfoLayananOutput } from '@/ai/tools/cariInfoLayananTool';
+import type { ProductServiceInfo } from '@/types/aiToolSchemas';
 
-// == Definisi Tool cariSizeMotorTool dipindahkan ke sini ==
+// == Definisi Tool cariSizeMotorTool ==
 const CariSizeMotorInputSchema = z.object({
   namaMotor: z.string().min(1, "Nama motor tidak boleh kosong.").describe('Nama atau model motor yang ingin dicari ukurannya, contoh: NMAX, PCX, Vario.'),
 });
@@ -52,9 +52,10 @@ async function findMotorSize(input: CariSizeMotorInput): Promise<CariSizeMotorOu
         if (!querySnapshot.empty) {
           foundVehicleData = querySnapshot.docs[0].data();
         } else {
+          // Fallback: iterate if model_lowercase not found (less efficient)
           const allVehiclesSnapshot = await getFirestoreDocs(vehicleTypesRef);
-          for (const doc of allVehiclesSnapshot.docs) {
-            const vehicle = doc.data();
+          for (const docSnap of allVehiclesSnapshot.docs) {
+            const vehicle = docSnap.data();
             if (vehicle.model && vehicle.model.toLowerCase() === namaMotorLower) {
               foundVehicleData = vehicle;
               break;
@@ -104,7 +105,7 @@ const ChatMessageSchemaInternal = z.object({
   role: z.enum(['user', 'model']),
   content: z.string(),
 });
-type ChatMessage = z.infer<typeof ChatMessageSchemaInternal>;
+export type ChatMessage = z.infer<typeof ChatMessageSchemaInternal>;
 
 // Skema input untuk ZoyaChatFlow
 const ZoyaChatInputSchema = z.object({
@@ -119,14 +120,11 @@ const ZoyaChatInputSchema = z.object({
 });
 export type ZoyaChatInput = z.infer<typeof ZoyaChatInputSchema>;
 
-// Skema output tetap sama, hanya teks balasan
-// const ZoyaChatOutputSchema = z.string().describe("Balasan teks dari Zoya."); // Tidak diekspor
-
 const zoyaChatFlow = ai.defineFlow(
   {
     name: 'zoyaChatFlow',
     inputSchema: ZoyaChatInputSchema,
-    outputSchema: z.string(), // Langsung pakai z.string() karena tidak diekspor
+    outputSchema: z.string(),
   },
   async (input: ZoyaChatInput): Promise<string> => {
     console.log("[CS-FLOW] zoyaChatFlow input. Customer Message:", input.customerMessage, "History Length:", (input.messages || []).length);
@@ -157,8 +155,8 @@ const zoyaChatFlow = ai.defineFlow(
 
     const finalSystemPrompt = mainPromptFromSettings
                                 .replace("{{{dynamicContext}}}", dynamicContext)
-                                .replace("{{{customerMessage}}}", input.customerMessage)
-                                .replace(/{{#if messages.length}}[\s\S]*?{{\/if}}/g, "")
+                                .replace("{{{customerMessage}}}", input.customerMessage) // Ini mungkin tidak diperlukan jika pesan user ada di messagesForAI
+                                .replace(/{{#if messages.length}}[\s\S]*?{{\/if}}/g, "") // Menghapus blok kondisional Handlebars
                                 .replace(/{{#if senderNumber}}[\s\S]*?{{\/if}}/g, "")
                                 .replace(/{{#if currentDate}}[\s\S]*?{{\/if}}/g, "")
                                 .replace(/{{#if tomorrowDate}}[\s\S]*?{{\/if}}/g, "");
@@ -176,7 +174,7 @@ const zoyaChatFlow = ai.defineFlow(
         model: 'googleai/gemini-1.5-flash-latest',
         prompt: finalSystemPrompt,
         messages: messagesForAI,
-        tools: [cariSizeMotorTool], // Aktifkan tool lagi
+        tools: [cariSizeMotorTool, cariInfoLayananTool as any], // Aktifkan tools
         toolChoice: 'auto',
         config: { temperature: 0.5 },
       });
@@ -184,28 +182,42 @@ const zoyaChatFlow = ai.defineFlow(
       console.log("[CS-FLOW] Raw AI generate result:", JSON.stringify(result, null, 2));
       
       let suggestedReply = "";
-      const toolRequestData = result.toolRequest; // Genkit v1.x: akses sebagai properti
+      const toolRequestData = result.toolRequest;
 
       if (toolRequestData) {
         console.log("[CS-FLOW] AI requested a tool call:", JSON.stringify(toolRequestData, null, 2));
-        let toolOutputMessage = "Tool tidak dikenal atau input salah.";
+        let toolOutput: any = null;
 
         if (toolRequestData.name === 'cariSizeMotor' && toolRequestData.input) {
-          const toolResult = await findMotorSize(toolRequestData.input as CariSizeMotorInput);
-          toolOutputMessage = toolResult.message;
-          
-          // Kirim hasil tool kembali ke AI untuk dirangkai menjadi jawaban natural
+          toolOutput = await findMotorSize(toolRequestData.input as CariSizeMotorInput);
+        } else if (toolRequestData.name === 'cariInfoLayanan' && toolRequestData.input) {
+          // Asumsi findLayananByKeyword ada di cariInfoLayananTool.ts dan diekspor (seharusnya tidak, tapi untuk contoh ini kita panggil langsung)
+          // Idealnya kita panggil `cariInfoLayananTool(toolRequestData.input as CariInfoLayananInput)` jika toolnya diexport
+          // Untuk sekarang, kita harus punya akses ke fungsi implementasi tool nya di sini
+          const findLayananByKeywordFn = cariInfoLayananTool.fn; // Ini jika 'fn' adalah properti yang terekspos
+          if(typeof findLayananByKeywordFn === 'function') {
+            toolOutput = await findLayananByKeywordFn(toolRequestData.input as CariInfoLayananInput);
+          } else {
+             console.error("Fungsi implementasi untuk cariInfoLayananTool tidak ditemukan.");
+             toolOutput = { success: false, message: "Internal error: Tool function not found." };
+          }
+        } else {
+           suggestedReply = "Tool tidak dikenal atau input salah.";
+        }
+
+        if (toolOutput) {
+          console.log(`[CS-FLOW] Tool ${toolRequestData.name} output:`, JSON.stringify(toolOutput, null, 2));
           const modelResponseAfterTool = await ai.generate({
             model: 'googleai/gemini-1.5-flash-latest',
             messages: [
               ...messagesForAI,
-              result.message, // Pesan model sebelumnya yang berisi toolRequest
-              { // Pesan respons dari tool
+              result.message, 
+              { 
                 role: 'tool',
                 content: [{
                   toolResponse: {
                     name: toolRequestData.name,
-                    output: toolResult, // Kirim seluruh output tool (objek)
+                    output: toolOutput, 
                   }
                 }]
               }
@@ -214,9 +226,6 @@ const zoyaChatFlow = ai.defineFlow(
             config: { temperature: 0.5 },
           });
           suggestedReply = modelResponseAfterTool.text || "Zoya bingung setelah pakai alat, coba lagi ya.";
-
-        } else {
-           suggestedReply = toolOutputMessage; // Jika tool tidak dikenal
         }
         console.log("[CS-FLOW] Tool output message / AI reply after tool:", suggestedReply);
 
@@ -248,7 +257,6 @@ const zoyaChatFlow = ai.defineFlow(
   }
 );
 
-// Fungsi wrapper yang akan dipanggil oleh UI atau API route
 export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<{ suggestedReply: string }> {
   console.log("[CS-FLOW] generateWhatsAppReply input:", JSON.stringify(input, null, 2));
 
