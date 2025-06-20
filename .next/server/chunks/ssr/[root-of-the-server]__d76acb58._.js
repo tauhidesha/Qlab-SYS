@@ -374,11 +374,11 @@ const AiSettingsFormSchema = __TURBOPACK__imported__module__$5b$project$5d2f$nod
     }
 });
 const DEFAULT_MAIN_PROMPT_ZOYA = `
-Anda adalah "Zoya" - Customer Service AI dari QLAB Moto Detailing. Kode memanggil sub-flow untuk menjelaskan layanan umum.
+Anda adalah "Zoya" - Customer Service AI dari QLAB Moto Detailing. Sistem akan memanggil sub-flow untuk menjelaskan layanan umum jika diperlukan.
 TUGAS UTAMA ANDA DI FLOW INI ADALAH:
 1.  Merespons pertanyaan user terkait ukuran motor (menggunakan tool \`cariSizeMotor\`).
 2.  Menanggapi user yang sudah menyebutkan NAMA LAYANAN SPESIFIK (menggunakan tool \`getProductServiceDetailsByNameTool\`).
-3.  Menindaklanjuti jika sub-flow sebelumnya bertanya tipe motor dan user baru menjawabnya.
+3.  Menindaklanjuti jika user memberikan info motor SETELAH Zoya (Anda) bertanya karena user sebelumnya menyebut layanan SPESIFIK.
 
 🎯 Gaya Bahasa Anda (Zoya):
 - Santai dan akrab: "bro", "kak", "mas".
@@ -423,30 +423,29 @@ TUGAS UTAMA ANDA DI FLOW INI ADALAH:
 JAWABAN ZOYA (format natural, TANPA menyebutkan "Pengetahuan Umum" atau "Logika Utama" Anda, atau bagaimana Anda meminta sistem menjalankan tool):
 `.trim();
 const DEFAULT_SERVICE_INQUIRY_SUB_FLOW_PROMPT = `
-Anda adalah spesialis layanan di QLAB Moto Detailing. Anda bertugas membantu Zoya (CS Utama) dengan memberikan informasi detail tentang layanan berdasarkan kategori yang diminta.
+Anda adalah spesialis layanan di QLAB Moto Detailing. Anda bertugas membantu Zoya (CS Utama) dengan memproses informasi layanan yang sudah didapatkan.
 Kategori Layanan yang ditanyakan: "{{{serviceKeyword}}}"
-Pesan asli dari pelanggan (untuk konteks): "{{{customerQuery}}}"
+Pesan asli dari pelanggan (untuk konteks awal): "{{{customerQuery}}}"
 Informasi motor yang sudah diketahui: Nama: {{{knownMotorcycleName}}}, Ukuran: {{{knownMotorcycleSize}}}.
+Sistem telah memanggil tool 'cariInfoLayananTool' untuk kategori "{{{serviceKeyword}}}". Anda akan menerima hasil dari tool tersebut.
 
-TUGAS UTAMA ANDA:
-1.  (Opsional, jika user bertanya apa itu {{{serviceKeyword}}}) Berikan penjelasan singkat dan menarik tentang jenis layanan "{{{serviceKeyword}}}".
-2.  WAJIB: Panggil tool 'cariInfoLayananTool' dengan input \`{"keyword": "{{{serviceKeyword}}}"}\` untuk mendapatkan daftar SEMUA layanan/produk dalam kategori tersebut.
-3.  Berdasarkan hasil dari tool 'cariInfoLayananTool':
+TUGAS UTAMA ANDA SETELAH MENERIMA HASIL TOOL:
+1.  Berdasarkan hasil dari tool 'cariInfoLayananTool':
     a.  Jika tool mengembalikan satu atau lebih item layanan/produk (array tidak kosong):
         -   **HANYA JIKA INFORMASI MOTOR ({{{knownMotorcycleName}}}) adalah "belum diketahui"**:
             Susun jawaban yang menjelaskan SEMUA item yang ditemukan dalam kategori "{{{serviceKeyword}}}". Untuk setiap item:
             -   Sebutkan NAMA itemnya (dari field 'name' di output tool). Misal: "Untuk kategori {{{serviceKeyword}}}, kita ada beberapa pilihan nih:"
             -   Jika ada DESKRIPSI (field 'description'), rangkum poin pentingnya secara singkat dan menarik.
             -   Jika item tersebut memiliki VARIAN (field 'variants' di output tool), sebutkan beberapa NAMA varian yang tersedia sebagai contoh (misalnya, "Tersedia dalam varian A, B, dan C.").
-        -   Setelah menjelaskan semua item yang ditemukan (jika {{{knownMotorcycleName}}} "belum diketahui"), lanjutkan ke langkah 4.
-        -   Jika {{{knownMotorcycleName}}} SUDAH DIKETAHUI, JANGAN menjelaskan ulang semua item. Langsung ke langkah 4 dan sesuaikan pertanyaan.
+        -   Setelah menjelaskan semua item yang ditemukan dalam kategori "{{{serviceKeyword}}}" (jika {{{knownMotorcycleName}}} adalah "belum diketahui"), lanjutkan ke langkah 2.
+        -   Jika {{{knownMotorcycleName}}} SUDAH DIKETAHUI, JANGAN menjelaskan ulang semua item dari hasil tool. Langsung ke langkah 2 dan sesuaikan pertanyaan.
     b.  Jika tool TIDAK menemukan item apapun untuk kategori "{{{serviceKeyword}}}" (array kosong):
         -   Informasikan dengan sopan bahwa saat ini belum ada item spesifik untuk kategori "{{{serviceKeyword}}}" atau minta user memperjelas kata kuncinya.
-        -   Akhiri dengan pertanyaan umum seperti "Ada lagi yang bisa dibantu?" dan JANGAN lanjutkan ke langkah 4.
-4.  Setelah memproses hasil tool (dan mungkin menjelaskan jika perlu):
+        -   Akhiri dengan pertanyaan umum seperti "Ada lagi yang bisa dibantu?" dan JANGAN lanjutkan ke langkah 2.
+2.  Setelah memproses hasil tool (dan mungkin menjelaskan jika perlu):
     -   Jika informasi motor ("{{{knownMotorcycleName}}}") adalah "belum diketahui", akhiri dengan pertanyaan: "Nah, dari layanan {{{serviceKeyword}}} tadi, kira-kira tertarik yang mana nih kak? Oiya, motornya apa nih kak?"
-    -   Jika informasi motor ("{{{knownMotorcycleName}}}") sudah diketahui, akhiri dengan pertanyaan: "Nah, buat motor {{{knownMotorcycleName}}}, dari pilihan layanan {{{serviceKeyword}}} yang tadi (atau yang kamu sebutin lebih spesifik), ada yang bikin kamu tertarik?"
-5.  PENTING: JANGAN mengarang harga jika tidak ada di output tool. Fokus pada penjelasan layanan/produk dan menanyakan minat/tipe motor.
+    -   Jika informasi motor ("{{{knownMotorcycleName}}}") sudah diketahui, akhiri dengan pertanyaan: "Nah, buat motor {{{knownMotorcycleName}}}, dari pilihan layanan {{{serviceKeyword}}} yang tadi (atau yang disebutkan pelanggan jika lebih spesifik), ada yang bikin kamu tertarik?"
+3.  PENTING: JANGAN mengarang harga jika tidak ada di output tool. Fokus pada penjelasan layanan/produk dan menanyakan minat/tipe motor.
 
 JAWABAN ANDA (untuk Zoya teruskan ke user, formatnya harus natural dan mudah dibaca):
 `.trim();
@@ -877,7 +876,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/types/aiSettings.ts [app-rsc] (ecmascript)");
 // Import tool yang akan digunakan oleh sub-flow ini
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$cariInfoLayananTool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/ai/tools/cariInfoLayananTool.ts [app-rsc] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$cari$2d$size$2d$motor$2d$tool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/ai/tools/cari-size-motor-tool.ts [app-rsc] (ecmascript)"); // Jika sub-flow juga perlu ini
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$cari$2d$size$2d$motor$2d$tool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/ai/tools/cari-size-motor-tool.ts [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$action$2d$validate$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/build/webpack/loaders/next-flight-loader/action-validate.js [app-rsc] (ecmascript)");
 ;
 ;
@@ -905,87 +904,115 @@ const serviceInquirySpecialistFlow = __TURBOPACK__imported__module__$5b$project$
     outputSchema: HandleServiceInquiryOutputSchema
 }, async (input)=>{
     console.log("[SUB-FLOW handleServiceInquiry] Input:", JSON.stringify(input, null, 2));
-    const systemPromptForSubFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_SERVICE_INQUIRY_SUB_FLOW_PROMPT"].replace("{{{serviceKeyword}}}", input.serviceKeyword).replace("{{{customerQuery}}}", input.customerQuery) // customerQuery masih ada di prompt untuk konteks
-    .replace("{{{knownMotorcycleName}}}", input.knownMotorcycleInfo?.name || "belum diketahui").replace("{{{knownMotorcycleSize}}}", input.knownMotorcycleInfo?.size || "belum diketahui");
-    console.log("[SUB-FLOW handleServiceInquiry] Menggunakan system prompt:", systemPromptForSubFlow.substring(0, 250) + "...");
-    // Panggilan AI pertama untuk memicu tool call
-    const result = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].generate({
+    let responseText = "Maaf, ada sedikit kendala saat memproses permintaan layanan Anda."; // Default error
+    // --- Tahap 1: Panggil cariInfoLayananTool ---
+    const firstCallSystemPrompt = `Anda adalah asisten yang bertugas mengambil informasi daftar layanan berdasarkan kategori. Panggil tool 'cariInfoLayananTool' dengan keyword kategori yang diberikan. Keyword kategori: "${input.serviceKeyword}".`;
+    const firstCallResult = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].generate({
         model: 'googleai/gemini-1.5-flash-latest',
-        prompt: systemPromptForSubFlow,
+        prompt: firstCallSystemPrompt,
         messages: [
             {
                 role: 'user',
                 content: [
                     {
-                        text: `Tolong jelaskan dan cari info layanan tentang "${input.serviceKeyword}". Pertanyaan asli pelanggan adalah: "${input.customerQuery}"`
+                        text: `Tolong dapatkan daftar layanan untuk kategori: "${input.serviceKeyword}"`
                     }
                 ]
             }
         ],
         tools: [
-            __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$cariInfoLayananTool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["cariInfoLayananTool"],
-            __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$cari$2d$size$2d$motor$2d$tool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["cariSizeMotorTool"]
+            __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$cariInfoLayananTool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["cariInfoLayananTool"]
         ],
         toolChoice: 'auto',
         config: {
-            temperature: 0.3
+            temperature: 0.1
         }
     });
-    console.log("[SUB-FLOW handleServiceInquiry] Raw AI generate result (first call):", JSON.stringify(result, null, 2));
-    let responseText = result.text || "Maaf, Zoya lagi bingung soal layanan itu.";
-    const toolRequest = result.toolRequest;
-    if (toolRequest) {
-        console.log("[SUB-FLOW handleServiceInquiry] AI requested a tool call:", JSON.stringify(toolRequest, null, 2));
-        let toolOutputContent = "Tool tidak dikenal atau input salah.";
-        let toolNameInvoked = toolRequest.name;
-        if (toolRequest.name === 'cariInfoLayananTool' && toolRequest.input) {
-            const toolOutput = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$cariInfoLayananTool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["cariInfoLayananTool"].fn(toolRequest.input);
-            toolOutputContent = toolOutput;
-        } else if (toolRequest.name === 'cariSizeMotor' && toolRequest.input) {
-            const toolOutput = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$cari$2d$size$2d$motor$2d$tool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["cariSizeMotorTool"].fn(toolRequest.input);
-            toolOutputContent = toolOutput;
-        }
-        // ... (logika untuk tool lain jika ada)
-        console.log(`[SUB-FLOW handleServiceInquiry] Tool ${toolNameInvoked} output:`, JSON.stringify(toolOutputContent, null, 2));
-        // Kirim kembali hasil tool ke AI di sub-flow ini untuk dirangkai jadi jawaban
-        // Prompt sistem yang sama digunakan, AI diharapkan melanjutkan berdasarkan instruksi di prompt
-        // dan history percakapan yang sekarang berisi hasil tool.
+    console.log("[SUB-FLOW handleServiceInquiry] Hasil panggilan AI pertama (untuk tool):", JSON.stringify(firstCallResult, null, 2));
+    if (firstCallResult.toolRequest && firstCallResult.toolRequest.name === 'cariInfoLayananTool') {
+        const toolRequest = firstCallResult.toolRequest;
+        const toolOutputContent = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$cariInfoLayananTool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["cariInfoLayananTool"].fn(toolRequest.input);
+        console.log(`[SUB-FLOW handleServiceInquiry] Output tool 'cariInfoLayananTool':`, JSON.stringify(toolOutputContent, null, 2));
+        // --- Tahap 2: Proses hasil tool dengan prompt utama sub-flow ---
+        const systemPromptForProcessing = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_SERVICE_INQUIRY_SUB_FLOW_PROMPT"].replace("{{{serviceKeyword}}}", input.serviceKeyword).replace("{{{customerQuery}}}", input.customerQuery) // customerQuery masih ada di prompt untuk konteks
+        .replace("{{{knownMotorcycleName}}}", input.knownMotorcycleInfo?.name || "belum diketahui").replace("{{{knownMotorcycleSize}}}", input.knownMotorcycleInfo?.size || "belum diketahui");
+        console.log("[SUB-FLOW handleServiceInquiry] Menggunakan system prompt untuk pemrosesan:", systemPromptForProcessing.substring(0, 250) + "...");
+        const messagesForProcessing = [
+            // Pesan user awal yang memicu sub-flow (untuk konteks AI)
+            {
+                role: 'user',
+                content: [
+                    {
+                        text: `Tolong info dong soal layanan ${input.serviceKeyword}. ${input.customerQuery}`
+                    }
+                ]
+            },
+            // Pesan dari AI yang meminta tool (dari firstCallResult)
+            firstCallResult.message,
+            // Pesan hasil dari tool
+            {
+                role: 'tool',
+                content: [
+                    {
+                        toolResponse: {
+                            name: toolRequest.name,
+                            output: toolOutputContent
+                        }
+                    }
+                ]
+            }
+        ];
         const modelResponseAfterTool = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].generate({
             model: 'googleai/gemini-1.5-flash-latest',
-            prompt: systemPromptForSubFlow,
-            messages: [
-                {
-                    role: 'user',
-                    content: [
-                        {
-                            text: `Tolong jelaskan dan cari info layanan tentang "${input.serviceKeyword}". Pertanyaan asli pelanggan adalah: "${input.customerQuery}"`
-                        }
-                    ]
-                },
-                result.message,
+            prompt: systemPromptForProcessing,
+            messages: messagesForProcessing,
+            tools: [
+                __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$cari$2d$size$2d$motor$2d$tool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["cariSizeMotorTool"]
+            ],
+            toolChoice: 'auto',
+            config: {
+                temperature: 0.3
+            }
+        });
+        console.log("[SUB-FLOW handleServiceInquiry] Hasil panggilan AI kedua (setelah tool):", JSON.stringify(modelResponseAfterTool, null, 2));
+        responseText = modelResponseAfterTool.text || "Zoya dapet infonya, tapi bingung mau ngomong apa setelah pakai alat.";
+        // Logika jika AI di tahap kedua ini meminta tool cariSizeMotor
+        if (modelResponseAfterTool.toolRequest && modelResponseAfterTool.toolRequest.name === 'cariSizeMotor') {
+            const sizeToolRequest = modelResponseAfterTool.toolRequest;
+            const sizeToolOutput = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$cari$2d$size$2d$motor$2d$tool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["cariSizeMotorTool"].fn(sizeToolRequest.input);
+            console.log(`[SUB-FLOW handleServiceInquiry] Output tool 'cariSizeMotor':`, JSON.stringify(sizeToolOutput, null, 2));
+            const messagesAfterSizeTool = [
+                ...messagesForProcessing,
+                modelResponseAfterTool.message,
                 {
                     role: 'tool',
                     content: [
                         {
                             toolResponse: {
-                                name: toolNameInvoked,
-                                output: toolOutputContent
+                                name: sizeToolRequest.name,
+                                output: sizeToolOutput
                             }
                         }
                     ]
                 }
-            ],
-            // Tidak perlu tools lagi di sini, karena tugasnya merangkai jawaban
-            config: {
-                temperature: 0.3
-            }
-        });
-        responseText = modelResponseAfterTool.text || "Zoya dapet infonya, tapi bingung mau ngomong apa setelah pakai alat.";
-    } else if (responseText && responseText.trim() !== "") {
-        console.log("[SUB-FLOW handleServiceInquiry] AI generated text directly (no tool call):", responseText);
+            ];
+            const finalResponseFromAI = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].generate({
+                model: 'googleai/gemini-1.5-flash-latest',
+                prompt: systemPromptForProcessing,
+                messages: messagesAfterSizeTool,
+                config: {
+                    temperature: 0.3
+                }
+            });
+            responseText = finalResponseFromAI.text || "Zoya udah cek ukuran motornya, tapi bingung mau lanjutin gimana.";
+        }
+    } else if (firstCallResult.text) {
+        // AI tidak meminta tool di panggilan pertama, tapi malah ngasih teks. Ini di luar dugaan.
+        console.warn("[SUB-FLOW handleServiceInquiry] AI tidak meminta 'cariInfoLayananTool' di panggilan pertama, malah merespon:", firstCallResult.text);
+        responseText = `Saya coba cari info soal "${input.serviceKeyword}", tapi sepertinya ada sedikit kendala. ${firstCallResult.text}`;
     } else {
-        console.error("[SUB-FLOW handleServiceInquiry] No tool request and no text output from AI.");
-        responseText = "Maaf, Zoya lagi ada kendala internal buat cari info layanan itu.";
+        console.error("[SUB-FLOW handleServiceInquiry] Panggilan pertama AI gagal meminta tool 'cariInfoLayananTool' dan tidak menghasilkan teks.");
+    // responseText sudah diinisialisasi dengan pesan error default.
     }
     console.log("[SUB-FLOW handleServiceInquiry] Final responseText:", responseText);
     return {
