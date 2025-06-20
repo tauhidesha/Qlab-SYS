@@ -13,8 +13,9 @@ import { format, addDays } from 'date-fns'; // Import date-fns
 
 import { cariSizeMotorTool, type CariSizeMotorInput, findMotorSize } from '@/ai/tools/cari-size-motor-tool';
 import { getProductServiceDetailsByNameTool, type ProductLookupInput, findProductServiceByName } from '@/ai/tools/productLookupTool';
-import { findLayananByCategory, type CariInfoLayananInput, type CariInfoLayananOutput } from '@/ai/tools/cariInfoLayananTool';
-import { createBookingTool, type CreateBookingToolInput } from '@/ai/tools/createBookingTool'; // Import tool booking
+// Mengimpor tool object 'cariInfoLayananTool' DAN fungsi 'findLayananByCategory'
+import { cariInfoLayananTool, findLayananByCategory, type CariInfoLayananInput, type CariInfoLayananOutput } from '@/ai/tools/cariInfoLayananTool';
+import { createBookingTool, type CreateBookingToolInput } from '@/ai/tools/createBookingTool';
 import type { ProductServiceInfo } from '@/types/aiToolSchemas';
 
 // Skema internal untuk validasi input chat history di flow
@@ -144,7 +145,7 @@ const zoyaChatFlow = ai.defineFlow(
     console.log("[MAIN-FLOW] Detected general service keyword from user message:", detectedGeneralServiceKeyword);
 
     if (detectedGeneralServiceKeyword && lastAiInteractionType !== 'asked_for_motor_type_for_specific_service' && lastAiInteractionType !== 'asked_for_paint_type_for_coating' && !lowerCaseCustomerMessage.includes("booking") && !lowerCaseCustomerMessage.includes("pesan tempat") && !lowerCaseCustomerMessage.includes("jadwal")) {
-        console.log(`[MAIN-FLOW] Melakukan pre-call findLayananByCategory untuk keyword: "${detectedGeneralServiceKeyword}"`);
+        console.log(`[MAIN-FLOW] Melakukan pre-call findLayananByCategory (fungsi) untuk keyword: "${detectedGeneralServiceKeyword}"`);
         const layananByCategoryResult: CariInfoLayananOutput = await findLayananByCategory({ keyword: detectedGeneralServiceKeyword });
         if (layananByCategoryResult && layananByCategoryResult.length > 0) {
             dynamicContextFromPreToolCall = `Informasi layanan untuk kategori '${detectedGeneralServiceKeyword}' dari sistem:\n`;
@@ -196,15 +197,14 @@ const zoyaChatFlow = ai.defineFlow(
 
     try {
       const result = await ai.generate({
-        model: 'googleai/gemini-1.5-flash-latest', // Model diganti ke Gemini 1.5 Flash
+        model: 'googleai/gemini-1.5-flash-latest',
         prompt: finalSystemPrompt,
         messages: messagesForAI,
-        tools: [cariSizeMotorTool, getProductServiceDetailsByNameTool, findLayananByCategory, createBookingTool],
+        tools: [cariSizeMotorTool, getProductServiceDetailsByNameTool, cariInfoLayananTool, createBookingTool], // Menggunakan cariInfoLayananTool (objek tool)
         toolChoice: 'auto',
-        config: { 
-            temperature: 0.6, 
+        config: {
+            temperature: 0.6,
             topP: 0.9,
-            // responseModalities tidak diperlukan lagi untuk model teks murni
         },
       });
 
@@ -243,22 +243,20 @@ const zoyaChatFlow = ai.defineFlow(
             interactionTypeAfterTool = 'provided_specific_service_details';
             sessionDataToSave.activeSpecificServiceId = activeServiceIdAfterTool;
           }
-        } else if (toolRequest.name === 'findLayananByCategory' && toolRequest.input) {
-          toolOutputToRelay = await findLayananByCategory(toolRequest.input as CariInfoLayananInput);
+        } else if (toolRequest.name === 'findLayananByCategory' && toolRequest.input) { // Note: findLayananByCategory is the tool's Genkit name
+          toolOutputToRelay = await findLayananByCategory(toolRequest.input as CariInfoLayananInput); // Memanggil fungsi implementasi tool
            if (Array.isArray(toolOutputToRelay) && toolOutputToRelay.length > 0) {
              interactionTypeAfterTool = 'provided_category_service_list';
            }
         } else if (toolRequest.name === 'createBookingTool' && toolRequest.input) {
             const bookingInput = toolRequest.input as CreateBookingToolInput;
-            // Pastikan serviceId diambil dari sesi jika tidak ada di input (meskipun harusnya AI yang supply)
             if (!bookingInput.serviceId && activeServiceIdAfterTool) {
                 bookingInput.serviceId = activeServiceIdAfterTool;
-                bookingInput.serviceName = activeServiceAfterTool; // Sesuaikan juga namanya
+                bookingInput.serviceName = activeServiceAfterTool;
             }
-            toolOutputToRelay = await createBookingTool.fn!(bookingInput); // Panggil tool booking
+            toolOutputToRelay = await createBookingTool.fn!(bookingInput);
             interactionTypeAfterTool = 'booking_attempted';
             if ((toolOutputToRelay as any).success) {
-                // Reset konteks booking setelah berhasil
                 sessionDataToSave.activeSpecificServiceInquiry = undefined;
                 sessionDataToSave.activeSpecificServiceId = undefined;
                 sessionDataToSave.pendingBookingDate = undefined;
@@ -281,7 +279,7 @@ const zoyaChatFlow = ai.defineFlow(
                 .replace("{{{SESSION_MOTOR_NAME}}}", knownMotorcycleName)
                 .replace("{{{SESSION_MOTOR_SIZE}}}", knownMotorcycleSize)
                 .replace("{{{SESSION_ACTIVE_SERVICE}}}", activeServiceAfterTool)
-                .replace("{{{SESSION_LAST_AI_INTERACTION_TYPE}}}", interactionTypeAfterTool) // Gunakan tipe interaksi setelah tool
+                .replace("{{{SESSION_LAST_AI_INTERACTION_TYPE}}}", interactionTypeAfterTool)
                 .replace("{{{dynamicContext}}}", dynamicContextFromPreToolCall || "Tidak ada info tambahan dari sistem.")
                 .replace("{{{currentDate}}}", input.currentDate || "tidak diketahui")
                 .replace("{{{tomorrowDate}}}", input.tomorrowDate || "tidak diketahui")
@@ -289,32 +287,28 @@ const zoyaChatFlow = ai.defineFlow(
                 .replace("{{{senderNumber}}}", userId);
 
             const modelResponseAfterTool = await ai.generate({
-                model: 'googleai/gemini-1.5-flash-latest', // Model diganti ke Gemini 1.5 Flash
+                model: 'googleai/gemini-1.5-flash-latest',
                 prompt: promptForSecondCall,
                 messages: messagesAfterTool,
-                config: { 
-                    temperature: 0.6, 
+                config: {
+                    temperature: 0.6,
                     topP: 0.9,
-                     // responseModalities tidak diperlukan lagi
                 },
-                 tools: [cariSizeMotorTool, getProductServiceDetailsByNameTool, findLayananByCategory, createBookingTool],
+                 tools: [cariSizeMotorTool, getProductServiceDetailsByNameTool, cariInfoLayananTool, createBookingTool], // Menggunakan cariInfoLayananTool (objek tool)
                  toolChoice: 'auto',
             });
             suggestedReply = modelResponseAfterTool.text || `Zoya dapet info dari alat ${toolRequest.name}, tapi bingung mau ngomong apa.`;
              if (modelResponseAfterTool.toolRequest) {
                 console.warn("[MAIN-FLOW] AI requested another tool after a tool response. This is not deeply handled yet. Returning current text.");
              }
-             // Update lastAiInteractionType based on the *final* AI response's intent (if detectable without another tool call)
-             // This part needs careful logic based on `suggestedReply`
              const lowerFinalReply = suggestedReply.toLowerCase();
               if (lowerFinalReply.includes("tanggal") && lowerFinalReply.includes("jam") && (interactionTypeAfterTool === 'provided_specific_service_details' || interactionTypeAfterTool === 'ready_for_booking_details')) {
                 sessionDataToSave.lastAiInteractionType = 'waiting_for_booking_datetime';
               } else if (lowerFinalReply.includes("catatan tambahan") && interactionTypeAfterTool === 'waiting_for_booking_datetime') {
                 sessionDataToSave.lastAiInteractionType = 'waiting_for_booking_notes';
-                // TODO: Ekstrak tanggal dan jam dari jawaban AI atau pesan user sebelumnya, simpan ke pendingBookingDate/Time
               }
         }
-      } else if (suggestedReply) { // No tool request, AI gave a direct answer
+      } else if (suggestedReply) {
         const finishReason = result.finishReason;
         console.log(`[MAIN-FLOW] MAIN AI Finish Reason (no tool): ${finishReason}`);
         if (!suggestedReply && finishReason !== "stop") {
@@ -322,15 +316,13 @@ const zoyaChatFlow = ai.defineFlow(
             suggestedReply = "Maaf, Zoya lagi agak bingung nih boskuu. Coba tanya lagi dengan cara lain ya.";
         } else {
             const lowerReply = suggestedReply.toLowerCase();
-            // Analisis balasan AI untuk menentukan `lastAiInteractionType` yang paling pas
             if (lowerReply.includes("tipe motornya apa") || lowerReply.includes("motornya apa") || lowerReply.includes("jenis motornya")) {
                 sessionDataToSave.lastAiInteractionType = 'asked_for_motor_type_for_specific_service';
-                // Jika AI menanyakan motor, coba cari layanan spesifik yang mungkin disebut user
                 const serviceMentionedInUser = await extractServiceNameFromUserMessage(customerMessageToProcess, await getAllServiceNamesAndIds());
                 if (serviceMentionedInUser && activeSpecificServiceInquiry === "tidak ada") {
                     sessionDataToSave.activeSpecificServiceInquiry = serviceMentionedInUser.name;
                     sessionDataToSave.activeSpecificServiceId = serviceMentionedInUser.id;
-                    activeSpecificServiceInquiry = serviceMentionedInUser.name; // Update local var
+                    activeSpecificServiceInquiry = serviceMentionedInUser.name;
                     activeSpecificServiceId = serviceMentionedInUser.id;
                 }
             } else if (lowerReply.includes("catnya glossy atau doff") && activeSpecificServiceInquiry.toLowerCase().includes("coating")) {
@@ -342,8 +334,8 @@ const zoyaChatFlow = ai.defineFlow(
             } else if (lowerReply.includes("catatan tambahan") && lastAiInteractionType === 'waiting_for_booking_datetime') {
                 sessionDataToSave.lastAiInteractionType = 'waiting_for_booking_notes';
             } else if (lowerReply.includes("booking lo udah zoya catet") || lowerReply.includes("booking berhasil")) {
-                 sessionDataToSave.lastAiInteractionType = 'booking_attempted'; // Atau 'booking_confirmed'
-                 sessionDataToSave.activeSpecificServiceInquiry = undefined; // Reset
+                 sessionDataToSave.lastAiInteractionType = 'booking_attempted';
+                 sessionDataToSave.activeSpecificServiceInquiry = undefined;
                  sessionDataToSave.activeSpecificServiceId = undefined;
                  sessionDataToSave.pendingBookingDate = undefined;
                  sessionDataToSave.pendingBookingTime = undefined;
@@ -361,10 +353,9 @@ const zoyaChatFlow = ai.defineFlow(
       }
 
       if (sessionDocRef) {
-          // Selalu update sesi dengan data terbaru jika ada perubahan
           const finalSessionDataToSave: Partial<UserAiSession> = {
               userId: userId,
-              knownMotorcycleName: (knownMotorcycleName !== "belum diketahui") ? knownMotorcycleName : currentSession.knownMotorcycleName, // Pertahankan jika tidak diubah
+              knownMotorcycleName: (knownMotorcycleName !== "belum diketahui") ? knownMotorcycleName : currentSession.knownMotorcycleName,
               knownMotorcycleSize: (knownMotorcycleSize !== "belum diketahui") ? knownMotorcycleSize : currentSession.knownMotorcycleSize,
               activeSpecificServiceInquiry: sessionDataToSave.activeSpecificServiceInquiry !== undefined ? sessionDataToSave.activeSpecificServiceInquiry : activeSpecificServiceInquiry,
               activeSpecificServiceId: sessionDataToSave.activeSpecificServiceId !== undefined ? sessionDataToSave.activeSpecificServiceId : activeSpecificServiceId,
@@ -373,14 +364,12 @@ const zoyaChatFlow = ai.defineFlow(
               lastAiInteractionType: sessionDataToSave.lastAiInteractionType || lastAiInteractionType,
               lastUpdatedAt: serverTimestamp() as Timestamp,
           };
-          // Hapus field yang undefined agar tidak menimpa dengan undefined di Firestore
           Object.keys(finalSessionDataToSave).forEach(keyStr => {
             const key = keyStr as keyof Partial<UserAiSession>;
             if (finalSessionDataToSave[key] === undefined) {
               delete finalSessionDataToSave[key];
             }
           });
-
 
           console.log(`[MAIN-FLOW] Menyimpan sesi untuk ${userId}:`, JSON.stringify(finalSessionDataToSave, null, 2));
           await setFirestoreDoc(sessionDocRef, finalSessionDataToSave, { merge: true });
@@ -404,7 +393,7 @@ const zoyaChatFlow = ai.defineFlow(
 // Helper Functions
 async function getAllServiceNamesAndIds(): Promise<{id: string, name: string}[]> {
     try {
-      const items = await findLayananByCategory({ keyword: "" }); // Keyword "" untuk semua layanan
+      const items = await findLayananByCategory({ keyword: "" });
       if (Array.isArray(items)) {
         return items.map(i => ({id: i.id, name: i.name })).filter(i => i.id && i.name);
       }
@@ -417,7 +406,6 @@ async function getAllServiceNamesAndIds(): Promise<{id: string, name: string}[]>
 
 async function extractServiceNameFromUserMessage(userMessage: string, services: {id: string, name: string}[]): Promise<{id: string, name: string} | undefined> {
     const lowerUserMessage = userMessage.toLowerCase();
-    // Urutkan berdasarkan panjang nama, dari terpanjang, untuk menghindari partial match yang salah (mis. "Cuci" vs "Cuci Premium")
     const sortedServices = [...services].sort((a,b) => b.name.length - a.name.length);
     for (const service of sortedServices) {
         if (service.name && lowerUserMessage.includes(service.name.toLowerCase())) {
@@ -455,7 +443,6 @@ export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<Whats
      console.log("[MAIN-FLOW Wrapper]: Using mainPromptString directly from input.");
   }
 
-  // Tambahkan tanggal-tanggal ke input flow
   const today = new Date();
   const flowInput: ZoyaChatInput = {
     ...input,
