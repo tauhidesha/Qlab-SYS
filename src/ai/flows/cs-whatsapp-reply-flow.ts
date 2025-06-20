@@ -1,15 +1,103 @@
 
 'use server';
 /**
- * @fileOverview Flow AI untuk WhatsApp Customer Service QLAB (Versi Disederhanakan).
- * Versi ini FOKUS pada pemanggilan model dasar dengan SATU tool sederhana.
+ * @fileOverview Flow AI untuk WhatsApp Customer Service QLAB.
+ * Versi ini fokus pada pemanggilan model dengan tool 'cariSizeMotor'.
  */
 import { ai } from '@/ai/genkit';
 import * as z from 'zod';
 import { db } from '@/lib/firebase';
 import { collection, query as firestoreQuery, where, getDocs as getFirestoreDocs, Timestamp, doc, getDoc as getFirestoreDoc, limit } from 'firebase/firestore';
 import { DEFAULT_AI_SETTINGS } from '@/types/aiSettings';
-import { cariSizeMotorTool, type CariSizeMotorInput, type CariSizeMotorOutput } from '@/ai/tools/cari-size-motor-tool'; // Import tool baru
+// Import tool tidak lagi diperlukan karena tool didefinisikan di sini
+
+// == Definisi Tool cariSizeMotorTool dipindahkan ke sini ==
+const CariSizeMotorInputSchema = z.object({
+  namaMotor: z.string().min(1, "Nama motor tidak boleh kosong.").describe('Nama atau model motor yang ingin dicari ukurannya, contoh: NMAX, PCX, Vario.'),
+});
+type CariSizeMotorInput = z.infer<typeof CariSizeMotorInputSchema>;
+
+const CariSizeMotorOutputSchema = z.object({
+  success: z.boolean().describe('Apakah pencarian berhasil atau tidak.'),
+  size: z.string().optional().describe('Ukuran motor (S, M, L, XL) jika ditemukan.'),
+  message: z.string().describe('Pesan hasil pencarian, termasuk ukuran jika berhasil atau pesan error jika gagal.'),
+  vehicleModelFound: z.string().optional().describe('Nama model motor yang sebenarnya ditemukan di database.'),
+});
+type CariSizeMotorOutput = z.infer<typeof CariSizeMotorOutputSchema>;
+
+async function findMotorSize(input: CariSizeMotorInput): Promise<CariSizeMotorOutput> {
+    const { namaMotor } = input;
+    const namaMotorLower = namaMotor.toLowerCase().trim();
+    console.log(`[cariSizeMotorTool.fn] Mencari ukuran untuk: "${namaMotorLower}"`);
+
+    if (!db) {
+      console.error("[cariSizeMotorTool.fn] Firestore DB (db) is not initialized.");
+      return { success: false, message: "Database tidak terhubung, tidak bisa mencari ukuran motor." };
+    }
+
+    try {
+      const vehicleTypesRef = collection(db, 'vehicleTypes');
+      let q;
+      let querySnapshot;
+      let foundVehicleData: any = null;
+
+      q = firestoreQuery(vehicleTypesRef, where('aliases', 'array-contains', namaMotorLower), limit(1));
+      querySnapshot = await getFirestoreDocs(q);
+
+      if (!querySnapshot.empty) {
+        foundVehicleData = querySnapshot.docs[0].data();
+      } else {
+        q = firestoreQuery(vehicleTypesRef, where('model_lowercase', '==', namaMotorLower), limit(1));
+        querySnapshot = await getFirestoreDocs(q);
+        if (!querySnapshot.empty) {
+          foundVehicleData = querySnapshot.docs[0].data();
+        } else {
+          const allVehiclesSnapshot = await getFirestoreDocs(vehicleTypesRef);
+          for (const doc of allVehiclesSnapshot.docs) {
+            const vehicle = doc.data();
+            if (vehicle.model && vehicle.model.toLowerCase() === namaMotorLower) {
+              foundVehicleData = vehicle;
+              break;
+            }
+          }
+        }
+      }
+
+      if (foundVehicleData && foundVehicleData.size) {
+        console.log(`[cariSizeMotorTool.fn] Ditemukan: Model "${foundVehicleData.model}", Size "${foundVehicleData.size}"`);
+        return {
+          success: true,
+          size: foundVehicleData.size,
+          message: `Motor ${foundVehicleData.model} (${namaMotor}) termasuk ukuran ${foundVehicleData.size}.`,
+          vehicleModelFound: foundVehicleData.model,
+        };
+      } else {
+        console.log(`[cariSizeMotorTool.fn] Ukuran motor untuk "${namaMotor}" tidak ditemukan.`);
+        return {
+          success: false,
+          message: `Maaf, Zoya tidak menemukan ukuran untuk motor "${namaMotor}". Mungkin bisa coba nama model yang lebih spesifik atau umum?`,
+        };
+      }
+    } catch (error) {
+      console.error("[cariSizeMotorTool.fn] Error saat mencari ukuran motor:", error);
+      return {
+        success: false,
+        message: "Terjadi kesalahan internal saat mencari ukuran motor. Coba lagi nanti.",
+      };
+    }
+}
+
+const cariSizeMotorTool = ai.defineTool(
+  {
+    name: 'cariSizeMotor',
+    description: 'Mencari ukuran (S, M, L, XL) untuk model motor tertentu. Gunakan tool ini jika perlu mengetahui ukuran motor untuk menentukan harga layanan atau informasi lain, atau jika user menanyakan ukuran motornya.',
+    inputSchema: CariSizeMotorInputSchema,
+    outputSchema: CariSizeMotorOutputSchema,
+  },
+  findMotorSize
+);
+// == Akhir definisi Tool cariSizeMotorTool ==
+
 
 // Skema internal untuk validasi input chat history di flow
 const ChatMessageSchemaInternal = z.object({
@@ -32,14 +120,13 @@ const ZoyaChatInputSchema = z.object({
 export type ZoyaChatInput = z.infer<typeof ZoyaChatInputSchema>;
 
 // Skema output tetap sama, hanya teks balasan
-const ZoyaChatOutputSchema = z.string().describe("Balasan teks dari Zoya.");
+// const ZoyaChatOutputSchema = z.string().describe("Balasan teks dari Zoya."); // Tidak diekspor
 
-// Flow utama Zoya - Sekarang dengan tool sederhana
 const zoyaChatFlow = ai.defineFlow(
   {
     name: 'zoyaChatFlow',
     inputSchema: ZoyaChatInputSchema,
-    outputSchema: ZoyaChatOutputSchema,
+    outputSchema: z.string(), // Langsung pakai z.string() karena tidak diekspor
   },
   async (input: ZoyaChatInput): Promise<string> => {
     console.log("[CS-FLOW] zoyaChatFlow input. Customer Message:", input.customerMessage, "History Length:", (input.messages || []).length);
@@ -70,15 +157,15 @@ const zoyaChatFlow = ai.defineFlow(
 
     const finalSystemPrompt = mainPromptFromSettings
                                 .replace("{{{dynamicContext}}}", dynamicContext)
-                                .replace("{{{customerMessage}}}", input.customerMessage) // Placeholder for actual customer message in prompt
-                                .replace(/{{#if messages.length}}[\s\S]*?{{\/if}}/g, "") // Remove handlebars for history
+                                .replace("{{{customerMessage}}}", input.customerMessage)
+                                .replace(/{{#if messages.length}}[\s\S]*?{{\/if}}/g, "")
                                 .replace(/{{#if senderNumber}}[\s\S]*?{{\/if}}/g, "")
                                 .replace(/{{#if currentDate}}[\s\S]*?{{\/if}}/g, "")
                                 .replace(/{{#if tomorrowDate}}[\s\S]*?{{\/if}}/g, "");
 
     const messagesForAI = [
       ...historyForAI,
-      { role: 'user' as const, content: [{ text: input.customerMessage }] } // User's latest message
+      { role: 'user' as const, content: [{ text: input.customerMessage }] }
     ];
 
     console.log(`[CS-FLOW] Calling ai.generate with model googleai/gemini-1.5-flash-latest. History Length: ${historyForAI.length}`);
@@ -87,78 +174,54 @@ const zoyaChatFlow = ai.defineFlow(
     try {
       const result = await ai.generate({
         model: 'googleai/gemini-1.5-flash-latest',
-        prompt: finalSystemPrompt, // System-level instructions
-        messages: messagesForAI,   // Conversation history and latest user message
-        tools: [cariSizeMotorTool], // Tambahkan tool baru di sini
-        toolChoice: 'auto',         // Biarkan AI yang menentukan kapan pakai tool
+        prompt: finalSystemPrompt,
+        messages: messagesForAI,
+        tools: [cariSizeMotorTool], // Aktifkan tool lagi
+        toolChoice: 'auto',
         config: { temperature: 0.5 },
       });
 
       console.log("[CS-FLOW] Raw AI generate result:", JSON.stringify(result, null, 2));
       
       let suggestedReply = "";
-
-      // Penanganan jika AI meminta pemanggilan tool
-      // Untuk Genkit v1.x, kita cek `result.toolRequest` (properti)
-      // atau `result.message.content[0].toolRequest`
-      const toolRequestData = result.toolRequest || (result.message?.content?.[0]?.toolRequest);
+      const toolRequestData = result.toolRequest; // Genkit v1.x: akses sebagai properti
 
       if (toolRequestData) {
         console.log("[CS-FLOW] AI requested a tool call:", JSON.stringify(toolRequestData, null, 2));
-        let toolOutput: any = { success: false, message: "Tool tidak dikenal atau input salah." };
+        let toolOutputMessage = "Tool tidak dikenal atau input salah.";
 
         if (toolRequestData.name === 'cariSizeMotor' && toolRequestData.input) {
-          // Memanggil fungsi tool secara langsung (karena defineTool sudah membuat tool object)
-          // Kita asumsikan cariSizeMotorTool.fn adalah fungsi yang menjalankan logika tool
-          // Perlu disesuaikan jika struktur tool object berbeda
-          if (typeof (cariSizeMotorTool as any).fn === 'function') {
-            toolOutput = await (cariSizeMotorTool as any).fn(toolRequestData.input as CariSizeMotorInput);
-          } else {
-             console.error("[CS-FLOW] Tool 'cariSizeMotor' tidak memiliki fungsi 'fn' yang bisa dipanggil.");
-             // Mencoba fallback ke pemanggilan tool via Genkit jika ada cara standar,
-             // tapi untuk sekarang, kita anggap tool.fn ada atau logic tool inline.
-             // Untuk tool yang didefinisikan dengan ai.defineTool, fungsi logikanya adalah argumen kedua.
-             // Kita bisa panggil langsung fungsi implementasi tool jika kita export
-             // Atau, Genkit akan handle ini secara otomatis jika toolChoice: 'auto' dan modelnya mendukung.
-             // Kita coba dulu apakah Genkit 'auto' akan handle ini dan langsung memberikan text.
-             // Jika tidak, dan kita dapat toolRequest, kita perlu cara untuk execute tool.
-             // Untuk sekarang, kita akan return pesan dari toolOutput jika success.
-             toolOutput = { success: false, message: "Struktur tool tidak sesuai untuk pemanggilan manual." };
-          }
-        }
-        console.log("[CS-FLOW] Tool output:", JSON.stringify(toolOutput, null, 2));
+          const toolResult = await findMotorSize(toolRequestData.input as CariSizeMotorInput);
+          toolOutputMessage = toolResult.message;
+          
+          // Kirim hasil tool kembali ke AI untuk dirangkai menjadi jawaban natural
+          const modelResponseAfterTool = await ai.generate({
+            model: 'googleai/gemini-1.5-flash-latest',
+            messages: [
+              ...messagesForAI,
+              result.message, // Pesan model sebelumnya yang berisi toolRequest
+              { // Pesan respons dari tool
+                role: 'tool',
+                content: [{
+                  toolResponse: {
+                    name: toolRequestData.name,
+                    output: toolResult, // Kirim seluruh output tool (objek)
+                  }
+                }]
+              }
+            ],
+            prompt: finalSystemPrompt,
+            config: { temperature: 0.5 },
+          });
+          suggestedReply = modelResponseAfterTool.text || "Zoya bingung setelah pakai alat, coba lagi ya.";
 
-        // Untuk kesederhanaan, kita langsung gunakan message dari tool jika sukses,
-        // atau pesan errornya jika gagal.
-        // Idealnya, output tool ini dikirim balik ke AI untuk dirangkai jadi jawaban natural.
-        if (toolOutput.success) {
-          suggestedReply = toolOutput.message || "Berhasil mendapatkan info, tapi pesannya kosong.";
         } else {
-          suggestedReply = toolOutput.message || "Gagal memproses permintaan dengan tool.";
+           suggestedReply = toolOutputMessage; // Jika tool tidak dikenal
         }
-        // Jika ingin AI yang merangkai kata:
-        // const modelResponseAfterTool = await ai.generate({
-        //   model: 'googleai/gemini-1.5-flash-latest',
-        //   messages: [
-        //     ...messagesForAI,
-        //     result.message, // Pesan model sebelumnya yang berisi toolRequest
-        //     { // Pesan respons dari tool
-        //       role: 'tool',
-        //       content: [{
-        //         toolResponse: {
-        //           name: toolRequestData.name,
-        //           output: toolOutput,
-        //         }
-        //       }]
-        //     }
-        //   ],
-        //   prompt: finalSystemPrompt,
-        //   config: { temperature: 0.5 },
-        // });
-        // suggestedReply = modelResponseAfterTool.text || "Zoya bingung setelah pakai alat, coba lagi ya.";
+        console.log("[CS-FLOW] Tool output message / AI reply after tool:", suggestedReply);
 
       } else {
-        suggestedReply = result.text || ""; // Akses teks langsung dari result
+        suggestedReply = result.text || "";
       }
 
       const finishReason = result.finishReason;
@@ -200,9 +263,8 @@ export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<{ sug
           mainPromptToUse = docSnap.data().mainPrompt;
           console.log("[CS-FLOW] generateWhatsAppReply: Using mainPromptString from Firestore.");
         } else {
-          console.log("[CS-FLOW] generateWhatsAppReply: mainPrompt not found in Firestore or is empty. Checking default.");
+          console.log("[CS-FLOW] generateWhatsAppReply: mainPrompt not found in Firestore or is empty. Using DEFAULT_AI_SETTINGS.mainPrompt.");
           mainPromptToUse = DEFAULT_AI_SETTINGS.mainPrompt;
-          console.log("[CS-FLOW] generateWhatsAppReply: Using DEFAULT_AI_SETTINGS.mainPrompt.");
         }
       } else {
         console.log("[CS-FLOW] generateWhatsAppReply: Firestore (db) not available. Using DEFAULT_AI_SETTINGS.mainPrompt.");
@@ -235,3 +297,4 @@ export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<{ sug
     return { suggestedReply: `Maaf, Zoya sedang ada kendala teknis. (${error.message || 'Tidak diketahui'})` };
   }
 }
+    
