@@ -203,8 +203,12 @@ const zoyaChatFlow = ai.defineFlow(
             pendingBookingDate = parsedDate; 
             pendingBookingTime = parsedTime; 
             console.log(`[MAIN-FLOW] Booking date/time parsed: ${parsedDate} ${parsedTime}`);
+            // Langsung set state ke waiting_for_booking_notes jika tanggal dan jam berhasil diparse
+            sessionDataToSave.lastAiInteractionType = 'waiting_for_booking_notes';
+            lastAiInteractionType = 'waiting_for_booking_notes'; // Update local state juga
         } else {
-            console.log("[MAIN-FLOW] Gagal parse booking date/time dari user message.");
+            console.log("[MAIN-FLOW] Gagal parse booking date/time dari user message. Tetap di waiting_for_booking_datetime.");
+            // State tetap 'waiting_for_booking_datetime', AI akan diminta bertanya ulang
         }
     }
 
@@ -216,7 +220,7 @@ const zoyaChatFlow = ai.defineFlow(
                                 .replace("{{{SESSION_MOTOR_SIZE}}}", knownMotorcycleSize)
                                 .replace("{{{SESSION_ACTIVE_SERVICE}}}", activeSpecificServiceInquiry)
                                 .replace("{{{SESSION_ACTIVE_SERVICE_ID}}}", activeSpecificServiceId)
-                                .replace("{{{SESSION_LAST_AI_INTERACTION_TYPE}}}", lastAiInteractionType)
+                                .replace("{{{SESSION_LAST_AI_INTERACTION_TYPE}}}", sessionDataToSave.lastAiInteractionType || lastAiInteractionType) // Gunakan state yang mungkin baru diubah
                                 .replace("{{{detectedGeneralServiceKeyword}}}", detectedGeneralServiceKeyword || "tidak ada")
                                 .replace("{{{dynamicContext}}}", dynamicContextFromPreToolCall || `INFO_UMUM_BENGKEL: QLAB Moto Detailing, Jl. Sukasenang V No.1A, Cikutra, Bandung. Buka 09:00 - 21:00 WIB. Full Detailing hanya untuk cat glossy. Coating beda harga untuk doff & glossy.`)
                                 .replace("{{{currentDate}}}", input.currentDate || "tidak diketahui")
@@ -241,7 +245,10 @@ const zoyaChatFlow = ai.defineFlow(
     ];
 
     console.log(`[MAIN-FLOW] Calling MAIN ai.generate. History Length: ${historyForAI.length}. Prompt snippet: ${finalSystemPrompt.substring(0, 300)}...`);
-    sessionDataToSave.lastAiInteractionType = 'general_response';
+    if (!sessionDataToSave.lastAiInteractionType) { // Hanya set general_response jika belum ada state spesifik yang di-set (misalnya oleh parsing booking)
+        sessionDataToSave.lastAiInteractionType = 'general_response';
+    }
+
 
     try {
       const result = await ai.generate({
@@ -251,7 +258,7 @@ const zoyaChatFlow = ai.defineFlow(
         tools: [cariSizeMotorTool, getProductServiceDetailsByNameTool, cariInfoLayananTool, createBookingTool],
         toolChoice: 'auto',
         config: {
-            temperature: 0.6,
+            temperature: 0.5,
             topP: 0.9,
         },
       });
@@ -351,7 +358,7 @@ const zoyaChatFlow = ai.defineFlow(
                 prompt: promptForSecondCall,
                 messages: messagesAfterTool,
                 config: {
-                    temperature: 0.6,
+                    temperature: 0.5,
                     topP: 0.9,
                 },
                  tools: [cariSizeMotorTool, getProductServiceDetailsByNameTool, cariInfoLayananTool, createBookingTool],
@@ -362,9 +369,11 @@ const zoyaChatFlow = ai.defineFlow(
                 console.warn("[MAIN-FLOW] AI requested another tool after a tool response. This is not deeply handled yet. Returning current text.");
              }
              const lowerFinalReply = suggestedReply.toLowerCase();
-              if (lowerFinalReply.includes("tanggal") && lowerFinalReply.includes("jam") && (interactionTypeAfterTool === 'provided_specific_service_details' || interactionTypeAfterTool === 'ready_for_booking_details')) {
+              if (lowerFinalReply.includes("tanggal") && lowerFinalReply.includes("jam") && (interactionTypeAfterTool === 'provided_specific_service_details' || interactionTypeAfterTool === 'ready_for_booking_details' || interactionTypeAfterTool === 'asked_for_service_after_motor_size')) {
                 sessionDataToSave.lastAiInteractionType = 'waiting_for_booking_datetime';
               } else if ((lowerFinalReply.includes("catatan tambahan") || lowerFinalReply.includes("ada lagi yang bisa dibantu?")) && (interactionTypeAfterTool === 'waiting_for_booking_datetime' || lastAiInteractionType === 'waiting_for_booking_datetime')) {
+                sessionDataToSave.lastAiInteractionType = 'waiting_for_booking_notes';
+              } else if ((lowerFinalReply.includes("catatan tambahan") || lowerFinalReply.includes("ada lagi yang bisa dibantu?")) && sessionDataToSave.lastAiInteractionType === 'waiting_for_booking_datetime') { // Cek state dari sessionDataToSave
                 sessionDataToSave.lastAiInteractionType = 'waiting_for_booking_notes';
               }
         }
@@ -401,7 +410,10 @@ const zoyaChatFlow = ai.defineFlow(
             } else if ((lowerReply.includes("tanggal") && lowerReply.includes("jam")) && (lastAiInteractionType === 'ready_for_booking_details' || lastAiInteractionType === 'provided_specific_service_details' || lastAiInteractionType === 'asked_for_service_after_motor_size')) {
                 sessionDataToSave.lastAiInteractionType = 'waiting_for_booking_datetime';
             } else if ((lowerReply.includes("catatan tambahan") || lowerReply.includes("ada lagi yang bisa dibantu?")) && lastAiInteractionType === 'waiting_for_booking_datetime') { 
-                sessionDataToSave.lastAiInteractionType = 'waiting_for_booking_notes';
+                // Sudah dihandle di atas, tapi untuk safety:
+                 if (sessionDataToSave.lastAiInteractionType !== 'waiting_for_booking_notes') { // Hanya set jika belum di-set oleh parsing
+                    sessionDataToSave.lastAiInteractionType = 'waiting_for_booking_notes';
+                 }
             } else if (lowerReply.includes("booking lo udah zoya catet") || lowerReply.includes("booking berhasil") || lowerReply.includes("udah zoya bikinin jadwalnya") || lowerReply.includes("udah zoya bookingin")) {
                  sessionDataToSave.lastAiInteractionType = 'booking_attempted'; 
                  if (lowerReply.includes("berhasil") || lowerReply.includes("udah zoya catet")) { 
@@ -538,3 +550,4 @@ export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<Whats
     return { suggestedReply: `Maaf, Zoya sedang ada kendala teknis. (${error.message || 'Tidak diketahui'})` };
   }
 }
+
