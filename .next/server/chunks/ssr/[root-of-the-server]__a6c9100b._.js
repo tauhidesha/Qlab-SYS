@@ -375,6 +375,7 @@ const AiSettingsFormSchema = __TURBOPACK__imported__module__$5b$project$5d2f$nod
 });
 const DEFAULT_MAIN_PROMPT_ZOYA = `
 Anda adalah "Zoya" - Customer Service AI dari QLAB Moto Detailing. Anda selalu berkomunikasi dengan flow utama yang bisa mendelegasikan tugas.
+PENTING: Flow utama Anda akan menangani pemanggilan sub-flow secara OTOMATIS jika user bertanya soal jenis layanan umum (cuci, coating, dll) SEBELUM pesan user sampai ke Anda. Jadi, Anda TIDAK PERLU lagi meminta sistem memanggil 'cariInfoLayananTool' atau 'delegateServiceInquiryToSpecialistTool'.
 
 🎯 Gaya Bahasa Anda (Zoya):
 - Santai dan akrab, kayak ngobrol sama temen tongkrongan. Gunakan sapaan seperti "bro", "kak", atau "mas".
@@ -386,9 +387,8 @@ Anda adalah "Zoya" - Customer Service AI dari QLAB Moto Detailing. Anda selalu b
 
 🧠 Pengetahuan Umum Anda (BEKAL ANDA, BUKAN UNTUK DITUNJUKKAN KE USER):
 - Layanan "Full Detailing" HANYA TERSEDIA untuk motor dengan cat GLOSSY. Jika user bertanya untuk motor DOFF, tolak dengan sopan dan tawarkan layanan lain (misal: "Premium Wash" atau "Coating Doff").
-- Harga "Coating" untuk motor DOFF dan GLOSSY itu BERBEDA. Jika user bertanya soal coating, tanyakan dulu jenis cat motornya (doff/glossy) dan tipe motornya untuk estimasi.
+- Harga "Coating" untuk motor DOFF dan GLOSSY itu BERBEDA. Selalu pastikan tipe motornya dan jenis catnya jika belum jelas dari KONTEKS DARI SISTEM.
 - Motor besar (Moge) seperti Harley, atau motor 600cc ke atas biasanya masuk ukuran "XL" yang harganya berbeda.
-- Jika user bertanya harga spesifik layanan untuk model motor tertentu, dan Anda tidak memiliki informasi pasti, jangan menebak. Minta user untuk memberikan detail motornya (model, tahun, jenis cat jika relevan) atau sarankan untuk datang langsung/cek pricelist di bengkel.
 - QLAB Moto Detailing berlokasi di Jl. Sukasenang V No.1A, Cikutra, Kec. Cibeunying Kidul, Kota Bandung, Jawa Barat 40124. Jam buka: Setiap Hari 09:00 - 21:00 WIB.
 - INFO_MOTOR_DIKETAHUI_DARI_SISTEM: Nama: {{{knownMotorcycleName}}}, Ukuran: {{{knownMotorcycleSize}}}
 - KONTEKS_INTERNAL_SISTEM_LAINNYA: {{{dynamicContext}}}
@@ -397,18 +397,18 @@ Anda adalah "Zoya" - Customer Service AI dari QLAB Moto Detailing. Anda selalu b
 1.  **cariSizeMotor**: Untuk mendapatkan ukuran motor (S, M, L, XL).
     - Input yang kamu berikan ke sistem: \`{"namaMotor": "NAMA_ATAU_MODEL_MOTOR_DARI_USER"}\`
     - Sistem akan memproses ini dan memberikan hasilnya padamu.
-2.  **cariInfoLayananTool**: (INI SEBENARNYA AKAN DICEGAT DAN DIALIHKAN KE SUB-FLOW) Tool ini digunakan jika user bertanya tentang KATEGORI layanan secara umum (mis. "coating", "cuci"). Input yang diharapkan adalah nama kategori layanan. Sistem akan memberikan penjelasan lengkap tentang layanan dalam kategori tersebut.
-    - Input yang kamu berikan ke sistem: \`{"keyword": "NAMA_KATEGORI_LAYANAN"}\` (Contoh: "coating", "cuci", "poles", "detailing")
 
 📝 FLOW INTERAKSI & PENGGUNAAN TOOL (SANGAT PENTING IKUTI ALUR INI):
 - Sapa user dengan ramah.
-- **Jika user bertanya soal UKURAN MOTOR SPESIFIK ATAU HARGA layanan yang BUTUH UKURAN motor, DAN KAMU BELUM TAHU UKURANNYA**:
+- **Jika user bertanya soal UKURAN MOTOR SPESIFIK ATAU HARGA layanan yang BUTUH UKURAN motor, DAN KAMU BELUM TAHU UKURANNYA** ({{{knownMotorcycleName}}} adalah "belum diketahui"):
   1.  Gunakan tool \`cariSizeMotor\` dengan input nama motor dari user.
   2.  Setelah sistem memberikan hasilnya (misalnya, ukuran motor), sampaikan ke user ukuran motornya.
-  3.  Kemudian, jika user juga bertanya soal jenis layanan umum (misal "cuci motor nmax harganya berapa?"), maka setelah memberitahu ukuran, LANJUTKAN seolah-olah user baru bertanya layanan umum tersebut (lihat poin di bawah).
-  4.  Jika setelah tahu ukuran user tidak menyebutkan layanan spesifik, tanyakan layanan apa yang diminati. Contoh: "Nah, buat motor {{{knownMotorcycleName}}} ukuran {{{knownMotorcycleSize}}} ini, kamu minatnya layanan apa nih?"
-- **Jika user bertanya tentang KATEGORI LAYANAN SECARA UMUM (misalnya "coating itu apa?", "layanan cuci ada apa aja?", "info detailing dong"), atau hanya menyebutkan kata kunci layanan tanpa detail spesifik harga atau motor:**
-  1.  INI PENTING: Kamu akan **MINTA** sistem untuk menggunakan tool \`cariInfoLayananTool\` dengan input `;
+  3.  Kemudian, tanyakan layanan apa yang diminati. Contoh: "Nah, buat motor {{{knownMotorcycleName}}} ukuran {{{knownMotorcycleSize}}} ini, kamu minatnya layanan apa nih?"
+- **Jika pesan user sebelumnya sudah direspons oleh sub-flow (yang menjelaskan berbagai layanan dan menanyakan jenis motor atau minat), dan user SEKARANG memberikan informasi motor atau menyatakan minatnya pada layanan tertentu:**
+  1.  Jika user baru menyebutkan tipe motor (mis. "motornya nmax"), dan sebelumnya bertanya soal jenis layanan (mis. "cuci"):
+      - Konfirmasi ulang minat layanan untuk motor tersebut. Contoh: "Oke, motor NMAX ya. Untuk layanan cuci motor NMAX, ada paket Reguler sama Premium nih. Kamu minat yang mana bro?" (Sub-flow seharusnya sudah menjelaskan ini, jadi ini lebih ke konfirmasi).
+  2.  Jika user menyebutkan tipe motor DAN layanan yang diminati (mis. "cuci premium buat nmax"):
+      - Berikan informasi harga jika tersedia (berdasarkan ukuran motor dari `;
 const DEFAULT_SERVICE_INQUIRY_SUB_FLOW_PROMPT = `
 Anda adalah spesialis layanan di QLAB Moto Detailing. Anda bertugas membantu Zoya (CS Utama) dengan memberikan informasi detail tentang layanan berdasarkan kategori yang diminta.
 Kategori Layanan yang ditanyakan: "{{{serviceKeyword}}}"
@@ -416,22 +416,22 @@ Pesan asli dari pelanggan (untuk konteks): "{{{customerQuery}}}"
 Informasi motor yang sudah diketahui: Nama: {{{knownMotorcycleName}}}, Ukuran: {{{knownMotorcycleSize}}}.
 
 TUGAS UTAMA ANDA:
-1.  (Opsional, jika dari "{{{customerQuery}}}" terlihat user belum paham) Berikan penjelasan singkat dan menarik tentang apa itu layanan kategori "{{{serviceKeyword}}}".
-2.  WAJIB: Panggil tool 'cariInfoLayananTool' dengan input \`{"keyword": "{{{serviceKeyword}}}"}\` untuk mendapatkan daftar SEMUA layanan/produk dalam kategori tersebut.
-3.  Berdasarkan hasil dari tool 'cariInfoLayananTool':
+1.  WAJIB: Panggil tool 'cariInfoLayananTool' dengan input \`{"keyword": "{{{serviceKeyword}}}"}\` untuk mendapatkan daftar SEMUA layanan/produk dalam kategori tersebut.
+2.  Berdasarkan hasil dari tool 'cariInfoLayananTool':
     a.  Jika tool mengembalikan satu atau lebih item layanan/produk (array tidak kosong):
-        -   Susun jawaban yang menjelaskan SEMUA item yang ditemukan dalam kategori "{{{serviceKeyword}}}". Untuk setiap item:
+        -   **HANYA JIKA INFORMASI MOTOR ({{{knownMotorcycleName}}}) adalah "belum diketahui"**:
+            Susun jawaban yang menjelaskan SEMUA item yang ditemukan dalam kategori "{{{serviceKeyword}}}". Untuk setiap item:
             -   Sebutkan nama itemnya (dari field 'name' di output tool). Misal: "Untuk kategori {{{serviceKeyword}}}, kita ada beberapa pilihan nih:"
             -   Jika ada deskripsi (field 'description'), rangkum poin pentingnya secara singkat dan menarik.
-            -   Jika item tersebut memiliki varian (field 'variants' di output tool), sebutkan beberapa nama varian yang tersedia sebagai contoh (misalnya, "Tersedia dalam varian A, B, dan C."). Jangan sebutkan harga varian di sini kecuali diminta spesifik.
-        -   Setelah menjelaskan semua item yang ditemukan, lanjutkan ke langkah 4.
+            -   Jika item tersebut memiliki varian (field 'variants' di output tool), sebutkan beberapa nama varian yang tersedia sebagai contoh (misalnya, "Tersedia dalam varian A, B, dan C.").
+        -   Setelah menjelaskan (atau jika penjelasan dilewati karena motor sudah diketahui), lanjutkan ke langkah 3.
     b.  Jika tool TIDAK menemukan item apapun untuk kategori "{{{serviceKeyword}}}" (array kosong):
         -   Informasikan dengan sopan bahwa saat ini belum ada item spesifik untuk kategori "{{{serviceKeyword}}}" atau minta user memperjelas kata kuncinya.
-        -   Akhiri dengan pertanyaan umum seperti "Ada lagi yang bisa dibantu?" dan JANGAN lanjutkan ke langkah 4.
-4.  Setelah menjelaskan semua item yang relevan dari tool (jika ada pada langkah 3a):
+        -   Akhiri dengan pertanyaan umum seperti "Ada lagi yang bisa dibantu?" dan JANGAN lanjutkan ke langkah 3.
+3.  Setelah memproses hasil tool (dan mungkin menjelaskan jika perlu):
     -   Jika informasi motor ("{{{knownMotorcycleName}}}") adalah "belum diketahui", akhiri dengan pertanyaan: "Nah, dari layanan {{{serviceKeyword}}} tadi, kira-kira tertarik yang mana nih kak? Oiya, motornya apa nih kak?"
-    -   Jika informasi motor ("{{{knownMotorcycleName}}}") sudah diketahui, akhiri dengan pertanyaan: "Nah, buat motor {{{knownMotorcycleName}}}, dari pilihan layanan {{{serviceKeyword}}} yang tadi Zoya sebutin, ada yang bikin kamu tertarik?"
-5.  PENTING: JANGAN mengarang harga jika tidak ada di output tool. Fokus pada penjelasan layanan/produk dan menanyakan minat/tipe motor.
+    -   Jika informasi motor ("{{{knownMotorcycleName}}}") sudah diketahui, akhiri dengan pertanyaan: "Nah, buat motor {{{knownMotorcycleName}}}, dari pilihan layanan {{{serviceKeyword}}} yang tadi (atau yang disebutkan pelanggan jika lebih spesifik), ada yang bikin kamu tertarik?"
+4.  PENTING: JANGAN mengarang harga jika tidak ada di output tool. Fokus pada penjelasan layanan/produk dan menanyakan minat/tipe motor.
 
 JAWABAN ANDA (untuk Zoya teruskan ke user, formatnya harus natural dan mudah dibaca):
 `.trim();
@@ -867,7 +867,6 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/types/aiSettings.ts [app-rsc] (ecmascript)");
 // Import tools modular (non 'use server' files)
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$cari$2d$size$2d$motor$2d$tool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/ai/tools/cari-size-motor-tool.ts [app-rsc] (ecmascript)");
-// cariInfoLayananTool TIDAK diimpor di sini, karena akan di-"intercept"
 // Import sub-flow dan tipenya
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$flows$2f$handle$2d$service$2d$inquiry$2d$flow$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/ai/flows/handle-service-inquiry-flow.ts [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$action$2d$validate$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/build/webpack/loaders/next-flight-loader/action-validate.js [app-rsc] (ecmascript)");
@@ -913,7 +912,7 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
     inputSchema: ZoyaChatInputSchema,
     outputSchema: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["string"])()
 }, async (input)=>{
-    console.log("[CS-FLOW] zoyaChatFlow input. Customer Message:", input.customerMessage, "History Length:", (input.messages || []).length);
+    console.log("[CS-FLOW] zoyaChatFlow input. Customer Message:", input.customerMessage, "History Length:", (input.messages || []).length, "KnownMotorcycleInfo:", JSON.stringify(input.knownMotorcycleInfo));
     const lastUserMessageContent = input.customerMessage || (input.messages && input.messages.length > 0 ? input.messages[input.messages.length - 1].content : '');
     if (!lastUserMessageContent || lastUserMessageContent.trim() === '') {
         return "Maaf, Zoya tidak menerima pesan yang jelas.";
@@ -928,12 +927,11 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
         "repaint",
         "servis",
         "layanan"
-    ]; // Tambahkan kata kunci lain jika perlu
+    ];
     let detectedServiceKeyword = null;
     for (const keyword of serviceKeywords){
         if (lowerCaseCustomerMessage.includes(keyword)) {
-            detectedServiceKeyword = keyword; // Ambil keyword pertama yang cocok
-            // Lebih spesifik: jika user bilang "cuci motor" atau "layanan cuci", keywordnya "cuci"
+            detectedServiceKeyword = keyword;
             if (keyword === "cuci" && lowerCaseCustomerMessage.includes("cuci motor") || keyword === "layanan" && lowerCaseCustomerMessage.includes("layanan cuci")) {
                 detectedServiceKeyword = "cuci";
             } else if (keyword === "coating" && lowerCaseCustomerMessage.includes("coating motor") || keyword === "layanan" && lowerCaseCustomerMessage.includes("layanan coating")) {
@@ -948,11 +946,32 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
             break;
         }
     }
-    // Periksa apakah pertanyaan hanya tentang layanan umum dan BUKAN pertanyaan spesifik tentang harga
-    const isGeneralServiceInquiry = detectedServiceKeyword && !lowerCaseCustomerMessage.includes("harga") && !lowerCaseCustomerMessage.includes("berapa") && !lowerCaseCustomerMessage.match(/\brp\b/) && // "rp" sebagai kata sendiri
-    !lowerCaseCustomerMessage.match(/\d{3,}/); // tidak ada angka 3 digit atau lebih (asumsi harga)
-    if (isGeneralServiceInquiry && detectedServiceKeyword) {
-        console.log(`[CS-FLOW] General service inquiry detected for keyword: "${detectedServiceKeyword}". Calling sub-flow 'handleServiceInquiry'.`);
+    let callSubFlow = false;
+    if (detectedServiceKeyword) {
+        const isAskingPrice = lowerCaseCustomerMessage.includes("harga") || lowerCaseCustomerMessage.includes("berapa") || lowerCaseCustomerMessage.match(/\brp\b/) || lowerCaseCustomerMessage.match(/\d{3,}/);
+        const isConfirmingOrHasInfo = lowerCaseCustomerMessage.includes("minat") || lowerCaseCustomerMessage.includes("tertarik") || lowerCaseCustomerMessage.includes("booking") || lowerCaseCustomerMessage.includes("pilih") || input.knownMotorcycleInfo && input.knownMotorcycleInfo.name !== "belum diketahui"; // Jika motor sudah diketahui
+        // Hanya panggil sub-flow jika ini pertanyaan umum AWAL dan bukan tanya harga atau konfirmasi,
+        // ATAU jika motor belum diketahui.
+        if (!isAskingPrice && !isConfirmingOrHasInfo) {
+            callSubFlow = true;
+        } else if (!isAskingPrice && !(input.knownMotorcycleInfo && input.knownMotorcycleInfo.name !== "belum diketahui")) {
+            // Jika bukan tanya harga, DAN motor belum diketahui, panggil sub-flow
+            callSubFlow = true;
+        }
+        // Logika tambahan: jika user hanya menyebut keyword layanan dan tidak ada info motor, sangat mungkin itu query umum
+        if (serviceKeywords.some((kw)=>lowerCaseCustomerMessage === kw) && !(input.knownMotorcycleInfo && input.knownMotorcycleInfo.name !== "belum diketahui")) {
+            callSubFlow = true;
+        }
+        // Jangan panggil sub-flow jika pesan terakhir dari AI sudah merupakan penjelasan layanan (heuristik sederhana)
+        const lastAiMessage = input.messages?.filter((m)=>m.role === 'model').pop()?.content.toLowerCase();
+        if (lastAiMessage && serviceKeywords.some((kw)=>lastAiMessage.includes(kw)) && lastAiMessage.includes("pilihan") && lastAiMessage.includes("motornya apa")) {
+            // Jika pesan AI terakhir adalah output sub-flow yang bertanya motor, jangan panggil sub-flow lagi
+            console.log("[CS-FLOW] Last AI message seems to be from sub-flow asking for motor. Skipping sub-flow call.");
+            callSubFlow = false;
+        }
+    }
+    if (callSubFlow && detectedServiceKeyword) {
+        console.log(`[CS-FLOW] General service inquiry detected for keyword: "${detectedServiceKeyword}". Calling sub-flow 'handleServiceInquiry'. Known Motor: ${JSON.stringify(input.knownMotorcycleInfo)}`);
         const subFlowInput = {
             serviceKeyword: detectedServiceKeyword,
             customerQuery: lastUserMessageContent,
@@ -990,7 +1009,7 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
             ]
         }
     ];
-    console.log(`[CS-FLOW] Calling ai.generate with model googleai/gemini-1.5-flash-latest. History Length: ${historyForAI.length}`);
+    console.log(`[CS-FLOW] Calling MAIN ai.generate with model googleai/gemini-1.5-flash-latest. History Length: ${historyForAI.length}`);
     console.log(`[CS-FLOW] System Prompt being used (simplified): ${finalSystemPrompt.substring(0, 300)}...`);
     try {
         const result = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].generate({
@@ -1005,12 +1024,12 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
                 temperature: 0.5
             }
         });
-        console.log("[CS-FLOW] Raw AI generate result:", JSON.stringify(result, null, 2));
+        console.log("[CS-FLOW] Raw MAIN AI generate result:", JSON.stringify(result, null, 2));
         let suggestedReply = result.text || "";
         const toolRequest = result.toolRequest;
         if (toolRequest) {
-            console.log("[CS-FLOW] AI requested a tool call:", JSON.stringify(toolRequest, null, 2));
-            let finalReplyFromToolOrSubFlow = "Maaf, Zoya lagi bingung mau pakai alat apa.";
+            console.log("[CS-FLOW] MAIN AI requested a tool call:", JSON.stringify(toolRequest, null, 2));
+            let finalReplyFromTool = "Maaf, Zoya lagi bingung mau pakai alat apa.";
             if (toolRequest.name === 'cariSizeMotor' && toolRequest.input) {
                 const sizeOutput = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$cari$2d$size$2d$motor$2d$tool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["cariSizeMotorTool"].fn(toolRequest.input);
                 const modelResponseAfterSizeTool = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].generate({
@@ -1035,39 +1054,27 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
                         temperature: 0.5
                     }
                 });
-                finalReplyFromToolOrSubFlow = modelResponseAfterSizeTool.text || "Zoya dapet ukuran motornya, tapi bingung mau ngomong apa.";
-            } else if (toolRequest.name === 'cariInfoLayanan' && toolRequest.input) {
-                // Ini adalah "intercept" point jika AI tetap memaksa memanggil tool ini.
-                // Kita panggil sub-flow handleServiceInquiry sebagai gantinya.
-                const serviceInquiryKeyword = toolRequest.input.keyword;
-                console.log(`[CS-FLOW] Intercepting 'cariInfoLayanan' tool request from main AI. Keyword: ${serviceInquiryKeyword}. Calling sub-flow 'handleServiceInquiry'.`);
-                const subFlowInput = {
-                    serviceKeyword: serviceInquiryKeyword,
-                    customerQuery: input.customerMessage,
-                    knownMotorcycleInfo: input.knownMotorcycleInfo
-                };
-                const subFlowOutput = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$flows$2f$handle$2d$service$2d$inquiry$2d$flow$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["handleServiceInquiry"])(subFlowInput);
-                finalReplyFromToolOrSubFlow = subFlowOutput.responseText;
+                finalReplyFromTool = modelResponseAfterSizeTool.text || "Zoya dapet ukuran motornya, tapi bingung mau ngomong apa setelah pakai alat.";
             }
-            return finalReplyFromToolOrSubFlow;
+            return finalReplyFromTool;
         } else if (suggestedReply) {
             const finishReason = result.finishReason;
             const safetyRatings = result.safetyRatings;
-            console.log(`[CS-FLOW] AI Finish Reason (no tool): ${finishReason}`);
+            console.log(`[CS-FLOW] MAIN AI Finish Reason (no tool): ${finishReason}`);
             if (safetyRatings && safetyRatings.length > 0) {
-                console.log('[CS-FLOW] AI Safety Ratings (no tool):', JSON.stringify(safetyRatings, null, 2));
+                console.log('[CS-FLOW] MAIN AI Safety Ratings (no tool):', JSON.stringify(safetyRatings, null, 2));
             }
             if (!suggestedReply && finishReason !== "stop") {
-                console.error(`[CS-FLOW] ❌ AI generation failed or no text output. Finish Reason: ${finishReason}. Safety: ${JSON.stringify(safetyRatings)}`);
+                console.error(`[CS-FLOW] ❌ MAIN AI generation failed or no text output. Finish Reason: ${finishReason}. Safety: ${JSON.stringify(safetyRatings)}`);
                 return "Maaf, Zoya lagi agak bingung nih boskuu. Coba tanya lagi dengan cara lain ya, atau hubungi CS langsung.";
             }
             return suggestedReply;
         } else {
-            console.error(`[CS-FLOW] ❌ No tool request and no text output from AI. Result: ${JSON.stringify(result, null, 2)}`);
+            console.error(`[CS-FLOW] ❌ No tool request and no text output from MAIN AI. Result: ${JSON.stringify(result, null, 2)}`);
             return "Waduh, Zoya lagi nggak bisa jawab nih. Coba lagi ya.";
         }
     } catch (flowError) {
-        console.error("[CS-FLOW] ❌ Critical error dalam flow zoyaChatFlow:", flowError);
+        console.error("[CS-FLOW] ❌ Critical error dalam MAIN zoyaChatFlow:", flowError);
         if (flowError.cause) console.error("[CS-FLOW] Error Cause:", JSON.stringify(flowError.cause, null, 2));
         return `Waduh, Zoya lagi error nih, boskuu. Coba tanya lagi nanti ya. (Pesan Error: ${flowError.message || 'Kesalahan internal tidak diketahui'})`;
     }
