@@ -5,11 +5,11 @@
  */
 import { ai } from '@/ai/genkit';
 import * as z from 'zod';
-import { cariInfoLayananTool, type CariInfoLayananInput, type CariInfoLayananOutput } from '@/ai/tools/cariInfoLayananTool'; // Assuming tools are now modular
-import { DEFAULT_MAIN_PROMPT_ZOYA_SERVICE_INQUIRY_SUB_FLOW } from '@/types/aiSettings'; // We'll create this new prompt constant
+import { cariInfoLayananTool, type CariInfoLayananInput, type CariInfoLayananOutput } from '@/ai/tools/cariInfoLayananTool';
+import { DEFAULT_MAIN_PROMPT_ZOYA_SERVICE_INQUIRY_SUB_FLOW } from '@/types/aiSettings';
 
-// Input schema for this sub-flow
-export const HandleServiceInquiryInputSchema = z.object({
+// --- Local Zod Schemas (NOT EXPORTED) ---
+const HandleServiceInquiryInputSchema = z.object({
   serviceKeyword: z.string().describe("Kata kunci layanan yang ditanyakan user, mis. 'coating', 'detailing'."),
   customerQuery: z.string().describe("Pesan asli dari pelanggan, untuk konteks."),
   knownMotorcycleInfo: z.object({
@@ -17,27 +17,30 @@ export const HandleServiceInquiryInputSchema = z.object({
     size: z.string().optional(),
   }).optional().describe("Informasi motor pelanggan jika sudah diketahui (nama, ukuran)."),
 });
+// --- End Local Zod Schemas ---
+
+// Exported Type for Input
 export type HandleServiceInquiryInput = z.infer<typeof HandleServiceInquiryInputSchema>;
 
-// Output schema for this sub-flow
-export const HandleServiceInquiryOutputSchema = z.object({
+// --- Local Zod Schemas (NOT EXPORTED) ---
+const HandleServiceInquiryOutputSchema = z.object({
   responseText: z.string().describe("Teks balasan yang dihasilkan oleh sub-flow ini."),
 });
+// --- End Local Zod Schemas ---
+
+// Exported Type for Output
 export type HandleServiceInquiryOutput = z.infer<typeof HandleServiceInquiryOutputSchema>;
 
-// The sub-flow definition
+// The sub-flow definition (internal, not directly exported for Genkit CLI deployment unless needed later)
 const handleServiceInquiryFlowInternal = ai.defineFlow(
   {
     name: 'handleServiceInquiryFlowInternal',
-    inputSchema: HandleServiceInquiryInputSchema,
-    outputSchema: HandleServiceInquiryOutputSchema,
+    inputSchema: HandleServiceInquiryInputSchema, // Uses local schema
+    outputSchema: HandleServiceInquiryOutputSchema, // Uses local schema
   },
-  async (input) => {
+  async (input: HandleServiceInquiryInput): Promise<HandleServiceInquiryOutput> => {
     console.log("[Sub-Flow:handleServiceInquiry] Input:", input);
 
-    // Construct the prompt specifically for this sub-flow's task
-    // This prompt will guide the AI on how to use the serviceKeyword, customerQuery,
-    // knownMotorcycleInfo, and the cariInfoLayananTool.
     let systemPrompt = DEFAULT_MAIN_PROMPT_ZOYA_SERVICE_INQUIRY_SUB_FLOW
         .replace("{{{serviceKeyword}}}", input.serviceKeyword)
         .replace("{{{customerQuery}}}", input.customerQuery);
@@ -55,15 +58,23 @@ const handleServiceInquiryFlowInternal = ai.defineFlow(
 
 
     const messagesForAI = [
-        { role: 'user' as const, content: [{text: systemPrompt}] } 
+        // For sub-flows that are very specific, sometimes it's better to pass the dynamic parts
+        // directly into the main user message part of the prompt if the system prompt is static.
+        // Or, structure as a system message and one user message that triggers the flow.
+        // Let's try with system prompt and the customerQuery as user message.
+        { role: 'system' as const, content: [{text: systemPrompt}]},
+        { role: 'user' as const, content: [{text: `Tolong bantu jelaskan tentang "${input.serviceKeyword}" berdasarkan pertanyaan: "${input.customerQuery}"`}] } 
     ];
 
     try {
       const result = await ai.generate({
-        model: 'googleai/gemini-1.5-flash-latest',
-        messages: messagesForAI,
-        tools: [cariInfoLayananTool], // This sub-flow uses cariInfoLayananTool
-        toolChoice: 'auto', // Let AI decide if it needs the tool based on the sub-flow prompt
+        model: 'googleai/gemini-1.5-flash-latest', // or your preferred model
+        prompt: systemPrompt, // Pass the constructed system prompt here
+        messages: [ // Pass customerQuery as the immediate user message
+            { role: 'user' as const, content: [{text: `Tolong bantu jelaskan tentang "${input.serviceKeyword}" berdasarkan pertanyaan: "${input.customerQuery}"`}] }
+        ],
+        tools: [cariInfoLayananTool],
+        toolChoice: 'auto',
         config: { temperature: 0.5 },
       });
 
@@ -75,15 +86,16 @@ const handleServiceInquiryFlowInternal = ai.defineFlow(
         let toolOutputContent: any = "Tool tidak dikenal atau input salah.";
 
         if (toolRequest.name === 'cariInfoLayanan' && toolRequest.input) {
-          // Directly call the implementation function of the tool
           const layananOutput = await (cariInfoLayananTool.fn as Function)(toolRequest.input as CariInfoLayananInput);
           toolOutputContent = layananOutput;
         }
         
+        // Call AI again with tool result
         const modelResponseAfterTool = await ai.generate({
             model: 'googleai/gemini-1.5-flash-latest',
+            prompt: systemPrompt, // Re-use system prompt
             messages: [
-                ...messagesForAI,
+                { role: 'user' as const, content: [{text: `Tolong bantu jelaskan tentang "${input.serviceKeyword}" berdasarkan pertanyaan: "${input.customerQuery}"`}] }, // Original trigger
                 result.message, // Previous AI message that included the tool request
                 {
                     role: 'tool',
@@ -110,7 +122,7 @@ const handleServiceInquiryFlowInternal = ai.defineFlow(
   }
 );
 
-// Exported async wrapper function
+// Exported async wrapper function (this is fine for 'use server')
 export async function handleServiceInquiry(input: HandleServiceInquiryInput): Promise<HandleServiceInquiryOutput> {
   return handleServiceInquiryFlowInternal(input);
 }
