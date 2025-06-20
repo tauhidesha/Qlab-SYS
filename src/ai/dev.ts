@@ -11,6 +11,8 @@ import '@/lib/firebase-admin';
 
 // Import flows and tools
 import '@/ai/flows/cs-whatsapp-reply-flow';
+import '@/ai/flows/handle-service-inquiry-flow'; // Pastikan sub-flow diimpor
+
 // Import modular tools. Files for tools do not contain 'use server' and only export the tool object and types.
 import '@/ai/tools/cari-size-motor-tool';
 import '@/ai/tools/cariInfoLayananTool';
@@ -20,7 +22,7 @@ import '@/ai/tools/extractMotorInfoTool';
 import '@/ai/tools/searchServiceByKeywordTool';
 import '@/ai/tools/createBookingTool';
 
-console.log("[src/ai/dev.ts] Main flow (cs-whatsapp-reply-flow) imported.");
+console.log("[src/ai/dev.ts] Main flow (cs-whatsapp-reply-flow) and sub-flow (handle-service-inquiry-flow) imported.");
 console.log("[src/ai/dev.ts] Modular tools (cariSizeMotorTool, cariInfoLayananTool) imported.");
 console.log("[src/ai/dev.ts] Other tools are placeholders.");
 console.log("[src/ai/dev.ts] Genkit Developer UI should be available if no errors (default port: 4001).");
