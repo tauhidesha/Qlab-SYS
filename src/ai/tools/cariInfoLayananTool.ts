@@ -61,7 +61,7 @@ async function findLayananByCategory(input: CariInfoLayananInput): Promise<CariI
           price: v.price,
           pointsAwarded: v.pointsAwarded,
           estimatedDuration: v.estimatedDuration,
-          id: v.id || undefined,
+          id: v.id || undefined, // Ensure variant ID is captured if present
         })) || undefined,
       };
       
@@ -95,3 +95,4 @@ export const cariInfoLayananTool = ai.defineTool(
   },
   findLayananByCategory
 );
+
