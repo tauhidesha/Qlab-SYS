@@ -196,12 +196,16 @@ const zoyaChatFlow = ai.defineFlow(
 
     try {
       const result = await ai.generate({
-        model: 'googleai/gemini-1.5-flash-latest',
+        model: 'googleai/gemini-2.0-flash-exp', // MODEL DIGANTI
         prompt: finalSystemPrompt,
         messages: messagesForAI,
         tools: [cariSizeMotorTool, getProductServiceDetailsByNameTool, findLayananByCategory, createBookingTool],
         toolChoice: 'auto',
-        config: { temperature: 0.3, topP: 0.9 },
+        config: { 
+            temperature: 0.6, // TEMPERATUR DIGANTI
+            topP: 0.9,
+            responseModalities: ['TEXT', 'IMAGE'] // MODALITAS DITAMBAHKAN
+        },
       });
 
       console.log("[MAIN-FLOW] Raw MAIN AI generate result:", JSON.stringify(result, null, 2));
@@ -285,10 +289,14 @@ const zoyaChatFlow = ai.defineFlow(
                 .replace("{{{senderNumber}}}", userId);
 
             const modelResponseAfterTool = await ai.generate({
-                model: 'googleai/gemini-1.5-flash-latest',
+                model: 'googleai/gemini-2.0-flash-exp', // MODEL DIGANTI
                 prompt: promptForSecondCall,
                 messages: messagesAfterTool,
-                config: { temperature: 0.3, topP: 0.9 },
+                config: { 
+                    temperature: 0.6, // TEMPERATUR DIGANTI
+                    topP: 0.9,
+                    responseModalities: ['TEXT', 'IMAGE'] // MODALITAS DITAMBAHKAN
+                },
                  tools: [cariSizeMotorTool, getProductServiceDetailsByNameTool, findLayananByCategory, createBookingTool],
                  toolChoice: 'auto',
             });
