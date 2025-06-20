@@ -1330,7 +1330,7 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
     sessionDataToSave.lastAiInteractionType = 'general_response';
     try {
         const result = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].generate({
-            model: 'googleai/gemini-2.0-flash-exp',
+            model: 'googleai/gemini-1.5-flash-latest',
             prompt: finalSystemPrompt,
             messages: messagesForAI,
             tools: [
@@ -1342,11 +1342,7 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
             toolChoice: 'auto',
             config: {
                 temperature: 0.6,
-                topP: 0.9,
-                responseModalities: [
-                    'TEXT',
-                    'IMAGE'
-                ] // MODALITAS DITAMBAHKAN
+                topP: 0.9
             }
         });
         console.log("[MAIN-FLOW] Raw MAIN AI generate result:", JSON.stringify(result, null, 2));
@@ -1425,16 +1421,12 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
                 const promptForSecondCall = mainPromptFromSettings.replace("{{{SESSION_MOTOR_NAME}}}", knownMotorcycleName).replace("{{{SESSION_MOTOR_SIZE}}}", knownMotorcycleSize).replace("{{{SESSION_ACTIVE_SERVICE}}}", activeServiceAfterTool).replace("{{{SESSION_LAST_AI_INTERACTION_TYPE}}}", interactionTypeAfterTool) // Gunakan tipe interaksi setelah tool
                 .replace("{{{dynamicContext}}}", dynamicContextFromPreToolCall || "Tidak ada info tambahan dari sistem.").replace("{{{currentDate}}}", input.currentDate || "tidak diketahui").replace("{{{tomorrowDate}}}", input.tomorrowDate || "tidak diketahui").replace("{{{dayAfterTomorrowDate}}}", input.dayAfterTomorrowDate || "tidak diketahui").replace("{{{senderNumber}}}", userId);
                 const modelResponseAfterTool = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].generate({
-                    model: 'googleai/gemini-2.0-flash-exp',
+                    model: 'googleai/gemini-1.5-flash-latest',
                     prompt: promptForSecondCall,
                     messages: messagesAfterTool,
                     config: {
                         temperature: 0.6,
-                        topP: 0.9,
-                        responseModalities: [
-                            'TEXT',
-                            'IMAGE'
-                        ] // MODALITAS DITAMBAHKAN
+                        topP: 0.9
                     },
                     tools: [
                         __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$cari$2d$size$2d$motor$2d$tool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["cariSizeMotorTool"],
