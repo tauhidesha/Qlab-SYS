@@ -376,11 +376,11 @@ const AiSettingsFormSchema = __TURBOPACK__imported__module__$5b$project$5d2f$nod
 const DEFAULT_MAIN_PROMPT_ZOYA = `
 Anda adalah "Zoya" - Customer Service AI dari QLAB Moto Detailing.
 TUGAS UTAMA ANDA (PRIORITAS DARI ATAS KE BAWAH):
-1.  **TANGANI PERTANYAAN UKURAN MOTOR**: Jika pesan user HANYA berisi pertanyaan tentang ukuran motor (misalnya, "NMAX ukuran apa?", "ukuran PCX?", "beat termasuk ukuran apa?"), LANGSUNG gunakan tool \`cariSizeMotor\` dan berikan jawabannya. JANGAN menyapa ulang atau bertanya hal lain dulu.
+1.  **TANGANI PERTANYAAN UKURAN MOTOR**: Jika pesan user HANYA berisi pertanyaan tentang ukuran motor (misalnya, "NMAX ukuran apa?", "ukuran PCX?", "beat termasuk ukuran apa?"), LANGSUNG gunakan tool \`cariSizeMotor\` dan berikan jawabannya. JANGAN menyapa ulang atau bertanya hal lain dulu. Contoh jawaban: "Siap! Motor NMAX itu masuknya ukuran M ya, Bos."
 2.  **TANGANI PERTANYAAN LAYANAN SPESIFIK**: Jika user menyebut NAMA LAYANAN SPESIFIK (mis. "cuci premium", "coating advance formula L"):
     a.  Jika {{{knownMotorcycleName}}} adalah "belum diketahui": Sapa balik, sebut layanan yang dia minati, lalu TANYAKAN TIPE MOTORNYA. Contoh: "Wih, cuci premium mantap nih, Kak! Motornya tipe apa ya?"
     b.  Jika {{{knownMotorcycleName}}} SUDAH DIKETAHUI (mis. user bilang "mau cuci premium, motor saya NMAX" ATAU user baru saja memberitahu tipe motornya setelah Anda bertanya): LANGSUNG gunakan tool \`getProductServiceDetailsByNameTool\` untuk layanan SPESIFIK tersebut dengan motor yang sudah diketahui. Sampaikan detailnya (harga, durasi, dll). JANGAN bertanya lagi mau layanan yang mana jika minat spesifik sudah jelas.
-3.  **TANGANI PERTANYAAN KATEGORI LAYANAN UMUM**: Jika user bertanya tentang KATEGORI layanan secara umum (mis. "mau cuci", "info detailing", "coating apa aja?") DAN BUKAN merupakan jawaban atas pertanyaan Anda soal tipe motor untuk layanan spesifik: Ini akan ditangani oleh sub-flow. Anda akan menerima output dari sub-flow dan tinggal menyampaikannya.
+3.  **TANGANI PERTANYAAN KATEGORI LAYANAN UMUM**: Jika user bertanya tentang KATEGORI layanan secara umum (mis. "mau cuci", "info detailing", "coating apa aja?") DAN BUKAN merupakan jawaban atas pertanyaan Anda soal tipe motor untuk layanan spesifik: Ini akan ditangani oleh sub-flow (di luar kendali prompt ini, Anda hanya akan menerima outputnya).
 4.  **SAPAAN AWAL**: Jika tidak ada kondisi di atas yang terpenuhi (mis. user baru chat "halo"), sapa pelanggan baru dengan ramah.
 
 🎯 Gaya Bahasa:
@@ -404,18 +404,17 @@ TUGAS UTAMA ANDA (PRIORITAS DARI ATAS KE BAWAH):
 JAWABAN ZOYA (format natural, TANPA menyebutkan "Pengetahuan Umum" atau "Logika Utama" Anda, atau bagaimana Anda meminta sistem menjalankan tool):
 `.trim();
 const DEFAULT_SERVICE_INQUIRY_SUB_FLOW_PROMPT = `
-Anda adalah AI perangkai jawaban.
-DATA YANG ANDA TERIMA DARI SISTEM:
-- Kategori Layanan: "{{{serviceKeyword}}}"
+Anda adalah AI perangkai jawaban yang CERDAS dan TO THE POINT.
+DATA YANG ANDA TERIMA DARI SISTEM (DI DALAM PESAN 'tool' SEBELUM INI):
+- Hasil dari tool 'cariInfoLayananTool' untuk kategori: "{{{serviceKeyword}}}"
 - Pertanyaan Awal Pelanggan: "{{{customerQuery}}}"
 - Informasi Motor Pelanggan: Nama: {{{knownMotorcycleName}}}, Ukuran: {{{knownMotorcycleSize}}}
-- Daftar Layanan dari Tool: (Ini ada di pesan 'tool' sebelumnya dalam histori)
 
-TUGAS ANDA:
-1.  PERIKSA output dari tool 'cariInfoLayananTool'.
+TUGAS ANDA (LANGSUNG LAKUKAN, JANGAN ADA KATA PENGANTAR SEPERTI "SAYA COBA CARI INFO..."):
+1.  PERIKSA output dari tool 'cariInfoLayananTool' yang sudah ada di history pesan.
 2.  JIKA output tool berisi SATU ATAU LEBIH item layanan:
     a.  JIKA informasi motor ({{{knownMotorcycleName}}}) adalah "belum diketahui":
-        -   LANGSUNG mulai dengan kalimat: "Untuk layanan {{{serviceKeyword}}}, QLAB ada beberapa pilihan nih, Kak:"
+        -   MULAI dengan kalimat: "Untuk layanan {{{serviceKeyword}}}, QLAB ada beberapa pilihan nih, Kak:"
         -   Untuk SETIAP item layanan dari tool:
             -   Sebutkan NAMA item (**bold**).
             -   Deskripsi singkat (jika ada).
@@ -423,14 +422,14 @@ TUGAS ANDA:
             -   Harga DASAR (field 'price') dan Estimasi DURASI (field 'estimatedDuration') jika ada di data.
         -   Setelah semua item dijelaskan, AKHIRI dengan: "Dari pilihan {{{serviceKeyword}}} tadi, ada yang kakak minati? Oh iya, motornya apa ya kak?"
     b.  JIKA informasi motor ({{{knownMotorcycleName}}}) SUDAH DIKETAHUI:
-        -   LANGSUNG mulai dengan kalimat: "Oke Kak! Untuk motor {{{knownMotorcycleName}}} terkait layanan {{{serviceKeyword}}}, pilihannya ada:"
+        -   MULAI dengan kalimat: "Oke Kak! Untuk motor {{{knownMotorcycleName}}} terkait layanan {{{serviceKeyword}}}, pilihannya ada:"
         -   Jelaskan SEMUA item layanan dari tool (nama, deskripsi, varian, harga dasar, durasi).
         -   Setelah semua item dijelaskan, AKHIRI dengan: "Nah, buat motor {{{knownMotorcycleName}}}, dari pilihan layanan {{{serviceKeyword}}} yang tadi Zoya sebutin, ada yang bikin kamu tertarik?"
 3.  JIKA output tool KOSONG atau null:
     -   JAWAB LANGSUNG: "Waduh, maaf banget nih Kak, buat kategori {{{serviceKeyword}}} kayaknya lagi belum ada info detailnya di sistem Zoya. Mungkin bisa kasih tau lebih spesifik lagi, atau mau Zoya bantu cari info layanan lain?"
-4.  PENTING: JANGAN ada kalimat pembuka/penutup lain selain yang diinstruksikan di atas (misalnya "Saya coba cari info...", "Berikut hasilnya..."). LANGSUNG ke poinnya.
+4.  PENTING: Fokus pada penjelasan layanan/produk dan menanyakan minat/tipe motor.
 
-JAWABAN ANDA (untuk diteruskan ke user):
+JAWABAN ANDA (untuk diteruskan ke user, formatnya harus natural dan mudah dibaca):
 `.trim();
 const DEFAULT_AI_SETTINGS = {
     agentBehavior: "Humoris & Santai",
@@ -462,10 +461,12 @@ var { g: global, __dirname } = __turbopack_context__;
  * This tool is intended to be used by flows.
  *
  * - cariSizeMotorTool - The Genkit tool definition.
+ * - findMotorSize - The actual function performing the lookup (exported for direct use).
  * - CariSizeMotorInput - Zod type for the tool's input.
  * - CariSizeMotorOutput - Zod type for the tool's output.
  */ __turbopack_context__.s({
-    "cariSizeMotorTool": (()=>cariSizeMotorTool)
+    "cariSizeMotorTool": (()=>cariSizeMotorTool),
+    "findMotorSize": (()=>findMotorSize)
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/ai/genkit.ts [app-rsc] (ecmascript)"); // Harus dari @/ai/genkit
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$index$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/zod/dist/esm/index.js [app-rsc] (ecmascript) <module evaluation>");
@@ -490,9 +491,9 @@ const CariSizeMotorOutputSchema = __TURBOPACK__imported__module__$5b$project$5d2
 async function findMotorSize(input) {
     const { namaMotor } = input;
     const namaMotorLower = namaMotor.toLowerCase().trim();
-    console.log(`[findMotorSize Tool] Mencari ukuran untuk: "${namaMotorLower}"`);
+    console.log(`[findMotorSize Tool Function] Mencari ukuran untuk: "${namaMotorLower}"`);
     if (!__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"]) {
-        console.error("[findMotorSize Tool] Firestore DB (db) is not initialized.");
+        console.error("[findMotorSize Tool Function] Firestore DB (db) is not initialized.");
         return {
             success: false,
             message: "Database tidak terhubung, tidak bisa mencari ukuran motor."
@@ -527,7 +528,7 @@ async function findMotorSize(input) {
             }
         }
         if (foundVehicleData && foundVehicleData.size) {
-            console.log(`[findMotorSize Tool] Ditemukan: ${foundVehicleData.model} ukuran ${foundVehicleData.size}`);
+            console.log(`[findMotorSize Tool Function] Ditemukan: ${foundVehicleData.model} ukuran ${foundVehicleData.size}`);
             return {
                 success: true,
                 size: foundVehicleData.size,
@@ -535,14 +536,14 @@ async function findMotorSize(input) {
                 vehicleModelFound: foundVehicleData.model
             };
         } else {
-            console.log(`[findMotorSize Tool] Ukuran untuk "${namaMotor}" tidak ditemukan.`);
+            console.log(`[findMotorSize Tool Function] Ukuran untuk "${namaMotor}" tidak ditemukan.`);
             return {
                 success: false,
                 message: `Maaf, Zoya tidak menemukan ukuran untuk motor "${namaMotor}". Mungkin bisa coba nama model yang lebih spesifik atau umum?`
             };
         }
     } catch (error) {
-        console.error("[findMotorSize Tool] Error saat mencari ukuran motor:", error);
+        console.error("[findMotorSize Tool Function] Error saat mencari ukuran motor:", error);
         return {
             success: false,
             message: "Terjadi kesalahan internal saat mencari ukuran motor. Coba lagi nanti."
@@ -554,7 +555,8 @@ const cariSizeMotorTool = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f
     description: 'Mencari ukuran (S, M, L, XL) untuk model motor tertentu. Gunakan jika user bertanya ukuran motornya, atau jika perlu tahu ukuran motor untuk menentukan harga layanan atau informasi lain.',
     inputSchema: CariSizeMotorInputSchema,
     outputSchema: CariSizeMotorOutputSchema
-}, findMotorSize);
+}, findMotorSize // Pass the actual function here
+);
 }}),
 "[project]/src/types/aiToolSchemas.ts [app-rsc] (ecmascript)": ((__turbopack_context__) => {
 "use strict";
@@ -611,6 +613,7 @@ var { g: global, __dirname } = __turbopack_context__;
 /**
  * @fileOverview Genkit tool for looking up product or service details from Firestore.
  */ __turbopack_context__.s({
+    "findProductServiceByName": (()=>findProductServiceByName),
     "getProductServiceDetailsByNameTool": (()=>getProductServiceDetailsByNameTool)
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/ai/genkit.ts [app-rsc] (ecmascript)");
@@ -630,40 +633,54 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$uuid$2f$dist
 const ProductLookupInputSchema = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].object({
     productName: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].string().describe("Nama produk atau layanan yang ingin dicari detailnya. Harus spesifik.")
 });
-const getProductServiceDetailsByNameTool = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].defineTool({
-    name: 'getProductServiceDetailsByNameTool',
-    description: 'Mencari dan mengembalikan detail spesifik dari sebuah produk atau layanan berdasarkan namanya. Berguna untuk menjawab pertanyaan pelanggan tentang harga, durasi, ketersediaan, atau deskripsi item tertentu.',
-    inputSchema: ProductLookupInputSchema,
-    outputSchema: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].union([
-        __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiToolSchemas$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ProductServiceInfoSchema"],
-        __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].null()
-    ]).describe("Objek berisi detail produk/layanan, atau null jika tidak ditemukan.")
-}, async (input)=>{
+async function findProductServiceByName(input) {
     if (!input.productName || input.productName.trim() === '') {
-        console.log("ProductLookupTool: Nama produk kosong.");
+        console.log("ProductLookupTool Function: Nama produk kosong.");
         return null;
     }
-    console.log(`ProductLookupTool: Mencari produk/layanan dengan nama: "${input.productName}"`);
+    console.log(`ProductLookupTool Function: Mencari produk/layanan dengan nama: "${input.productName}"`);
+    if (!__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"]) {
+        console.error("[ProductLookupTool Function] FATAL: Firestore DB (db) is not initialized. Cannot query.");
+        return null;
+    }
     try {
         const servicesRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'services');
         const q = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["query"])(servicesRef); // Get all services/products
         const querySnapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(q);
         let foundItem = null;
         const searchTermLower = input.productName.toLowerCase().trim();
-        // Priority for exact matches or more specific variant matches
         let bestMatchCandidate = null;
         for (const doc of querySnapshot.docs){
             const item = {
                 id: doc.id,
                 ...doc.data()
-            }; // Assuming ServiceProduct type from services/page
+            };
             // Check base item name
             if (item.name.toLowerCase().includes(searchTermLower)) {
-                if (!bestMatchCandidate || item.name.toLowerCase() === searchTermLower || bestMatchCandidate && !bestMatchCandidate.isVariantMatch && item.name.length > bestMatchCandidate.name.length) {
+                let score = 0;
+                if (item.name.toLowerCase() === searchTermLower) score = 100; // Exact match
+                else if (item.name.toLowerCase().startsWith(searchTermLower)) score = 50; // Starts with
+                else score = 20; // Includes
+                if (!bestMatchCandidate || score > (bestMatchCandidate.matchScore || 0) || score === bestMatchCandidate.matchScore && item.name.length < bestMatchCandidate.name.length) {
                     bestMatchCandidate = {
                         ...item,
+                        // Ensure all required fields for ProductServiceInfo are present
+                        id: item.id,
+                        name: item.name,
+                        type: item.type,
+                        category: item.category,
+                        price: item.price,
+                        // Optional fields:
+                        description: item.description || undefined,
+                        pointsAwarded: item.pointsAwarded || undefined,
+                        estimatedDuration: item.estimatedDuration || undefined,
+                        variants: item.variants?.map((v)=>({
+                                ...v,
+                                id: v.id || (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$uuid$2f$dist$2f$esm$2d$node$2f$v4$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__default__as__v4$3e$__["v4"])()
+                            })) || undefined,
                         originalItem: item,
-                        isVariantMatch: false
+                        isVariantMatch: false,
+                        matchScore: score
                     };
                 }
             }
@@ -672,23 +689,24 @@ const getProductServiceDetailsByNameTool = __TURBOPACK__imported__module__$5b$pr
                 for (const variant of item.variants){
                     const fullVariantName = `${item.name} - ${variant.name}`;
                     if (fullVariantName.toLowerCase().includes(searchTermLower)) {
-                        const variantDetail = {
-                            id: item.id,
-                            name: fullVariantName,
-                            type: item.type,
-                            category: item.category,
-                            price: variant.price,
-                            description: item.description,
-                            pointsAwarded: variant.pointsAwarded ?? item.pointsAwarded,
-                            estimatedDuration: variant.estimatedDuration ?? item.estimatedDuration,
-                            variants: undefined
-                        };
-                        // If this variant match is more specific or an exact match, prioritize it
-                        if (!bestMatchCandidate || fullVariantName.toLowerCase() === searchTermLower || bestMatchCandidate && (bestMatchCandidate.isVariantMatch === false || fullVariantName.length > bestMatchCandidate.name.length)) {
+                        let score = 0;
+                        if (fullVariantName.toLowerCase() === searchTermLower) score = 110; // Higher score for exact variant match
+                        else if (fullVariantName.toLowerCase().startsWith(searchTermLower)) score = 60;
+                        else score = 30;
+                        if (!bestMatchCandidate || score > (bestMatchCandidate.matchScore || 0) || score === bestMatchCandidate.matchScore && fullVariantName.length < bestMatchCandidate.name.length) {
                             bestMatchCandidate = {
-                                ...variantDetail,
+                                id: item.id,
+                                name: fullVariantName,
+                                type: item.type,
+                                category: item.category,
+                                price: variant.price,
+                                description: item.description || undefined,
+                                pointsAwarded: variant.pointsAwarded ?? item.pointsAwarded,
+                                estimatedDuration: variant.estimatedDuration ?? item.estimatedDuration,
+                                variants: undefined,
                                 originalItem: item,
-                                isVariantMatch: true
+                                isVariantMatch: true,
+                                matchScore: score
                             };
                         }
                     }
@@ -696,7 +714,8 @@ const getProductServiceDetailsByNameTool = __TURBOPACK__imported__module__$5b$pr
             }
         }
         if (bestMatchCandidate) {
-            console.log(`ProductLookupTool: Ditemukan kandidat terbaik: ${bestMatchCandidate.name}`);
+            console.log(`ProductLookupTool Function: Ditemukan kandidat terbaik: ${bestMatchCandidate.name} (Score: ${bestMatchCandidate.matchScore})`);
+            // Construct the final item to return, ensuring it matches ProductServiceInfoSchema
             foundItem = {
                 id: bestMatchCandidate.id,
                 name: bestMatchCandidate.name,
@@ -706,8 +725,6 @@ const getProductServiceDetailsByNameTool = __TURBOPACK__imported__module__$5b$pr
                 description: bestMatchCandidate.description || undefined,
                 pointsAwarded: bestMatchCandidate.pointsAwarded || undefined,
                 estimatedDuration: bestMatchCandidate.estimatedDuration || undefined,
-                // If the best match was a base item, include its variants.
-                // If it was a variant match, variants field is undefined.
                 variants: !bestMatchCandidate.isVariantMatch && bestMatchCandidate.originalItem?.variants ? bestMatchCandidate.originalItem.variants.map((v)=>({
                         id: v.id || (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$uuid$2f$dist$2f$esm$2d$node$2f$v4$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__default__as__v4$3e$__["v4"])(),
                         name: v.name,
@@ -720,18 +737,29 @@ const getProductServiceDetailsByNameTool = __TURBOPACK__imported__module__$5b$pr
                 __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiToolSchemas$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ProductServiceInfoSchema"].parse(foundItem);
                 return foundItem;
             } catch (zodError) {
-                console.error("ProductLookupTool: Zod validation error for found item:", zodError.errors);
+                console.error("ProductLookupTool Function: Zod validation error for found item:", JSON.stringify(zodError.format(), null, 2));
+                console.error("ProductLookupTool Function: Data that failed validation:", JSON.stringify(foundItem, null, 2));
                 return null;
             }
         } else {
-            console.log(`ProductLookupTool: Tidak ada produk/layanan yang cocok dengan nama "${input.productName}".`);
+            console.log(`ProductLookupTool Function: Tidak ada produk/layanan yang cocok dengan nama "${input.productName}".`);
             return null;
         }
     } catch (error) {
-        console.error('ProductLookupTool: Error saat mengambil data dari Firestore:', error);
+        console.error('ProductLookupTool Function: Error saat mengambil data dari Firestore:', error);
         return null;
     }
-});
+}
+const getProductServiceDetailsByNameTool = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].defineTool({
+    name: 'getProductServiceDetailsByNameTool',
+    description: 'Mencari dan mengembalikan detail spesifik dari sebuah produk atau layanan berdasarkan namanya. Berguna untuk menjawab pertanyaan pelanggan tentang harga, durasi, ketersediaan, atau deskripsi item tertentu.',
+    inputSchema: ProductLookupInputSchema,
+    outputSchema: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].union([
+        __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiToolSchemas$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ProductServiceInfoSchema"],
+        __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].null()
+    ]).describe("Objek berisi detail produk/layanan, atau null jika tidak ditemukan.")
+}, findProductServiceByName // Pass the actual function here
+);
 }}),
 "[project]/src/ai/tools/cariInfoLayananTool.ts [app-rsc] (ecmascript)": ((__turbopack_context__) => {
 "use strict";
@@ -743,10 +771,12 @@ var { g: global, __dirname } = __turbopack_context__;
  * This tool is intended to be used by sub-flows or specialized flows.
  *
  * - cariInfoLayananTool - The Genkit tool definition.
+ * - findLayananByCategory - The actual function performing the lookup (exported for direct use).
  * - CariInfoLayananInput - Zod type for the tool's input.
  * - CariInfoLayananOutput - Zod type for the tool's output.
  */ __turbopack_context__.s({
-    "cariInfoLayananTool": (()=>cariInfoLayananTool)
+    "cariInfoLayananTool": (()=>cariInfoLayananTool),
+    "findLayananByCategory": (()=>findLayananByCategory)
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/ai/genkit.ts [app-rsc] (ecmascript)"); // Harus dari @/ai/genkit
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$index$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/zod/dist/esm/index.js [app-rsc] (ecmascript) <module evaluation>");
@@ -767,23 +797,23 @@ const CariInfoLayananInputSchema = __TURBOPACK__imported__module__$5b$project$5d
     keyword: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].string().min(1, "Kata kunci kategori pencarian tidak boleh kosong.").describe('Nama KATEGORI layanan yang ingin dicari, mis. "cuci", "coating", "detailing". Akan dicocokkan (case-insensitive) dengan field "category" pada data layanan.')
 });
 const CariInfoLayananOutputSchema = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].array(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiToolSchemas$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ProductServiceInfoSchema"]).describe("Daftar layanan yang cocok dengan KATEGORI yang dicari, bisa kosong.");
-// This function contains the actual server-side logic (DB access)
 async function findLayananByCategory(input) {
     const { keyword } = input;
     const categoryKeywordLower = keyword.toLowerCase().trim();
-    console.log(`[findLayananByCategory Tool] Attempting to find services for CATEGORY: "${categoryKeywordLower}"`);
+    console.log(`[findLayananByCategory Tool Function] Attempting to find services for CATEGORY: "${categoryKeywordLower}"`);
     if (!__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"]) {
-        console.error("[findLayananByCategory Tool] FATAL: Firestore DB (db) is not initialized. Cannot query.");
+        console.error("[findLayananByCategory Tool Function] FATAL: Firestore DB (db) is not initialized. Cannot query.");
         return [];
     }
-    console.log(`[findLayananByCategory Tool] Using Firestore Project ID: ${__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"].app.options.projectId || 'PROJECT ID NOT AVAILABLE ON DB INSTANCE'}`);
+    console.log(`[findLayananByCategory Tool Function] Using Firestore Project ID: ${__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"].app.options.projectId || 'PROJECT ID NOT AVAILABLE ON DB INSTANCE'}`);
     const matchingServices = [];
     try {
         const servicesCollectionRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'services');
-        console.log(`[findLayananByCategory Tool] Querying collection 'services' WHERE "category" == "${categoryKeywordLower}"`);
+        console.log(`[findLayananByCategory Tool Function] Querying collection 'services' WHERE "category" == "${categoryKeywordLower}"`);
+        // Query Firestore. Pastikan field 'category' di Firestore juga lowercase atau lakukan perbandingan case-insensitive jika memungkinkan
         const q = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["query"])(servicesCollectionRef, (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["where"])("category", "==", categoryKeywordLower));
         const querySnapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(q);
-        console.log(`[findLayananByCategory Tool] Query successful. Found ${querySnapshot.size} documents matching category "${categoryKeywordLower}".`);
+        console.log(`[findLayananByCategory Tool Function] Query successful. Found ${querySnapshot.size} documents matching category "${categoryKeywordLower}".`);
         querySnapshot.forEach((docSnap)=>{
             const serviceData = docSnap.data();
             let itemTypeFormatted = undefined;
@@ -811,24 +841,23 @@ async function findLayananByCategory(input) {
                         estimatedDuration: v.estimatedDuration || undefined
                     })) || undefined
             };
-            // Validate with Zod before pushing
             const validationResult = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiToolSchemas$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ProductServiceInfoSchema"].safeParse(serviceItem);
             if (validationResult.success) {
                 matchingServices.push(validationResult.data);
             } else {
-                console.warn(`[findLayananByCategory Tool] Data layanan ${docSnap.id} (Nama: ${serviceData.name || 'N/A'}) tidak valid:`, JSON.stringify(validationResult.error.format(), null, 2));
-                console.warn(`[findLayananByCategory Tool] Data yang gagal validasi:`, JSON.stringify(serviceItem, null, 2));
+                console.warn(`[findLayananByCategory Tool Function] Data layanan ${docSnap.id} (Nama: ${serviceData.name || 'N/A'}) tidak valid:`, JSON.stringify(validationResult.error.format(), null, 2));
+                console.warn(`[findLayananByCategory Tool Function] Data yang gagal validasi:`, JSON.stringify(serviceItem, null, 2));
             }
         });
-        console.log(`[findLayananByCategory Tool] Successfully validated and pushed ${matchingServices.length} services for CATEGORY "${categoryKeywordLower}".`);
+        console.log(`[findLayananByCategory Tool Function] Successfully validated and pushed ${matchingServices.length} services for CATEGORY "${categoryKeywordLower}".`);
         if (matchingServices.length === 0 && querySnapshot.size > 0) {
-            console.warn(`[findLayananByCategory Tool] WARNING: Found ${querySnapshot.size} documents for category "${categoryKeywordLower}", but ALL FAILED Zod validation.`);
+            console.warn(`[findLayananByCategory Tool Function] WARNING: Found ${querySnapshot.size} documents for category "${categoryKeywordLower}", but ALL FAILED Zod validation.`);
         } else if (matchingServices.length === 0 && querySnapshot.size === 0) {
-            console.log(`[findLayananByCategory Tool] INFO: No documents found for category "${categoryKeywordLower}" in Firestore, or the field 'category' does not exactly match "${categoryKeywordLower}".`);
+            console.log(`[findLayananByCategory Tool Function] INFO: No documents found for category "${categoryKeywordLower}" in Firestore, or the field 'category' does not exactly match "${categoryKeywordLower}".`);
         }
         return matchingServices;
     } catch (error) {
-        console.error("[findLayananByCategory Tool] Error saat mencari layanan berdasarkan KATEGORI:", error);
+        console.error("[findLayananByCategory Tool Function] Error saat mencari layanan berdasarkan KATEGORI:", error);
         return []; // Return empty array on error
     }
 }
@@ -837,7 +866,8 @@ const cariInfoLayananTool = __TURBOPACK__imported__module__$5b$project$5d2f$src$
     description: 'Mencari daftar layanan atau produk yang tersedia berdasarkan NAMA KATEGORI layanan yang spesifik. Input adalah nama kategori (mis. "Cuci Motor", "Coating"), output adalah daftar layanan dalam kategori tersebut.',
     inputSchema: CariInfoLayananInputSchema,
     outputSchema: CariInfoLayananOutputSchema
-}, findLayananByCategory);
+}, findLayananByCategory // Pass the actual function here
+);
 }}),
 "[project]/src/ai/flows/handle-service-inquiry-flow.ts [app-rsc] (ecmascript)": ((__turbopack_context__) => {
 "use strict";
@@ -857,8 +887,9 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$index$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/zod/dist/esm/index.js [app-rsc] (ecmascript) <module evaluation>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__ = __turbopack_context__.i("[project]/node_modules/zod/dist/esm/v3/external.js [app-rsc] (ecmascript) <export * as z>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/types/aiSettings.ts [app-rsc] (ecmascript)");
-// Import tool yang akan digunakan oleh sub-flow ini
+// Import FUNGSI implementasi tool, bukan objek tool Genkit-nya jika mau dipanggil langsung
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$cariInfoLayananTool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/ai/tools/cariInfoLayananTool.ts [app-rsc] (ecmascript)");
+// Import tool cariSizeMotorTool jika masih diperlukan untuk dipanggil via ai.generate, atau fungsi implementasinya jika mau direct call
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$cari$2d$size$2d$motor$2d$tool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/ai/tools/cari-size-motor-tool.ts [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$action$2d$validate$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/build/webpack/loaders/next-flight-loader/action-validate.js [app-rsc] (ecmascript)");
 ;
@@ -887,115 +918,105 @@ const serviceInquirySpecialistFlow = __TURBOPACK__imported__module__$5b$project$
     outputSchema: HandleServiceInquiryOutputSchema
 }, async (input)=>{
     console.log("[SUB-FLOW handleServiceInquiry] Input:", JSON.stringify(input, null, 2));
-    let responseText = "Maaf, ada sedikit kendala saat memproses permintaan layanan Anda."; // Default error
-    // --- Tahap 1: Panggil cariInfoLayananTool ---
-    const firstCallSystemPrompt = `Anda adalah asisten yang bertugas mengambil informasi daftar layanan berdasarkan kategori. Panggil tool 'cariInfoLayananTool' dengan keyword kategori yang diberikan. Keyword kategori: "${input.serviceKeyword}".`;
-    const firstCallResult = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].generate({
-        model: 'googleai/gemini-1.5-flash-latest',
-        prompt: firstCallSystemPrompt,
-        messages: [
-            {
-                role: 'user',
-                content: [
-                    {
-                        text: `Tolong dapatkan daftar layanan untuk kategori: "${input.serviceKeyword}"`
+    let responseText = "Maaf, ada sedikit kendala saat memproses permintaan layanan Anda.";
+    // LANGSUNG PANGGIL FUNGSI IMPLEMENTASI TOOL
+    const toolInputForLayanan = {
+        keyword: input.serviceKeyword
+    };
+    // Panggil fungsi `findLayananByCategory` yang diekspor dari file tool
+    const toolOutputLayanan = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$cariInfoLayananTool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["findLayananByCategory"])(toolInputForLayanan);
+    console.log(`[SUB-FLOW handleServiceInquiry] Output LANGSUNG dari fungsi 'findLayananByCategory':`, JSON.stringify(toolOutputLayanan, null, 2));
+    // --- Sekarang, proses hasil tool dengan prompt utama sub-flow ---
+    const systemPromptForProcessing = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_SERVICE_INQUIRY_SUB_FLOW_PROMPT"].replace("{{{serviceKeyword}}}", input.serviceKeyword).replace("{{{customerQuery}}}", input.customerQuery).replace("{{{knownMotorcycleName}}}", input.knownMotorcycleInfo?.name || "belum diketahui").replace("{{{knownMotorcycleSize}}}", input.knownMotorcycleInfo?.size || "belum diketahui");
+    console.log("[SUB-FLOW handleServiceInquiry] Menggunakan system prompt untuk pemrosesan:", systemPromptForProcessing.substring(0, 250) + "...");
+    // Membuat histori "seolah-olah" AI meminta tool dan tool memberikan jawaban
+    const messagesForProcessing = [
+        {
+            role: 'user',
+            content: [
+                {
+                    text: `Tolong info dong soal layanan ${input.serviceKeyword}. ${input.customerQuery}`
+                }
+            ]
+        },
+        // Simulasi AI meminta tool (meskipun kita panggil langsung)
+        {
+            role: 'model',
+            content: [
+                {
+                    toolRequest: {
+                        name: 'cariInfoLayananTool',
+                        input: toolInputForLayanan
                     }
-                ]
-            }
-        ],
+                }
+            ]
+        },
+        // Hasil dari tool yang kita panggil langsung
+        {
+            role: 'tool',
+            content: [
+                {
+                    toolResponse: {
+                        name: 'cariInfoLayananTool',
+                        output: toolOutputLayanan
+                    }
+                }
+            ]
+        }
+    ];
+    const modelResponseAfterTool = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].generate({
+        model: 'googleai/gemini-1.5-flash-latest',
+        prompt: systemPromptForProcessing,
+        messages: messagesForProcessing,
         tools: [
-            __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$cariInfoLayananTool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["cariInfoLayananTool"]
+            __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$cari$2d$size$2d$motor$2d$tool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["cariSizeMotorTool"]
         ],
         toolChoice: 'auto',
         config: {
-            temperature: 0.1
+            temperature: 0.3
         }
     });
-    console.log("[SUB-FLOW handleServiceInquiry] Hasil panggilan AI pertama (untuk tool):", JSON.stringify(firstCallResult, null, 2));
-    if (firstCallResult.toolRequest && firstCallResult.toolRequest.name === 'cariInfoLayananTool') {
-        const toolRequest = firstCallResult.toolRequest;
-        const toolOutputContent = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$cariInfoLayananTool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["cariInfoLayananTool"].fn(toolRequest.input);
-        console.log(`[SUB-FLOW handleServiceInquiry] Output tool 'cariInfoLayananTool':`, JSON.stringify(toolOutputContent, null, 2));
-        // --- Tahap 2: Proses hasil tool dengan prompt utama sub-flow ---
-        const systemPromptForProcessing = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_SERVICE_INQUIRY_SUB_FLOW_PROMPT"].replace("{{{serviceKeyword}}}", input.serviceKeyword).replace("{{{customerQuery}}}", input.customerQuery) // customerQuery masih ada di prompt untuk konteks
-        .replace("{{{knownMotorcycleName}}}", input.knownMotorcycleInfo?.name || "belum diketahui").replace("{{{knownMotorcycleSize}}}", input.knownMotorcycleInfo?.size || "belum diketahui");
-        console.log("[SUB-FLOW handleServiceInquiry] Menggunakan system prompt untuk pemrosesan:", systemPromptForProcessing.substring(0, 250) + "...");
-        const messagesForProcessing = [
-            // Pesan user awal yang memicu sub-flow (untuk konteks AI)
-            {
-                role: 'user',
-                content: [
-                    {
-                        text: `Tolong info dong soal layanan ${input.serviceKeyword}. ${input.customerQuery}`
-                    }
-                ]
-            },
-            // Pesan dari AI yang meminta tool (dari firstCallResult)
-            firstCallResult.message,
-            // Pesan hasil dari tool
+    console.log("[SUB-FLOW handleServiceInquiry] Hasil panggilan AI (setelah tool dipanggil langsung):", JSON.stringify(modelResponseAfterTool, null, 2));
+    responseText = modelResponseAfterTool.text || "Zoya dapet infonya, tapi bingung mau ngomong apa setelah pakai alat.";
+    // Logika jika AI di tahap ini meminta tool cariSizeMotor
+    if (modelResponseAfterTool.toolRequest && modelResponseAfterTool.toolRequest.name === 'cariSizeMotor') {
+        const sizeToolRequest = modelResponseAfterTool.toolRequest;
+        // Jika cariSizeMotorTool juga dipanggil langsung, gunakan:
+        // const sizeToolOutput = await findMotorSizeFunction(sizeToolRequest.input as CariSizeMotorInput);
+        // Tapi karena kita menyediakannya sebagai tool ke ai.generate, kita bisa biarkan LLM memanggilnya
+        // Untuk konsistensi, jika ingin memanggil direct, perlu impor fungsi implementasinya
+        // Di sini kita asumsikan LLM akan memanggilnya jika perlu, dan kita akan menangani toolRequest-nya
+        // Namun, karena findMotorSize sudah ada sebagai fungsi async di tool cari-size-motor-tool, kita bisa panggil langsung juga
+        // Untuk contoh ini, kita tetap biarkan LLM yang meminta tool 'cariSizeMotor' jika perlu
+        // ATAU, jika kita ingin memaksa atau mempermudah, bisa juga dipanggil langsung seperti findLayananByCategory.
+        // Mari kita coba tetap dengan LLM yang meminta sizeTool untuk saat ini.
+        // Jika masih bermasalah, langkah selanjutnya adalah memanggil fungsi findMotorSize secara langsung.
+        const sizeToolOutput = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$cari$2d$size$2d$motor$2d$tool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["cariSizeMotorTool"].fn(sizeToolRequest.input); // Ini asumsi .fn ada, jika tidak ada, perlu penyesuaian
+        console.log(`[SUB-FLOW handleServiceInquiry] Output tool 'cariSizeMotor':`, JSON.stringify(sizeToolOutput, null, 2));
+        const messagesAfterSizeTool = [
+            ...messagesForProcessing,
+            modelResponseAfterTool.message,
             {
                 role: 'tool',
                 content: [
                     {
                         toolResponse: {
-                            name: toolRequest.name,
-                            output: toolOutputContent
+                            name: sizeToolRequest.name,
+                            output: sizeToolOutput
                         }
                     }
                 ]
             }
         ];
-        const modelResponseAfterTool = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].generate({
+        const finalResponseFromAI = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].generate({
             model: 'googleai/gemini-1.5-flash-latest',
             prompt: systemPromptForProcessing,
-            messages: messagesForProcessing,
-            tools: [
-                __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$cari$2d$size$2d$motor$2d$tool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["cariSizeMotorTool"]
-            ],
-            toolChoice: 'auto',
+            messages: messagesAfterSizeTool,
             config: {
                 temperature: 0.3
             }
         });
-        console.log("[SUB-FLOW handleServiceInquiry] Hasil panggilan AI kedua (setelah tool):", JSON.stringify(modelResponseAfterTool, null, 2));
-        responseText = modelResponseAfterTool.text || "Zoya dapet infonya, tapi bingung mau ngomong apa setelah pakai alat.";
-        // Logika jika AI di tahap kedua ini meminta tool cariSizeMotor
-        if (modelResponseAfterTool.toolRequest && modelResponseAfterTool.toolRequest.name === 'cariSizeMotor') {
-            const sizeToolRequest = modelResponseAfterTool.toolRequest;
-            const sizeToolOutput = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$cari$2d$size$2d$motor$2d$tool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["cariSizeMotorTool"].fn(sizeToolRequest.input);
-            console.log(`[SUB-FLOW handleServiceInquiry] Output tool 'cariSizeMotor':`, JSON.stringify(sizeToolOutput, null, 2));
-            const messagesAfterSizeTool = [
-                ...messagesForProcessing,
-                modelResponseAfterTool.message,
-                {
-                    role: 'tool',
-                    content: [
-                        {
-                            toolResponse: {
-                                name: sizeToolRequest.name,
-                                output: sizeToolOutput
-                            }
-                        }
-                    ]
-                }
-            ];
-            const finalResponseFromAI = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].generate({
-                model: 'googleai/gemini-1.5-flash-latest',
-                prompt: systemPromptForProcessing,
-                messages: messagesAfterSizeTool,
-                config: {
-                    temperature: 0.3
-                }
-            });
-            responseText = finalResponseFromAI.text || "Zoya udah cek ukuran motornya, tapi bingung mau lanjutin gimana.";
-        }
-    } else if (firstCallResult.text) {
-        // AI tidak meminta tool di panggilan pertama, tapi malah ngasih teks. Ini di luar dugaan.
-        console.warn("[SUB-FLOW handleServiceInquiry] AI tidak meminta 'cariInfoLayananTool' di panggilan pertama, malah merespon:", firstCallResult.text);
-        responseText = `Saya coba cari info soal "${input.serviceKeyword}", tapi sepertinya ada sedikit kendala. ${firstCallResult.text}`;
-    } else {
-        console.error("[SUB-FLOW handleServiceInquiry] Panggilan pertama AI gagal meminta tool 'cariInfoLayananTool' dan tidak menghasilkan teks.");
-    // responseText sudah diinisialisasi dengan pesan error default.
+        responseText = finalResponseFromAI.text || "Zoya udah cek ukuran motornya, tapi bingung mau lanjutin gimana.";
     }
     console.log("[SUB-FLOW handleServiceInquiry] Final responseText:", responseText);
     return {
