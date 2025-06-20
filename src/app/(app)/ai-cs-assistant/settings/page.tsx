@@ -26,10 +26,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   AiSettingsFormSchema,
   type AiSettingsFormValues,
-  DEFAULT_AI_SETTINGS,
+  // DEFAULT_AI_SETTINGS, // Diambil dari types/aiSettings
   AI_AGENT_BEHAVIORS,
   AI_TRANSFER_CONDITIONS,
 } from '@/types/aiSettings';
+import { DEFAULT_AI_SETTINGS } from '@/types/aiSettings'; // IMPORT BARU
 import {
   KnowledgeBaseEntryFormSchema,
   type KnowledgeBaseFormData,
@@ -69,7 +70,7 @@ export default function AiCsAssistantSettingsPage() {
   const [isSavingAiSettings, setIsSavingAiSettings] = useState(false);
   const aiSettingsForm = useForm<AiSettingsFormValues>({
     resolver: zodResolver(AiSettingsFormSchema),
-    defaultValues: DEFAULT_AI_SETTINGS,
+    defaultValues: DEFAULT_AI_SETTINGS, // Menggunakan DEFAULT_AI_SETTINGS yang diimpor
   });
   const watchedEnableFollowUp = aiSettingsForm.watch('enableFollowUp');
   const watchedEnableHumanHandoff = aiSettingsForm.watch('enableHumanHandoff');
@@ -651,3 +652,4 @@ export default function AiCsAssistantSettingsPage() {
     </div>
   );
 }
+
