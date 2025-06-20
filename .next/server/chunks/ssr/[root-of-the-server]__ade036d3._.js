@@ -294,7 +294,8 @@ __turbopack_context__.s({
     "AI_AGENT_BEHAVIORS": (()=>AI_AGENT_BEHAVIORS),
     "AI_TRANSFER_CONDITIONS": (()=>AI_TRANSFER_CONDITIONS),
     "AiSettingsFormSchema": (()=>AiSettingsFormSchema),
-    "DEFAULT_AI_SETTINGS": (()=>DEFAULT_AI_SETTINGS)
+    "DEFAULT_AI_SETTINGS": (()=>DEFAULT_AI_SETTINGS),
+    "DEFAULT_MAIN_PROMPT_ZOYA": (()=>DEFAULT_MAIN_PROMPT_ZOYA)
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$index$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/zod/dist/esm/index.js [app-rsc] (ecmascript) <module evaluation>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__ = __turbopack_context__.i("[project]/node_modules/zod/dist/esm/v3/external.js [app-rsc] (ecmascript) <export * as z>");
@@ -371,44 +372,35 @@ const AiSettingsFormSchema = __TURBOPACK__imported__module__$5b$project$5d2f$nod
         });
     }
 });
-// Default Main Prompt - dipindahkan ke sini agar bisa di-share
 const DEFAULT_MAIN_PROMPT_ZOYA = `
-Anda adalah Zoya, Customer Service AI dari QLAB Moto Detailing.
+Anda adalah "Zoya" - Customer Service AI dari QLAB Moto Detailing.
 
 🎯 Gaya Bahasa:
 - Santai dan akrab, kayak ngobrol sama temen tongkrongan.
 - Gunakan sapaan seperti "bro", "kak", atau "mas".
 - Tetap informatif, jelas, dan cepat nangkep maksud pelanggan.
+- Gunakan istilah otomotif santai: "kinclong", "ganteng maksimal", "spa motor".
+- Gunakan emoji secukupnya untuk menambah ekspresi: ✅😎✨💸🛠️👋.
+- Hindari kata kasar, tapi boleh pakai "anjay" atau "wih" untuk ekspresi kaget positif.
+- Selalu jawab dalam Bahasa Indonesia.
 
-🛠 Tool yang Bisa Kamu Pakai:
-1. 'getServicePrice': Untuk mendapatkan harga layanan.
-   Input: {"vehicleModel": "NMAX", "serviceName": "Coating"}
-   Output: {"success": true, "message": "Harga coating NMAX adalah Rp 500.000", "price": 500000, "size": "M"}
+🧠 Logika Utama & Pengetahuan Umum (BEKAL ANDA, BUKAN UNTUK DITUNJUKKAN KE USER):
+- Layanan "Full Detailing" HANYA TERSEDIA untuk motor dengan cat GLOSSY. Jika user bertanya untuk motor DOFF, tolak dengan sopan dan tawarkan layanan lain (misal: "Premium Wash" atau "Coating Doff").
+- Harga "Coating" untuk motor DOFF dan GLOSSY itu BERBEDA. Jika user bertanya soal coating, tanyakan dulu jenis cat motornya (doff/glossy) dan tipe motornya untuk estimasi.
+- Motor besar (Moge) seperti Harley, atau motor 600cc ke atas biasanya masuk ukuran "XL" yang harganya berbeda.
+- Jika user bertanya harga spesifik layanan untuk model motor tertentu, dan Anda tidak memiliki informasi pasti, jangan menebak. Minta user untuk memberikan detail motornya (model, tahun, jenis cat jika relevan) atau sarankan untuk datang langsung/cek pricelist di bengkel.
+- Anda bisa memberikan informasi umum tentang layanan (mis. "Cuci Premium itu bikin motor bersih kinclong sampai ke sela-sela bro!"), tapi untuk harga dan durasi, lebih baik hati-hati jika tidak ada data pasti.
+- QLAB Moto Detailing berlokasi di [Masukkan Alamat Bengkel Di Sini Jika Perlu]. Jam buka: [Masukkan Jam Buka Di Sini].
+- {{{dynamicContext}}} <!-- Ini akan diisi info tambahan jika ada -->
 
-🧠 Logika Utama:
-1.  Pahami pesan pelanggan. Jika menanyakan harga, panggil tool 'getServicePrice'.
-2.  Berikan jawaban berdasarkan output tool atau pengetahuan umum jika tool tidak dipanggil.
-3.  Selalu tawarkan bantuan lebih lanjut atau ajak booking.
+FLOW INTERAKSI:
+- Sapa user dengan ramah.
+- Jawab pertanyaan user sebaik mungkin berdasarkan pengetahuan umum di atas.
+- Jika user bertanya soal harga, dan Anda tidak punya info pasti, tanyakan detail motor atau sarankan kontak CS/datang langsung.
+- Setelah memberikan informasi, selalu tawarkan langkah selanjutnya (misal: "Gimana, ada lagi yang bisa Zoya bantu?", "Mau coba layanan kita bro?").
+- Jika user bertanya di luar topik detailing motor QLAB, jawab dengan sopan bahwa Anda hanya bisa membantu soal QLAB Moto Detailing.
 
-📌 Catatan:
-- Untuk "Full Detailing", hanya untuk cat GLOSSY. Jika motor DOFF, tawarkan "Coating Doff".
-- Harga "Coating" untuk DOFF dan GLOSSY BEDA. Pastikan info ini ada saat memanggil tool jika relevan.
-- Motor besar (Moge, 600cc+) otomatis "XL".
-
-📩 Chat Pelanggan:
-user: {{{customerMessage}}}
-
-📚 Riwayat Sebelumnya (jika ada):
-{{#if messages.length}}
-{{#each messages}}
-{{this.role}}: {{this.content}}
-{{/each}}
-{{/if}}
-
-🕒 Info Tambahan (jika ada dari input flow):
-{{#if senderNumber}}No. HP Pengirim: {{{senderNumber}}}{{/if}}
-{{#if currentDate}}Tanggal Hari Ini: {{{currentDate}}} | Waktu: {{{currentTime}}}{{/if}}
-{{#if tomorrowDate}}Besok: {{{tomorrowDate}}} | Lusa: {{{dayAfterTomorrowDate}}}{{/if}}
+JAWABAN ZOYA (format natural, TANPA menyebutkan "Pengetahuan Umum" atau "Logika Utama" Anda):
 `;
 const DEFAULT_AI_SETTINGS = {
     agentBehavior: "Humoris & Santai",
@@ -416,7 +408,7 @@ const DEFAULT_AI_SETTINGS = {
     transferConditions: [
         "Pelanggan Meminta Secara Eksplisit"
     ],
-    knowledgeBaseDescription: `Anda adalah asisten AI untuk QLAB Moto Detailing. Tugas utama Anda adalah membantu pelanggan dan staf. Gunakan tools yang tersedia untuk mencari informasi produk, layanan, klien, atau detail dari knowledge base. Prioritaskan penggunaan 'getKnowledgeBaseInfoTool' untuk pertanyaan umum atau detail kebijakan, dan 'searchServiceByKeywordTool' untuk harga/durasi spesifik.`,
+    knowledgeBaseDescription: `Anda adalah asisten AI untuk QLAB Moto Detailing. Tugas utama Anda adalah membantu pelanggan dan staf. Gunakan pengetahuan umum tentang layanan dan produk QLAB.`,
     mainPrompt: DEFAULT_MAIN_PROMPT_ZOYA,
     enableHumanHandoff: false,
     humanAgentWhatsAppNumber: '',
@@ -442,14 +434,14 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$app$2d$render$2f$encryption$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/app-render/encryption.js [app-rsc] (ecmascript)");
 /**
  * @fileOverview Flow AI untuk WhatsApp Customer Service QLAB.
- * Versi ini disederhanakan, fokus pada pemanggilan model dasar dan satu tool.
+ * Versi ini SANGAT disederhanakan, fokus pada pemanggilan model dasar TANPA tools.
  */ var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/ai/genkit.ts [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$index$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/zod/dist/esm/index.js [app-rsc] (ecmascript) <module evaluation>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/zod/dist/esm/v3/types.js [app-rsc] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/firebase.ts [app-rsc] (ecmascript)"); // Client SDK
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$firestore$2f$dist$2f$index$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/firestore/dist/index.mjs [app-rsc] (ecmascript) <module evaluation>"); // Client SDK functions
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/firebase.ts [app-rsc] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$firestore$2f$dist$2f$index$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/firestore/dist/index.mjs [app-rsc] (ecmascript) <module evaluation>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@firebase/firestore/dist/index.node.mjs [app-rsc] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/types/aiSettings.ts [app-rsc] (ecmascript)"); // IMPORT DIPERBARUI
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/types/aiSettings.ts [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$action$2d$validate$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/build/webpack/loaders/next-flight-loader/action-validate.js [app-rsc] (ecmascript)");
 ;
 ;
@@ -466,144 +458,22 @@ const ChatMessageSchemaInternal = (0, __TURBOPACK__imported__module__$5b$project
     ]),
     content: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["string"])()
 });
+// Skema input untuk ZoyaChatFlow - Disederhanakan
 const ZoyaChatInputSchema = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["object"])({
-    messages: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["array"])(ChatMessageSchemaInternal).optional().describe("Riwayat percakapan lengkap, pesan user terakhir ada di input.customerMessage atau di akhir array ini."),
-    customerMessage: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["string"])().optional().describe("Pesan terbaru dari customer jika tidak termasuk dalam messages. Jika messages ada, ini akan diabaikan dan pesan terakhir dari messages yang dipakai."),
+    messages: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["array"])(ChatMessageSchemaInternal).optional().describe("Riwayat percakapan lengkap, jika ada."),
+    customerMessage: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["string"])().min(1, "Pesan pelanggan tidak boleh kosong.").describe("Pesan terbaru dari customer."),
     senderNumber: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["string"])().optional().describe("Nomor WhatsApp pengirim (opsional)."),
-    // Tambahkan field lain yang mungkin dibutuhkan dari DEFAULT_AI_SETTINGS
-    agentBehavior: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["string"])().optional(),
-    knowledgeBase: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["string"])().optional(),
+    mainPromptString: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["string"])().optional().describe("String prompt utama yang mungkin dikirim dari UI atau diambil dari Firestore."),
+    // Field lain yang mungkin masih relevan dari DEFAULT_AI_SETTINGS bisa ditambahkan jika diperlukan
+    // misalnya currentDate, currentTime, dll. untuk konteks.
     currentDate: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["string"])().optional(),
     currentTime: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["string"])().optional(),
     tomorrowDate: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["string"])().optional(),
-    dayAfterTomorrowDate: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["string"])().optional(),
-    mainPromptString: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["string"])().optional()
+    dayAfterTomorrowDate: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["string"])().optional()
 });
+// Skema output tetap sama, hanya teks balasan
 const ZoyaChatOutputSchema = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["string"])().describe("Balasan teks dari Zoya.");
-const getServicePriceTool = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].defineTool({
-    name: 'getServicePrice',
-    description: 'Dapatkan harga untuk layanan spesifik pada model motor tertentu. Gunakan tool ini jika user menanyakan harga.',
-    inputSchema: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["object"])({
-        vehicleModel: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["string"])().describe('Model motor, contoh: NMAX, PCX, Vario'),
-        serviceName: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["string"])().describe('Nama layanan, contoh: Coating, Cuci Premium, Full Detailing')
-    }),
-    outputSchema: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["object"])({
-        success: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["boolean"])(),
-        message: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["string"])(),
-        price: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["number"])().optional(),
-        size: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["string"])().optional(),
-        estimatedDuration: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["string"])().optional()
-    })
-}, async ({ vehicleModel, serviceName })=>{
-    if (!__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"]) {
-        console.error("[getServicePriceTool] Firestore Client DB (db) is not initialized!");
-        return {
-            success: false,
-            message: "Database bengkel sedang tidak bisa diakses, Zoya jadi bingung nih."
-        };
-    }
-    console.log(`[getServicePriceTool] Input: vehicleModel=${vehicleModel}, serviceName=${serviceName}`);
-    try {
-        const vehiclesCollectionRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'vehicleTypes');
-        let vehicleQuery = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["query"])(vehiclesCollectionRef, (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["where"])('aliases', 'array-contains', vehicleModel.toLowerCase()), limit(1));
-        let vehicleQuerySnapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(vehicleQuery);
-        if (vehicleQuerySnapshot.empty) {
-            console.log(`[getServicePriceTool] No alias match for '${vehicleModel.toLowerCase()}'. Trying 'model_lowercase'...`);
-            const modelLowerQuery = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["query"])(vehiclesCollectionRef, (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["where"])('model_lowercase', '==', vehicleModel.toLowerCase()), limit(1));
-            vehicleQuerySnapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(modelLowerQuery);
-        }
-        if (vehicleQuerySnapshot.empty) {
-            console.log(`[getServicePriceTool] Vehicle model '${vehicleModel}' not found.`);
-            return {
-                success: false,
-                message: `Maaf, Zoya belum kenal model motor "${vehicleModel}". Mungkin bisa sebutkan yang lebih umum atau pastikan ejaannya benar?`
-            };
-        }
-        const vehicleData = vehicleQuerySnapshot.docs[0].data();
-        const vehicleSize = vehicleData.size;
-        if (!vehicleSize) {
-            console.log(`[getServicePriceTool] Vehicle size not found for model '${vehicleModel}'.`);
-            return {
-                success: false,
-                message: `Ukuran untuk model motor "${vehicleModel}" tidak ditemukan. Zoya bingung nih.`
-            };
-        }
-        const firestoreSizeVariant = vehicleSize;
-        const servicesCollectionRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'services');
-        const serviceNameLower = serviceName.toLowerCase();
-        const serviceQuery = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["query"])(servicesCollectionRef, (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["where"])('name_lowercase', '>=', serviceNameLower), (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["where"])('name_lowercase', '<=', serviceNameLower + '\uf8ff'));
-        const serviceQuerySnapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(serviceQuery);
-        if (serviceQuerySnapshot.empty) {
-            console.log(`[getServicePriceTool] Service name '${serviceName}' not found (initial query).`);
-            return {
-                success: false,
-                message: `Layanan "${serviceName}" sepertinya tidak tersedia.`
-            };
-        }
-        let foundServiceData = null;
-        let bestMatchScore = -1;
-        serviceQuerySnapshot.forEach((doc)=>{
-            const service = doc.data();
-            const currentServiceNameLower = service.name_lowercase || service.name.toLowerCase();
-            let score = 0;
-            if (currentServiceNameLower === serviceNameLower) {
-                score = 100;
-            } else if (currentServiceNameLower.startsWith(serviceNameLower)) {
-                score = 50;
-            } else if (serviceNameLower.includes(currentServiceNameLower)) {
-                score = 25;
-            } else {
-                score = 10;
-            }
-            if (score > bestMatchScore) {
-                bestMatchScore = score;
-                foundServiceData = service;
-            }
-        });
-        if (!foundServiceData) {
-            console.log(`[getServicePriceTool] No suitable service found for '${serviceName}' after filtering.`);
-            return {
-                success: false,
-                message: `Layanan "${serviceName}" tidak ditemukan.`
-            };
-        }
-        let price = undefined;
-        let estimatedDuration = foundServiceData.estimatedDuration;
-        if (foundServiceData.variants && Array.isArray(foundServiceData.variants)) {
-            const variant = foundServiceData.variants.find((v)=>v.name && v.name.toUpperCase() === firestoreSizeVariant.toUpperCase());
-            if (variant && typeof variant.price === 'number') {
-                price = variant.price;
-                estimatedDuration = variant.estimatedDuration || estimatedDuration;
-            }
-        }
-        if (price === undefined && typeof foundServiceData.price === 'number') {
-            price = foundServiceData.price;
-        }
-        if (price === undefined) {
-            console.log(`[getServicePriceTool] Price not found for service '${foundServiceData.name}' with size '${vehicleSize}'.`);
-            return {
-                success: false,
-                message: `Harga untuk layanan "${foundServiceData.name}" pada motor ukuran ${vehicleSize} (${vehicleModel}) belum tersedia.`,
-                size: vehicleSize,
-                estimatedDuration: estimatedDuration
-            };
-        }
-        console.log(`[getServicePriceTool] Success: Found price Rp ${price} for ${serviceName} on ${vehicleModel} (size ${vehicleSize}). Duration: ${estimatedDuration || 'N/A'}`);
-        return {
-            success: true,
-            price: price,
-            size: vehicleSize,
-            message: `Harga untuk layanan ${foundServiceData.name} pada motor ${vehicleModel} (Size ${vehicleSize}) adalah Rp ${price.toLocaleString('id-ID')}. Estimasi durasi: ${estimatedDuration || 'N/A'}.`,
-            estimatedDuration: estimatedDuration || undefined
-        };
-    } catch (error) {
-        console.error("[getServicePriceTool] Error executing tool:", error.message, error.stack);
-        return {
-            success: false,
-            message: `Waduh, Zoya lagi pusing nih, ada error pas ngecek harga: ${error.message}`
-        };
-    }
-});
+// Flow utama Zoya - Sekarang tanpa tools
 const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].defineFlow({
     name: 'zoyaChatFlow',
     inputSchema: ZoyaChatInputSchema,
@@ -612,15 +482,22 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
     const lastUserMessageContent = input.customerMessage || (input.messages && input.messages.length > 0 ? input.messages[input.messages.length - 1].content : '');
     if (!lastUserMessageContent || lastUserMessageContent.trim() === '') {
         console.warn("[CS-FLOW] No valid last user message content. Returning empty reply.");
-        return "";
+        return "Maaf, Zoya tidak menerima pesan yang jelas.";
     }
+    // Konteks dinamis bisa tetap dibangun jika diperlukan untuk informasi umum
     let dynamicContext = `INFO_UMUM_BENGKEL: QLAB Moto Detailing adalah bengkel perawatan dan detailing motor.`;
     if (!__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"]) {
-        console.warn("[CS-FLOW] Firestore DB (db) is not initialized. Entity detection and pricing will be skipped in context pre-building.");
-        dynamicContext += " WARNING: Database tidak terhubung, info harga mungkin tidak akurat jika tool tidak dipanggil.";
+        console.warn("[CS-FLOW] Firestore DB (db) is not initialized. Some context might be missing.");
+        dynamicContext += " WARNING: Database tidak terhubung, info harga detail mungkin tidak akurat.";
     }
+    // Anda bisa menambahkan lebih banyak info ke dynamicContext di sini jika perlu, misal jam buka, dll.
+    // yang tidak memerlukan tool.
     console.log(`[CS-FLOW] Dynamic context built: ${dynamicContext}`);
-    const historyForAI = (input.messages || []).filter((msg)=>msg.content && msg.content.trim() !== '').slice(0, -1).map((msg)=>({
+    // Siapkan history untuk AI
+    const historyForAI = (input.messages || []).filter((msg)=>msg.content && msg.content.trim() !== '')// Jika pesan terakhir ada di input.messages dan sama dengan input.customerMessage,
+    // kita mungkin ingin menghapusnya dari history agar tidak duplikat.
+    // Tapi untuk sekarang, kita biarkan dulu, atau bisa juga slice input.messages jika input.customerMessage selalu yang terbaru.
+    .map((msg)=>({
             role: msg.role,
             content: [
                 {
@@ -628,83 +505,65 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
                 }
             ]
         }));
-    const systemInstructionText = (input.mainPromptString || __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"].mainPrompt).replace("{{dynamicContext}}", dynamicContext);
-    const userPromptWithSystemInstruction = `${systemInstructionText}
-
----
-
-USER_INPUT: "${lastUserMessageContent}"
-
-JAWABAN ZOYA:`;
+    // Gabungkan system instruction dengan prompt dari user
+    // Pastikan mainPromptString diisi dari input atau default
+    const systemInstructionText = (input.mainPromptString || __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"].mainPrompt).replace("{{{customerMessage}}}", lastUserMessageContent) // Pastikan placeholder ini ada di prompt
+    .replace("{{{dynamicContext}}}", dynamicContext).replace("{{#if messages.length}}", input.messages && input.messages.length > 0 ? "" : "{{#if messages.length}}") // Handlebars simple removal if no history
+    .replace("{{#each messages}}", "").replace("{{this.role}}: {{this.content}}", "").replace("{{/each}}", "").replace("{{/if}}", input.messages && input.messages.length > 0 ? "" : "{{/if}}").replace("{{#if senderNumber}}No. HP Pengirim: {{{senderNumber}}}{{/if}}", input.senderNumber ? `No. HP Pengirim: ${input.senderNumber}` : "").replace("{{#if currentDate}}Tanggal Hari Ini: {{{currentDate}}} | Waktu: {{{currentTime}}}{{/if}}", input.currentDate ? `Tanggal Hari Ini: ${input.currentDate} | Waktu: ${input.currentTime || ''}` : "").replace("{{#if tomorrowDate}}Besok: {{{tomorrowDate}}} | Lusa: {{{dayAfterTomorrowDate}}}{{/if}}", input.tomorrowDate ? `Besok: ${input.tomorrowDate} | Lusa: ${input.dayAfterTomorrowDate || ''}` : "");
+    // Pesan yang akan dikirim ke model AI
+    // Jika ada history, kirim history + pesan user terakhir yang sudah digabung system instruction
+    // Jika tidak ada history, kirim hanya pesan user yang sudah digabung system instruction
+    // Model Gemini biasanya mengharapkan pesan user terakhir sebagai penutup untuk dijawab
     const messagesForAI = [
         ...historyForAI,
         {
             role: 'user',
             content: [
                 {
-                    text: userPromptWithSystemInstruction
+                    text: systemInstructionText
                 }
             ]
-        }
+        } // System instruction + user message terakhir jadi satu
     ];
-    console.log(`[CS-FLOW] Calling ai.generate with model googleai/gemini-1.5-flash-latest. History Length: ${historyForAI.length}`);
+    // Jika historyForAI KOSONG, dan systemInstructionText SUDAH MENGANDUNG lastUserMessageContent,
+    // maka messagesForAI cukup berisi satu elemen user saja.
+    // Jika historyForAI ADA, maka systemInstructionText sebaiknya tidak lagi mengandung lastUserMessageContent,
+    // dan lastUserMessageContent ditambahkan sebagai pesan user terpisah.
+    // Mari kita sederhanakan: prompt utama akan jadi System Prompt, dan pesan user tetap pesan user.
+    // Ini cara yang lebih standar.
+    const finalSystemPrompt = (input.mainPromptString || __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"].mainPrompt).replace("{{{dynamicContext}}}", dynamicContext)// Hapus placeholder lain karena akan masuk ke messages user
+    .replace("{{{customerMessage}}}", "").replace(/{{#if messages.length}}[\s\S]*?{{\/if}}/g, "") // Hapus blok history handlebars
+    .replace(/{{#if senderNumber}}[\s\S]*?{{\/if}}/g, "").replace(/{{#if currentDate}}[\s\S]*?{{\/if}}/g, "").replace(/{{#if tomorrowDate}}[\s\S]*?{{\/if}}/g, "");
+    const messagesForModel = [
+        ...(input.messages || []).map((m)=>({
+                role: m.role,
+                content: [
+                    {
+                        text: m.content
+                    }
+                ]
+            })),
+        {
+            role: 'user',
+            content: [
+                {
+                    text: lastUserMessageContent
+                }
+            ]
+        } // pesan user terakhir
+    ];
+    console.log(`[CS-FLOW] Calling ai.generate with model googleai/gemini-1.5-flash-latest. History Length: ${(input.messages || []).length}`);
+    console.log(`[CS-FLOW] System Prompt being used (simplified): ${finalSystemPrompt.substring(0, 200)}...`);
     try {
         const result = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].generate({
             model: 'googleai/gemini-1.5-flash-latest',
-            messages: messagesForAI,
-            // tools: [getServicePriceTool as any], // Tools temporarily disabled
-            // toolChoice: 'auto', // Juga dinonaktifkan
+            prompt: finalSystemPrompt,
+            messages: messagesForModel,
             config: {
                 temperature: 0.5
             }
         });
         console.log("[CS-FLOW] Raw AI generate result:", JSON.stringify(result, null, 2));
-        const toolRequest = result.toolRequest();
-        if (toolRequest) {
-            console.log("[CS-FLOW] AI requested a tool call:", JSON.stringify(toolRequest, null, 2));
-            if (toolRequest.tool === 'getServicePrice' && toolRequest.input) {
-                const toolResult = await getServicePriceTool.fn(toolRequest.input);
-                console.log("[CS-FLOW] Tool execution result:", JSON.stringify(toolResult, null, 2));
-                const finalResult = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].generate({
-                    model: 'googleai/gemini-1.5-flash-latest',
-                    messages: [
-                        ...messagesForAI,
-                        {
-                            role: 'model',
-                            content: [
-                                {
-                                    toolRequest
-                                }
-                            ]
-                        },
-                        {
-                            role: 'tool',
-                            content: [
-                                {
-                                    toolResponse: {
-                                        tool: 'getServicePrice',
-                                        output: toolResult
-                                    }
-                                }
-                            ]
-                        }
-                    ],
-                    config: {
-                        temperature: 0.5
-                    }
-                });
-                console.log("[CS-FLOW] Raw AI generate result AFTER TOOL CALL:", JSON.stringify(finalResult, null, 2));
-                const suggestedReplyFromToolFollowUp = finalResult.text() || "";
-                if (!suggestedReplyFromToolFollowUp) {
-                    console.warn(`[CS-FLOW] ⚠️ AI returned empty reply AFTER tool call. FinishReason: ${finalResult.finishReason}.`);
-                    return "Maaf, Zoya lagi bingung nih setelah coba cari info. Coba tanya lagi ya.";
-                }
-                return suggestedReplyFromToolFollowUp;
-            } else {
-                console.warn("[CS-FLOW] Unhandled tool request or missing input:", toolRequest);
-                return "Maaf, Zoya mencoba melakukan sesuatu tapi ada yang salah. Bisa ulangi pertanyaannya?";
-            }
-        }
         const suggestedReply = result.text() || "";
         const finishReason = result.finishReason;
         const safetyRatings = result.safetyRatings;
@@ -732,17 +591,25 @@ JAWABAN ZOYA:`;
 async function generateWhatsAppReply(input) {
     console.log("[CS-FLOW] generateWhatsAppReply input:", JSON.stringify(input, null, 2));
     let mainPromptToUse = input.mainPromptString;
+    // Logic untuk mengambil mainPrompt dari Firestore jika tidak ada di input
+    // Untuk sekarang, kita sederhanakan dan selalu pakai default jika tidak ada di input.
     if (!mainPromptToUse) {
         try {
-            const settingsDocRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["doc"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'appSettings', 'aiAgentConfig');
-            const docSnap = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDoc"])(settingsDocRef);
-            if (docSnap.exists() && docSnap.data()?.mainPrompt) {
-                mainPromptToUse = docSnap.data().mainPrompt;
-                console.log("[CS-FLOW] generateWhatsAppReply: Using mainPromptString from Firestore.");
+            // Coba ambil dari Firestore (jika db ada dan mau diimplementasikan)
+            if (__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"]) {
+                const settingsDocRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["doc"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'appSettings', 'aiAgentConfig');
+                const docSnap = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDoc"])(settingsDocRef);
+                if (docSnap.exists() && docSnap.data()?.mainPrompt) {
+                    mainPromptToUse = docSnap.data().mainPrompt;
+                    console.log("[CS-FLOW] generateWhatsAppReply: Using mainPromptString from Firestore.");
+                } else {
+                    console.log("[CS-FLOW] generateWhatsAppReply: mainPrompt not found in Firestore or is empty. Checking default.");
+                    mainPromptToUse = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"].mainPrompt;
+                    console.log("[CS-FLOW] generateWhatsAppReply: Using DEFAULT_AI_SETTINGS.mainPrompt.");
+                }
             } else {
-                console.log("[CS-FLOW] generateWhatsAppReply: mainPrompt not found in Firestore or is empty. Checking default.");
+                console.log("[CS-FLOW] generateWhatsAppReply: Firestore (db) not available. Using DEFAULT_AI_SETTINGS.mainPrompt.");
                 mainPromptToUse = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"].mainPrompt;
-                console.log("[CS-FLOW] generateWhatsAppReply: Using DEFAULT_AI_SETTINGS.mainPrompt.");
             }
         } catch (error) {
             console.error("[CS-FLOW] generateWhatsAppReply: Error fetching mainPrompt from Firestore. Using default.", error);
@@ -751,12 +618,8 @@ async function generateWhatsAppReply(input) {
     } else {
         console.log("[CS-FLOW] generateWhatsAppReply: Using mainPromptString directly from input.");
     }
-    const messagesForFlow = input.messages || [];
-    const customerMessageForFlow = input.customerMessage || (messagesForFlow.length > 0 ? messagesForFlow[messagesForFlow.length - 1].content : "");
     const flowInput = {
         ...input,
-        messages: messagesForFlow,
-        customerMessage: customerMessageForFlow,
         mainPromptString: mainPromptToUse
     };
     try {

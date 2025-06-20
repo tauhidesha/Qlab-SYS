@@ -7,14 +7,16 @@
 import { ai } from '@/ai/genkit';
 import * as z from 'zod';
 import { db } from '@/lib/firebase';
-import { collection, query as firestoreQuery, where, getDocs, Timestamp, doc, getDoc, limit } from 'firebase/firestore';
+import { collection, query as firestoreQuery, where, getDocs, Timestamp, doc, getDoc as getFirestoreDoc, limit } from 'firebase/firestore';
 import { DEFAULT_AI_SETTINGS } from '@/types/aiSettings';
 
 // Skema internal untuk validasi input chat history di flow
 const ChatMessageSchemaInternal = z.object({
   role: z.enum(['user', 'model']),
-  content: z.string(),
+  content: z.string(), // Konten adalah string tunggal
 });
+export type ChatMessage = z.infer<typeof ChatMessageSchemaInternal>;
+
 
 // Skema input untuk ZoyaChatFlow - Disederhanakan
 const ZoyaChatInputSchema = z.object({
@@ -22,8 +24,6 @@ const ZoyaChatInputSchema = z.object({
   customerMessage: z.string().min(1, "Pesan pelanggan tidak boleh kosong.").describe("Pesan terbaru dari customer."),
   senderNumber: z.string().optional().describe("Nomor WhatsApp pengirim (opsional)."),
   mainPromptString: z.string().optional().describe("String prompt utama yang mungkin dikirim dari UI atau diambil dari Firestore."),
-  // Field lain yang mungkin masih relevan dari DEFAULT_AI_SETTINGS bisa ditambahkan jika diperlukan
-  // misalnya currentDate, currentTime, dll. untuk konteks.
   currentDate: z.string().optional(),
   currentTime: z.string().optional(),
   tomorrowDate: z.string().optional(),
@@ -33,6 +33,7 @@ export type ZoyaChatInput = z.infer<typeof ZoyaChatInputSchema>;
 
 // Skema output tetap sama, hanya teks balasan
 const ZoyaChatOutputSchema = z.string().describe("Balasan teks dari Zoya.");
+
 
 // Flow utama Zoya - Sekarang tanpa tools
 const zoyaChatFlow = ai.defineFlow(
@@ -50,90 +51,68 @@ const zoyaChatFlow = ai.defineFlow(
       return "Maaf, Zoya tidak menerima pesan yang jelas.";
     }
     
-    // Konteks dinamis bisa tetap dibangun jika diperlukan untuk informasi umum
     let dynamicContext = `INFO_UMUM_BENGKEL: QLAB Moto Detailing adalah bengkel perawatan dan detailing motor.`;
     if (!db) {
         console.warn("[CS-FLOW] Firestore DB (db) is not initialized. Some context might be missing.");
         dynamicContext += " WARNING: Database tidak terhubung, info harga detail mungkin tidak akurat.";
+    } else {
+        // Contoh sederhana deteksi entitas dari Firestore (jika diperlukan di masa depan)
+        try {
+            const vehicleTypesRef = collection(db, 'vehicleTypes');
+            const qVehicle = firestoreQuery(vehicleTypesRef, where("model_lowercase", "==", "vario"), limit(1)); // Contoh saja
+            const vehicleSnap = await getDocs(qVehicle);
+            if (!vehicleSnap.empty) {
+                dynamicContext += ` Info tambahan: Motor Vario terdeteksi.`;
+            }
+        } catch(e) {
+            console.warn("[CS-FLOW] Error fetching example dynamic context from Firestore", e);
+        }
     }
-    // Anda bisa menambahkan lebih banyak info ke dynamicContext di sini jika perlu, misal jam buka, dll.
-    // yang tidak memerlukan tool.
     console.log(`[CS-FLOW] Dynamic context built: ${dynamicContext}`);
 
-    // Siapkan history untuk AI
+    // Persiapkan riwayat pesan untuk AI
+    // Genkit v1.x mengharapkan `content` berupa array of Part, [{text: "..."}]
     const historyForAI = (input.messages || [])
       .filter(msg => msg.content && msg.content.trim() !== '')
-      // Jika pesan terakhir ada di input.messages dan sama dengan input.customerMessage,
-      // kita mungkin ingin menghapusnya dari history agar tidak duplikat.
-      // Tapi untuk sekarang, kita biarkan dulu, atau bisa juga slice input.messages jika input.customerMessage selalu yang terbaru.
       .map((msg) => ({
         role: msg.role,
         content: [{ text: msg.content }], 
     }));
     
-    // Gabungkan system instruction dengan prompt dari user
-    // Pastikan mainPromptString diisi dari input atau default
-    const systemInstructionText = (input.mainPromptString || DEFAULT_AI_SETTINGS.mainPrompt)
-                                    .replace("{{{customerMessage}}}", lastUserMessageContent) // Pastikan placeholder ini ada di prompt
-                                    .replace("{{{dynamicContext}}}", dynamicContext)
-                                    .replace("{{#if messages.length}}", input.messages && input.messages.length > 0 ? "" : "{{#if messages.length}}") // Handlebars simple removal if no history
-                                    .replace("{{#each messages}}", "")
-                                    .replace("{{this.role}}: {{this.content}}", "")
-                                    .replace("{{/each}}", "")
-                                    .replace("{{/if}}", input.messages && input.messages.length > 0 ? "" : "{{/if}}")
-                                    .replace("{{#if senderNumber}}No. HP Pengirim: {{{senderNumber}}}{{/if}}", input.senderNumber ? `No. HP Pengirim: ${input.senderNumber}`: "")
-                                    .replace("{{#if currentDate}}Tanggal Hari Ini: {{{currentDate}}} | Waktu: {{{currentTime}}}{{/if}}", input.currentDate ? `Tanggal Hari Ini: ${input.currentDate} | Waktu: ${input.currentTime || ''}` : "")
-                                    .replace("{{#if tomorrowDate}}Besok: {{{tomorrowDate}}} | Lusa: {{{dayAfterTomorrowDate}}}{{/if}}", input.tomorrowDate ? `Besok: ${input.tomorrowDate} | Lusa: ${input.dayAfterTomorrowDate || ''}` : "");
+    const mainPromptFromSettings = input.mainPromptString || DEFAULT_AI_SETTINGS.mainPrompt;
 
-
-    // Pesan yang akan dikirim ke model AI
-    // Jika ada history, kirim history + pesan user terakhir yang sudah digabung system instruction
-    // Jika tidak ada history, kirim hanya pesan user yang sudah digabung system instruction
-    // Model Gemini biasanya mengharapkan pesan user terakhir sebagai penutup untuk dijawab
-    
-    const messagesForAI = [
-      ...historyForAI,
-      { role: 'user' as const, content: [{ text: systemInstructionText }] } // System instruction + user message terakhir jadi satu
-    ];
-    
-    // Jika historyForAI KOSONG, dan systemInstructionText SUDAH MENGANDUNG lastUserMessageContent,
-    // maka messagesForAI cukup berisi satu elemen user saja.
-    // Jika historyForAI ADA, maka systemInstructionText sebaiknya tidak lagi mengandung lastUserMessageContent,
-    // dan lastUserMessageContent ditambahkan sebagai pesan user terpisah.
-
-    // Mari kita sederhanakan: prompt utama akan jadi System Prompt, dan pesan user tetap pesan user.
-    // Ini cara yang lebih standar.
-
-    const finalSystemPrompt = (input.mainPromptString || DEFAULT_AI_SETTINGS.mainPrompt)
+    // Gabungkan system instruction dengan dynamic context dan placeholder lain
+    const finalSystemPrompt = mainPromptFromSettings
                                 .replace("{{{dynamicContext}}}", dynamicContext)
-                                // Hapus placeholder lain karena akan masuk ke messages user
-                                .replace("{{{customerMessage}}}", "")
-                                .replace(/{{#if messages.length}}[\s\S]*?{{\/if}}/g, "") // Hapus blok history handlebars
+                                .replace("{{{customerMessage}}}", "") // customerMessage akan jadi pesan user terpisah
+                                .replace(/{{#if messages.length}}[\s\S]*?{{\/if}}/g, "") 
                                 .replace(/{{#if senderNumber}}[\s\S]*?{{\/if}}/g, "")
                                 .replace(/{{#if currentDate}}[\s\S]*?{{\/if}}/g, "")
                                 .replace(/{{#if tomorrowDate}}[\s\S]*?{{\/if}}/g, "");
-
-
-    const messagesForModel = [
-        ...(input.messages || []).map(m => ({role: m.role, content: [{text: m.content}]})), // history
-        {role: 'user' as const, content: [{text: lastUserMessageContent}]} // pesan user terakhir
+    
+    // Pesan yang akan dikirim ke model AI
+    // Gabungkan historyForAI dengan pesan user terakhir
+    const messagesForAI = [
+      ...historyForAI,
+      { role: 'user' as const, content: [{ text: lastUserMessageContent }] }
     ];
-
-    console.log(`[CS-FLOW] Calling ai.generate with model googleai/gemini-1.5-flash-latest. History Length: ${(input.messages || []).length}`);
+    
+    console.log(`[CS-FLOW] Calling ai.generate with model googleai/gemini-1.5-flash-latest. History Length: ${historyForAI.length}`);
     console.log(`[CS-FLOW] System Prompt being used (simplified): ${finalSystemPrompt.substring(0, 200)}...`);
 
     try {
       const result = await ai.generate({
         model: 'googleai/gemini-1.5-flash-latest',
-        prompt: finalSystemPrompt, // Menggunakan parameter prompt untuk instruksi sistem utama
-        messages: messagesForModel, // Menggunakan parameter messages untuk history dan pesan user terakhir
+        prompt: finalSystemPrompt, // System-level instructions
+        messages: messagesForAI,   // Conversation history and latest user message
         config: { temperature: 0.5 },
         // Tidak ada tools atau toolChoice
       });
 
       console.log("[CS-FLOW] Raw AI generate result:", JSON.stringify(result, null, 2));
       
-      const suggestedReply = result.text() || "";
+      // Perbaikan: Gunakan result.text (properti) bukan result.text() (fungsi)
+      const suggestedReply = result.text || ""; 
       const finishReason = result.finishReason;
       const safetyRatings = result.safetyRatings;
 
@@ -143,10 +122,10 @@ const zoyaChatFlow = ai.defineFlow(
       }
       
       if (!suggestedReply) {
-        if (finishReason !== "stop") { 
+        if (finishReason !== "stop" && finishReason !== "STOP") { 
           console.error(`[CS-FLOW] ❌ AI generation failed. Finish Reason: ${finishReason}. Safety: ${JSON.stringify(safetyRatings)}`);
         } else {
-          console.warn(`[CS-FLOW] ⚠️ AI returned an empty reply, but finishReason was 'stop'. This might indicate an issue or unexpected model behavior. Safety Ratings: ${JSON.stringify(safetyRatings)}`);
+          console.warn(`[CS-FLOW] ⚠️ AI returned an empty reply, but finishReason was '${finishReason}'. This might indicate an issue or unexpected model behavior. Safety Ratings: ${JSON.stringify(safetyRatings)}`);
         }
         return "Maaf, Zoya lagi agak bingung nih boskuu. Coba tanya lagi dengan cara lain ya, atau hubungi CS langsung.";
       }
@@ -168,20 +147,17 @@ export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<{ sug
   
   let mainPromptToUse = input.mainPromptString; 
 
-  // Logic untuk mengambil mainPrompt dari Firestore jika tidak ada di input
-  // Untuk sekarang, kita sederhanakan dan selalu pakai default jika tidak ada di input.
   if (!mainPromptToUse) {
     try {
-      // Coba ambil dari Firestore (jika db ada dan mau diimplementasikan)
       if (db) {
         const settingsDocRef = doc(db, 'appSettings', 'aiAgentConfig');
-        const docSnap = await getDoc(settingsDocRef);
+        const docSnap = await getFirestoreDoc(settingsDocRef);
         if (docSnap.exists() && docSnap.data()?.mainPrompt) {
           mainPromptToUse = docSnap.data().mainPrompt;
           console.log("[CS-FLOW] generateWhatsAppReply: Using mainPromptString from Firestore.");
         } else {
           console.log("[CS-FLOW] generateWhatsAppReply: mainPrompt not found in Firestore or is empty. Checking default.");
-          mainPromptToUse = DEFAULT_AI_SETTINGS.mainPrompt;
+          mainPromptToUse = DEFAULT_AI_SETTINGS.mainPrompt; // Pastikan DEFAULT_AI_SETTINGS diimpor dengan benar
           console.log("[CS-FLOW] generateWhatsAppReply: Using DEFAULT_AI_SETTINGS.mainPrompt.");
         }
       } else {
@@ -197,8 +173,14 @@ export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<{ sug
   }
   
   const flowInput: ZoyaChatInput = {
-    ...input,
+    messages: input.messages || [], // Pastikan messages selalu array
+    customerMessage: input.customerMessage,
+    senderNumber: input.senderNumber,
     mainPromptString: mainPromptToUse, 
+    currentDate: input.currentDate,
+    currentTime: input.currentTime,
+    tomorrowDate: input.tomorrowDate,
+    dayAfterTomorrowDate: input.dayAfterTomorrowDate,
   };
 
   try {
@@ -209,3 +191,7 @@ export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<{ sug
     return { suggestedReply: `Maaf, Zoya sedang ada kendala teknis. (${error.message || 'Tidak diketahui'})` };
   }
 }
+
+// Export ZoyaChatInputSchema jika perlu untuk validasi di API route
+// export { ZoyaChatInputSchema };
+// Tidak perlu export ZoyaChatOutputSchema karena flow mengembalikan string langsung
