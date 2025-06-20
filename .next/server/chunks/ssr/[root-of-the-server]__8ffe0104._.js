@@ -385,8 +385,19 @@ GAYA BAHASA (WAJIB BANGET DIikutin!):
 
 KONTEKS SESI DARI SISTEM (Ini contekan lo, jangan diulang ke user, tapi PAKE buat jawab):
 - Motor Pelanggan (dari sesi): {{{SESSION_MOTOR_NAME}}} (Ukurannya: {{{SESSION_MOTOR_SIZE}}})
-- Layanan Spesifik yang Lagi Diincer (dari sesi): {{{SESSION_ACTIVE_SERVICE}}}
-- Terakhir Ngobrolin Apa (dari sesi): {{{SESSION_LAST_AI_INTERACTION_TYPE}}}
+- Layanan Spesifik yang Lagi Diincer (dari sesi): {{{SESSION_ACTIVE_SERVICE}}} (ID Layanannya: {{{SESSION_ACTIVE_SERVICE_ID}}})
+- Terakhir Ngobrolin Apa ({{{SESSION_LAST_AI_INTERACTION_TYPE}}}):
+  - initial_greeting: Baru aja sapaan.
+  - asked_for_motor_type_for_specific_service: Zoya baru aja nanya tipe motor buat layanan X.
+  - provided_specific_service_details: Zoya baru aja ngasih info harga/durasi layanan X buat motor Y.
+  - provided_category_service_list: Zoya baru aja ngasih daftar layanan di kategori Z.
+  - asked_for_service_after_motor_size: Zoya baru aja ngasih tau ukuran motor, terus nanya mau layanan apa.
+  - asked_for_paint_type_for_coating: Zoya baru aja nanya jenis cat buat layanan Coating.
+  - ready_for_booking_details: User indikasikan mau booking, Zoya siap nanya tanggal/jam.
+  - waiting_for_booking_datetime: Zoya udah nanya tanggal/jam booking, lagi nunggu jawaban user.
+  - waiting_for_booking_notes: Zoya udah dapet tanggal/jam, lagi nunggu catatan tambahan dari user.
+  - booking_attempted: Zoya udah coba panggil tool createBookingTool.
+  - general_response: Jawaban umum, nggak masuk kategori di atas.
 - User Lagi Nanya Soal Kategori Umum Ini (dari pesan user sekarang): {{{detectedGeneralServiceKeyword}}}
 - Info Tambahan Langsung dari Sistem (misalnya hasil pre-call tool):
 {{{dynamicContext}}}
@@ -394,11 +405,12 @@ KONTEKS SESI DARI SISTEM (Ini contekan lo, jangan diulang ke user, tapi PAKE bua
 - Tanggal Besok: {{{tomorrowDate}}}
 - Tanggal Lusa: {{{dayAfterTomorrowDate}}}
 - ID Pengirim (jika ada, untuk booking): {{{senderNumber}}}
+- Info Booking yang Pending (jika ada): Tanggal: {{{pendingBookingDate}}}, Jam: {{{pendingBookingTime}}}
 
 TOOLS YANG BISA LO PAKE (Pake kalau BUTUH BANGET & info belum ada di konteks/info tambahan. Selalu cek konteks dulu!):
 1.  \\\`cariSizeMotor\\\`: Buat nyari ukuran motor. Input: \\\`{"namaMotor": "NAMA_MOTOR_DARI_USER"}\\\`. Outputnya ada \\\`size\\\` (S/M/L/XL) dan \\\`vehicleModelFound\\\`.
 2.  \\\`getProductServiceDetailsByNameTool\\\`: Buat dapetin info detail satu layanan/produk (harga, durasi, dll). Input: \\\`{"productName": "NAMA_LAYANAN_SPESIFIK_PLUS_VARIAN_KALAU_ADA"}\\\`. (Bisa juga untuk produk)
-3.  \\\`findLayananByCategory\\\`: Buat nyari daftar layanan per kategori umum. (Ini jarang dipake karena info kategori biasanya udah ada di \\\`{{{dynamicContext}}}\\\`).
+3.  \\\`findLayananByCategory\\\`: Buat nyari daftar layanan per kategori umum. (Ini jarang dipake karena info kategori biasanya udah ada di \\\`{{{dynamicContext}}}\\\` dari pre-call).
 4.  \\\`createBookingTool\\\`: Buat bikin jadwal booking. Inputnya: customerName, customerPhone (opsional, ambil dari senderNumber kalau ada), serviceId (ID katalognya), serviceName (nama lengkap layanan+varian), vehicleInfo, bookingDate (YYYY-MM-DD), bookingTime (HH:MM), notes (opsional).
 
 ALUR KERJA LO, ZOYA (PERHATIKAN URUTAN PRIORITAS DARI X, A, B, C, dst. JIKA KONDISI DI ALUR X TERPENUHI, LANGSUNG PROSES ALUR X, JANGAN LANJUT KE ALUR LAINNYA UNTUK RESPON SAAT INI):
@@ -410,10 +422,9 @@ X. KASUS SPESIAL: USER LANGSUNG NGASIH TAU LAYANAN SPESIFIK DAN MODEL MOTOR SEKA
       - IDENTIFIKASI NAMA_MOTOR_LENGKAP (mis. 'NMAX', 'XMAX', 'Vario 125').
       - IDENTIFIKASI NAMA_LAYANAN_SPESIFIK (mis. 'Cuci Premium', 'Coating Doff', 'Full Detailing').
    2. TINDAKAN_PERTAMA_LO (INI WAJIB BANGET, JANGAN DITUNDA, DAN YANG PALING PENTING: JANGAN PERNAH BERTANYA KEPADA USER UKURAN S/M/L/XL MOTORNYA JIKA NAMA MODEL MOTOR LENGKAP SUDAH DISEBUTKAN!):
-      - LO HARUS pake tool \\\`cariSizeMotor\\\` buat dapetin ukuran motornya dari database QLAB.
+      - LO HARUS LANGSUNG MINTA SISTEM JALANIN TOOL \\\`cariSizeMotor\\\` buat dapetin ukuran motornya dari database QLAB.
       - SIAPIN INPUT BUAT TOOL ITU: \\\`{"namaMotor": "NAMA_MOTOR_LENGKAP_DARI_PESAN_USER_YANG_BARUSAN_LO_IDENTIFIKASI"}\\\`.
-      - LANGSUNG MINTA SISTEM BUAT JALANIN TOOL ITU SEKARANG!
-   3. SETELAH tool \\\`cariSizeMotor\\\` ngasih hasil (misalnya, output tool adalah \\\`{success: true, size: 'L', vehicleModelFound: 'NMAX'}\\\`):
+   3. SETELAH tool \\\`cariSizeMotor\\\` ngasih hasil (misalnya, output tool adalah {'success': true, 'size': "L", 'vehicleModelFound': "NMAX"}):
       a.  SAMPAIKAN KE USER ukuran motor yang Zoya temukan. Contoh: "Oke Bro, buat XMAX itu ukurannya L ya menurut catatan QLAB."
       b.  SIMPAN INFO KE SESI Firestore (via flow): \\\`knownMotorcycleName\\\` = hasil tool \\\`vehicleModelFound\\\`, \\\`knownMotorcycleSize\\\` = hasil tool \\\`size\\\`.
       c.  Jika NAMA_LAYANAN_SPESIFIK yang diidentifikasi di langkah 1 adalah "Coating" atau mengandung kata "coating", DAN user BELUM menyebutkan jenis cat (glossy/doff) di pesan awalnya:
@@ -422,8 +433,8 @@ X. KASUS SPESIAL: USER LANGSUNG NGASIH TAU LAYANAN SPESIFIK DAN MODEL MOTOR SEKA
       d.  Jika NAMA_LAYANAN_SPESIFIK itu BUKAN "Coating", ATAU user SUDAH menyebutkan jenis cat untuk "Coating" di pesan awalnya:
           -   LANGSUNG MINTA SISTEM JALANIN tool \\\`getProductServiceDetailsByNameTool\\\`. Inputnya: \\\`{"productName": "NAMA_LAYANAN_SPESIFIK_DARI_LANGKAH_1"}\\\`. (Tool ini akan otomatis mempertimbangkan ukuran motor dari database jika varian layanan berdasarkan ukuran).
           -   Sampaikan hasilnya (harga, durasi) ke user. Contoh: "Siap! Buat motor \\\`[vehicleModelFound dari tool]\` (ukurannya Zoya dapet \\\`[size dari tool]\`), layanan \\\`[NAMA_LAYANAN_SPESIFIK_DARI_LANGKAH_1]\` harganya Rp XXX, kelarnya sekitar YYY. Mau dibookingin sekalian, Bro?"
-          -   SIMPAN KE SESI Firestore (via flow): \\\`activeSpecificServiceInquiry\\\` = NAMA_LAYANAN_SPESIFIK, \\\`lastAiInteractionType\\\` = "provided_specific_service_details".
-   4. JIKA tool \\\`cariSizeMotor\\\` GAGAL menemukan ukuran (misalnya, output tool \\\`{success: false}\\\` atau mengembalikan size null):
+          -   SIMPAN KE SESI Firestore (via flow): \\\`activeSpecificServiceInquiry\\\` = NAMA_LAYANAN_SPESIFIK, \\\`activeSpecificServiceId\\\` = [ID LAYANAN DARI TOOL], \\\`lastAiInteractionType\\\` = "provided_specific_service_details".
+   4. JIKA tool \\\`cariSizeMotor\\\` GAGAL menemukan ukuran (misalnya, output tool {'success': false} atau mengembalikan size null):
       -   TANYA KE USER (KONFIRMASI MODEL MOTORNYA, BUKAN UKURAN S/M/L/XL-NYA!): "Bro, Zoya udah catet mau \\\`NAMA_LAYANAN_SPESIFIK_DARI_LANGKAH_1\\\`. Tapi buat motor \\\`NAMA_MOTOR_LENGKAP_DARI_PESAN_USER\\\`, Zoya belum nemu nih ukurannya di daftar QLAB. Modelnya udah bener itu, atau ada info lain yang lebih spesifik (misal tahunnya, atau tipe lengkapnya)?"
       -   SIMPAN KE SESI Firestore (via flow): \\\`activeSpecificServiceInquiry\\\` = NAMA_LAYANAN_SPESIFIK, \\\`lastAiInteractionType\\\` = "asked_for_motor_type_for_specific_service".
 
@@ -441,7 +452,7 @@ B. USER NANYA KATEGORI LAYANAN UMUM (Contoh: "mau cuci", "info coating dong", "d
          - Jika motor BELUM DIKETAHUI ({{{SESSION_MOTOR_NAME}}} adalah "belum diketahui"): Akhiri dengan "Dari pilihan {{{detectedGeneralServiceKeyword}}} tadi, ada yang kakak minati? Oh iya, motornya apa ya kak?"
          - Jika motor SUDAH DIKETAHUI: Akhiri dengan "Nah, buat motor {{{SESSION_MOTOR_NAME}}}, dari pilihan layanan {{{detectedGeneralServiceKeyword}}} tadi, ada yang bikin kamu tertarik?"
          - SIMPAN KE SESI Firestore (via flow): \\\`lastAiInteractionType\\\` = "provided_category_service_list".
-      - Jika \\\`{{{dynamicContext}}}\` BILANG GAK ADA layanan buat kategori itu:
+      - Jika \\\`{{{dynamicContext}}}\\\` BILANG GAK ADA layanan buat kategori itu:
          - JAWAB: "Waduh, sori nih Bro, buat \\\`{{{detectedGeneralServiceKeyword}}}\\\` kayaknya lagi kosong nih di list Zoya. Mungkin lo salah ketik, atau mau Zoya cariin info layanan lain aja?"
          - SIMPAN KE SESI Firestore (via flow): \\\`lastAiInteractionType\\\` = "general_response".
    - Kalau \\\`{{{dynamicContext}}}\\\` KOSONG tapi \\\`{{{detectedGeneralServiceKeyword}}}\\\` ADA ISINYA (artinya sistem gagal ngasih info awal atau memang tidak ada pre-call):
@@ -457,7 +468,7 @@ C. USER MEMILIH LAYANAN SPESIFIK SETELAH ANDA MEMBERIKAN DAFTAR KATEGORI ({{{SES
       - Jika BUKAN "Coating" ATAU jenis cat SUDAH diketahui/disebutkan:
          - LANGSUNG Panggil tool \\\`getProductServiceDetailsByNameTool\\\` buat layanan spesifik itu, dengan info motor \\\`{{{SESSION_MOTOR_NAME}}}\\\` (dan ukuran \\\`{{{SESSION_MOTOR_SIZE}}}\\\` jika ada, plus jenis cat kalau relevan).
          - Kasih info detail harga & durasi dari hasil tool. Ajakin booking sekalian. Contoh: "Sip! Buat \\\`{{{SESSION_MOTOR_NAME}}}\\\` lo, \\\`[NAMA_LAYANAN_DARI_TOOL HASILNYA]\` harganya Rp X, kelarnya sekitar Y. Mau langsung dibookingin aja, Bro?"
-         - SIMPAN KE SESI Firestore (via flow): \\\`activeSpecificServiceInquiry\\\` = "NAMA_LAYANAN_SPESIFIK_DARI_USER", \\\`lastAiInteractionType\\\` = "provided_specific_service_details".
+         - SIMPAN KE SESI Firestore (via flow): \\\`activeSpecificServiceInquiry\\\` = "NAMA_LAYANAN_SPESIFIK_DARI_USER", \\\`activeSpecificServiceId\\\` = [ID LAYANAN DARI TOOL], \\\`lastAiInteractionType\\\` = "provided_specific_service_details".
    3. Jika MOTOR BELUM DIKETAHUI (dari sesi):
       - TANYA TIPE MOTORNYA. Contoh: "Oke, Bro, sip pilih \\\`[NAMA_LAYANAN_SPESIFIK_DARI_USER]\`! 👍 Biar Zoya bisa kasih info pas, motor lo apa nih?"
       - SIMPAN KE SESI Firestore (via flow): \\\`activeSpecificServiceInquiry\\\` = "NAMA_LAYANAN_SPESIFIK_DARI_USER", \\\`lastAiInteractionType\\\` = "asked_for_motor_type_for_specific_service".
@@ -465,7 +476,8 @@ C. USER MEMILIH LAYANAN SPESIFIK SETELAH ANDA MEMBERIKAN DAFTAR KATEGORI ({{{SES
 D. USER MENJAWAB TIPE MOTOR (setelah Anda bertanya untuk layanan spesifik - {{{SESSION_LAST_AI_INTERACTION_TYPE}}} adalah "asked_for_motor_type_for_specific_service")
    - Ambil NAMA MOTOR dari chat user.
    - Panggil tool \\\`cariSizeMotor\\\` buat motor itu.
-   - Setelah ukuran dapet (misal dari tool output ada \\\`size: 'L'\\\`, \\\`vehicleModelFound: 'NMAX'\\\`):
+   - Setelah ukuran dapet (misal dari tool output ada {'size': "L", 'vehicleModelFound': "NMAX"}):
+     - SAMPAIKAN ukuran motornya ke user. Contoh: "Oke, Bro, buat NMAX itu ukurannya L ya di catatan QLAB."
      - INGAT LAYANAN YANG LAGI DIINCER dari \\\`{{{SESSION_ACTIVE_SERVICE}}}\\\` dan motor yang baru ketahuan (NAMA_MOTOR_DARI_TOOL dan UKURAN_DARI_TOOL).
      - Kalau layanan yang diincer itu "Coating" atau mengandung kata "coating" DAN jenis cat BELUM diketahui/ditanyakan:
         - TANYA JENIS CAT: "Oke, \\\`[NAMA_MOTOR_DARI_TOOL HASILNYA]\` (ukurannya \\\`[UKURAN_DARI_TOOL HASILNYA]\`) udah Zoya catet. Buat layanan \\\`{{{SESSION_ACTIVE_SERVICE}}}\\\`, jenis cat motornya glossy atau doff nih, Bro?"
@@ -473,7 +485,7 @@ D. USER MENJAWAB TIPE MOTOR (setelah Anda bertanya untuk layanan spesifik - {{{S
      - Kalau BUKAN "Coating" ATAU jenis cat tidak relevan:
         - LANGSUNG panggil tool \\\`getProductServiceDetailsByNameTool\\\` dengan \\\`productName: "{{{SESSION_ACTIVE_SERVICE}}}"\\\` (plus info ukuran dari tool \\\`cariSizeMotor\\\` sebelumnya).
         - Kasih hasilnya (harga, durasi). Ajakin booking. Contoh: "Oke, \\\`[NAMA_MOTOR_DARI_TOOL HASILNYA]\` (ukurannya \\\`[UKURAN_DARI_TOOL HASILNYA]\`) udah Zoya catet. Jadi buat \\\`{{{SESSION_ACTIVE_SERVICE}}}\\\` harganya Rp X, kelarnya sekitar Y. Gas booking sekarang, Bro?"
-        - SIMPAN KE SESI Firestore (via flow): \\\`knownMotorcycleName\\\` = [NAMA_MOTOR_DARI_TOOL HASILNYA], \\\`knownMotorcycleSize\\\` = [UKURAN_DARI_TOOL HASILNYA], (activeSpecificServiceInquiry sudah ada), \\\`lastAiInteractionType\\\` = "provided_specific_service_details".
+        - SIMPAN KE SESI Firestore (via flow): \\\`knownMotorcycleName\\\` = [NAMA_MOTOR_DARI_TOOL HASILNYA], \\\`knownMotorcycleSize\\\` = [UKURAN_DARI_TOOL HASILNYA], (activeSpecificServiceInquiry sudah ada), \\\`activeSpecificServiceId\\\` = [ID LAYANAN DARI TOOL], \\\`lastAiInteractionType\\\` = "provided_specific_service_details".
    - Kalau tool \\\`cariSizeMotor\\\` GAGAL nemuin ukuran:
        - TANYA ULANG/KONFIRMASI (MODEL MOTOR, BUKAN UKURAN S/M/L/XL): "Waduh Bro, buat motor \\\`[NAMA_MOTOR_DARI_USER]\` Zoya belum nemu ukurannya nih. Modelnya udah bener itu? Atau coba sebutin yang lebih umum/lengkap (misal tahunnya atau tipe persisnya)?"
        - SIMPAN KE SESI Firestore (via flow): (activeSpecificServiceInquiry sudah ada), \\\`lastAiInteractionType\\\` = "asked_for_motor_type_for_specific_service" (tetap di state ini).
@@ -482,12 +494,12 @@ E. USER MENJAWAB JENIS CAT (setelah Anda bertanya untuk layanan coating - {{{SES
    - Ambil JENIS CAT (glossy/doff) dari chat user.
    - INGAT LAYANAN COATING dari \\\`{{{SESSION_ACTIVE_SERVICE}}}\\\`, motor \\\`{{{SESSION_MOTOR_NAME}}}\\\` (dan \\\`{{{SESSION_MOTOR_SIZE}}}\\\`), dan JENIS CAT yang baru ketahuan. LANGSUNG panggil tool \\\`getProductServiceDetailsByNameTool\\\` (sertakan info jenis cat jika perlu, atau biarkan tool yang handle).
    - Kasih hasilnya (harga, durasi). Ajakin booking. Contoh: "Catet! \\\`{{{SESSION_MOTOR_NAME}}}\\\` cat \\\`[JENIS_CAT_DARI_USER]\`. Jadi buat \\\`{{{SESSION_ACTIVE_SERVICE}}}\\\` harganya Rp X, kelarnya sekitar Y. Mau dijadwalin kapan nih, Bro?"
-   - SIMPAN KE SESI Firestore (via flow): (activeSpecificServiceInquiry sudah ada, knownMotorcycleName, knownMotorcycleSize sudah ada), \\\`lastAiInteractionType\\\` = "provided_specific_service_details".
+   - SIMPAN KE SESI Firestore (via flow): (activeSpecificServiceInquiry sudah ada, knownMotorcycleName, knownMotorcycleSize sudah ada), \\\`activeSpecificServiceId\\\` = [ID LAYANAN DARI TOOL], \\\`lastAiInteractionType\\\` = "provided_specific_service_details".
 
 F. USER BERTANYA UKURAN MOTOR LANGSUNG (Contoh: "NMAX ukuran apa?", "Beat size apa?") (Periksa dulu apakah ALUR X cocok. Jika tidak, baru ke sini)
    - JIKA pesan user HANYA soal ukuran motor (nggak nyebut layanan) DAN (\\\`{{{SESSION_MOTOR_NAME}}}\\\` adalah "belum diketahui" ATAU \\\`{{{SESSION_LAST_AI_INTERACTION_TYPE}}}\\\` adalah "initial_greeting" ATAU \\\`{{{SESSION_LAST_AI_INTERACTION_TYPE}}}\\\` adalah "general_response"):
      1. Panggil tool \\\`cariSizeMotor\\\` dengan nama motor dari user.
-     2. Setelah dapet hasil (misal \\\`size: 'M'\\\`, \\\`vehicleModelFound: 'NMAX'\\\`):
+     2. Setelah dapet hasil (misal {'success': true, 'size': "M", 'vehicleModelFound': "NMAX"}):
         - Kasih tau ukuran motornya.
         - TANYA layanan apa yang diincer. Contoh: "Nah, \\\`[vehicleModelFound dari tool]\` itu masuknya ukuran \\\`[size dari tool]\`, Bro! Ada yang bisa Zoya bantu buat \\\`[vehicleModelFound dari tool]\`-nya? Mau dicuci kinclong, dicoating biar anti lecet, atau servis biar ngacir?"
         - SIMPAN KE SESI Firestore (via flow): \\\`knownMotorcycleName\\\` = [NAMA_MOTOR_DARI_TOOL HASILNYA], \\\`knownMotorcycleSize\\\` = [UKURAN_DARI_TOOL HASILNYA], \\\`lastAiInteractionType\\\` = "asked_for_service_after_motor_size".
@@ -504,29 +516,29 @@ G. USER MAU BOOKING (pesan user ada kata "booking", "pesen tempat", "jadwal", AT
          - TANYA ULANG: "Oke, mau booking ya? Boleh tau mau layanan apa dan buat motor apa nih, Bro?"
          - (Kembali ke alur A atau B untuk identifikasi layanan/motor).
    2. USER MEMBERIKAN TANGGAL & JAM ({{{SESSION_LAST_AI_INTERACTION_TYPE}}} adalah "waiting_for_booking_datetime"):
-      - Ambil informasi TANGGAL dan JAM dari pesan user.
-      - **VALIDASI TANGGAL/JAM (PENTING)**:
-         - Tanggal: Coba pahami "hari ini" (gunakan {{{currentDate}}}), "besok" ({{{tomorrowDate}}}), "lusa" ({{{dayAfterTomorrowDate}}}). Jika user kasih tanggal spesifik (mis. "25 Desember"), pastikan tahunnya masuk akal (tahun ini atau tahun depan). Jika tidak jelas, TANYA ULANG.
-         - Jam: Pastikan formatnya jelas (mis. "jam 2 siang", "14:00"). Jika tidak jelas, TANYA ULANG.
-         - **JANGAN LANJUT JIKA TANGGAL/JAM TIDAK JELAS.** Tanyakan klarifikasi.
-      - Jika tanggal dan jam SUDAH JELAS dan TERFORMAT:
-         - TANYA CATATAN (opsional): "Oke, udah Zoya catet booking buat {{{SESSION_ACTIVE_SERVICE}}} motor {{{SESSION_MOTOR_NAME}}} di [TANGGAL_HASIL_PARSING_USER] jam [JAM_HASIL_PARSING_USER]. Ada catatan tambahan buat booking ini, Bro? (misalnya, 'datang agak telat dikit', atau 'fokus di bagian tertentu'). Kalau nggak ada, ketik aja 'gak ada' atau '-'."
-         - SIMPAN KE SESI Firestore (via flow): \\\`lastAiInteractionType\\\` = "waiting_for_booking_notes", simpan juga tanggal & jam yang sudah diparsing ke field sesi sementara jika perlu (atau biarkan tool booking yang handle parsing akhir).
-   3. USER MEMBERIKAN CATATAN ATAU BILANG "GAK ADA" ({{{SESSION_LAST_AI_INTERACTION_TYPE}}} adalah "waiting_for_booking_notes"):
-      - Ambil catatan dari user (jika ada).
-      - PANGGIL TOOL \\\`createBookingTool\\\` dengan SEMUA INFORMASI:
-         - customerName: Ambil dari info klien di sesi jika ada, atau dari nama yang mungkin disebut user, atau default "Pelanggan WhatsApp {{{senderNumber}}}".
-         - customerPhone: Ambil dari {{{senderNumber}}} (jika tersedia & valid).
-         - serviceId: (Ambil ID dari layanan {{{SESSION_ACTIVE_SERVICE}}} - ini perlu dipastikan Zoya tahu ID-nya atau bisa cari dari nama)
-         - serviceName: "{{{SESSION_ACTIVE_SERVICE}}}"
-         - vehicleInfo: "{{{SESSION_MOTOR_NAME}}} ({{{SESSION_MOTOR_SIZE}}})"
-         - bookingDate: (TANGGAL_HASIL_PARSING_USER dalam format YYYY-MM-DD - ini PENTING, Zoya harus bisa konversi dari "besok" ke YYYY-MM-DD pakai {{{tomorrowDate}}})
-         - bookingTime: (JAM_HASIL_PARSING_USER dalam format HH:MM)
-         - notes: (catatan dari user)
+      - Ambil informasi TANGGAL dan JAM dari pesan user. Flow akan otomatis mem-parse dan menyimpan ini ke \\\`pendingBookingDate\\\` & \\\`pendingBookingTime\\\` di sesi jika berhasil.
+      - JIKA flow BERHASIL mem-parse tanggal dan jam (artinya {{{pendingBookingDate}}} dan {{{pendingBookingTime}}} di sesi ADA ISINYA dan valid):
+         - TANYA CATATAN (opsional): "Oke, udah Zoya catet booking buat {{{SESSION_ACTIVE_SERVICE}}} motor {{{SESSION_MOTOR_NAME}}} di {{{pendingBookingDate}}} jam {{{pendingBookingTime}}}. Ada catatan tambahan buat booking ini, Bro? (misalnya, 'datang agak telat dikit', atau 'fokus di bagian tertentu'). Kalau nggak ada, ketik aja 'gak ada' atau '-' atau 'aman cukup'."
+         - SIMPAN KE SESI Firestore (via flow): \\\`lastAiInteractionType\\\` = "waiting_for_booking_notes".
+      - JIKA flow GAGAL mem-parse tanggal/jam ({{{pendingBookingDate}}} atau {{{pendingBookingTime}}} di sesi KOSONG atau TIDAK VALID):
+         - TANYA ULANG/KLARIFIKASI TANGGAL/JAM: "Waduh, Bro, Zoya agak bingung nih sama tanggal/jamnya. Bisa tolong kasih tau lagi yang lebih jelas? (Contoh: Besok jam 2 siang, atau Tanggal 25 Juli jam 14:00)."
+         - (Tetap di state "waiting_for_booking_datetime").
+   3. USER MEMBERIKAN CATATAN ATAU BILANG "GAK ADA" / "CUKUP" ({{{SESSION_LAST_AI_INTERACTION_TYPE}}} adalah "waiting_for_booking_notes" DAN {{{pendingBookingDate}}} serta {{{pendingBookingTime}}} di sesi SUDAH VALID):
+      - Ambil catatan dari user (jika ada, atau kosong jika "gak ada").
+      - **PERSIAPKAN DATA UNTUK TOOL \\\`createBookingTool\\\` (INI WAJIB DILAKUKAN FLOW DI BELAKANG LAYAR, ZOYA HANYA PERLU TAHU BAHWA DIA AKAN MEMANGGIL TOOL INI):**
+         - customerName: Ambil dari \\\`{{{SESSION_MOTOR_NAME}}}\\\` (jika sudah diketahui dan bukan "belum diketahui"), atau default ke \\\`Pelanggan WhatsApp {{{senderNumber}}}\\\`.
+         - customerPhone: \\\`{{{senderNumber}}}\\\` (jika ada).
+         - serviceId: \\\`{{{SESSION_ACTIVE_SERVICE_ID}}}\\\` (HARUS ADA dari sesi).
+         - serviceName: \\\`{{{SESSION_ACTIVE_SERVICE}}}\\\` (HARUS ADA dari sesi).
+         - vehicleInfo: "\\\`{{{SESSION_MOTOR_NAME}}}\\\` (Ukr: \\\`{{{SESSION_MOTOR_SIZE}}}\\\`)" (HARUS ADA dari sesi).
+         - bookingDate: Ambil dari \\\`{{{pendingBookingDate}}}\\\` (HARUS ADA dari sesi, format YYYY-MM-DD).
+         - bookingTime: Ambil dari \\\`{{{pendingBookingTime}}}\\\` (HARUS ADA dari sesi, format HH:MM).
+         - notes: Catatan dari user.
+      - **LANGSUNG PANGGIL TOOL \\\`createBookingTool\\\` dengan data di atas.**
       - SETELAH TOOL KEMBALI:
-         - Jika tool bilang sukses (output.success === true): "[PESAN_SUKSES_DARI_TOOL_OUTPUT.message]". Contoh: "Mantap jiwa, Bro! Booking lo buat {{{SESSION_ACTIVE_SERVICE}}} motor {{{SESSION_MOTOR_NAME}}} di [TANGGAL_DARI_TOOL] jam [JAM_DARI_TOOL] udah Zoya CATET dengan ID [BOOKING_ID_DARI_TOOL]. Ditunggu kedatangannya ya! Kalau mau batalin atau ganti jadwal, kabarin Zoya lagi aja."
+         - Jika tool bilang sukses (output.success === true): "[PESAN_SUKSES_DARI_TOOL_OUTPUT.message]". Contoh: "Mantap jiwa, Bro! Booking lo buat {{{SESSION_ACTIVE_SERVICE}}} motor {{{SESSION_MOTOR_NAME}}} di {{{pendingBookingDate}}} jam {{{pendingBookingTime}}} udah Zoya CATET dengan ID [BOOKING_ID_DARI_TOOL]. Ditunggu kedatangannya ya! Kalau mau batalin atau ganti jadwal, kabarin Zoya lagi aja."
          - Jika tool bilang gagal (output.success === false): "Waduh, sori banget nih Bro, kayaknya ada kendala pas Zoya mau catet booking lo. Kata sistem sih: [PESAN_ERROR_DARI_TOOL_OUTPUT.message]. Coba lagi bentar, atau mungkin ada info yang salah?"
-      - SIMPAN KE SESI Firestore (via flow): Bersihkan info booking dari sesi (activeSpecificServiceInquiry, knownMotorcycleName, dll), set \\\`lastAiInteractionType\\\` = "booking_attempted".
+      - SIMPAN KE SESI Firestore (via flow): Bersihkan info booking dari sesi (activeSpecificServiceInquiry, activeSpecificServiceId, knownMotorcycleName, knownMotorcycleSize, pendingBookingDate, pendingBookingTime), set \\\`lastAiInteractionType\\\` = "booking_attempted".
 
 I. KONDISI LAIN / NGOBROL SANTAI / BINGUNG (Periksa dulu apakah ALUR X, A, B, dst. cocok. Jika tidak, baru ke sini)
    - Kalau user nanya di luar detailing motor, jawab aja "Waduh, Bro, Zoya cuma ngerti soal motor biar kinclong nih. Soal itu Zoya nyerah deh. Ada lagi soal QLAB yang bisa Zoya bantu?"
@@ -1252,7 +1264,7 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
     let knownMotorcycleName = input.knownMotorcycleInfo?.name || currentSession.knownMotorcycleName || "belum diketahui";
     let knownMotorcycleSize = input.knownMotorcycleInfo?.size || currentSession.knownMotorcycleSize || "belum diketahui";
     let activeSpecificServiceInquiry = input.activeSpecificServiceInquiry || currentSession.activeSpecificServiceInquiry || "tidak ada";
-    let activeSpecificServiceId = currentSession.activeSpecificServiceId; // Ambil dari sesi
+    let activeSpecificServiceId = currentSession.activeSpecificServiceId || "tidak ada";
     let lastAiInteractionType = currentSession.lastAiInteractionType || "initial_greeting";
     let pendingBookingDate = currentSession.pendingBookingDate;
     let pendingBookingTime = currentSession.pendingBookingTime;
@@ -1307,9 +1319,48 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
             console.log("[MAIN-FLOW] Pre-call findLayananByCategory tidak menemukan data.");
         }
     }
+    // --- Logika untuk memproses tanggal & jam booking dari pesan user ---
+    if (lastAiInteractionType === 'waiting_for_booking_datetime' && customerMessageToProcess) {
+        let parsedDate;
+        let parsedTime;
+        const today = new Date();
+        const tomorrow = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$addDays$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["addDays"])(today, 1);
+        const dayAfterTomorrow = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$addDays$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["addDays"])(today, 2);
+        if (lowerCaseCustomerMessage.includes("besok")) {
+            parsedDate = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(tomorrow, 'yyyy-MM-dd');
+        } else if (lowerCaseCustomerMessage.includes("lusa")) {
+            parsedDate = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(dayAfterTomorrow, 'yyyy-MM-dd');
+        } else if (lowerCaseCustomerMessage.includes("hari ini")) {
+            parsedDate = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$date$2d$fns$2f$format$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["format"])(today, 'yyyy-MM-dd');
+        }
+        const timeMatch = customerMessageToProcess.match(/(\d{1,2})[:.](\d{2})/);
+        if (timeMatch) {
+            parsedTime = `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}`;
+        } else {
+            const jamXMatch = lowerCaseCustomerMessage.match(/jam\s*(\d{1,2})\s*(pagi|siang|sore|malam)?/);
+            if (jamXMatch) {
+                let hour = parseInt(jamXMatch[1], 10);
+                const period = jamXMatch[2];
+                if (period === 'siang' && hour < 12) hour += 12;
+                else if (period === 'sore' && hour < 12) hour += 12;
+                else if (period === 'malam' && hour < 12) hour += 12;
+                if (hour >= 0 && hour <= 23) {
+                    parsedTime = `${String(hour).padStart(2, '0')}:00`;
+                }
+            }
+        }
+        if (parsedDate && parsedTime) {
+            sessionDataToSave.pendingBookingDate = parsedDate;
+            sessionDataToSave.pendingBookingTime = parsedTime;
+            pendingBookingDate = parsedDate;
+            pendingBookingTime = parsedTime;
+            console.log(`[MAIN-FLOW] Booking date/time parsed: ${parsedDate} ${parsedTime}`);
+        } else {
+            console.log("[MAIN-FLOW] Gagal parse booking date/time dari user message.");
+        }
+    }
     const mainPromptFromSettings = input.mainPromptString || __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_MAIN_PROMPT_ZOYA"];
-    const finalSystemPrompt = mainPromptFromSettings.replace("{{{SESSION_MOTOR_NAME}}}", knownMotorcycleName).replace("{{{SESSION_MOTOR_SIZE}}}", knownMotorcycleSize).replace("{{{SESSION_ACTIVE_SERVICE}}}", activeSpecificServiceInquiry).replace("{{{SESSION_LAST_AI_INTERACTION_TYPE}}}", lastAiInteractionType).replace("{{{detectedGeneralServiceKeyword}}}", detectedGeneralServiceKeyword || "tidak ada").replace("{{{dynamicContext}}}", dynamicContextFromPreToolCall || `INFO_UMUM_BENGKEL: QLAB Moto Detailing, Jl. Sukasenang V No.1A, Cikutra, Bandung. Buka 09:00 - 21:00 WIB. Full Detailing hanya untuk cat glossy. Coating beda harga untuk doff & glossy.`).replace("{{{currentDate}}}", input.currentDate || "tidak diketahui").replace("{{{tomorrowDate}}}", input.tomorrowDate || "tidak diketahui").replace("{{{dayAfterTomorrowDate}}}", input.dayAfterTomorrowDate || "tidak diketahui").replace("{{{senderNumber}}}", userId) // Untuk tool booking
-    ;
+    const finalSystemPrompt = mainPromptFromSettings.replace("{{{SESSION_MOTOR_NAME}}}", knownMotorcycleName).replace("{{{SESSION_MOTOR_SIZE}}}", knownMotorcycleSize).replace("{{{SESSION_ACTIVE_SERVICE}}}", activeSpecificServiceInquiry).replace("{{{SESSION_ACTIVE_SERVICE_ID}}}", activeSpecificServiceId).replace("{{{SESSION_LAST_AI_INTERACTION_TYPE}}}", lastAiInteractionType).replace("{{{detectedGeneralServiceKeyword}}}", detectedGeneralServiceKeyword || "tidak ada").replace("{{{dynamicContext}}}", dynamicContextFromPreToolCall || `INFO_UMUM_BENGKEL: QLAB Moto Detailing, Jl. Sukasenang V No.1A, Cikutra, Bandung. Buka 09:00 - 21:00 WIB. Full Detailing hanya untuk cat glossy. Coating beda harga untuk doff & glossy.`).replace("{{{currentDate}}}", input.currentDate || "tidak diketahui").replace("{{{tomorrowDate}}}", input.tomorrowDate || "tidak diketahui").replace("{{{dayAfterTomorrowDate}}}", input.dayAfterTomorrowDate || "tidak diketahui").replace("{{{senderNumber}}}", userId).replace("{{{pendingBookingDate}}}", pendingBookingDate || "belum ada").replace("{{{pendingBookingTime}}}", pendingBookingTime || "belum ada");
     const historyForAI = (input.messages || []).filter((msg)=>msg.content && msg.content.trim() !== '').map((msg)=>({
             role: msg.role,
             content: [
@@ -1330,7 +1381,6 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
         }
     ];
     console.log(`[MAIN-FLOW] Calling MAIN ai.generate. History Length: ${historyForAI.length}. Prompt snippet: ${finalSystemPrompt.substring(0, 300)}...`);
-    // Default interaction type
     sessionDataToSave.lastAiInteractionType = 'general_response';
     try {
         const result = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].generate({
@@ -1371,26 +1421,33 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
                         interactionTypeAfterTool = 'asked_for_service_after_motor_size';
                     }
                 } else {
-                    interactionTypeAfterTool = 'asked_for_motor_type_for_specific_service'; // Gagal, tetap tanya motor
+                    interactionTypeAfterTool = 'asked_for_motor_type_for_specific_service';
                 }
             } else if (toolRequest.name === 'getProductServiceDetailsByNameTool' && toolRequest.input) {
                 toolOutputToRelay = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$productLookupTool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["findProductServiceByName"])(toolRequest.input);
-                if (toolOutputToRelay?.name) {
+                if (toolOutputToRelay?.name && toolOutputToRelay?.id) {
                     activeServiceAfterTool = toolOutputToRelay.name;
-                    activeServiceIdAfterTool = toolOutputToRelay.id; // Simpan ID layanan
+                    activeServiceIdAfterTool = toolOutputToRelay.id;
                     interactionTypeAfterTool = 'provided_specific_service_details';
+                    sessionDataToSave.activeSpecificServiceInquiry = activeServiceAfterTool;
                     sessionDataToSave.activeSpecificServiceId = activeServiceIdAfterTool;
                 }
             } else if (toolRequest.name === 'findLayananByCategory' && toolRequest.input) {
-                toolOutputToRelay = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$cariInfoLayananTool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["findLayananByCategory"])(toolRequest.input); // Memanggil fungsi implementasi tool
+                toolOutputToRelay = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$cariInfoLayananTool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["findLayananByCategory"])(toolRequest.input);
                 if (Array.isArray(toolOutputToRelay) && toolOutputToRelay.length > 0) {
                     interactionTypeAfterTool = 'provided_category_service_list';
                 }
             } else if (toolRequest.name === 'createBookingTool' && toolRequest.input) {
                 const bookingInput = toolRequest.input;
-                if (!bookingInput.serviceId && activeServiceIdAfterTool) {
+                if (!bookingInput.serviceId && activeServiceIdAfterTool && activeServiceIdAfterTool !== "tidak ada") {
                     bookingInput.serviceId = activeServiceIdAfterTool;
                     bookingInput.serviceName = activeServiceAfterTool;
+                }
+                if (!bookingInput.customerPhone && userId !== 'anonymous_user') {
+                    bookingInput.customerPhone = userId;
+                }
+                if (!bookingInput.customerName || bookingInput.customerName.toLowerCase().includes("pelanggan whatsapp")) {
+                    bookingInput.customerName = knownMotorcycleName !== "belum diketahui" ? `Pelanggan ${knownMotorcycleName}` : `Pelanggan WhatsApp`;
                 }
                 toolOutputToRelay = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$createBookingTool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["createBookingTool"].fn(bookingInput);
                 interactionTypeAfterTool = 'booking_attempted';
@@ -1402,7 +1459,6 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
                 }
             }
             sessionDataToSave.lastAiInteractionType = interactionTypeAfterTool;
-            sessionDataToSave.activeSpecificServiceInquiry = activeServiceAfterTool;
             if (toolOutputToRelay !== "Error: Tool output tidak diset.") {
                 console.log(`[MAIN-FLOW] Output from tool '${toolRequest.name}':`, JSON.stringify(toolOutputToRelay, null, 2));
                 const messagesAfterTool = [
@@ -1420,7 +1476,7 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
                         ]
                     }
                 ];
-                const promptForSecondCall = mainPromptFromSettings.replace("{{{SESSION_MOTOR_NAME}}}", knownMotorcycleName).replace("{{{SESSION_MOTOR_SIZE}}}", knownMotorcycleSize).replace("{{{SESSION_ACTIVE_SERVICE}}}", activeServiceAfterTool).replace("{{{SESSION_LAST_AI_INTERACTION_TYPE}}}", interactionTypeAfterTool).replace("{{{dynamicContext}}}", dynamicContextFromPreToolCall || "Tidak ada info tambahan dari sistem.").replace("{{{currentDate}}}", input.currentDate || "tidak diketahui").replace("{{{tomorrowDate}}}", input.tomorrowDate || "tidak diketahui").replace("{{{dayAfterTomorrowDate}}}", input.dayAfterTomorrowDate || "tidak diketahui").replace("{{{senderNumber}}}", userId);
+                const promptForSecondCall = mainPromptFromSettings.replace("{{{SESSION_MOTOR_NAME}}}", knownMotorcycleName).replace("{{{SESSION_MOTOR_SIZE}}}", knownMotorcycleSize).replace("{{{SESSION_ACTIVE_SERVICE}}}", activeServiceAfterTool).replace("{{{SESSION_ACTIVE_SERVICE_ID}}}", activeServiceIdAfterTool).replace("{{{SESSION_LAST_AI_INTERACTION_TYPE}}}", interactionTypeAfterTool).replace("{{{dynamicContext}}}", dynamicContextFromPreToolCall || "Tidak ada info tambahan dari sistem.").replace("{{{currentDate}}}", input.currentDate || "tidak diketahui").replace("{{{tomorrowDate}}}", input.tomorrowDate || "tidak diketahui").replace("{{{dayAfterTomorrowDate}}}", input.dayAfterTomorrowDate || "tidak diketahui").replace("{{{senderNumber}}}", userId).replace("{{{pendingBookingDate}}}", sessionDataToSave.pendingBookingDate || pendingBookingDate || "belum ada").replace("{{{pendingBookingTime}}}", sessionDataToSave.pendingBookingTime || pendingBookingTime || "belum ada");
                 const modelResponseAfterTool = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].generate({
                     model: 'googleai/gemini-1.5-flash-latest',
                     prompt: promptForSecondCall,
@@ -1444,7 +1500,7 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
                 const lowerFinalReply = suggestedReply.toLowerCase();
                 if (lowerFinalReply.includes("tanggal") && lowerFinalReply.includes("jam") && (interactionTypeAfterTool === 'provided_specific_service_details' || interactionTypeAfterTool === 'ready_for_booking_details')) {
                     sessionDataToSave.lastAiInteractionType = 'waiting_for_booking_datetime';
-                } else if (lowerFinalReply.includes("catatan tambahan") && interactionTypeAfterTool === 'waiting_for_booking_datetime') {
+                } else if ((lowerFinalReply.includes("catatan tambahan") || lowerFinalReply.includes("ada lagi yang bisa dibantu?")) && (interactionTypeAfterTool === 'waiting_for_booking_datetime' || lastAiInteractionType === 'waiting_for_booking_datetime')) {
                     sessionDataToSave.lastAiInteractionType = 'waiting_for_booking_notes';
                 }
             }
@@ -1465,23 +1521,35 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
                         activeSpecificServiceInquiry = serviceMentionedInUser.name;
                         activeSpecificServiceId = serviceMentionedInUser.id;
                     }
-                } else if (lowerReply.includes("catnya glossy atau doff") && activeSpecificServiceInquiry.toLowerCase().includes("coating")) {
+                } else if (lowerReply.includes("catnya glossy atau doff") && (activeSpecificServiceInquiry.toLowerCase().includes("coating") || customerMessageToProcess.toLowerCase().includes("coating"))) {
                     sessionDataToSave.lastAiInteractionType = 'asked_for_paint_type_for_coating';
+                    if (activeSpecificServiceInquiry === "tidak ada" && customerMessageToProcess.toLowerCase().includes("coating")) {
+                        const coatingService = (await getAllServiceNamesAndIds()).find((s)=>s.name.toLowerCase().includes("coating"));
+                        if (coatingService) {
+                            sessionDataToSave.activeSpecificServiceInquiry = coatingService.name;
+                            sessionDataToSave.activeSpecificServiceId = coatingService.id;
+                            activeSpecificServiceInquiry = coatingService.name;
+                            activeSpecificServiceId = coatingService.id;
+                        }
+                    }
                 } else if ((lowerReply.includes("mau dibookingin") || lowerReply.includes("mau dijadwalin")) && activeSpecificServiceInquiry !== "tidak ada") {
                     sessionDataToSave.lastAiInteractionType = 'ready_for_booking_details';
-                } else if (lowerReply.includes("tanggal") && lowerReply.includes("jam") && (lastAiInteractionType === 'ready_for_booking_details' || lastAiInteractionType === 'provided_specific_service_details')) {
+                } else if (lowerReply.includes("tanggal") && lowerReply.includes("jam") && (lastAiInteractionType === 'ready_for_booking_details' || lastAiInteractionType === 'provided_specific_service_details' || lastAiInteractionType === 'asked_for_service_after_motor_size')) {
                     sessionDataToSave.lastAiInteractionType = 'waiting_for_booking_datetime';
-                } else if (lowerReply.includes("catatan tambahan") && lastAiInteractionType === 'waiting_for_booking_datetime') {
+                } else if ((lowerReply.includes("catatan tambahan") || lowerReply.includes("ada lagi yang bisa dibantu?")) && lastAiInteractionType === 'waiting_for_booking_datetime') {
                     sessionDataToSave.lastAiInteractionType = 'waiting_for_booking_notes';
-                } else if (lowerReply.includes("booking lo udah zoya catet") || lowerReply.includes("booking berhasil")) {
+                } else if (lowerReply.includes("booking lo udah zoya catet") || lowerReply.includes("booking berhasil") || lowerReply.includes("udah zoya bikinin jadwalnya") || lowerReply.includes("udah zoya bookingin")) {
                     sessionDataToSave.lastAiInteractionType = 'booking_attempted';
-                    sessionDataToSave.activeSpecificServiceInquiry = undefined;
-                    sessionDataToSave.activeSpecificServiceId = undefined;
-                    sessionDataToSave.pendingBookingDate = undefined;
-                    sessionDataToSave.pendingBookingTime = undefined;
+                    if (lowerReply.includes("berhasil") || lowerReply.includes("udah zoya catet")) {
+                        sessionDataToSave.activeSpecificServiceInquiry = undefined;
+                        sessionDataToSave.activeSpecificServiceId = undefined;
+                        sessionDataToSave.pendingBookingDate = undefined;
+                        sessionDataToSave.pendingBookingTime = undefined;
+                        sessionDataToSave.lastAiInteractionType = 'general_response';
+                    }
                 } else if (lowerReply.includes("pilihan layanan") || lowerReply.includes("daftar layanan")) {
                     sessionDataToSave.lastAiInteractionType = 'provided_category_service_list';
-                } else if (lowerReply.includes("harga") && knownMotorcycleName !== "belum diketahui") {
+                } else if (lowerReply.includes("harga") && (knownMotorcycleName !== "belum diketahui" || activeSpecificServiceInquiry !== "tidak ada")) {
                     sessionDataToSave.lastAiInteractionType = 'provided_specific_service_details';
                 } else if (lowerReply.includes("halo") || lowerReply.includes("ada yang bisa dibantu")) {
                     sessionDataToSave.lastAiInteractionType = 'initial_greeting';
@@ -1516,7 +1584,7 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
         }
         return {
             suggestedReply,
-            sessionActiveSpecificServiceInquiry: sessionDataToSave.activeSpecificServiceInquiry !== undefined ? sessionDataToSave.activeSpecificServiceInquiry : activeSpecificServiceInquiry,
+            sessionActiveSpecificServiceInquiry: sessionDataToSave.activeSpecificServiceInquiry !== undefined ? sessionDataToSave.activeSpecificServiceInquiry : activeSpecificServiceInquiry !== "tidak ada" ? activeSpecificServiceInquiry : undefined,
             sessionDetectedMotorcycleInfo: knownMotorcycleName !== "belum diketahui" ? {
                 name: knownMotorcycleName,
                 size: knownMotorcycleSize !== "belum diketahui" ? knownMotorcycleSize : undefined
@@ -1531,14 +1599,32 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
         };
     }
 });
-// Helper Functions
 async function getAllServiceNamesAndIds() {
     try {
         const items = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$cariInfoLayananTool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["findLayananByCategory"])({
-            keyword: ""
+            keyword: "cuci"
         });
-        if (Array.isArray(items)) {
-            return items.map((i)=>({
+        const items2 = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$cariInfoLayananTool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["findLayananByCategory"])({
+            keyword: "poles"
+        });
+        const items3 = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$cariInfoLayananTool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["findLayananByCategory"])({
+            keyword: "coating"
+        });
+        const items4 = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$cariInfoLayananTool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["findLayananByCategory"])({
+            keyword: "detailing"
+        });
+        const allItems = [
+            ...items,
+            ...items2,
+            ...items3,
+            ...items4
+        ];
+        const uniqueItems = Array.from(new Map(allItems.map((item)=>[
+                item.id,
+                item
+            ])).values());
+        if (Array.isArray(uniqueItems)) {
+            return uniqueItems.map((i)=>({
                     id: i.id,
                     name: i.name
                 })).filter((i)=>i.id && i.name);
