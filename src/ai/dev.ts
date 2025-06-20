@@ -10,13 +10,17 @@ import '@/lib/firebase';
 import '@/lib/firebase-admin';
 
 // Import flows and tools
-import '@/ai/flows/cs-whatsapp-reply-flow'; // Mengimpor flow utama yang sekarang berisi tools juga
-// import '@/ai/tools/cariInfoLayananTool'; // Dihapus karena sudah dipindah ke flow
-// import '@/ai/tools/extractMotorInfoTool'; // Placeholder
-// import '@/ai/tools/searchServiceByKeywordTool'; // Placeholder (sudah digantikan cariInfoLayananTool)
-// import '@/ai/tools/createBookingTool'; // Placeholder
+import '@/ai/flows/cs-whatsapp-reply-flow';
+import '@/ai/flows/handle-service-inquiry-flow'; // Import sub-flow baru
+import '@/ai/tools/cari-size-motor-tool';    // Import tool modular
+import '@/ai/tools/cariInfoLayananTool';   // Import tool modular
 
-console.log("[src/ai/dev.ts] Core WhatsApp reply flow (termasuk cariSizeMotorTool dan cariInfoLayananTool) diimpor.");
-console.log("[src/ai/dev.ts] Other tools (extractMotorInfo, createBooking) adalah placeholders dan saat ini TIDAK aktif.");
+// Placeholder tools (jika masih ada dan belum dihapus)
+import '@/ai/tools/extractMotorInfoTool';
+import '@/ai/tools/searchServiceByKeywordTool';
+import '@/ai/tools/createBookingTool';
+
+console.log("[src/ai/dev.ts] Main flow (cs-whatsapp-reply-flow) and sub-flow (handle-service-inquiry-flow) imported.");
+console.log("[src/ai/dev.ts] Modular tools (cariSizeMotorTool, cariInfoLayananTool) imported.");
+console.log("[src/ai/dev.ts] Other tools are placeholders.");
 console.log("[src/ai/dev.ts] Genkit Developer UI should be available if no errors (default port: 4001).");
-    
