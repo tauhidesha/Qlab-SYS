@@ -41,45 +41,52 @@ export async function findMotorSize(input: CariSizeMotorInput): Promise<CariSize
 
     try {
       const vehicleTypesRef = collection(db, 'vehicleTypes');
-      let q;
-      let querySnapshot;
       let foundVehicleData: any = null;
 
-      // Coba cari berdasarkan alias dulu
-      q = firestoreQuery(vehicleTypesRef, where('aliases', 'array-contains', namaMotorLower), limit(1));
-      querySnapshot = await getDocs(q);
+      // 1. Coba cari berdasarkan model_lowercase (lebih spesifik dan efisien jika field ada)
+      console.log(`[findMotorSize Tool Function] Attempt 1: Querying by model_lowercase == "${namaMotorLower}"`);
+      const modelLowercaseQuery = firestoreQuery(vehicleTypesRef, where('model_lowercase', '==', namaMotorLower), limit(1));
+      let querySnapshot = await getDocs(modelLowercaseQuery);
 
       if (!querySnapshot.empty) {
         foundVehicleData = querySnapshot.docs[0].data();
+        console.log(`[findMotorSize Tool Function] Found via model_lowercase: ${foundVehicleData.model}`);
       } else {
-        // Jika tidak ketemu di alias, coba cari berdasarkan model_lowercase (jika ada field itu)
-        // Atau bisa juga ambil semua lalu filter, tapi kurang efisien.
-        // Untuk contoh ini, kita asumsikan ada model_lowercase atau kita ambil semua
-        const allVehiclesSnapshot = await getDocs(vehicleTypesRef);
+        // 2. Jika tidak ketemu, coba cari berdasarkan alias
+        console.log(`[findMotorSize Tool Function] Attempt 2: Querying by aliases array-contains "${namaMotorLower}"`);
+        const aliasQuery = firestoreQuery(vehicleTypesRef, where('aliases', 'array-contains', namaMotorLower), limit(1));
+        querySnapshot = await getDocs(aliasQuery);
+        if (!querySnapshot.empty) {
+          foundVehicleData = querySnapshot.docs[0].data();
+          console.log(`[findMotorSize Tool Function] Found via aliases: ${foundVehicleData.model}`);
+        }
+      }
+
+      // 3. Fallback: Jika belum ketemu dan untuk data lama yang mungkin belum punya model_lowercase,
+      //    iterasi dan cek model (case-insensitive). Ini kurang efisien.
+      if (!foundVehicleData) {
+        console.log(`[findMotorSize Tool Function] Attempt 3: Fallback to iterating and checking model.toLowerCase() for "${namaMotorLower}" (less efficient).`);
+        const allVehiclesSnapshot = await getDocs(vehicleTypesRef); // Pertimbangkan untuk membatasi ini jika koleksi sangat besar
         for (const doc of allVehiclesSnapshot.docs) {
           const vehicle = doc.data();
           if (vehicle.model && vehicle.model.toLowerCase() === namaMotorLower) {
             foundVehicleData = vehicle;
-            break;
-          }
-           // Check model_lowercase as fallback
-          if (vehicle.model_lowercase && vehicle.model_lowercase === namaMotorLower) {
-            foundVehicleData = vehicle;
+            console.log(`[findMotorSize Tool Function] Found via iteration on model.toLowerCase(): ${foundVehicleData.model}`);
             break;
           }
         }
       }
 
       if (foundVehicleData && foundVehicleData.size) {
-        console.log(`[findMotorSize Tool Function] Ditemukan: ${foundVehicleData.model} ukuran ${foundVehicleData.size}`);
+        console.log(`[findMotorSize Tool Function] Final Result: ${foundVehicleData.model} (Size: ${foundVehicleData.size}) for input "${namaMotor}"`);
         return {
           success: true,
           size: foundVehicleData.size,
-          message: `Motor ${foundVehicleData.model} (${namaMotor}) termasuk ukuran ${foundVehicleData.size}.`,
+          message: `Motor ${foundVehicleData.model} (dari input "${namaMotor}") termasuk ukuran ${foundVehicleData.size}.`,
           vehicleModelFound: foundVehicleData.model,
         };
       } else {
-        console.log(`[findMotorSize Tool Function] Ukuran untuk "${namaMotor}" tidak ditemukan.`);
+        console.log(`[findMotorSize Tool Function] Ukuran untuk "${namaMotor}" tidak ditemukan setelah semua attempt.`);
         return {
           success: false,
           message: `Maaf, Zoya tidak menemukan ukuran untuk motor "${namaMotor}". Mungkin bisa coba nama model yang lebih spesifik atau umum?`,
@@ -103,6 +110,3 @@ export const cariSizeMotorTool = ai.defineTool(
   },
   findMotorSize // Pass the actual function here
 );
-
-
-    

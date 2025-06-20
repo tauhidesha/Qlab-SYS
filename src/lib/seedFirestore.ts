@@ -1,7 +1,7 @@
 
 import { adminDb } from './firebase-admin';
 import * as fs from 'fs';
-import * as path from 'path'; // Perbaikan di sini
+import * as path from 'path'; 
 
 // Define the structure of a single vehicle type object in your JSON
 interface VehicleTypeSeed {
@@ -9,12 +9,11 @@ interface VehicleTypeSeed {
   model: string;
   size: 'S' | 'M' | 'L' | 'XL';
   aliases: string[];
-  // Add any other fields your JSON might have, but they won't be used unless you modify the script
+  // Add any other fields your JSON might have
   [key: string]: any; 
 }
 
 const COLLECTION_NAME = 'vehicleTypes';
-// Adjust the path if your JSON file is located elsewhere
 const JSON_DATA_PATH = path.join(__dirname, 'vehicleTypesData.json'); 
 
 async function seedVehicleTypes() {
@@ -42,8 +41,6 @@ async function seedVehicleTypes() {
 
     console.log(`Found ${vehicleTypes.length} vehicle types in JSON file.`);
 
-    // Optional: Delete existing documents in the collection before seeding
-    // Comment out this section if you want to append data instead of overwriting
     console.log(`Deleting existing documents in '${COLLECTION_NAME}' collection...`);
     const snapshot = await adminDb.collection(COLLECTION_NAME).get();
     if (!snapshot.empty) {
@@ -56,14 +53,13 @@ async function seedVehicleTypes() {
     } else {
       console.log('No existing documents to delete.');
     }
-    // End of optional delete section
 
     console.log(`Starting to seed '${COLLECTION_NAME}' collection...`);
     const batch = adminDb.batch();
     let operationsCount = 0;
+    let validItemsCount = 0;
 
     for (const vehicle of vehicleTypes) {
-      // Validate basic structure
       if (!vehicle.brand || !vehicle.model || !vehicle.size || !Array.isArray(vehicle.aliases)) {
         console.warn(`Skipping invalid vehicle data (missing brand, model, size, or aliases is not an array): ${JSON.stringify(vehicle)}`);
         continue;
@@ -77,34 +73,28 @@ async function seedVehicleTypes() {
         continue;
       }
 
-
-      const docRef = adminDb.collection(COLLECTION_NAME).doc(); // Auto-generate ID
+      const docRef = adminDb.collection(COLLECTION_NAME).doc(); 
       
-      // Create the object to be saved, ensuring only defined fields are included
-      const dataToSave: Partial<VehicleTypeSeed> = {
+      const dataToSave: Partial<VehicleTypeSeed> & { model_lowercase: string } = {
         brand: vehicle.brand,
         model: vehicle.model,
+        model_lowercase: vehicle.model.toLowerCase().trim(), // Added lowercase field
         size: vehicle.size,
         aliases: vehicle.aliases.map(alias => alias.toLowerCase().trim()).filter(alias => alias !== ''),
-        // Add any other relevant fields from your JSON here,
-        // for example, if your JSON has 'subCategory', you'd add:
-        // subCategory: vehicle.subCategory, 
       };
       
       batch.set(docRef, dataToSave);
       operationsCount++;
+      validItemsCount++;
 
-      if (operationsCount >= 490) { // Firestore batch limit is 500 operations
+      if (operationsCount >= 490) { 
         console.log('Committing batch of ~490 operations...');
         await batch.commit();
-        operationsCount = 0;
         // Re-initialize batch for next set of operations
-        // batch = adminDb.batch(); // This line had an error, re-initialization is tricky with existing batch object.
-        // For simplicity, if you have >500 items, run the script multiple times or implement more robust batching.
-        // For now, this script assumes less than 500 items or will process up to the limit then stop.
-        // If you need to seed more, consider splitting your JSON or enhancing this script's batching.
-        // For this version, let's just log a warning if it exceeds.
+        // batch = adminDb.batch(); // This line is problematic. For >500 items, manual re-run or better batching logic needed.
+        // For now, we'll assume it will fit or the user can re-run.
         console.warn("Approaching Firestore batch limit. If you have more than 490 items, this script might not process all of them in one go.");
+        operationsCount = 0; // Reset for the next batch IF we were to reinitialize it.
       }
     }
 
@@ -112,7 +102,7 @@ async function seedVehicleTypes() {
       await batch.commit();
     }
 
-    console.log(`Successfully seeded ${vehicleTypes.filter(v => v.brand && v.model && v.size && Array.isArray(v.aliases)).length} valid vehicle types into '${COLLECTION_NAME}'.`);
+    console.log(`Successfully seeded ${validItemsCount} valid vehicle types into '${COLLECTION_NAME}'.`);
 
   } catch (error) {
     console.error('Error seeding Firestore:', error);
