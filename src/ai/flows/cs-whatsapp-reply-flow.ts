@@ -191,31 +191,29 @@ const zoyaChatFlow = ai.defineFlow(
     outputSchema: ZoyaChatOutputSchema, // Tetap string
   },
   async (input) => {
-    console.log("[CS-FLOW] whatsAppReplyFlowSimplified input.", "Customer Message:", input.customerMessage, "History Length:", (input.chatHistory || []).length);
+    console.log("[CS-FLOW] zoyaChatFlow input.", "Customer Message:", input.customerMessage, "History Length:", (input.messages || []).length);
 
-    // Ambil pesan terakhir dari pengguna untuk prompt
     const lastUserMessageContent = input.customerMessage || 
                                    (input.messages && input.messages.length > 0 ? input.messages[input.messages.length - 1].content : '');
 
     if (!lastUserMessageContent || lastUserMessageContent.trim() === '') {
       console.warn("[CS-FLOW] No valid last user message content. Returning empty reply.");
-      return ""; // Kembalikan string kosong jika tidak ada pesan
+      return ""; 
     }
     const lastMessageLowerCase = lastUserMessageContent.toLowerCase();
     
-    // Deteksi entitas (motor dan layanan) langsung dari Firestore
     let vehicleModel: string | null = null;
     let serviceName: string | null = null;
     let dynamicContext = `INFO_UMUM_BENGKEL: QLAB Moto Detailing adalah bengkel perawatan dan detailing motor.`;
 
-    if (db) { // Menggunakan db (Client SDK)
+    if (db) { 
       try {
           const modelsCollectionRef = collection(db, 'vehicleTypes');
-          const modelsSnapshot = await getDocs(modelsCollectionRef); // Client SDK
+          const modelsSnapshot = await getDocs(modelsCollectionRef); 
           for (const doc of modelsSnapshot.docs) {
               const modelData = doc.data();
               const modelAliases = (modelData.aliases as string[] || []).map(a => a.toLowerCase());
-              const originalModelName = modelData.model as string; // Asumsi field 'model' ada
+              const originalModelName = modelData.model as string; 
               if (modelAliases.some(alias => lastMessageLowerCase.includes(alias)) || lastMessageLowerCase.includes(originalModelName.toLowerCase())) {
                   vehicleModel = originalModelName;
                   break;
@@ -223,7 +221,7 @@ const zoyaChatFlow = ai.defineFlow(
           }
 
           const servicesCollectionRef = collection(db, 'services');
-          const servicesSnapshot = await getDocs(servicesCollectionRef); // Client SDK
+          const servicesSnapshot = await getDocs(servicesCollectionRef); 
           for (const doc of servicesSnapshot.docs) {
               const serviceData = doc.data();
               const serviceAliases = (serviceData.aliases as string[] || []).map(a => a.toLowerCase());
@@ -244,18 +242,16 @@ const zoyaChatFlow = ai.defineFlow(
     
     console.log(`[CS-FLOW] Dynamic context built: ${dynamicContext}`);
 
-    const historyForAI = (input.chatHistory || []) // Menggunakan input.chatHistory
+    const historyForAI = (input.messages || []) // Menggunakan input.messages (sesuai ZoyaChatInputSchema)
       .filter(msg => msg.content && msg.content.trim() !== '')
       .map((msg) => ({
         role: msg.role,
         parts: [{ text: msg.content }],
     }));
     
-    // Ambil systemInstruction dari DEFAULT_AI_SETTINGS.mainPrompt
-    const systemInstruction = (input.mainPromptString || DEFAULT_AI_SETTINGS.mainPrompt).replace("{{dynamicContext}}", dynamicContext);
+    const systemInstructionText = (input.mainPromptString || DEFAULT_AI_SETTINGS.mainPrompt).replace("{{dynamicContext}}", dynamicContext);
 
-    // Gabungkan instruksi sistem dan prompt user menjadi satu
-    const userPromptWithSystemInstruction = `${systemInstruction}
+    const userPromptWithSystemInstruction = `${systemInstructionText}
 
 ---
 
@@ -275,15 +271,13 @@ JAWABAN ZOYA:`;
       const result = await ai.generate({
         model: 'googleai/gemini-1.5-flash-latest',
         messages: messagesForAI,
-        // tools: [getServicePriceTool as any], // Tools sementara dinonaktifkan
+        // tools: [getServicePriceTool as any], // Tools sementara dinonaktifkan untuk debug 'map' error
         toolChoice: 'auto',
         config: { temperature: 0.5 },
-        // safetySettings: [...] // Bisa ditambahkan jika perlu
       });
 
       console.log("[CS-FLOW] Raw AI generate result:", JSON.stringify(result, null, 2));
 
-      // Akses finishReason dan safetyRatings dari level atas objek result
       const finishReason = result.finishReason; 
       const safetyRatings = result.safetyRatings; 
 
@@ -292,11 +286,10 @@ JAWABAN ZOYA:`;
         console.log('[CS-FLOW] AI Safety Ratings:', JSON.stringify(safetyRatings, null, 2));
       }
 
-      // Akses teks dari kandidat pertama secara aman (jika result.candidates ada)
       const suggestedReply = result.candidates?.[0]?.message.content?.[0]?.text || "";
 
       if (!suggestedReply) {
-        if (finishReason !== "stop") { // Perhatikan 'stop' lowercase
+        if (finishReason !== "stop") { 
           console.error(`[CS-FLOW] ❌ AI generation failed. Finish Reason: ${finishReason}. Safety: ${JSON.stringify(safetyRatings)}`);
         } else {
           console.warn(`[CS-FLOW] ⚠️ AI returned an empty reply, but finishReason was 'stop'. This might indicate an issue or unexpected model behavior. Safety Ratings: ${JSON.stringify(safetyRatings)}`);
@@ -319,9 +312,8 @@ JAWABAN ZOYA:`;
 export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<{ suggestedReply: string }> {
   console.log("[CS-FLOW] generateWhatsAppReply input:", JSON.stringify(input, null, 2));
   
-  // Pastikan mainPromptString ada di input, jika tidak, ambil dari default
   if (!input.mainPromptString) {
-    const mainPromptFromSettings = DEFAULT_AI_SETTINGS.mainPrompt; // Tidak lagi fetch dari Firestore di sini
+    const mainPromptFromSettings = DEFAULT_AI_SETTINGS.mainPrompt; 
     console.log("[CS-FLOW] generateWhatsAppReply: mainPrompt not found in input. Using DEFAULT_AI_SETTINGS.mainPrompt.");
     input.mainPromptString = mainPromptFromSettings;
   } else {
@@ -329,7 +321,17 @@ export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<{ sug
   }
 
   try {
-    const replyText = await zoyaChatFlow(input); // Memanggil flow yang sudah didefinisikan dengan 'ai.defineFlow'
+    // Pastikan input.messages ada, meskipun kosong, jika input.chatHistory tidak ada
+    // Ini karena zoyaChatFlow sekarang menerima input.messages
+    if (!input.messages && input.chatHistory) {
+        input.messages = input.chatHistory;
+    } else if (!input.messages && !input.chatHistory) {
+        input.messages = [];
+    }
+    // Hapus input.chatHistory jika input.messages sudah di-set, untuk menghindari duplikasi data
+    // delete input.chatHistory; // Hapus ini untuk menjaga kompatibilitas, input.messages lebih diutamakan oleh flow
+
+    const replyText = await zoyaChatFlow(input); 
     return { suggestedReply: replyText };
   } catch (error: any) {
     console.error("[CS-FLOW Wrapper] Error running zoyaChatFlow:", error);
@@ -338,8 +340,6 @@ export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<{ sug
 }
 
 
-// Default settings jika tidak ada di Firestore atau input
-// Ini akan digunakan oleh `generateWhatsAppReply` jika `mainPromptString` tidak ada di input.
 const DEFAULT_AI_SETTINGS = {
   mainPrompt: `
 Anda adalah "Zoya" - CS QLAB Moto Detailing.
@@ -368,18 +368,16 @@ PETUNJUK TAMBAHAN:
 `,
 };
 
-// Skema ChatMessage untuk validasi chatHistory
+// Skema ChatMessage untuk validasi chatHistory (sekarang messages)
 const ChatMessageSchemaInternal = z.object({
   role: z.enum(['user', 'model']),
   content: z.string(),
 });
 
-// Pastikan input schema untuk flow sesuai dengan tipe WhatsAppReplyInput
-// (meskipun di dalam flow kita hanya memakai sebagian)
 const WhatsAppReplyInputSchemaInternal = z.object({
   customerMessage: z.string().optional(),
   senderNumber: z.string().optional(),
-  chatHistory: z.array(ChatMessageSchemaInternal).optional(),
+  // chatHistory sekarang digantikan oleh messages di ZoyaChatInputSchema
   agentBehavior: z.string().optional(),
   knowledgeBase: z.string().optional(),
   currentDate: z.string().optional(),
@@ -387,10 +385,12 @@ const WhatsAppReplyInputSchemaInternal = z.object({
   tomorrowDate: z.string().optional(),
   dayAfterTomorrowDate: z.string().optional(),
   mainPromptString: z.string().optional(),
-  messages: z.array(ChatMessageSchemaInternal).optional(), // Tambahkan messages di sini agar ZoyaChatInput compatible
+  messages: z.array(ChatMessageSchemaInternal).optional(), 
 });
 
-export { ZoyaChatInputSchema, ZoyaChatOutputSchema }; // Ekspor skema jika dibutuhkan di tempat lain (misal di API route)
-
+// Tidak perlu export schema atau flow/tool lagi
+// export { ZoyaChatInputSchema, ZoyaChatOutputSchema };
     
   
+
+    

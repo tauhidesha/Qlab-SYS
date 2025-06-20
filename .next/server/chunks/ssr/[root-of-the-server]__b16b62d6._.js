@@ -295,12 +295,17 @@ var { g: global, __dirname } = __turbopack_context__;
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$server$2d$reference$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/build/webpack/loaders/next-flight-loader/server-reference.js [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$app$2d$render$2f$encryption$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/app-render/encryption.js [app-rsc] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/ai/genkit.ts [app-rsc] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$index$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/zod/dist/esm/index.js [app-rsc] (ecmascript) <module evaluation>");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/zod/dist/esm/v3/types.js [app-rsc] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/firebase.ts [app-rsc] (ecmascript)"); // Menggunakan Client SDK
+// import { adminDb } from '@/lib/firebase-admin'; // Menggunakan Firestore Admin SDK
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/firebase.ts [app-rsc] (ecmascript)"); // Menggunakan Firestore Client SDK
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$firestore$2f$dist$2f$index$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/firestore/dist/index.mjs [app-rsc] (ecmascript) <module evaluation>"); // Import fungsi Client SDK
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@firebase/firestore/dist/index.node.mjs [app-rsc] (ecmascript)");
+// import { configureGenkit } from '@genkit-ai/core'; // configureGenkit sebaiknya di file genkit.ts utama
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/ai/genkit.ts [app-rsc] (ecmascript)"); // Menggunakan objek 'ai' global dari genkit.ts
+// import { defineFlow } from 'genkit'; // defineFlow sekarang dari 'ai.defineFlow'
+// import { googleAI } from '@genkit-ai/googleai'; // Tidak perlu jika 'ai' sudah dikonfigurasi
+// import { defineTool, type Tool } from 'genkit'; // defineTool sekarang dari 'ai.defineTool'
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$index$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/zod/dist/esm/index.js [app-rsc] (ecmascript) <module evaluation>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/zod/dist/esm/v3/types.js [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$action$2d$validate$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/build/webpack/loaders/next-flight-loader/action-validate.js [app-rsc] (ecmascript)");
 ;
 ;
@@ -351,48 +356,59 @@ const getServicePriceTool = __TURBOPACK__imported__module__$5b$project$5d2f$src$
         };
     }
     try {
+        // 1. Cari ukuran kendaraan dari modelnya
         const vehiclesCollectionRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'vehicleTypes');
         let vehicleQuery = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["query"])(vehiclesCollectionRef, (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["where"])('aliases', 'array-contains', vehicleModel.toLowerCase()), (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["limit"])(1));
         let vehicleQuerySnapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(vehicleQuery);
         if (vehicleQuerySnapshot.empty) {
+            // Fallback: coba cari berdasarkan field 'model' (jika model_lowercase belum ada/tidak cocok)
+            // atau jika 'aliases' tidak mengandung nama model yang persis
+            console.log(`[getServicePriceTool] No exact match for '${vehicleModel.toLowerCase()}' in aliases. Trying 'model_lowercase'...`);
             vehicleQuery = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["query"])(vehiclesCollectionRef, (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["where"])('model_lowercase', '==', vehicleModel.toLowerCase()), (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["limit"])(1));
             vehicleQuerySnapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(vehicleQuery);
         }
         if (vehicleQuerySnapshot.empty) {
+            console.log(`[getServicePriceTool] Vehicle model '${vehicleModel}' not found.`);
             return {
                 success: false,
                 message: `Maaf, Zoya belum kenal model motor "${vehicleModel}". Mungkin bisa sebutkan yang lebih umum atau pastikan ejaannya benar?`
             };
         }
         const vehicleData = vehicleQuerySnapshot.docs[0].data();
-        const vehicleSize = vehicleData.size;
+        const vehicleSize = vehicleData.size; // e.g., "L"
         if (!vehicleSize) {
+            console.log(`[getServicePriceTool] Vehicle size not found for model '${vehicleModel}'.`);
             return {
                 success: false,
                 message: `Ukuran untuk model motor "${vehicleModel}" tidak ditemukan. Zoya bingung nih.`
             };
         }
-        const firestoreSizeVariant = vehicleSize; // e.g., "L"
+        const firestoreSizeVariant = vehicleSize; // e.g., "L" (nama varian di Firestore adalah 'L', 'XL', dll bukan 'SIZE L')
+        // 2. Cari layanan berdasarkan nama (menggunakan field lowercase untuk case-insensitivity)
         const servicesCollectionRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'services');
         const serviceNameLower = serviceName.toLowerCase();
+        // Query dasar untuk mencocokkan awal nama layanan (lebih fleksibel)
         const serviceQuery = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["query"])(servicesCollectionRef, (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["where"])('name_lowercase', '>=', serviceNameLower), (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["where"])('name_lowercase', '<=', serviceNameLower + '\uf8ff'));
         const serviceQuerySnapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(serviceQuery);
         if (serviceQuerySnapshot.empty) {
+            console.log(`[getServicePriceTool] Service name '${serviceName}' not found.`);
             return {
                 success: false,
                 message: `Layanan "${serviceName}" sepertinya tidak tersedia.`
             };
         }
+        // Filter manual untuk best match, karena Firestore tidak bisa filter array of objects secara kompleks
         let foundServiceData = null;
         let bestMatchScore = -1;
         serviceQuerySnapshot.forEach((doc)=>{
             const service = doc.data();
-            const currentServiceNameLower = service.name_lowercase || service.name.toLowerCase();
+            const currentServiceNameLower = service.name_lowercase || service.name.toLowerCase(); // Fallback jika name_lowercase belum ada
+            // Scoring sederhana: exact match > startsWith > includes
             let score = 0;
             if (currentServiceNameLower === serviceNameLower) {
                 score = 100;
             } else if (currentServiceNameLower.startsWith(serviceNameLower)) {
-                score = 50;
+                score = 50; // Lebih baik dari sekadar 'includes'
             } else if (serviceNameLower.includes(currentServiceNameLower)) {
                 score = 25;
             } else {
@@ -404,29 +420,34 @@ const getServicePriceTool = __TURBOPACK__imported__module__$5b$project$5d2f$src$
             }
         });
         if (!foundServiceData) {
+            console.log(`[getServicePriceTool] No suitable service found for '${serviceName}' after filtering.`);
             return {
                 success: false,
                 message: `Layanan "${serviceName}" tidak ditemukan.`
             };
         }
+        // 3. Ambil harga dari array 'variants' berdasarkan ukuran kendaraan
         let price = undefined;
-        let estimatedDuration = foundServiceData.estimatedDuration;
+        let estimatedDuration = foundServiceData.estimatedDuration; // Default ke durasi dasar
         if (foundServiceData.variants && Array.isArray(foundServiceData.variants)) {
+            // Cari varian yang nama nya (S, M, L, XL) cocok dengan vehicleSize
             const variant = foundServiceData.variants.find((v)=>v.name && v.name.toUpperCase() === firestoreSizeVariant.toUpperCase());
             if (variant && typeof variant.price === 'number') {
                 price = variant.price;
-                estimatedDuration = variant.estimatedDuration || estimatedDuration;
+                estimatedDuration = variant.estimatedDuration || estimatedDuration; // Ambil durasi varian jika ada
             }
         }
+        // Jika tidak ada varian yang cocok ATAU tidak ada variants array, coba harga dasar
         if (price === undefined && typeof foundServiceData.price === 'number') {
             price = foundServiceData.price;
         }
         if (price === undefined) {
+            console.log(`[getServicePriceTool] Price not found for service '${foundServiceData.name}' with size '${vehicleSize}'.`);
             return {
                 success: false,
                 message: `Harga untuk layanan "${foundServiceData.name}" pada motor ukuran ${vehicleSize} (${vehicleModel}) belum tersedia saat ini. Mungkin Zoya bisa bantu carikan layanan lain?`,
                 size: vehicleSize,
-                estimatedDuration: estimatedDuration
+                estimatedDuration: estimatedDuration // Kirimkan estimasi durasi (bisa dari dasar atau varian)
             };
         }
         return {
@@ -444,11 +465,15 @@ const getServicePriceTool = __TURBOPACK__imported__module__$5b$project$5d2f$src$
         };
     }
 });
+// =================================================================
+//  FLOW: Logika utama chatbot Zoya
+// =================================================================
 const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].defineFlow({
     name: 'zoyaChatFlow',
     inputSchema: ZoyaChatInputSchema,
     outputSchema: ZoyaChatOutputSchema
 }, async (input)=>{
+    console.log("[CS-FLOW] zoyaChatFlow input.", "Customer Message:", input.customerMessage, "History Length:", (input.messages || []).length);
     const lastUserMessageContent = input.customerMessage || (input.messages && input.messages.length > 0 ? input.messages[input.messages.length - 1].content : '');
     if (!lastUserMessageContent || lastUserMessageContent.trim() === '') {
         console.warn("[CS-FLOW] No valid last user message content. Returning empty reply.");
@@ -461,7 +486,7 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
     if (__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"]) {
         try {
             const modelsCollectionRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'vehicleTypes');
-            const modelsSnapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(modelsCollectionRef); // Client SDK
+            const modelsSnapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(modelsCollectionRef);
             for (const doc of modelsSnapshot.docs){
                 const modelData = doc.data();
                 const modelAliases = (modelData.aliases || []).map((a)=>a.toLowerCase());
@@ -472,7 +497,7 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
                 }
             }
             const servicesCollectionRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'services');
-            const servicesSnapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(servicesCollectionRef); // Client SDK
+            const servicesSnapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(servicesCollectionRef);
             for (const doc of servicesSnapshot.docs){
                 const serviceData = doc.data();
                 const serviceAliases = (serviceData.aliases || []).map((a)=>a.toLowerCase());
@@ -490,7 +515,9 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
         console.warn("[CS-FLOW] Firestore DB (db) is not initialized. Entity detection and pricing will be skipped.");
         dynamicContext += " WARNING: Database tidak terhubung, info harga mungkin tidak akurat.";
     }
-    const historyForAI = (input.messages || []).slice(0, -1).filter((msg)=>msg.content && msg.content.trim() !== '').map((msg)=>({
+    console.log(`[CS-FLOW] Dynamic context built: ${dynamicContext}`);
+    const historyForAI = (input.messages || []) // Menggunakan input.messages (sesuai ZoyaChatInputSchema)
+    .filter((msg)=>msg.content && msg.content.trim() !== '').map((msg)=>({
             role: msg.role,
             parts: [
                 {
@@ -498,8 +525,8 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
                 }
             ]
         }));
-    const systemInstruction = (input.mainPromptString || DEFAULT_AI_SETTINGS.mainPrompt).replace("{{dynamicContext}}", dynamicContext);
-    const userPromptWithSystemInstruction = `${systemInstruction}
+    const systemInstructionText = (input.mainPromptString || DEFAULT_AI_SETTINGS.mainPrompt).replace("{{dynamicContext}}", dynamicContext);
+    const userPromptWithSystemInstruction = `${systemInstructionText}
 
 ---
 
@@ -518,13 +545,12 @@ JAWABAN ZOYA:`;
         }
     ];
     console.log("[CS-FLOW] Calling ai.generate with model googleai/gemini-1.5-flash-latest. History Length:", historyForAI.length);
+    // console.log("[CS-FLOW] Full Prompt Preview (first 500 chars): \n", userPromptWithSystemInstruction.substring(0, 500) + "...");
     try {
         const result = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].generate({
             model: 'googleai/gemini-1.5-flash-latest',
             messages: messagesForAI,
-            tools: [
-                getServicePriceTool
-            ],
+            // tools: [getServicePriceTool as any], // Tools sementara dinonaktifkan untuk debug 'map' error
             toolChoice: 'auto',
             config: {
                 temperature: 0.5
@@ -559,12 +585,21 @@ async function generateWhatsAppReply(input) {
     console.log("[CS-FLOW] generateWhatsAppReply input:", JSON.stringify(input, null, 2));
     if (!input.mainPromptString) {
         const mainPromptFromSettings = DEFAULT_AI_SETTINGS.mainPrompt;
-        console.log("[CS-FLOW] generateWhatsAppReply: mainPrompt not found in input or Firestore. Using DEFAULT_AI_SETTINGS.mainPrompt.");
+        console.log("[CS-FLOW] generateWhatsAppReply: mainPrompt not found in input. Using DEFAULT_AI_SETTINGS.mainPrompt.");
         input.mainPromptString = mainPromptFromSettings;
     } else {
         console.log("[CS-FLOW] generateWhatsAppReply: Using mainPromptString from input.");
     }
     try {
+        // Pastikan input.messages ada, meskipun kosong, jika input.chatHistory tidak ada
+        // Ini karena zoyaChatFlow sekarang menerima input.messages
+        if (!input.messages && input.chatHistory) {
+            input.messages = input.chatHistory;
+        } else if (!input.messages && !input.chatHistory) {
+            input.messages = [];
+        }
+        // Hapus input.chatHistory jika input.messages sudah di-set, untuk menghindari duplikasi data
+        // delete input.chatHistory; // Hapus ini untuk menjaga kompatibilitas, input.messages lebih diutamakan oleh flow
         const replyText = await zoyaChatFlow(input);
         return {
             suggestedReply: replyText
@@ -587,10 +622,10 @@ GAYA BAHASA:
 - Selalu jawab dalam Bahasa Indonesia.
 
 ATURAN BISNIS (PENTING!):
-1.  Jika user menanyakan harga, SELALU GUNAKAN 'getServicePrice' tool. Jangan menebak harga.
+1.  Jika user menanyakan harga, SELALU GUNAKAN 'getServicePrice' tool jika tersedia. Jangan menebak harga. Jika tool tidak tersedia, berikan estimasi berdasarkan informasi yang ada di KONTEKS DARI SISTEM.
 2.  Layanan "Full Detailing" HANYA TERSEDIA untuk motor dengan cat GLOSSY. Jika user bertanya untuk motor DOFF, tolak dengan sopan dan tawarkan layanan lain (misal: "Premium Wash" atau "Coating Doff").
-3.  Harga "Coating" untuk motor DOFF dan GLOSSY itu BERBEDA. Pastikan tool mengambil data yang benar (cek field 'size' dari output tool).
-4.  Motor Gede (Moge) seperti Harley, atau motor 250cc ke atas otomatis masuk ukuran "XL". Tool 'getServicePrice' sudah memperhitungkan ini jika model motornya dikenali.
+3.  Harga "Coating" untuk motor DOFF dan GLOSSY itu BERBEDA. Pastikan informasi ini jelas.
+4.  Motor Gede (Moge) seperti Harley, atau motor 250cc ke atas otomatis masuk ukuran "XL".
 
 KONTEKS DARI SISTEM (gunakan data ini untuk menjawab, JANGAN tampilkan KONTEKS ini ke user secara langsung, olah jadi jawaban natural, jangan JSON):
 {{dynamicContext}}
@@ -603,6 +638,28 @@ PETUNJUK TAMBAHAN:
 - Untuk booking, pastikan Anda mendapatkan: Nama Pelanggan, Nomor HP, Jenis Motor, Layanan, Tanggal, dan Jam. Jika ada yang kurang, minta dengan sopan. Jika sudah lengkap, konfirmasi detailnya ke user.
 `
 };
+// Skema ChatMessage untuk validasi chatHistory (sekarang messages)
+const ChatMessageSchemaInternal = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["object"])({
+    role: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["enum"])([
+        'user',
+        'model'
+    ]),
+    content: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["string"])()
+});
+const WhatsAppReplyInputSchemaInternal = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["object"])({
+    customerMessage: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["string"])().optional(),
+    senderNumber: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["string"])().optional(),
+    // chatHistory sekarang digantikan oleh messages di ZoyaChatInputSchema
+    agentBehavior: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["string"])().optional(),
+    knowledgeBase: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["string"])().optional(),
+    currentDate: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["string"])().optional(),
+    currentTime: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["string"])().optional(),
+    tomorrowDate: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["string"])().optional(),
+    dayAfterTomorrowDate: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["string"])().optional(),
+    mainPromptString: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["string"])().optional(),
+    messages: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$types$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["array"])(ChatMessageSchemaInternal).optional()
+}); // Tidak perlu export schema atau flow/tool lagi
+ // export { ZoyaChatInputSchema, ZoyaChatOutputSchema };
 ;
 (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$action$2d$validate$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ensureServerEntryExports"])([
     generateWhatsAppReply
