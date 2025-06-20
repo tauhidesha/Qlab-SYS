@@ -1009,7 +1009,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/types/aiSettings.ts [app-rsc] (ecmascript)");
 // Import tools modular
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$cari$2d$size$2d$motor$2d$tool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/ai/tools/cari-size-motor-tool.ts [app-rsc] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$productLookupTool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/ai/tools/productLookupTool.ts [app-rsc] (ecmascript)"); // Tool baru
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$productLookupTool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/ai/tools/productLookupTool.ts [app-rsc] (ecmascript)");
 // Import sub-flow dan tipenya
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$flows$2f$handle$2d$service$2d$inquiry$2d$flow$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/ai/flows/handle-service-inquiry-flow.ts [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$action$2d$validate$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/build/webpack/loaders/next-flight-loader/action-validate.js [app-rsc] (ecmascript)");
@@ -1070,22 +1070,26 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
         "repaint",
         "servis",
         "layanan"
-    ]; // Kategori umum
+    ];
     const specificServiceKeywords = [
         "premium",
         "reguler",
         "advance formula",
         "nano ceramic",
-        "ultimate"
-    ]; // Kata kunci layanan spesifik
+        "ultimate",
+        "full detailing",
+        "detailing body",
+        "detailing kaki"
+    ];
     let detectedGeneralServiceKeyword = null;
+    // Deteksi apakah ini pertanyaan tentang NAMA LAYANAN SPESIFIK
     let isAskingSpecificService = specificServiceKeywords.some((kw)=>lowerCaseCustomerMessage.includes(kw));
-    // Cek apakah ini pertanyaan umum tentang KATEGORI layanan
+    // Jika BUKAN pertanyaan spesifik, baru coba deteksi kategori umum
     if (!isAskingSpecificService) {
         for (const keyword of serviceKeywords){
             if (lowerCaseCustomerMessage.includes(keyword)) {
                 detectedGeneralServiceKeyword = keyword;
-                // Logika tambahan untuk disambiguasi keyword umum
+                // Disambiguasi untuk keyword umum
                 if (keyword === "cuci" && lowerCaseCustomerMessage.includes("cuci motor") || keyword === "layanan" && lowerCaseCustomerMessage.includes("layanan cuci")) {
                     detectedGeneralServiceKeyword = "cuci";
                 } else if (keyword === "coating" && lowerCaseCustomerMessage.includes("coating motor") || keyword === "layanan" && lowerCaseCustomerMessage.includes("layanan coating")) {
@@ -1101,24 +1105,49 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
             }
         }
     }
+    // --- Logika Kapan Memanggil Sub-Flow ---
     let callSubFlow = false;
-    if (detectedGeneralServiceKeyword && !isAskingSpecificService) {
-        const isAskingPrice = lowerCaseCustomerMessage.includes("harga") || lowerCaseCustomerMessage.includes("berapa") || lowerCaseCustomerMessage.match(/\brp\b/) || lowerCaseCustomerMessage.match(/\d{3,}/);
-        const isConfirmingOrHasInfo = lowerCaseCustomerMessage.includes("minat") || lowerCaseCustomerMessage.includes("tertarik") || lowerCaseCustomerMessage.includes("booking") || lowerCaseCustomerMessage.includes("pilih") || input.knownMotorcycleInfo && input.knownMotorcycleInfo.name !== "belum diketahui";
-        if (!isAskingPrice && !isConfirmingOrHasInfo) {
-            callSubFlow = true;
-        } else if (!isAskingPrice && !(input.knownMotorcycleInfo && input.knownMotorcycleInfo.name !== "belum diketahui")) {
-            callSubFlow = true;
-        }
-        if (serviceKeywords.some((kw)=>lowerCaseCustomerMessage === kw) && !(input.knownMotorcycleInfo && input.knownMotorcycleInfo.name !== "belum diketahui")) {
-            callSubFlow = true;
-        }
-        const lastAiMessage = input.messages?.filter((m)=>m.role === 'model').pop()?.content.toLowerCase();
-        if (lastAiMessage && serviceKeywords.some((kw)=>lastAiMessage.includes(kw)) && lastAiMessage.includes("pilihan") && lastAiMessage.includes("motornya apa")) {
-            console.log("[CS-FLOW] Last AI message seems to be from sub-flow asking for motor. Skipping sub-flow call.");
-            callSubFlow = false;
+    const lastAiMessage = input.messages?.filter((msg)=>msg.role === 'model').pop();
+    const lastUserMessageBeforeCurrent = input.messages?.filter((msg)=>msg.role === 'user' && msg.content !== input.customerMessage).pop();
+    let wasPrevAiAskingForMotorForSpecificService = false;
+    if (lastUserMessageBeforeCurrent && lastAiMessage) {
+        const prevUserMsgLower = lastUserMessageBeforeCurrent.content.toLowerCase();
+        const prevAiMsgLower = lastAiMessage.content.toLowerCase();
+        if (specificServiceKeywords.some((kw)=>prevUserMsgLower.includes(kw)) && (prevAiMsgLower.includes("motornya tipe apa") || prevAiMsgLower.includes("motornya apa nih"))) {
+            wasPrevAiAskingForMotorForSpecificService = true;
         }
     }
+    if (wasPrevAiAskingForMotorForSpecificService) {
+        callSubFlow = false;
+        console.log("[CS-FLOW] Main Zoya will handle: AI (main flow) previously asked for motor for a specific service. User likely providing motor type.");
+    } else if (detectedGeneralServiceKeyword && !isAskingSpecificService) {
+        // Ini pertanyaan KATEGORI umum, dan BUKAN layanan spesifik, DAN BUKAN follow-up dari Zoya nanya motor untuk layanan spesifik.
+        const isAskingPrice = lowerCaseCustomerMessage.includes("harga") || lowerCaseCustomerMessage.includes("berapa") || lowerCaseCustomerMessage.match(/\brp\b/) || lowerCaseCustomerMessage.match(/\d{3,}/);
+        const knownMotorName = input.knownMotorcycleInfo?.name;
+        const motorIsUnknown = !knownMotorName || knownMotorName === "belum diketahui";
+        // Cek apakah AI (sub-flow) di giliran sebelumnya baru saja bertanya tipe motor
+        const subflowAskedForMotorInLastAiMsg = lastAiMessage && serviceKeywords.some((kw)=>lastAiMessage.content.toLowerCase().includes(kw)) && // Mengandung keyword kategori umum
+        (lastAiMessage.content.toLowerCase().includes("pilihan layanan") || // Mengandung frasa penjelasan pilihan
+        lastAiMessage.content.toLowerCase().includes("opsi layanan") || lastAiMessage.content.toLowerCase().includes("menawarkan beberapa pilihan")) && (lastAiMessage.content.toLowerCase().includes("motornya apa") || // Dan bertanya soal motor
+        lastAiMessage.content.toLowerCase().includes("motornya tipe apa"));
+        if (subflowAskedForMotorInLastAiMsg) {
+            callSubFlow = false; // Sub-flow baru saja bertanya motor, biarkan Zoya (main flow) yang handle jawaban user soal motor.
+            console.log("[CS-FLOW] Main Zoya will handle: Sub-flow previously asked for motor.");
+        } else if (motorIsUnknown && !isAskingPrice) {
+            // Jika motor belum diketahui DAN user tidak bertanya harga (artinya mungkin tanya info umum kategori)
+            callSubFlow = true;
+            console.log("[CS-FLOW] Sub-flow will be called: General inquiry for category '" + detectedGeneralServiceKeyword + "', motor unknown, not asking price.");
+        } else if (serviceKeywords.some((kw)=>lowerCaseCustomerMessage === kw) && motorIsUnknown) {
+            // Jika pesan user HANYA berupa kata kunci umum (mis. "cuci") DAN motor belum diketahui
+            callSubFlow = true;
+            console.log("[CS-FLOW] Sub-flow will be called: User message is only a general keyword '" + detectedGeneralServiceKeyword + "', motor unknown.");
+        } else {
+            console.log("[CS-FLOW] Defaulting to Main Zoya: Conditions for sub-flow (for general inquiry) not met. isAskingPrice:", isAskingPrice, "motorIsUnknown:", motorIsUnknown, "subflowAskedForMotorInLastAiMsg:", subflowAskedForMotorInLastAiMsg);
+        }
+    } else {
+        console.log(`[CS-FLOW] Defaulting to Main Zoya: detectedGeneralServiceKeyword='${detectedGeneralServiceKeyword}', isAskingSpecificService='${isAskingSpecificService}', wasPrevAiAskingForMotorForSpecificService='${wasPrevAiAskingForMotorForSpecificService}'.`);
+    }
+    // --- END Logika Kapan Memanggil Sub-Flow ---
     if (callSubFlow && detectedGeneralServiceKeyword) {
         console.log(`[CS-FLOW] General service inquiry detected for CATEGORY: "${detectedGeneralServiceKeyword}". Calling sub-flow 'handleServiceInquiry'. Known Motor: ${JSON.stringify(input.knownMotorcycleInfo)}`);
         const subFlowInput = {
@@ -1129,7 +1158,7 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
         const subFlowOutput = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$flows$2f$handle$2d$service$2d$inquiry$2d$flow$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["handleServiceInquiry"])(subFlowInput);
         return subFlowOutput.responseText;
     }
-    // --- END: Logika Deteksi Pertanyaan Layanan Umum ---
+    // --- Logika Flow Utama Zoya ---
     let dynamicContext = `INFO_UMUM_BENGKEL: QLAB Moto Detailing adalah bengkel perawatan dan detailing motor.`;
     if (!__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"]) {
         console.warn("[CS-FLOW] Firestore DB (db) is not initialized. Some context might be missing.");
@@ -1138,8 +1167,7 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
         console.log("[CS-FLOW] Firestore DB (db) is available. Context should be complete.");
     }
     const mainPromptFromSettings = input.mainPromptString || __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_AI_SETTINGS"].mainPrompt;
-    const finalSystemPrompt = mainPromptFromSettings.replace("{{{dynamicContext}}}", dynamicContext).replace("{{{customerMessage}}}", input.customerMessage) // Ini mungkin tidak lagi terlalu relevan karena pesan user ada di `messages`
-    .replace("{{{knownMotorcycleName}}}", input.knownMotorcycleInfo?.name || "belum diketahui").replace("{{{knownMotorcycleSize}}}", input.knownMotorcycleInfo?.size || "belum diketahui");
+    const finalSystemPrompt = mainPromptFromSettings.replace("{{{dynamicContext}}}", dynamicContext).replace("{{{knownMotorcycleName}}}", input.knownMotorcycleInfo?.name || "belum diketahui").replace("{{{knownMotorcycleSize}}}", input.knownMotorcycleInfo?.size || "belum diketahui");
     const historyForAI = (input.messages || []).filter((msg)=>msg.content && msg.content.trim() !== '').map((msg)=>({
             role: msg.role,
             content: [
@@ -1148,6 +1176,7 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
                 }
             ]
         }));
+    // Pesan user saat ini ditambahkan ke history untuk panggilan AI
     const messagesForAI = [
         ...historyForAI,
         {
@@ -1187,27 +1216,29 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
             } else if (toolRequest.name === 'getProductServiceDetailsByNameTool' && toolRequest.input) {
                 toolOutputToRelay = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$tools$2f$productLookupTool$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getProductServiceDetailsByNameTool"].fn(toolRequest.input);
             }
-            // ... (logika untuk tool lain jika ada)
             if (toolOutputToRelay !== "Error: Tool output tidak diset.") {
                 console.log(`[CS-FLOW] Output from tool '${toolRequest.name}':`, JSON.stringify(toolOutputToRelay, null, 2));
+                // Membuat pesan baru untuk dikirim ke AI setelah tool call,
+                // menyertakan history, pesan AI yang meminta tool, dan hasil tool.
+                const messagesAfterTool = [
+                    ...messagesForAI,
+                    result.message,
+                    {
+                        role: 'tool',
+                        content: [
+                            {
+                                toolResponse: {
+                                    name: toolRequest.name,
+                                    output: toolOutputToRelay
+                                }
+                            }
+                        ]
+                    }
+                ];
                 const modelResponseAfterTool = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].generate({
                     model: 'googleai/gemini-1.5-flash-latest',
                     prompt: finalSystemPrompt,
-                    messages: [
-                        ...messagesForAI,
-                        result.message,
-                        {
-                            role: 'tool',
-                            content: [
-                                {
-                                    toolResponse: {
-                                        name: toolRequest.name,
-                                        output: toolOutputToRelay
-                                    }
-                                }
-                            ]
-                        }
-                    ],
+                    messages: messagesAfterTool,
                     // Tidak perlu tools lagi di sini, karena tugasnya merangkai jawaban
                     config: {
                         temperature: 0.5
