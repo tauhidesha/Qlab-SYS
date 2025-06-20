@@ -17,7 +17,7 @@ import { ProductServiceInfoSchema } from '@/types/aiToolSchemas';
 
 // Schemas for the actual tool (NOT exported directly from this file if it's not 'use server')
 const CariInfoLayananInputSchema = z.object({
-  keyword: z.string().min(1, "Kata kunci kategori pencarian tidak boleh kosong.").describe('KATEGORI layanan yang ingin dicari, mis. "Cuci Motor", "Coating", "Detailing". Harus cocok persis (case-insensitive) dengan nama kategori di database.'),
+  keyword: z.string().min(1, "Kata kunci kategori pencarian tidak boleh kosong.").describe('Nama KATEGORI layanan yang ingin dicari, mis. "Cuci Motor", "Coating", "Detailing". Harus cocok persis (case-insensitive) dengan nama field "category_lowercase" di database.'),
 });
 export type CariInfoLayananInput = z.infer<typeof CariInfoLayananInputSchema>;
 
@@ -28,7 +28,7 @@ export type CariInfoLayananOutput = z.infer<typeof CariInfoLayananOutputSchema>;
 async function findLayananByCategory(input: CariInfoLayananInput): Promise<CariInfoLayananOutput> {
   const { keyword } = input;
   const categoryKeywordLower = keyword.toLowerCase().trim();
-  console.log(`[findLayananByCategory Tool] Mencari layanan dengan KATEGORI: "${categoryKeywordLower}"`);
+  console.log(`[findLayananByCategory Tool] Mencari layanan dengan KATEGORI (keyword input di-lowercase): "${categoryKeywordLower}"`);
 
   if (!db) {
     console.error("[findLayananByCategory Tool] Firestore DB (db) is not initialized.");
@@ -39,8 +39,7 @@ async function findLayananByCategory(input: CariInfoLayananInput): Promise<CariI
   try {
     const servicesCollectionRef = collection(db, 'services');
     // Query Firestore for documents where the 'category_lowercase' field matches the keyword
-    // This assumes you have a 'category_lowercase' field for case-insensitive search.
-    // If not, you'd fetch more broadly and filter client-side, or adjust query.
+    console.log(`[findLayananByCategory Tool] Firestore query: where("category_lowercase", "==", "${categoryKeywordLower}")`);
     const q = firestoreQuery(servicesCollectionRef, where("category_lowercase", "==", categoryKeywordLower));
     const querySnapshot = await getDocs(q);
 
@@ -51,7 +50,7 @@ async function findLayananByCategory(input: CariInfoLayananInput): Promise<CariI
         id: docSnap.id,
         name: serviceData.name,
         type: serviceData.type as 'Layanan' | 'Produk',
-        category: serviceData.category,
+        category: serviceData.category, // Ini kategori asli dari data (bisa mixed case)
         price: serviceData.price,
         description: serviceData.description || undefined,
         pointsAwarded: serviceData.pointsAwarded || undefined,
@@ -61,7 +60,7 @@ async function findLayananByCategory(input: CariInfoLayananInput): Promise<CariI
           price: v.price,
           pointsAwarded: v.pointsAwarded,
           estimatedDuration: v.estimatedDuration,
-          id: v.id || undefined, // Ensure variant ID is captured if present
+          id: v.id || undefined, 
         })) || undefined,
       };
       
@@ -76,7 +75,7 @@ async function findLayananByCategory(input: CariInfoLayananInput): Promise<CariI
 
     console.log(`[findLayananByCategory Tool] Ditemukan ${matchingServices.length} layanan untuk KATEGORI "${categoryKeywordLower}".`);
     if (matchingServices.length === 0) {
-        console.log(`[findLayananByCategory Tool] INFO: Pastikan field 'category_lowercase' ada di dokumen 'services' dan nilainya sesuai dengan keyword pencarian (e.g., "coating", "cuci motor").`);
+        console.log(`[findLayananByCategory Tool] INFO: Pastikan field 'category_lowercase' di dokumen 'services' Firestore Anda ada dan berisi nilai yang sama dengan "${categoryKeywordLower}".`);
     }
     return matchingServices;
   } catch (error) {
@@ -88,8 +87,8 @@ async function findLayananByCategory(input: CariInfoLayananInput): Promise<CariI
 // Define the Genkit tool
 export const cariInfoLayananTool = ai.defineTool(
   {
-    name: 'cariInfoLayananTool', // Nama ini yang akan dipakai di prompt SUB-FLOW
-    description: 'Mencari daftar layanan atau produk yang tersedia berdasarkan KATEGORI layanan. Input adalah nama kategori, output adalah daftar layanan dalam kategori tsb.',
+    name: 'cariInfoLayananTool',
+    description: 'Mencari daftar layanan atau produk yang tersedia berdasarkan NAMA KATEGORI layanan yang spesifik. Input adalah nama kategori (mis. "Cuci Motor", "Coating"), output adalah daftar layanan dalam kategori tersebut.',
     inputSchema: CariInfoLayananInputSchema,
     outputSchema: CariInfoLayananOutputSchema,
   },
