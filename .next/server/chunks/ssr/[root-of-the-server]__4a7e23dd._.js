@@ -1,0 +1,1748 @@
+module.exports = {
+
+"[project]/src/components/layout/AppHeader.tsx [app-ssr] (ecmascript)": ((__turbopack_context__) => {
+"use strict";
+
+var { g: global, __dirname } = __turbopack_context__;
+{
+__turbopack_context__.s({
+    "default": (()=>AppHeader)
+});
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/route-modules/app-page/vendored/ssr/react-jsx-dev-runtime.js [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$sidebar$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/ui/sidebar.tsx [app-ssr] (ecmascript)");
+;
+;
+function AppHeader({ title }) {
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("header", {
+        className: "sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background px-6 shadow-sm",
+        children: [
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$sidebar$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["SidebarTrigger"], {
+                className: "md:hidden"
+            }, void 0, false, {
+                fileName: "[project]/src/components/layout/AppHeader.tsx",
+                lineNumber: 11,
+                columnNumber: 7
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("h1", {
+                className: "font-headline text-xl font-semibold",
+                children: title
+            }, void 0, false, {
+                fileName: "[project]/src/components/layout/AppHeader.tsx",
+                lineNumber: 12,
+                columnNumber: 7
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "[project]/src/components/layout/AppHeader.tsx",
+        lineNumber: 10,
+        columnNumber: 5
+    }, this);
+}
+}}),
+"[project]/src/components/ui/card.tsx [app-ssr] (ecmascript)": ((__turbopack_context__) => {
+"use strict";
+
+var { g: global, __dirname } = __turbopack_context__;
+{
+__turbopack_context__.s({
+    "Card": (()=>Card),
+    "CardContent": (()=>CardContent),
+    "CardDescription": (()=>CardDescription),
+    "CardFooter": (()=>CardFooter),
+    "CardHeader": (()=>CardHeader),
+    "CardTitle": (()=>CardTitle)
+});
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/route-modules/app-page/vendored/ssr/react-jsx-dev-runtime.js [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/route-modules/app-page/vendored/ssr/react.js [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/utils.ts [app-ssr] (ecmascript)");
+;
+;
+;
+const Card = /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["forwardRef"])(({ className, ...props }, ref)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+        ref: ref,
+        className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["cn"])("rounded-lg border bg-card text-card-foreground shadow-sm", className),
+        ...props
+    }, void 0, false, {
+        fileName: "[project]/src/components/ui/card.tsx",
+        lineNumber: 9,
+        columnNumber: 3
+    }, this));
+Card.displayName = "Card";
+const CardHeader = /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["forwardRef"])(({ className, ...props }, ref)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+        ref: ref,
+        className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["cn"])("flex flex-col space-y-1.5 p-6", className),
+        ...props
+    }, void 0, false, {
+        fileName: "[project]/src/components/ui/card.tsx",
+        lineNumber: 24,
+        columnNumber: 3
+    }, this));
+CardHeader.displayName = "CardHeader";
+const CardTitle = /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["forwardRef"])(({ className, ...props }, ref)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+        ref: ref,
+        className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["cn"])("text-2xl font-semibold leading-none tracking-tight", className),
+        ...props
+    }, void 0, false, {
+        fileName: "[project]/src/components/ui/card.tsx",
+        lineNumber: 36,
+        columnNumber: 3
+    }, this));
+CardTitle.displayName = "CardTitle";
+const CardDescription = /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["forwardRef"])(({ className, ...props }, ref)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+        ref: ref,
+        className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["cn"])("text-sm text-muted-foreground", className),
+        ...props
+    }, void 0, false, {
+        fileName: "[project]/src/components/ui/card.tsx",
+        lineNumber: 51,
+        columnNumber: 3
+    }, this));
+CardDescription.displayName = "CardDescription";
+const CardContent = /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["forwardRef"])(({ className, ...props }, ref)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+        ref: ref,
+        className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["cn"])("p-6 pt-0", className),
+        ...props
+    }, void 0, false, {
+        fileName: "[project]/src/components/ui/card.tsx",
+        lineNumber: 63,
+        columnNumber: 3
+    }, this));
+CardContent.displayName = "CardContent";
+const CardFooter = /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["forwardRef"])(({ className, ...props }, ref)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+        ref: ref,
+        className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["cn"])("flex items-center p-6 pt-0", className),
+        ...props
+    }, void 0, false, {
+        fileName: "[project]/src/components/ui/card.tsx",
+        lineNumber: 71,
+        columnNumber: 3
+    }, this));
+CardFooter.displayName = "CardFooter";
+;
+}}),
+"[project]/src/components/ui/textarea.tsx [app-ssr] (ecmascript)": ((__turbopack_context__) => {
+"use strict";
+
+var { g: global, __dirname } = __turbopack_context__;
+{
+__turbopack_context__.s({
+    "Textarea": (()=>Textarea)
+});
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/route-modules/app-page/vendored/ssr/react-jsx-dev-runtime.js [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/route-modules/app-page/vendored/ssr/react.js [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/utils.ts [app-ssr] (ecmascript)");
+;
+;
+;
+const Textarea = /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["forwardRef"])(({ className, ...props }, ref)=>{
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("textarea", {
+        className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["cn"])('flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm', className),
+        ref: ref,
+        ...props
+    }, void 0, false, {
+        fileName: "[project]/src/components/ui/textarea.tsx",
+        lineNumber: 8,
+        columnNumber: 7
+    }, this);
+});
+Textarea.displayName = 'Textarea';
+;
+}}),
+"[project]/src/ai/flows/data:d71aa3 [app-ssr] (ecmascript) <text/javascript>": ((__turbopack_context__) => {
+"use strict";
+
+var { g: global, __dirname } = __turbopack_context__;
+{
+/* __next_internal_action_entry_do_not_use__ [{"4053660f6447b38038e1d20965a3df3cd57a2a7b51":"generateWhatsAppReply"},"src/ai/flows/cs-whatsapp-reply-flow.ts",""] */ __turbopack_context__.s({
+    "generateWhatsAppReply": (()=>generateWhatsAppReply)
+});
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$action$2d$client$2d$wrapper$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/build/webpack/loaders/next-flight-loader/action-client-wrapper.js [app-ssr] (ecmascript)");
+"use turbopack no side effects";
+;
+var generateWhatsAppReply = /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$action$2d$client$2d$wrapper$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["createServerReference"])("4053660f6447b38038e1d20965a3df3cd57a2a7b51", __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$action$2d$client$2d$wrapper$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["callServer"], void 0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$action$2d$client$2d$wrapper$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["findSourceMapURL"], "generateWhatsAppReply"); //# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIi4vY3Mtd2hhdHNhcHAtcmVwbHktZmxvdy50cyJdLCJzb3VyY2VzQ29udGVudCI6WyJcbid1c2Ugc2VydmVyJztcbi8qKlxuICogQGZpbGVPdmVydmlldyBGbG93IEFJIHVudHVrIFdoYXRzQXBwIEN1c3RvbWVyIFNlcnZpY2UgUUxBQi5cbiAqIFZlcnNpIGluaSBmb2t1cyBwYWRhIHBlbWFuZ2dpbGFuIG1vZGVsIGRlbmdhbiB0b29sICdjYXJpU2l6ZU1vdG9yJyBkYW4gJ2NhcmlJbmZvTGF5YW5hbicuXG4gKi9cbmltcG9ydCB7IGFpIH0gZnJvbSAnQC9haS9nZW5raXQnO1xuaW1wb3J0ICogYXMgeiBmcm9tICd6b2QnO1xuaW1wb3J0IHsgZGIgfSBmcm9tICdAL2xpYi9maXJlYmFzZSc7XG5pbXBvcnQgeyBjb2xsZWN0aW9uLCBxdWVyeSBhcyBmaXJlc3RvcmVRdWVyeSwgd2hlcmUsIGdldERvY3MgYXMgZ2V0RmlyZXN0b3JlRG9jcywgVGltZXN0YW1wLCBkb2MsIGdldERvYyBhcyBnZXRGaXJlc3RvcmVEb2MsIGxpbWl0IH0gZnJvbSAnZmlyZWJhc2UvZmlyZXN0b3JlJztcbmltcG9ydCB7IERFRkFVTFRfQUlfU0VUVElOR1MgfSBmcm9tICdAL3R5cGVzL2FpU2V0dGluZ3MnO1xuaW1wb3J0IHR5cGUgeyBQcm9kdWN0U2VydmljZUluZm8gfSBmcm9tICdAL3R5cGVzL2FpVG9vbFNjaGVtYXMnOyAvLyBJbXBvcnQgdGlwZVxuaW1wb3J0IHsgUHJvZHVjdFNlcnZpY2VJbmZvU2NoZW1hIH0gZnJvbSAnQC90eXBlcy9haVRvb2xTY2hlbWFzJzsgLy8gSW1wb3J0IHNrZW1hIGppa2EgZGlwZXJsdWthbiB1bnR1ayBvdXRwdXQgdG9vbFxuXG4vLyA9PSBEZWZpbmlzaSBUb29sIGNhcmlTaXplTW90b3JUb29sID09XG5jb25zdCBDYXJpU2l6ZU1vdG9ySW5wdXRTY2hlbWEgPSB6Lm9iamVjdCh7XG4gIG5hbWFNb3Rvcjogei5zdHJpbmcoKS5taW4oMSwgXCJOYW1hIG1vdG9yIHRpZGFrIGJvbGVoIGtvc29uZy5cIikuZGVzY3JpYmUoJ05hbWEgYXRhdSBtb2RlbCBtb3RvciB5YW5nIGluZ2luIGRpY2FyaSB1a3VyYW5ueWEsIGNvbnRvaDogTk1BWCwgUENYLCBWYXJpby4nKSxcbn0pO1xudHlwZSBDYXJpU2l6ZU1vdG9ySW5wdXQgPSB6LmluZmVyPHR5cGVvZiBDYXJpU2l6ZU1vdG9ySW5wdXRTY2hlbWE+O1xuXG5jb25zdCBDYXJpU2l6ZU1vdG9yT3V0cHV0U2NoZW1hID0gei5vYmplY3Qoe1xuICBzdWNjZXNzOiB6LmJvb2xlYW4oKS5kZXNjcmliZSgnQXBha2FoIHBlbmNhcmlhbiBiZXJoYXNpbCBhdGF1IHRpZGFrLicpLFxuICBzaXplOiB6LnN0cmluZygpLm9wdGlvbmFsKCkuZGVzY3JpYmUoJ1VrdXJhbiBtb3RvciAoUywgTSwgTCwgWEwpIGppa2EgZGl0ZW11a2FuLicpLFxuICBtZXNzYWdlOiB6LnN0cmluZygpLmRlc2NyaWJlKCdQZXNhbiBoYXNpbCBwZW5jYXJpYW4sIHRlcm1hc3VrIHVrdXJhbiBqaWthIGJlcmhhc2lsIGF0YXUgcGVzYW4gZXJyb3IgamlrYSBnYWdhbC4nKSxcbiAgdmVoaWNsZU1vZGVsRm91bmQ6IHouc3RyaW5nKCkub3B0aW9uYWwoKS5kZXNjcmliZSgnTmFtYSBtb2RlbCBtb3RvciB5YW5nIHNlYmVuYXJueWEgZGl0ZW11a2FuIGRpIGRhdGFiYXNlLicpLFxufSk7XG50eXBlIENhcmlTaXplTW90b3JPdXRwdXQgPSB6LmluZmVyPHR5cGVvZiBDYXJpU2l6ZU1vdG9yT3V0cHV0U2NoZW1hPjtcblxuYXN5bmMgZnVuY3Rpb24gZmluZE1vdG9yU2l6ZShpbnB1dDogQ2FyaVNpemVNb3RvcklucHV0KTogUHJvbWlzZTxDYXJpU2l6ZU1vdG9yT3V0cHV0PiB7XG4gICAgY29uc3QgeyBuYW1hTW90b3IgfSA9IGlucHV0O1xuICAgIGNvbnN0IG5hbWFNb3Rvckxvd2VyID0gbmFtYU1vdG9yLnRvTG93ZXJDYXNlKCkudHJpbSgpO1xuICAgIGNvbnNvbGUubG9nKGBbY2FyaVNpemVNb3RvclRvb2wuZm5dIE1lbmNhcmkgdWt1cmFuIHVudHVrOiBcIiR7bmFtYU1vdG9yTG93ZXJ9XCJgKTtcblxuICAgIGlmICghZGIpIHtcbiAgICAgIGNvbnNvbGUuZXJyb3IoXCJbY2FyaVNpemVNb3RvclRvb2wuZm5dIEZpcmVzdG9yZSBEQiAoZGIpIGlzIG5vdCBpbml0aWFsaXplZC5cIik7XG4gICAgICByZXR1cm4geyBzdWNjZXNzOiBmYWxzZSwgbWVzc2FnZTogXCJEYXRhYmFzZSB0aWRhayB0ZXJodWJ1bmcsIHRpZGFrIGJpc2EgbWVuY2FyaSB1a3VyYW4gbW90b3IuXCIgfTtcbiAgICB9XG5cbiAgICB0cnkge1xuICAgICAgY29uc3QgdmVoaWNsZVR5cGVzUmVmID0gY29sbGVjdGlvbihkYiwgJ3ZlaGljbGVUeXBlcycpO1xuICAgICAgbGV0IHE7XG4gICAgICBsZXQgcXVlcnlTbmFwc2hvdDtcbiAgICAgIGxldCBmb3VuZFZlaGljbGVEYXRhOiBhbnkgPSBudWxsO1xuXG4gICAgICAvLyAxLiBUcnkgc2VhcmNoaW5nIGJ5IGFsaWFzIChjYXNlLWluc2Vuc2l0aXZlIGFzIGFsaWFzZXMgc2hvdWxkIGJlIHN0b3JlZCBpbiBsb3dlcmNhc2UpXG4gICAgICBxID0gZmlyZXN0b3JlUXVlcnkodmVoaWNsZVR5cGVzUmVmLCB3aGVyZSgnYWxpYXNlcycsICdhcnJheS1jb250YWlucycsIG5hbWFNb3Rvckxvd2VyKSwgbGltaXQoMSkpO1xuICAgICAgcXVlcnlTbmFwc2hvdCA9IGF3YWl0IGdldEZpcmVzdG9yZURvY3MocSk7XG5cbiAgICAgIGlmICghcXVlcnlTbmFwc2hvdC5lbXB0eSkge1xuICAgICAgICBmb3VuZFZlaGljbGVEYXRhID0gcXVlcnlTbmFwc2hvdC5kb2NzWzBdLmRhdGEoKTtcbiAgICAgIH0gZWxzZSB7XG4gICAgICAgIC8vIDIuIElmIG5vdCBmb3VuZCBieSBhbGlhcywgdHJ5IHNlYXJjaGluZyBieSBtb2RlbF9sb3dlcmNhc2UgKGV4YWN0IG1hdGNoKVxuICAgICAgICBjb25zb2xlLmxvZyhgW2NhcmlTaXplTW90b3JUb29sLmZuXSBUaWRhayBkaXRlbXVrYW4gdmlhIGFsaWFzLCBtZW5jb2JhIG1vZGVsX2xvd2VyY2FzZTogXCIke25hbWFNb3Rvckxvd2VyfVwiYCk7XG4gICAgICAgIHEgPSBmaXJlc3RvcmVRdWVyeSh2ZWhpY2xlVHlwZXNSZWYsIHdoZXJlKCdtb2RlbF9sb3dlcmNhc2UnLCAnPT0nLCBuYW1hTW90b3JMb3dlciksIGxpbWl0KDEpKTtcbiAgICAgICAgcXVlcnlTbmFwc2hvdCA9IGF3YWl0IGdldEZpcmVzdG9yZURvY3MocSk7XG4gICAgICAgIGlmICghcXVlcnlTbmFwc2hvdC5lbXB0eSkge1xuICAgICAgICAgIGZvdW5kVmVoaWNsZURhdGEgPSBxdWVyeVNuYXBzaG90LmRvY3NbMF0uZGF0YSgpO1xuICAgICAgICB9IGVsc2Uge1xuICAgICAgICAgIC8vIDMuIEZhbGxiYWNrOiBzZWFyY2ggYnkgbW9kZWwgbmFtZSAoY2FzZS1pbnNlbnNpdGl2ZSBieSBjbGllbnQtc2lkZSBmaWx0ZXJpbmcpXG4gICAgICAgICAgY29uc29sZS5sb2coYFtjYXJpU2l6ZU1vdG9yVG9vbC5mbl0gVGlkYWsgZGl0ZW11a2FuIHZpYSBtb2RlbF9sb3dlcmNhc2UsIG1lbmNvYmEgbW9kZWwgKGNsaWVudC1zaWRlIGZpbHRlcik6IFwiJHtuYW1hTW90b3JMb3dlcn1cImApO1xuICAgICAgICAgIGNvbnN0IGFsbFZlaGljbGVzU25hcHNob3QgPSBhd2FpdCBnZXRGaXJlc3RvcmVEb2NzKHZlaGljbGVUeXBlc1JlZik7IC8vIEdldCBhbGxcbiAgICAgICAgICBmb3IgKGNvbnN0IGRvYyBvZiBhbGxWZWhpY2xlc1NuYXBzaG90LmRvY3MpIHtcbiAgICAgICAgICAgIGNvbnN0IHZlaGljbGUgPSBkb2MuZGF0YSgpO1xuICAgICAgICAgICAgaWYgKHZlaGljbGUubW9kZWwgJiYgdmVoaWNsZS5tb2RlbC50b0xvd2VyQ2FzZSgpID09PSBuYW1hTW90b3JMb3dlcikge1xuICAgICAgICAgICAgICBmb3VuZFZlaGljbGVEYXRhID0gdmVoaWNsZTtcbiAgICAgICAgICAgICAgYnJlYWs7XG4gICAgICAgICAgICB9XG4gICAgICAgICAgfVxuICAgICAgICB9XG4gICAgICB9XG5cbiAgICAgIGlmIChmb3VuZFZlaGljbGVEYXRhICYmIGZvdW5kVmVoaWNsZURhdGEuc2l6ZSkge1xuICAgICAgICBjb25zb2xlLmxvZyhgW2NhcmlTaXplTW90b3JUb29sLmZuXSBEaXRlbXVrYW46IE1vZGVsIFwiJHtmb3VuZFZlaGljbGVEYXRhLm1vZGVsfVwiLCBTaXplIFwiJHtmb3VuZFZlaGljbGVEYXRhLnNpemV9XCJgKTtcbiAgICAgICAgcmV0dXJuIHtcbiAgICAgICAgICBzdWNjZXNzOiB0cnVlLFxuICAgICAgICAgIHNpemU6IGZvdW5kVmVoaWNsZURhdGEuc2l6ZSxcbiAgICAgICAgICBtZXNzYWdlOiBgTW90b3IgJHtmb3VuZFZlaGljbGVEYXRhLm1vZGVsfSAoJHtuYW1hTW90b3J9KSB0ZXJtYXN1ayB1a3VyYW4gJHtmb3VuZFZlaGljbGVEYXRhLnNpemV9LmAsXG4gICAgICAgICAgdmVoaWNsZU1vZGVsRm91bmQ6IGZvdW5kVmVoaWNsZURhdGEubW9kZWwsXG4gICAgICAgIH07XG4gICAgICB9IGVsc2Uge1xuICAgICAgICBjb25zb2xlLmxvZyhgW2NhcmlTaXplTW90b3JUb29sLmZuXSBVa3VyYW4gbW90b3IgdW50dWsgXCIke25hbWFNb3Rvcn1cIiB0aWRhayBkaXRlbXVrYW4uYCk7XG4gICAgICAgIHJldHVybiB7XG4gICAgICAgICAgc3VjY2VzczogZmFsc2UsXG4gICAgICAgICAgbWVzc2FnZTogYE1hYWYsIFpveWEgdGlkYWsgbWVuZW11a2FuIHVrdXJhbiB1bnR1ayBtb3RvciBcIiR7bmFtYU1vdG9yfVwiLiBNdW5na2luIGJpc2EgY29iYSBuYW1hIG1vZGVsIHlhbmcgbGViaWggc3Blc2lmaWsgYXRhdSB1bXVtP2AsXG4gICAgICAgIH07XG4gICAgICB9XG4gICAgfSBjYXRjaCAoZXJyb3IpIHtcbiAgICAgIGNvbnNvbGUuZXJyb3IoXCJbY2FyaVNpemVNb3RvclRvb2wuZm5dIEVycm9yIHNhYXQgbWVuY2FyaSB1a3VyYW4gbW90b3I6XCIsIGVycm9yKTtcbiAgICAgIHJldHVybiB7XG4gICAgICAgIHN1Y2Nlc3M6IGZhbHNlLFxuICAgICAgICBtZXNzYWdlOiBcIlRlcmphZGkga2VzYWxhaGFuIGludGVybmFsIHNhYXQgbWVuY2FyaSB1a3VyYW4gbW90b3IuIENvYmEgbGFnaSBuYW50aS5cIixcbiAgICAgIH07XG4gICAgfVxufVxuXG5jb25zdCBjYXJpU2l6ZU1vdG9yVG9vbCA9IGFpLmRlZmluZVRvb2woXG4gIHtcbiAgICBuYW1lOiAnY2FyaVNpemVNb3RvcicsXG4gICAgZGVzY3JpcHRpb246ICdNZW5jYXJpIHVrdXJhbiAoUywgTSwgTCwgWEwpIHVudHVrIG1vZGVsIG1vdG9yIHRlcnRlbnR1LiBHdW5ha2FuIHRvb2wgaW5pIGppa2EgcGVybHUgbWVuZ2V0YWh1aSB1a3VyYW4gbW90b3IgdW50dWsgbWVuZW50dWthbiBoYXJnYSBsYXlhbmFuIGF0YXUgaW5mb3JtYXNpIGxhaW4sIGF0YXUgamlrYSB1c2VyIG1lbmFueWFrYW4gdWt1cmFuIG1vdG9ybnlhLicsXG4gICAgaW5wdXRTY2hlbWE6IENhcmlTaXplTW90b3JJbnB1dFNjaGVtYSxcbiAgICBvdXRwdXRTY2hlbWE6IENhcmlTaXplTW90b3JPdXRwdXRTY2hlbWEsXG4gIH0sXG4gIGZpbmRNb3RvclNpemVcbik7XG4vLyA9PSBBa2hpciBkZWZpbmlzaSBUb29sIGNhcmlTaXplTW90b3JUb29sID09XG5cblxuLy8gPT0gRGVmaW5pc2kgVG9vbCBjYXJpSW5mb0xheWFuYW5Ub29sID09XG5jb25zdCBDYXJpSW5mb0xheWFuYW5JbnB1dFNjaGVtYSA9IHoub2JqZWN0KHtcbiAga2V5d29yZDogei5zdHJpbmcoKS5taW4oMSwgXCJLYXRhIGt1bmNpIHBlbmNhcmlhbiB0aWRhayBib2xlaCBrb3NvbmcuXCIpLmRlc2NyaWJlKCdLYXRhIGt1bmNpIHVudHVrIG1lbmNhcmkgbGF5YW5hbiwgbWlzLiBcImN1Y2lcIiwgXCJjb2F0aW5nXCIsIFwiZGV0YWlsaW5nXCIuJyksXG59KTtcbnR5cGUgQ2FyaUluZm9MYXlhbmFuSW5wdXQgPSB6LmluZmVyPHR5cGVvZiBDYXJpSW5mb0xheWFuYW5JbnB1dFNjaGVtYT47XG5cbmNvbnN0IENhcmlJbmZvTGF5YW5hbk91dHB1dFNjaGVtYSA9IHouYXJyYXkoUHJvZHVjdFNlcnZpY2VJbmZvU2NoZW1hKS5kZXNjcmliZShcIkRhZnRhciBsYXlhbmFuIHlhbmcgY29jb2sgZGVuZ2FuIGthdGEga3VuY2ksIGJpc2Ega29zb25nLlwiKTtcbnR5cGUgQ2FyaUluZm9MYXlhbmFuT3V0cHV0ID0gei5pbmZlcjx0eXBlb2YgQ2FyaUluZm9MYXlhbmFuT3V0cHV0U2NoZW1hPjtcblxuYXN5bmMgZnVuY3Rpb24gZmluZExheWFuYW5CeUtleXdvcmQoaW5wdXQ6IENhcmlJbmZvTGF5YW5hbklucHV0KTogUHJvbWlzZTxDYXJpSW5mb0xheWFuYW5PdXRwdXQ+IHtcbiAgY29uc3QgeyBrZXl3b3JkIH0gPSBpbnB1dDtcbiAgY29uc3Qga2V5d29yZExvd2VyID0ga2V5d29yZC50b0xvd2VyQ2FzZSgpLnRyaW0oKTtcbiAgY29uc29sZS5sb2coYFtjYXJpSW5mb0xheWFuYW5Ub29sLmZuXSBNZW5jYXJpIGxheWFuYW4gZGVuZ2FuIGtleXdvcmQ6IFwiJHtrZXl3b3JkTG93ZXJ9XCJgKTtcblxuICBpZiAoIWRiKSB7XG4gICAgY29uc29sZS5lcnJvcihcIltjYXJpSW5mb0xheWFuYW5Ub29sLmZuXSBGaXJlc3RvcmUgREIgKGRiKSBpcyBub3QgaW5pdGlhbGl6ZWQuXCIpO1xuICAgIHJldHVybiBbXTsgXG4gIH1cblxuICBjb25zdCBtYXRjaGluZ1NlcnZpY2VzOiBQcm9kdWN0U2VydmljZUluZm9bXSA9IFtdO1xuXG4gIHRyeSB7XG4gICAgY29uc3Qgc2VydmljZXNDb2xsZWN0aW9uUmVmID0gY29sbGVjdGlvbihkYiwgJ3NlcnZpY2VzJyk7XG4gICAgY29uc3QgcSA9IGZpcmVzdG9yZVF1ZXJ5KHNlcnZpY2VzQ29sbGVjdGlvblJlZik7IC8vIEFtYmlsIHNlbXVhIGxheWFuYW5cbiAgICBjb25zdCBxdWVyeVNuYXBzaG90ID0gYXdhaXQgZ2V0RmlyZXN0b3JlRG9jcyhxKTtcblxuICAgIHF1ZXJ5U25hcHNob3QuZm9yRWFjaCgoZG9jU25hcCkgPT4ge1xuICAgICAgY29uc3Qgc2VydmljZURhdGEgPSBkb2NTbmFwLmRhdGEoKTtcbiAgICAgIGNvbnN0IHNlcnZpY2VOYW1lTG93ZXIgPSBzZXJ2aWNlRGF0YS5uYW1lPy50b0xvd2VyQ2FzZSgpO1xuICAgICAgY29uc3Qgc2VydmljZUNhdGVnb3J5TG93ZXIgPSBzZXJ2aWNlRGF0YS5jYXRlZ29yeT8udG9Mb3dlckNhc2UoKTtcbiAgICAgIGNvbnN0IHNlcnZpY2VEZXNjcmlwdGlvbkxvd2VyID0gc2VydmljZURhdGEuZGVzY3JpcHRpb24/LnRvTG93ZXJDYXNlKCk7XG5cblxuICAgICAgaWYgKCAoc2VydmljZU5hbWVMb3dlciAmJiBzZXJ2aWNlTmFtZUxvd2VyLmluY2x1ZGVzKGtleXdvcmRMb3dlcikpIHx8XG4gICAgICAgICAgIChzZXJ2aWNlQ2F0ZWdvcnlMb3dlciAmJiBzZXJ2aWNlQ2F0ZWdvcnlMb3dlci5pbmNsdWRlcyhrZXl3b3JkTG93ZXIpKSB8fFxuICAgICAgICAgICAoc2VydmljZURlc2NyaXB0aW9uTG93ZXIgJiYgc2VydmljZURlc2NyaXB0aW9uTG93ZXIuaW5jbHVkZXMoa2V5d29yZExvd2VyKSlcbiAgICAgICAgICkge1xuICAgICAgICBjb25zdCBzZXJ2aWNlSXRlbTogUHJvZHVjdFNlcnZpY2VJbmZvID0ge1xuICAgICAgICAgIGlkOiBkb2NTbmFwLmlkLFxuICAgICAgICAgIG5hbWU6IHNlcnZpY2VEYXRhLm5hbWUsXG4gICAgICAgICAgdHlwZTogc2VydmljZURhdGEudHlwZSBhcyAnTGF5YW5hbicgfCAnUHJvZHVrJyxcbiAgICAgICAgICBjYXRlZ29yeTogc2VydmljZURhdGEuY2F0ZWdvcnksXG4gICAgICAgICAgcHJpY2U6IHNlcnZpY2VEYXRhLnByaWNlLFxuICAgICAgICAgIGRlc2NyaXB0aW9uOiBzZXJ2aWNlRGF0YS5kZXNjcmlwdGlvbiB8fCB1bmRlZmluZWQsXG4gICAgICAgICAgcG9pbnRzQXdhcmRlZDogc2VydmljZURhdGEucG9pbnRzQXdhcmRlZCB8fCB1bmRlZmluZWQsXG4gICAgICAgICAgZXN0aW1hdGVkRHVyYXRpb246IHNlcnZpY2VEYXRhLmVzdGltYXRlZER1cmF0aW9uIHx8IHVuZGVmaW5lZCxcbiAgICAgICAgICB2YXJpYW50czogc2VydmljZURhdGEudmFyaWFudHM/Lm1hcCgodjogYW55KSA9PiAoe1xuICAgICAgICAgICAgaWQ6IHYuaWQgfHwgdW5kZWZpbmVkLFxuICAgICAgICAgICAgbmFtZTogdi5uYW1lLFxuICAgICAgICAgICAgcHJpY2U6IHYucHJpY2UsXG4gICAgICAgICAgICBwb2ludHNBd2FyZGVkOiB2LnBvaW50c0F3YXJkZWQsXG4gICAgICAgICAgICBlc3RpbWF0ZWREdXJhdGlvbjogdi5lc3RpbWF0ZWREdXJhdGlvbixcbiAgICAgICAgICAgIHN0b2NrUXVhbnRpdHk6IHYuc3RvY2tRdWFudGl0eSxcbiAgICAgICAgICAgIGNvc3RQcmljZTogdi5jb3N0UHJpY2UsXG4gICAgICAgICAgfSkpIHx8IHVuZGVmaW5lZCxcbiAgICAgICAgICBzdG9ja1F1YW50aXR5OiBzZXJ2aWNlRGF0YS5zdG9ja1F1YW50aXR5LFxuICAgICAgICAgIGNvc3RQcmljZTogc2VydmljZURhdGEuY29zdFByaWNlLFxuICAgICAgICB9O1xuICAgICAgICBcbiAgICAgICAgY29uc3QgdmFsaWRhdGlvblJlc3VsdCA9IFByb2R1Y3RTZXJ2aWNlSW5mb1NjaGVtYS5zYWZlUGFyc2Uoc2VydmljZUl0ZW0pO1xuICAgICAgICBpZiAodmFsaWRhdGlvblJlc3VsdC5zdWNjZXNzKSB7XG4gICAgICAgICAgbWF0Y2hpbmdTZXJ2aWNlcy5wdXNoKHZhbGlkYXRpb25SZXN1bHQuZGF0YSk7XG4gICAgICAgIH0gZWxzZSB7XG4gICAgICAgICAgY29uc29sZS53YXJuKGBbY2FyaUluZm9MYXlhbmFuVG9vbC5mbl0gRGF0YSBsYXlhbmFuICR7ZG9jU25hcC5pZH0gdGlkYWsgdmFsaWQ6YCwgdmFsaWRhdGlvblJlc3VsdC5lcnJvci5mb3JtYXQoKSk7XG4gICAgICAgIH1cbiAgICAgIH1cbiAgICB9KTtcblxuICAgIGNvbnNvbGUubG9nKGBbY2FyaUluZm9MYXlhbmFuVG9vbC5mbl0gRGl0ZW11a2FuICR7bWF0Y2hpbmdTZXJ2aWNlcy5sZW5ndGh9IGxheWFuYW4geWFuZyBjb2NvayBkZW5nYW4ga2V5d29yZCBcIiR7a2V5d29yZExvd2VyfVwiLmApO1xuICAgIHJldHVybiBtYXRjaGluZ1NlcnZpY2VzO1xuXG4gIH0gY2F0Y2ggKGVycm9yKSB7XG4gICAgY29uc29sZS5lcnJvcihcIltjYXJpSW5mb0xheWFuYW5Ub29sLmZuXSBFcnJvciBzYWF0IG1lbmNhcmkgbGF5YW5hbjpcIiwgZXJyb3IpO1xuICAgIHJldHVybiBbXTtcbiAgfVxufVxuXG5jb25zdCBjYXJpSW5mb0xheWFuYW5Ub29sID0gYWkuZGVmaW5lVG9vbChcbiAge1xuICAgIG5hbWU6ICdjYXJpSW5mb0xheWFuYW4nLFxuICAgIGRlc2NyaXB0aW9uOiAnTWVuY2FyaSBkYWZ0YXIgbGF5YW5hbiBhdGF1IHByb2R1ayB5YW5nIHRlcnNlZGlhIGJlcmRhc2Fya2FuIGthdGEga3VuY2kuIEJlcmd1bmEgamlrYSBwZWxhbmdnYW4gYmVydGFueWEgbGF5YW5hbiBhcGEgc2FqYSB5YW5nIGFkYSBhdGF1IG1lbnllYnV0a2FuIGplbmlzIGxheWFuYW4gc2VjYXJhIHVtdW0uJyxcbiAgICBpbnB1dFNjaGVtYTogQ2FyaUluZm9MYXlhbmFuSW5wdXRTY2hlbWEsXG4gICAgb3V0cHV0U2NoZW1hOiBDYXJpSW5mb0xheWFuYW5PdXRwdXRTY2hlbWEsXG4gIH0sXG4gIGZpbmRMYXlhbmFuQnlLZXl3b3JkXG4pO1xuLy8gPT0gQWtoaXIgZGVmaW5pc2kgVG9vbCBjYXJpSW5mb0xheWFuYW5Ub29sID09XG5cblxuLy8gU2tlbWEgaW50ZXJuYWwgdW50dWsgdmFsaWRhc2kgaW5wdXQgY2hhdCBoaXN0b3J5IGRpIGZsb3dcbmNvbnN0IENoYXRNZXNzYWdlU2NoZW1hSW50ZXJuYWwgPSB6Lm9iamVjdCh7XG4gIHJvbGU6IHouZW51bShbJ3VzZXInLCAnbW9kZWwnXSksXG4gIGNvbnRlbnQ6IHouc3RyaW5nKCksXG59KTtcbmV4cG9ydCB0eXBlIENoYXRNZXNzYWdlID0gei5pbmZlcjx0eXBlb2YgQ2hhdE1lc3NhZ2VTY2hlbWFJbnRlcm5hbD47XG5cbi8vIFNrZW1hIGlucHV0IHVudHVrIFpveWFDaGF0RmxvdyAoVElEQUsgREktRVhQT1JUKVxuY29uc3QgWm95YUNoYXRJbnB1dFNjaGVtYSA9IHoub2JqZWN0KHtcbiAgbWVzc2FnZXM6IHouYXJyYXkoQ2hhdE1lc3NhZ2VTY2hlbWFJbnRlcm5hbCkub3B0aW9uYWwoKS5kZXNjcmliZShcIlJpd2F5YXQgcGVyY2FrYXBhbiBsZW5na2FwLCBqaWthIGFkYS5cIiksXG4gIGN1c3RvbWVyTWVzc2FnZTogei5zdHJpbmcoKS5taW4oMSwgXCJQZXNhbiBwZWxhbmdnYW4gdGlkYWsgYm9sZWgga29zb25nLlwiKS5kZXNjcmliZShcIlBlc2FuIHRlcmJhcnUgZGFyaSBjdXN0b21lci5cIiksXG4gIHNlbmRlck51bWJlcjogei5zdHJpbmcoKS5vcHRpb25hbCgpLmRlc2NyaWJlKFwiTm9tb3IgV2hhdHNBcHAgcGVuZ2lyaW0gKG9wc2lvbmFsKS5cIiksXG4gIG1haW5Qcm9tcHRTdHJpbmc6IHouc3RyaW5nKCkub3B0aW9uYWwoKS5kZXNjcmliZShcIlN0cmluZyBwcm9tcHQgdXRhbWEgeWFuZyBtdW5na2luIGRpa2lyaW0gZGFyaSBVSSBhdGF1IGRpYW1iaWwgZGFyaSBGaXJlc3RvcmUuXCIpLFxuICBjdXJyZW50RGF0ZTogei5zdHJpbmcoKS5vcHRpb25hbCgpLFxuICBjdXJyZW50VGltZTogei5zdHJpbmcoKS5vcHRpb25hbCgpLFxuICB0b21vcnJvd0RhdGU6IHouc3RyaW5nKCkub3B0aW9uYWwoKSxcbiAgZGF5QWZ0ZXJUb21vcnJvd0RhdGU6IHouc3RyaW5nKCkub3B0aW9uYWwoKSxcbn0pO1xuZXhwb3J0IHR5cGUgWm95YUNoYXRJbnB1dCA9IHouaW5mZXI8dHlwZW9mIFpveWFDaGF0SW5wdXRTY2hlbWE+O1xuXG5jb25zdCBab3lhQ2hhdE91dHB1dFNjaGVtYSA9IHoub2JqZWN0KHsgLy8gU2NoZW1hIG91dHB1dCB1bnR1ayB3cmFwcGVyIGZ1bmN0aW9uXG4gIHN1Z2dlc3RlZFJlcGx5OiB6LnN0cmluZygpLmRlc2NyaWJlKCdTYXJhbiBiYWxhc2FuIHlhbmcgZGloYXNpbGthbiBBSSB1bnR1ayBkaWtpcmltIGtlIHBlbGFuZ2dhbi4nKSxcbn0pO1xuZXhwb3J0IHR5cGUgV2hhdHNBcHBSZXBseU91dHB1dCA9IHouaW5mZXI8dHlwZW9mIFpveWFDaGF0T3V0cHV0U2NoZW1hPjtcblxuXG5jb25zdCB6b3lhQ2hhdEZsb3cgPSBhaS5kZWZpbmVGbG93KFxuICB7XG4gICAgbmFtZTogJ3pveWFDaGF0RmxvdycsXG4gICAgaW5wdXRTY2hlbWE6IFpveWFDaGF0SW5wdXRTY2hlbWEsXG4gICAgb3V0cHV0U2NoZW1hOiB6LnN0cmluZygpLCAvLyBPdXRwdXQgZmxvdyBhZGFsYWggc3RyaW5nIGJhbGFzYW4gQUlcbiAgfSxcbiAgYXN5bmMgKGlucHV0OiBab3lhQ2hhdElucHV0KTogUHJvbWlzZTxzdHJpbmc+ID0+IHtcbiAgICBjb25zb2xlLmxvZyhcIltDUy1GTE9XXSB6b3lhQ2hhdEZsb3cgaW5wdXQuIEN1c3RvbWVyIE1lc3NhZ2U6XCIsIGlucHV0LmN1c3RvbWVyTWVzc2FnZSwgXCJIaXN0b3J5IExlbmd0aDpcIiwgKGlucHV0Lm1lc3NhZ2VzIHx8IFtdKS5sZW5ndGgpO1xuXG4gICAgY29uc3QgbGFzdFVzZXJNZXNzYWdlQ29udGVudCA9IGlucHV0LmN1c3RvbWVyTWVzc2FnZSB8fFxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAoaW5wdXQubWVzc2FnZXMgJiYgaW5wdXQubWVzc2FnZXMubGVuZ3RoID4gMCA/IGlucHV0Lm1lc3NhZ2VzW2lucHV0Lm1lc3NhZ2VzLmxlbmd0aCAtIDFdLmNvbnRlbnQgOiAnJyk7XG5cbiAgICBpZiAoIWxhc3RVc2VyTWVzc2FnZUNvbnRlbnQgfHwgbGFzdFVzZXJNZXNzYWdlQ29udGVudC50cmltKCkgPT09ICcnKSB7XG4gICAgICBjb25zb2xlLndhcm4oXCJbQ1MtRkxPV10gTm8gdmFsaWQgbGFzdCB1c2VyIG1lc3NhZ2UgY29udGVudC4gUmV0dXJuaW5nIGVtcHR5IHJlcGx5LlwiKTtcbiAgICAgIHJldHVybiBcIk1hYWYsIFpveWEgdGlkYWsgbWVuZXJpbWEgcGVzYW4geWFuZyBqZWxhcy5cIjtcbiAgICB9XG5cbiAgICBsZXQgZHluYW1pY0NvbnRleHQgPSBgSU5GT19VTVVNX0JFTkdLRUw6IFFMQUIgTW90byBEZXRhaWxpbmcgYWRhbGFoIGJlbmdrZWwgcGVyYXdhdGFuIGRhbiBkZXRhaWxpbmcgbW90b3IuYDtcbiAgICBpZiAoIWRiKSB7XG4gICAgICAgIGNvbnNvbGUud2FybihcIltDUy1GTE9XXSBGaXJlc3RvcmUgREIgKGRiKSBpcyBub3QgaW5pdGlhbGl6ZWQuIFNvbWUgY29udGV4dCBtaWdodCBiZSBtaXNzaW5nLlwiKTtcbiAgICAgICAgZHluYW1pY0NvbnRleHQgKz0gXCIgV0FSTklORzogRGF0YWJhc2UgdGlkYWsgdGVyaHVidW5nLCBpbmZvIGRldGFpbCBtdW5na2luIHRpZGFrIGFrdXJhdC5cIjtcbiAgICB9XG4gICAgY29uc29sZS5sb2coYFtDUy1GTE9XXSBEeW5hbWljIGNvbnRleHQgYnVpbHQ6ICR7ZHluYW1pY0NvbnRleHR9YCk7XG5cbiAgICBjb25zdCBoaXN0b3J5Rm9yQUkgPSAoaW5wdXQubWVzc2FnZXMgfHwgW10pXG4gICAgICAuZmlsdGVyKG1zZyA9PiBtc2cuY29udGVudCAmJiBtc2cuY29udGVudC50cmltKCkgIT09ICcnKVxuICAgICAgLm1hcCgobXNnKSA9PiAoe1xuICAgICAgICByb2xlOiBtc2cucm9sZSxcbiAgICAgICAgY29udGVudDogW3sgdGV4dDogbXNnLmNvbnRlbnQgfV0sXG4gICAgfSkpO1xuXG4gICAgY29uc3QgbWFpblByb21wdEZyb21TZXR0aW5ncyA9IGlucHV0Lm1haW5Qcm9tcHRTdHJpbmcgfHwgREVGQVVMVF9BSV9TRVRUSU5HUy5tYWluUHJvbXB0O1xuXG4gICAgY29uc3QgZmluYWxTeXN0ZW1Qcm9tcHQgPSBtYWluUHJvbXB0RnJvbVNldHRpbmdzXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIC5yZXBsYWNlKFwie3t7ZHluYW1pY0NvbnRleHR9fX1cIiwgZHluYW1pY0NvbnRleHQpXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIC5yZXBsYWNlKFwie3t7Y3VzdG9tZXJNZXNzYWdlfX19XCIsIGlucHV0LmN1c3RvbWVyTWVzc2FnZSkgLy8gY3VzdG9tZXJNZXNzYWdlIHN1ZGFoIGFkYSBkaSBwZXNhbiB0ZXJha2hpciwgdGFwaSBpbmkgYmlzYSBqYWRpIHBsYWNlaG9sZGVyIHRhbWJhaGFuXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIC5yZXBsYWNlKC97eyNpZiBtZXNzYWdlcy5sZW5ndGh9fVtcXHNcXFNdKj97e1xcL2lmfX0vZywgXCJcIikgXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIC5yZXBsYWNlKC97eyNpZiBzZW5kZXJOdW1iZXJ9fVtcXHNcXFNdKj97e1xcL2lmfX0vZywgXCJcIilcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgLnJlcGxhY2UoL3t7I2lmIGN1cnJlbnREYXRlfX1bXFxzXFxTXSo/e3tcXC9pZn19L2csIFwiXCIpXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIC5yZXBsYWNlKC97eyNpZiB0b21vcnJvd0RhdGV9fVtcXHNcXFNdKj97e1xcL2lmfX0vZywgXCJcIik7XG5cblxuICAgIGNvbnN0IG1lc3NhZ2VzRm9yQUkgPSBbXG4gICAgICAuLi5oaXN0b3J5Rm9yQUksXG4gICAgICB7IHJvbGU6ICd1c2VyJyBhcyBjb25zdCwgY29udGVudDogW3sgdGV4dDogaW5wdXQuY3VzdG9tZXJNZXNzYWdlIH1dIH1cbiAgICBdO1xuXG4gICAgY29uc29sZS5sb2coYFtDUy1GTE9XXSBDYWxsaW5nIGFpLmdlbmVyYXRlIHdpdGggbW9kZWwgZ29vZ2xlYWkvZ2VtaW5pLTEuNS1mbGFzaC1sYXRlc3QuIEhpc3RvcnkgTGVuZ3RoOiAke2hpc3RvcnlGb3JBSS5sZW5ndGh9YCk7XG4gICAgY29uc29sZS5sb2coYFtDUy1GTE9XXSBTeXN0ZW0gUHJvbXB0IGJlaW5nIHVzZWQgKHNpbXBsaWZpZWQpOiAke2ZpbmFsU3lzdGVtUHJvbXB0LnN1YnN0cmluZygwLCAzMDApfS4uLmApO1xuXG4gICAgdHJ5IHtcbiAgICAgIGNvbnN0IHJlc3VsdCA9IGF3YWl0IGFpLmdlbmVyYXRlKHtcbiAgICAgICAgbW9kZWw6ICdnb29nbGVhaS9nZW1pbmktMS41LWZsYXNoLWxhdGVzdCcsXG4gICAgICAgIHByb21wdDogZmluYWxTeXN0ZW1Qcm9tcHQsIFxuICAgICAgICBtZXNzYWdlczogbWVzc2FnZXNGb3JBSSxcbiAgICAgICAgdG9vbHM6IFtjYXJpU2l6ZU1vdG9yVG9vbCwgY2FyaUluZm9MYXlhbmFuVG9vbF0sIFxuICAgICAgICBjb25maWc6IHsgdGVtcGVyYXR1cmU6IDAuNSB9LFxuICAgICAgfSk7XG5cbiAgICAgIGNvbnNvbGUubG9nKFwiW0NTLUZMT1ddIFJhdyBBSSBnZW5lcmF0ZSByZXN1bHQ6XCIsIEpTT04uc3RyaW5naWZ5KHJlc3VsdCwgbnVsbCwgMikpO1xuICAgICAgXG4gICAgICBsZXQgc3VnZ2VzdGVkUmVwbHkgPSBcIlwiO1xuICAgICAgY29uc3QgdG9vbFJlcXVlc3REYXRhID0gcmVzdWx0LnRvb2xSZXF1ZXN0OyBcblxuICAgICAgaWYgKHRvb2xSZXF1ZXN0RGF0YSkge1xuICAgICAgICBjb25zb2xlLmxvZyhcIltDUy1GTE9XXSBBSSByZXF1ZXN0ZWQgYSB0b29sIGNhbGw6XCIsIEpTT04uc3RyaW5naWZ5KHRvb2xSZXF1ZXN0RGF0YSwgbnVsbCwgMikpO1xuICAgICAgICBsZXQgdG9vbE91dHB1dDogYW55ID0gbnVsbDtcblxuICAgICAgICBpZiAodG9vbFJlcXVlc3REYXRhLm5hbWUgPT09ICdjYXJpU2l6ZU1vdG9yJyAmJiB0b29sUmVxdWVzdERhdGEuaW5wdXQpIHtcbiAgICAgICAgICB0b29sT3V0cHV0ID0gYXdhaXQgZmluZE1vdG9yU2l6ZSh0b29sUmVxdWVzdERhdGEuaW5wdXQgYXMgQ2FyaVNpemVNb3RvcklucHV0KTtcbiAgICAgICAgfSBlbHNlIGlmICh0b29sUmVxdWVzdERhdGEubmFtZSA9PT0gJ2NhcmlJbmZvTGF5YW5hbicgJiYgdG9vbFJlcXVlc3REYXRhLmlucHV0KSB7XG4gICAgICAgICAgdG9vbE91dHB1dCA9IGF3YWl0IGZpbmRMYXlhbmFuQnlLZXl3b3JkKHRvb2xSZXF1ZXN0RGF0YS5pbnB1dCBhcyBDYXJpSW5mb0xheWFuYW5JbnB1dCk7XG4gICAgICAgIH0gZWxzZSB7XG4gICAgICAgICAgIHN1Z2dlc3RlZFJlcGx5ID0gXCJUb29sIHRpZGFrIGRpa2VuYWwgYXRhdSBpbnB1dCBzYWxhaC5cIjtcbiAgICAgICAgfVxuXG4gICAgICAgIGlmICh0b29sT3V0cHV0KSB7XG4gICAgICAgICAgY29uc29sZS5sb2coYFtDUy1GTE9XXSBUb29sICR7dG9vbFJlcXVlc3REYXRhLm5hbWV9IG91dHB1dDpgLCBKU09OLnN0cmluZ2lmeSh0b29sT3V0cHV0LCBudWxsLCAyKSk7XG4gICAgICAgICAgY29uc3QgbW9kZWxSZXNwb25zZUFmdGVyVG9vbCA9IGF3YWl0IGFpLmdlbmVyYXRlKHtcbiAgICAgICAgICAgIG1vZGVsOiAnZ29vZ2xlYWkvZ2VtaW5pLTEuNS1mbGFzaC1sYXRlc3QnLFxuICAgICAgICAgICAgcHJvbXB0OiBmaW5hbFN5c3RlbVByb21wdCxcbiAgICAgICAgICAgIG1lc3NhZ2VzOiBbIFxuICAgICAgICAgICAgICAuLi5tZXNzYWdlc0ZvckFJLCBcbiAgICAgICAgICAgICAgcmVzdWx0Lm1lc3NhZ2UsICBcbiAgICAgICAgICAgICAgeyBcbiAgICAgICAgICAgICAgICByb2xlOiAndG9vbCcsXG4gICAgICAgICAgICAgICAgY29udGVudDogW3tcbiAgICAgICAgICAgICAgICAgIHRvb2xSZXNwb25zZToge1xuICAgICAgICAgICAgICAgICAgICBuYW1lOiB0b29sUmVxdWVzdERhdGEubmFtZSxcbiAgICAgICAgICAgICAgICAgICAgb3V0cHV0OiB0b29sT3V0cHV0LCBcbiAgICAgICAgICAgICAgICAgIH1cbiAgICAgICAgICAgICAgICB9XVxuICAgICAgICAgICAgICB9XG4gICAgICAgICAgICBdLFxuICAgICAgICAgICAgY29uZmlnOiB7IHRlbXBlcmF0dXJlOiAwLjUgfSxcbiAgICAgICAgICB9KTtcbiAgICAgICAgICBzdWdnZXN0ZWRSZXBseSA9IG1vZGVsUmVzcG9uc2VBZnRlclRvb2wudGV4dCB8fCBcIlpveWEgYmluZ3VuZyBzZXRlbGFoIHBha2FpIGFsYXQsIGNvYmEgbGFnaSB5YS5cIjtcbiAgICAgICAgfSBlbHNlIGlmICghc3VnZ2VzdGVkUmVwbHkpIHsgXG4gICAgICAgICAgICBzdWdnZXN0ZWRSZXBseSA9IFwiTWFhZiwgWm95YSB0aWRhayBiZXJoYXNpbCBtZW1wcm9zZXMgcGVybWludGFhbiBhbGF0bnlhLlwiO1xuICAgICAgICB9XG4gICAgICAgIGNvbnNvbGUubG9nKFwiW0NTLUZMT1ddIFRvb2wgb3V0cHV0IG1lc3NhZ2UgLyBBSSByZXBseSBhZnRlciB0b29sOlwiLCBzdWdnZXN0ZWRSZXBseSk7XG5cbiAgICAgIH0gZWxzZSB7XG4gICAgICAgIHN1Z2dlc3RlZFJlcGx5ID0gcmVzdWx0LnRleHQgfHwgXCJcIjsgXG4gICAgICB9XG5cbiAgICAgIGNvbnN0IGZpbmlzaFJlYXNvbiA9IHJlc3VsdC5maW5pc2hSZWFzb247XG4gICAgICBjb25zdCBzYWZldHlSYXRpbmdzID0gcmVzdWx0LnNhZmV0eVJhdGluZ3M7XG5cbiAgICAgIGNvbnNvbGUubG9nKGBbQ1MtRkxPV10gQUkgRmluaXNoIFJlYXNvbjogJHtmaW5pc2hSZWFzb259YCk7XG4gICAgICBpZiAoc2FmZXR5UmF0aW5ncyAmJiBzYWZldHlSYXRpbmdzLmxlbmd0aCA+IDApIHtcbiAgICAgICAgY29uc29sZS5sb2coJ1tDUy1GTE9XXSBBSSBTYWZldHkgUmF0aW5nczonLCBKU09OLnN0cmluZ2lmeShzYWZldHlSYXRpbmdzLCBudWxsLCAyKSk7XG4gICAgICB9XG5cbiAgICAgIGlmICghc3VnZ2VzdGVkUmVwbHkgJiYgZmluaXNoUmVhc29uICE9PSBcInN0b3BcIikge1xuICAgICAgICBjb25zb2xlLmVycm9yKGBbQ1MtRkxPV10g4p2MIEFJIGdlbmVyYXRpb24gZmFpbGVkIG9yIHRvb2wgaGFuZGxpbmcgZXJyb3IuIEZpbmlzaCBSZWFzb246ICR7ZmluaXNoUmVhc29ufS4gU2FmZXR5OiAke0pTT04uc3RyaW5naWZ5KHNhZmV0eVJhdGluZ3MpfWApO1xuICAgICAgICByZXR1cm4gXCJNYWFmLCBab3lhIGxhZ2kgYWdhayBiaW5ndW5nIG5paCBib3NrdXUuIENvYmEgdGFueWEgbGFnaSBkZW5nYW4gY2FyYSBsYWluIHlhLCBhdGF1IGh1YnVuZ2kgQ1MgbGFuZ3N1bmcuXCI7XG4gICAgICB9XG4gICAgICByZXR1cm4gc3VnZ2VzdGVkUmVwbHk7XG5cbiAgICB9IGNhdGNoIChmbG93RXJyb3I6IGFueSkge1xuICAgICAgICBjb25zb2xlLmVycm9yKFwiW0NTLUZMT1ddIOKdjCBDcml0aWNhbCBlcnJvciBkYWxhbSBmbG93IHpveWFDaGF0RmxvdzpcIiwgZmxvd0Vycm9yKTtcbiAgICAgICAgaWYgKGZsb3dFcnJvci5jYXVzZSkge1xuICAgICAgICAgICAgY29uc29sZS5lcnJvcihcIltDUy1GTE9XXSBFcnJvciBDYXVzZTpcIiwgSlNPTi5zdHJpbmdpZnkoZmxvd0Vycm9yLmNhdXNlLCBudWxsLCAyKSk7XG4gICAgICAgIH1cbiAgICAgICAgcmV0dXJuIGBXYWR1aCwgWm95YSBsYWdpIGVycm9yIG5paCwgYm9za3V1LiBDb2JhIHRhbnlhIGxhZ2kgbmFudGkgeWEuIChQZXNhbiBFcnJvcjogJHtmbG93RXJyb3IubWVzc2FnZSB8fCAnS2VzYWxhaGFuIGludGVybmFsIHRpZGFrIGRpa2V0YWh1aSd9KWA7XG4gICAgfVxuICB9XG4pO1xuXG5leHBvcnQgYXN5bmMgZnVuY3Rpb24gZ2VuZXJhdGVXaGF0c0FwcFJlcGx5KGlucHV0OiBab3lhQ2hhdElucHV0KTogUHJvbWlzZTxXaGF0c0FwcFJlcGx5T3V0cHV0PiB7XG4gIGNvbnNvbGUubG9nKFwiW0NTLUZMT1ddIGdlbmVyYXRlV2hhdHNBcHBSZXBseSBpbnB1dDpcIiwgSlNPTi5zdHJpbmdpZnkoaW5wdXQsIG51bGwsIDIpKTtcblxuICBsZXQgbWFpblByb21wdFRvVXNlID0gaW5wdXQubWFpblByb21wdFN0cmluZztcblxuICBpZiAoIW1haW5Qcm9tcHRUb1VzZSkge1xuICAgIHRyeSB7XG4gICAgICBpZiAoZGIpIHtcbiAgICAgICAgY29uc3Qgc2V0dGluZ3NEb2NSZWYgPSBkb2MoZGIsICdhcHBTZXR0aW5ncycsICdhaUFnZW50Q29uZmlnJyk7XG4gICAgICAgIGNvbnN0IGRvY1NuYXAgPSBhd2FpdCBnZXRGaXJlc3RvcmVEb2Moc2V0dGluZ3NEb2NSZWYpO1xuICAgICAgICBpZiAoZG9jU25hcC5leGlzdHMoKSAmJiBkb2NTbmFwLmRhdGEoKT8ubWFpblByb21wdCkge1xuICAgICAgICAgIG1haW5Qcm9tcHRUb1VzZSA9IGRvY1NuYXAuZGF0YSgpLm1haW5Qcm9tcHQ7XG4gICAgICAgICAgY29uc29sZS5sb2coXCJbQ1MtRkxPV10gZ2VuZXJhdGVXaGF0c0FwcFJlcGx5OiBVc2luZyBtYWluUHJvbXB0U3RyaW5nIGZyb20gRmlyZXN0b3JlLlwiKTtcbiAgICAgICAgfSBlbHNlIHtcbiAgICAgICAgICBjb25zb2xlLmxvZyhcIltDUy1GTE9XXSBnZW5lcmF0ZVdoYXRzQXBwUmVwbHk6IG1haW5Qcm9tcHQgbm90IGZvdW5kIGluIEZpcmVzdG9yZSBvciBpcyBlbXB0eS4gQ2hlY2tpbmcgZGVmYXVsdC5cIik7XG4gICAgICAgICAgaWYgKERFRkFVTFRfQUlfU0VUVElOR1MgJiYgREVGQVVMVF9BSV9TRVRUSU5HUy5tYWluUHJvbXB0KSB7XG4gICAgICAgICAgICBtYWluUHJvbXB0VG9Vc2UgPSBERUZBVUxUX0FJX1NFVFRJTkdTLm1haW5Qcm9tcHQ7XG4gICAgICAgICAgICBjb25zb2xlLmxvZyhcIltDUy1GTE9XXSBnZW5lcmF0ZVdoYXRzQXBwUmVwbHk6IFVzaW5nIERFRkFVTFRfQUlfU0VUVElOR1MubWFpblByb21wdC5cIik7XG4gICAgICAgICAgfSBlbHNlIHtcbiAgICAgICAgICAgIGNvbnNvbGUuZXJyb3IoXCJbQ1MtRkxPV10gZ2VuZXJhdGVXaGF0c0FwcFJlcGx5OiBGQVRBTCAtIERFRkFVTFRfQUlfU0VUVElOR1Mgb3IgaXRzIG1haW5Qcm9tcHQgaXMgdW5kZWZpbmVkIVwiKTtcbiAgICAgICAgICAgIG1haW5Qcm9tcHRUb1VzZSA9IFwiQW5kYSBhZGFsYWggYXNpc3RlbiBBSSB5YW5nIG1lbWJhbnR1LiBKYXdhYiBwZXJ0YW55YWFuIHBlbGFuZ2dhbi5cIjtcbiAgICAgICAgICB9XG4gICAgICAgIH1cbiAgICAgIH0gZWxzZSB7IFxuICAgICAgICBjb25zb2xlLmxvZyhcIltDUy1GTE9XXSBnZW5lcmF0ZVdoYXRzQXBwUmVwbHk6IEZpcmVzdG9yZSAoZGIpIG5vdCBhdmFpbGFibGUuIENoZWNraW5nIGRlZmF1bHQgZm9yIG1haW5Qcm9tcHQuXCIpO1xuICAgICAgICBpZiAoREVGQVVMVF9BSV9TRVRUSU5HUyAmJiBERUZBVUxUX0FJX1NFVFRJTkdTLm1haW5Qcm9tcHQpIHtcbiAgICAgICAgICBtYWluUHJvbXB0VG9Vc2UgPSBERUZBVUxUX0FJX1NFVFRJTkdTLm1haW5Qcm9tcHQ7XG4gICAgICAgICAgY29uc29sZS5sb2coXCJbQ1MtRkxPV10gZ2VuZXJhdGVXaGF0c0FwcFJlcGx5OiBVc2luZyBERUZBVUxUX0FJX1NFVFRJTkdTLm1haW5Qcm9tcHQgKGRiIG5vdCBhdmFpbGFibGUpLlwiKTtcbiAgICAgICAgfSBlbHNlIHtcbiAgICAgICAgICBjb25zb2xlLmVycm9yKFwiW0NTLUZMT1ddIGdlbmVyYXRlV2hhdHNBcHBSZXBseTogRkFUQUwgLSBERUZBVUxUX0FJX1NFVFRJTkdTIG9yIGl0cyBtYWluUHJvbXB0IGlzIHVuZGVmaW5lZCAoZGIgbm90IGF2YWlsYWJsZSkhXCIpO1xuICAgICAgICAgIG1haW5Qcm9tcHRUb1VzZSA9IFwiQW5kYSBhZGFsYWggYXNpc3RlbiBBSS4gSmF3YWIgcGVydGFueWFhbi5cIjtcbiAgICAgICAgfVxuICAgICAgfVxuICAgIH0gY2F0Y2ggKGVycm9yKSB7XG4gICAgICBjb25zb2xlLmVycm9yKFwiW0NTLUZMT1ddIGdlbmVyYXRlV2hhdHNBcHBSZXBseTogRXJyb3IgZmV0Y2hpbmcgbWFpblByb21wdCBmcm9tIEZpcmVzdG9yZS4gVXNpbmcgZGVmYXVsdC5cIiwgZXJyb3IpO1xuICAgICAgbWFpblByb21wdFRvVXNlID0gKERFRkFVTFRfQUlfU0VUVElOR1MgJiYgREVGQVVMVF9BSV9TRVRUSU5HUy5tYWluUHJvbXB0KSA/IERFRkFVTFRfQUlfU0VUVElOR1MubWFpblByb21wdCA6IFwiQXNpc3RlbiBBSS4gSmF3YWIgcGVydGFueWFhbi5cIjtcbiAgICB9XG4gIH0gZWxzZSB7XG4gICAgIGNvbnNvbGUubG9nKFwiW0NTLUZMT1ddIGdlbmVyYXRlV2hhdHNBcHBSZXBseTogVXNpbmcgbWFpblByb21wdFN0cmluZyBkaXJlY3RseSBmcm9tIGlucHV0LlwiKTtcbiAgfVxuXG4gIGNvbnN0IGZsb3dJbnB1dDogWm95YUNoYXRJbnB1dCA9IHtcbiAgICBtZXNzYWdlczogaW5wdXQubWVzc2FnZXMgfHwgW10sXG4gICAgY3VzdG9tZXJNZXNzYWdlOiBpbnB1dC5jdXN0b21lck1lc3NhZ2UsXG4gICAgc2VuZGVyTnVtYmVyOiBpbnB1dC5zZW5kZXJOdW1iZXIsXG4gICAgbWFpblByb21wdFN0cmluZzogbWFpblByb21wdFRvVXNlLFxuICAgIGN1cnJlbnREYXRlOiBpbnB1dC5jdXJyZW50RGF0ZSxcbiAgICBjdXJyZW50VGltZTogaW5wdXQuY3VycmVudFRpbWUsXG4gICAgdG9tb3Jyb3dEYXRlOiBpbnB1dC50b21vcnJvd0RhdGUsXG4gICAgZGF5QWZ0ZXJUb21vcnJvd0RhdGU6IGlucHV0LmRheUFmdGVyVG9tb3Jyb3dEYXRlLFxuICB9O1xuXG4gIHRyeSB7XG4gICAgY29uc3QgcmVwbHlUZXh0ID0gYXdhaXQgem95YUNoYXRGbG93KGZsb3dJbnB1dCk7XG4gICAgcmV0dXJuIHsgc3VnZ2VzdGVkUmVwbHk6IHJlcGx5VGV4dCB9O1xuICB9IGNhdGNoIChlcnJvcjogYW55KSB7XG4gICAgY29uc29sZS5lcnJvcihcIltDUy1GTE9XIFdyYXBwZXJdIEVycm9yIHJ1bm5pbmcgem95YUNoYXRGbG93OlwiLCBlcnJvcik7XG4gICAgcmV0dXJuIHsgc3VnZ2VzdGVkUmVwbHk6IGBNYWFmLCBab3lhIHNlZGFuZyBhZGEga2VuZGFsYSB0ZWtuaXMuICgke2Vycm9yLm1lc3NhZ2UgfHwgJ1RpZGFrIGRpa2V0YWh1aSd9KWAgfTtcbiAgfVxufVxuICAgICJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoicVRBZ1dzQiJ9
+}}),
+"[project]/src/components/ui/scroll-area.tsx [app-ssr] (ecmascript)": ((__turbopack_context__) => {
+"use strict";
+
+var { g: global, __dirname } = __turbopack_context__;
+{
+__turbopack_context__.s({
+    "ScrollArea": (()=>ScrollArea),
+    "ScrollBar": (()=>ScrollBar)
+});
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/route-modules/app-page/vendored/ssr/react-jsx-dev-runtime.js [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/route-modules/app-page/vendored/ssr/react.js [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$radix$2d$ui$2f$react$2d$scroll$2d$area$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@radix-ui/react-scroll-area/dist/index.mjs [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/utils.ts [app-ssr] (ecmascript)");
+"use client";
+;
+;
+;
+;
+const ScrollArea = /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["forwardRef"])(({ className, children, ...props }, ref)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$radix$2d$ui$2f$react$2d$scroll$2d$area$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Root"], {
+        ref: ref,
+        className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["cn"])("relative overflow-hidden", className),
+        ...props,
+        children: [
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$radix$2d$ui$2f$react$2d$scroll$2d$area$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Viewport"], {
+                className: "h-full w-full rounded-[inherit]",
+                children: children
+            }, void 0, false, {
+                fileName: "[project]/src/components/ui/scroll-area.tsx",
+                lineNumber: 17,
+                columnNumber: 5
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(ScrollBar, {}, void 0, false, {
+                fileName: "[project]/src/components/ui/scroll-area.tsx",
+                lineNumber: 20,
+                columnNumber: 5
+            }, this),
+            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$radix$2d$ui$2f$react$2d$scroll$2d$area$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Corner"], {}, void 0, false, {
+                fileName: "[project]/src/components/ui/scroll-area.tsx",
+                lineNumber: 21,
+                columnNumber: 5
+            }, this)
+        ]
+    }, void 0, true, {
+        fileName: "[project]/src/components/ui/scroll-area.tsx",
+        lineNumber: 12,
+        columnNumber: 3
+    }, this));
+ScrollArea.displayName = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$radix$2d$ui$2f$react$2d$scroll$2d$area$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Root"].displayName;
+const ScrollBar = /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["forwardRef"])(({ className, orientation = "vertical", ...props }, ref)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$radix$2d$ui$2f$react$2d$scroll$2d$area$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["ScrollAreaScrollbar"], {
+        ref: ref,
+        orientation: orientation,
+        className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["cn"])("flex touch-none select-none transition-colors", orientation === "vertical" && "h-full w-2.5 border-l border-l-transparent p-[1px]", orientation === "horizontal" && "h-2.5 flex-col border-t border-t-transparent p-[1px]", className),
+        ...props,
+        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$radix$2d$ui$2f$react$2d$scroll$2d$area$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["ScrollAreaThumb"], {
+            className: "relative flex-1 rounded-full bg-border"
+        }, void 0, false, {
+            fileName: "[project]/src/components/ui/scroll-area.tsx",
+            lineNumber: 43,
+            columnNumber: 5
+        }, this)
+    }, void 0, false, {
+        fileName: "[project]/src/components/ui/scroll-area.tsx",
+        lineNumber: 30,
+        columnNumber: 3
+    }, this));
+ScrollBar.displayName = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$radix$2d$ui$2f$react$2d$scroll$2d$area$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["ScrollAreaScrollbar"].displayName;
+;
+}}),
+"[externals]/util [external] (util, cjs)": (function(__turbopack_context__) {
+
+var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
+{
+const mod = __turbopack_context__.x("util", () => require("util"));
+
+module.exports = mod;
+}}),
+"[externals]/crypto [external] (crypto, cjs)": (function(__turbopack_context__) {
+
+var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
+{
+const mod = __turbopack_context__.x("crypto", () => require("crypto"));
+
+module.exports = mod;
+}}),
+"[externals]/process [external] (process, cjs)": (function(__turbopack_context__) {
+
+var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
+{
+const mod = __turbopack_context__.x("process", () => require("process"));
+
+module.exports = mod;
+}}),
+"[externals]/tls [external] (tls, cjs)": (function(__turbopack_context__) {
+
+var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
+{
+const mod = __turbopack_context__.x("tls", () => require("tls"));
+
+module.exports = mod;
+}}),
+"[externals]/fs [external] (fs, cjs)": (function(__turbopack_context__) {
+
+var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
+{
+const mod = __turbopack_context__.x("fs", () => require("fs"));
+
+module.exports = mod;
+}}),
+"[externals]/os [external] (os, cjs)": (function(__turbopack_context__) {
+
+var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
+{
+const mod = __turbopack_context__.x("os", () => require("os"));
+
+module.exports = mod;
+}}),
+"[externals]/net [external] (net, cjs)": (function(__turbopack_context__) {
+
+var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
+{
+const mod = __turbopack_context__.x("net", () => require("net"));
+
+module.exports = mod;
+}}),
+"[externals]/events [external] (events, cjs)": (function(__turbopack_context__) {
+
+var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
+{
+const mod = __turbopack_context__.x("events", () => require("events"));
+
+module.exports = mod;
+}}),
+"[externals]/stream [external] (stream, cjs)": (function(__turbopack_context__) {
+
+var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
+{
+const mod = __turbopack_context__.x("stream", () => require("stream"));
+
+module.exports = mod;
+}}),
+"[externals]/path [external] (path, cjs)": (function(__turbopack_context__) {
+
+var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
+{
+const mod = __turbopack_context__.x("path", () => require("path"));
+
+module.exports = mod;
+}}),
+"[externals]/http2 [external] (http2, cjs)": (function(__turbopack_context__) {
+
+var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
+{
+const mod = __turbopack_context__.x("http2", () => require("http2"));
+
+module.exports = mod;
+}}),
+"[externals]/http [external] (http, cjs)": (function(__turbopack_context__) {
+
+var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
+{
+const mod = __turbopack_context__.x("http", () => require("http"));
+
+module.exports = mod;
+}}),
+"[externals]/url [external] (url, cjs)": (function(__turbopack_context__) {
+
+var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
+{
+const mod = __turbopack_context__.x("url", () => require("url"));
+
+module.exports = mod;
+}}),
+"[externals]/dns [external] (dns, cjs)": (function(__turbopack_context__) {
+
+var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
+{
+const mod = __turbopack_context__.x("dns", () => require("dns"));
+
+module.exports = mod;
+}}),
+"[externals]/zlib [external] (zlib, cjs)": (function(__turbopack_context__) {
+
+var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
+{
+const mod = __turbopack_context__.x("zlib", () => require("zlib"));
+
+module.exports = mod;
+}}),
+"[project]/src/lib/firebase.ts [app-ssr] (ecmascript)": ((__turbopack_context__) => {
+"use strict";
+
+var { g: global, __dirname } = __turbopack_context__;
+{
+__turbopack_context__.s({
+    "app": (()=>app),
+    "db": (()=>db)
+});
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$app$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/app/dist/index.mjs [app-ssr] (ecmascript) <module evaluation>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__ = __turbopack_context__.i("[project]/node_modules/@firebase/app/dist/esm/index.esm2017.js [app-ssr] (ecmascript) <locals>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$firestore$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/firestore/dist/index.mjs [app-ssr] (ecmascript) <module evaluation>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@firebase/firestore/dist/index.node.mjs [app-ssr] (ecmascript)");
+;
+;
+// Minimal logging
+console.log("[firebase.ts] Initializing Firebase...");
+const firebaseConfig = {
+    apiKey: ("TURBOPACK compile-time value", "AIzaSyB4O6ZRoRnRKWsA3v4q19jXHsSbELo2lT0"),
+    authDomain: ("TURBOPACK compile-time value", "detailflow-8mkmj.firebaseapp.com"),
+    projectId: ("TURBOPACK compile-time value", "detailflow-8mkmj"),
+    storageBucket: ("TURBOPACK compile-time value", "detailflow-8mkmj.firebasestorage.app"),
+    messagingSenderId: ("TURBOPACK compile-time value", "940251442415"),
+    appId: ("TURBOPACK compile-time value", "1:940251442415:web:0227a18d7c0028ff20bf1a")
+};
+if (!firebaseConfig.projectId || !firebaseConfig.apiKey) {
+    console.error("[firebase.ts] FATAL ERROR: Firebase projectId or apiKey is MISSING in environment variables.");
+}
+let app;
+let db;
+if ((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["getApps"])().length === 0) {
+    try {
+        app = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["initializeApp"])(firebaseConfig);
+        console.log("[firebase.ts] Firebase app initialized. Project ID:", app.options.projectId);
+    } catch (e) {
+        console.error("[firebase.ts] FAILED to initialize Firebase app:", e.message);
+        // @ts-ignore
+        app = null;
+    }
+} else {
+    app = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$locals$3e$__["getApp"])();
+    console.log("[firebase.ts] Using existing Firebase app. Project ID:", app.options.projectId);
+}
+// @ts-ignore
+if (app) {
+    try {
+        // @ts-ignore
+        db = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getFirestore"])(app);
+        console.log("[firebase.ts] Firestore instance obtained.");
+    } catch (e) {
+        console.error("[firebase.ts] FAILED to get Firestore instance:", e?.message);
+    }
+} else {
+    console.error("[firebase.ts] Firebase app not properly initialized, cannot get Firestore.");
+}
+;
+}}),
+"[externals]/node:crypto [external] (node:crypto, cjs)": (function(__turbopack_context__) {
+
+var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
+{
+const mod = __turbopack_context__.x("node:crypto", () => require("node:crypto"));
+
+module.exports = mod;
+}}),
+"[project]/src/app/(app)/ai-cs-assistant/page.tsx [app-ssr] (ecmascript)": ((__turbopack_context__) => {
+"use strict";
+
+var { g: global, __dirname } = __turbopack_context__;
+{
+__turbopack_context__.s({
+    "default": (()=>AiCsAssistantPage)
+});
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/route-modules/app-page/vendored/ssr/react-jsx-dev-runtime.js [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/route-modules/app-page/vendored/ssr/react.js [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/client/app-dir/link.js [app-ssr] (ecmascript)"); // Import Link
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$layout$2f$AppHeader$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/layout/AppHeader.tsx [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/ui/button.tsx [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/ui/card.tsx [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$textarea$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/ui/textarea.tsx [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$loader$2d$circle$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Loader2$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/loader-circle.js [app-ssr] (ecmascript) <export default as Loader2>"); // Removed BrainCircuit, PhoneForwarded, Info, PlusCircle, Trash2
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$message$2d$square$2d$text$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__MessageSquareText$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/message-square-text.js [app-ssr] (ecmascript) <export default as MessageSquareText>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$send$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Send$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/send.js [app-ssr] (ecmascript) <export default as Send>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$user$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__User$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/user.js [app-ssr] (ecmascript) <export default as User>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$search$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Search$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/search.js [app-ssr] (ecmascript) <export default as Search>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$bot$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Bot$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/bot.js [app-ssr] (ecmascript) <export default as Bot>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$message$2d$circle$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__MessageCircle$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/message-circle.js [app-ssr] (ecmascript) <export default as MessageCircle>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$thumbs$2d$up$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__ThumbsUp$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/thumbs-up.js [app-ssr] (ecmascript) <export default as ThumbsUp>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$thumbs$2d$down$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__ThumbsDown$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/thumbs-down.js [app-ssr] (ecmascript) <export default as ThumbsDown>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$pen$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Edit2$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/pen.js [app-ssr] (ecmascript) <export default as Edit2>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$shield$2d$alert$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__ShieldAlert$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/shield-alert.js [app-ssr] (ecmascript) <export default as ShieldAlert>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$settings$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Settings$3e$__ = __turbopack_context__.i("[project]/node_modules/lucide-react/dist/esm/icons/settings.js [app-ssr] (ecmascript) <export default as Settings>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$hooks$2f$use$2d$toast$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/hooks/use-toast.ts [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$flows$2f$data$3a$d71aa3__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$text$2f$javascript$3e$__ = __turbopack_context__.i("[project]/src/ai/flows/data:d71aa3 [app-ssr] (ecmascript) <text/javascript>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$avatar$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/ui/avatar.tsx [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/ui/input.tsx [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$scroll$2d$area$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/ui/scroll-area.tsx [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/components/ui/separator.tsx [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/firebase.ts [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$firestore$2f$dist$2f$index$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/firestore/dist/index.mjs [app-ssr] (ecmascript) <module evaluation>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@firebase/firestore/dist/index.node.mjs [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/utils.ts [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$uuid$2f$dist$2f$esm$2d$node$2f$v4$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__v4$3e$__ = __turbopack_context__.i("[project]/node_modules/uuid/dist/esm-node/v4.js [app-ssr] (ecmascript) <export default as v4>");
+"use client";
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+;
+function formatPhoneNumberForMatching(number) {
+    if (!number || typeof number !== 'string' || number.trim() === '') {
+        return '';
+    }
+    let cleaned = number.replace(/\D/g, '');
+    if (cleaned.startsWith('0')) {
+        cleaned = '62' + cleaned.substring(1);
+    } else if (cleaned.startsWith('8') && cleaned.length >= 9 && cleaned.length <= 13 && /^\d+$/.test(cleaned)) {
+        cleaned = '62' + cleaned;
+    } else if (!cleaned.startsWith('62') && /^\d{9,13}$/.test(cleaned) && !cleaned.startsWith('+')) {
+        cleaned = '62' + cleaned;
+    }
+    if (cleaned.startsWith('62') && cleaned.length >= 10) {
+        return cleaned;
+    }
+    return '';
+}
+function AiCsAssistantPage() {
+    const [customerMessageInput, setCustomerMessageInput] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])('');
+    const [currentPlaygroundInput, setCurrentPlaygroundInput] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])('');
+    const [playgroundChatHistory, setPlaygroundChatHistory] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])([]);
+    const [isLoadingPlaygroundSuggestion, setIsLoadingPlaygroundSuggestion] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
+    const { toast } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$hooks$2f$use$2d$toast$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useToast"])();
+    const [customers, setCustomers] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])([]);
+    const [loadingCustomers, setLoadingCustomers] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(true);
+    const [selectedCustomer, setSelectedCustomer] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(null);
+    const [chatHistory, setChatHistory] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])([]);
+    const [searchTerm, setSearchTerm] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])('');
+    const [isPlaygroundMode, setIsPlaygroundMode] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
+    const [isSendingWhatsApp, setIsSendingWhatsApp] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
+    const messagesEndRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(null);
+    const playgroundMessagesEndRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(null);
+    const unsubscribeChatRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(null);
+    // AI Agent Settings & Knowledge Base related state and functions are MOVED to the new settings page.
+    const scrollToBottom = (ref)=>{
+        ref.current?.scrollIntoView({
+            behavior: "smooth"
+        });
+    };
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
+        if (!isPlaygroundMode && selectedCustomer && chatHistory.length > 0) {
+            scrollToBottom(messagesEndRef);
+        }
+    }, [
+        chatHistory,
+        selectedCustomer,
+        isPlaygroundMode
+    ]);
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
+        if (isPlaygroundMode && playgroundChatHistory.length > 0) {
+            scrollToBottom(playgroundMessagesEndRef);
+        }
+    }, [
+        playgroundChatHistory,
+        isPlaygroundMode
+    ]);
+    const fetchCustomers = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useCallback"])(async ()=>{
+        console.log("Fetching actual customers from Firestore...");
+        try {
+            const clientsCollectionRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["db"], 'clients');
+            const q = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["query"])(clientsCollectionRef, (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["orderBy"])("name"));
+            const querySnapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getDocs"])(q);
+            const clientsData = querySnapshot.docs.map((doc)=>({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+            return clientsData.map((client)=>({
+                    id: client.id,
+                    name: client.name,
+                    avatarUrl: client.photoUrl || `https://placehold.co/40x40.png?text=${client.name.charAt(0)}`,
+                    lastMessageTimestamp: client.lastVisit || 'N/A',
+                    lastMessage: 'Klik untuk melihat chat...',
+                    unreadCount: 0,
+                    phone: client.phone
+                }));
+        } catch (error) {
+            console.error("Error fetching customers from Firestore: ", error);
+            toast({
+                title: "Error Database",
+                description: "Gagal mengambil daftar pelanggan dari database.",
+                variant: "destructive"
+            });
+            return [];
+        }
+    }, [
+        toast
+    ]);
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
+        const loadInitialData = async ()=>{
+            setLoadingCustomers(true);
+            try {
+                const fetchedCustomers = await fetchCustomers();
+                setCustomers(fetchedCustomers);
+            } catch (error) {
+                console.error("Failed to fetch customers:", error);
+            } finally{
+                setLoadingCustomers(false);
+            }
+        };
+        loadInitialData();
+    }, [
+        fetchCustomers
+    ]);
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
+        if (unsubscribeChatRef.current) {
+            unsubscribeChatRef.current();
+            unsubscribeChatRef.current = null;
+        }
+        if (selectedCustomer && !isPlaygroundMode) {
+            const phoneToQuery = formatPhoneNumberForMatching(selectedCustomer.phone);
+            if (phoneToQuery) {
+                const messagesRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["db"], 'directMessages');
+                const q = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["query"])(messagesRef, (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["where"])("senderNumber", "==", phoneToQuery), (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["orderBy"])("timestamp", "asc"));
+                unsubscribeChatRef.current = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["onSnapshot"])(q, (querySnapshot)=>{
+                    const history = [];
+                    querySnapshot.forEach((doc)=>{
+                        const data = doc.data();
+                        history.push({
+                            ...data,
+                            id: doc.id,
+                            timestamp: data.timestamp?.toDate().toLocaleTimeString('id-ID', {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            }) || 'N/A'
+                        });
+                    });
+                    setChatHistory(history);
+                }, (error)=>{
+                    console.error(`Error fetching real-time chat for ${selectedCustomer.name} (phone: ${phoneToQuery}):`, error);
+                    toast({
+                        title: "Error Real-time Chat",
+                        description: "Gagal memuat pesan secara real-time.",
+                        variant: "destructive"
+                    });
+                });
+            } else {
+                setChatHistory([]);
+                if (selectedCustomer.phone) {
+                    console.warn(`Nomor telepon pelanggan "${selectedCustomer.name}" (${selectedCustomer.phone}) tidak valid atau tidak dapat diformat untuk query.`);
+                    toast({
+                        title: "Info Pelanggan",
+                        description: `Nomor HP ${selectedCustomer.name} (${selectedCustomer.phone}) tidak dapat diformat, riwayat chat mungkin tidak tampil.`,
+                        variant: "default"
+                    });
+                }
+            }
+        } else {
+            setChatHistory([]);
+        }
+        return ()=>{
+            if (unsubscribeChatRef.current) {
+                unsubscribeChatRef.current();
+            }
+        };
+    }, [
+        selectedCustomer,
+        toast,
+        isPlaygroundMode
+    ]);
+    const handleSelectPlayground = ()=>{
+        setIsPlaygroundMode(true);
+        setSelectedCustomer(null);
+        setCustomerMessageInput('');
+        setCurrentPlaygroundInput('');
+        setPlaygroundChatHistory([]);
+        if (unsubscribeChatRef.current) {
+            unsubscribeChatRef.current();
+            unsubscribeChatRef.current = null;
+        }
+    };
+    const handleCustomerSelect = async (customer)=>{
+        setIsPlaygroundMode(false);
+        setSelectedCustomer(customer);
+        setCustomerMessageInput('');
+    };
+    const handleSendPlaygroundMessage = async ()=>{
+        if (!currentPlaygroundInput.trim()) {
+            toast({
+                title: "Input Kosong",
+                description: "Mohon masukkan pertanyaan untuk AI.",
+                variant: "destructive"
+            });
+            return;
+        }
+        const userMessageText = currentPlaygroundInput.trim();
+        const userMessage = {
+            id: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$uuid$2f$dist$2f$esm$2d$node$2f$v4$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__v4$3e$__["v4"])(),
+            sender: 'user',
+            text: userMessageText,
+            timestamp: new Date().toLocaleTimeString('id-ID', {
+                hour: '2-digit',
+                minute: '2-digit'
+            })
+        };
+        const updatedPlaygroundHistory = [
+            ...playgroundChatHistory,
+            userMessage
+        ];
+        setPlaygroundChatHistory(updatedPlaygroundHistory);
+        setCurrentPlaygroundInput('');
+        setIsLoadingPlaygroundSuggestion(true);
+        // Map playground history to Genkit ChatMessage format
+        const genkitMessagesForFlow = updatedPlaygroundHistory.filter((msg)=>msg.sender === 'user' || msg.sender === 'ai').map((msg)=>({
+                role: msg.sender === 'user' ? 'user' : 'model',
+                content: msg.text
+            }));
+        // Prepare ZoyaChatInput
+        const flowInput = {
+            messages: genkitMessagesForFlow.slice(0, -1),
+            customerMessage: userMessageText
+        };
+        try {
+            const result = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$flows$2f$data$3a$d71aa3__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$text$2f$javascript$3e$__["generateWhatsAppReply"])(flowInput);
+            const aiMessage = {
+                id: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$uuid$2f$dist$2f$esm$2d$node$2f$v4$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__v4$3e$__["v4"])(),
+                sender: 'ai',
+                text: result.suggestedReply,
+                timestamp: new Date().toLocaleTimeString('id-ID', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                }),
+                feedback: null,
+                currentCorrectionText: result.suggestedReply
+            };
+            setPlaygroundChatHistory((prev)=>[
+                    ...prev,
+                    aiMessage
+                ]);
+        } catch (error) {
+            console.error("Error generating AI reply for playground:", error);
+            const errorMessageText = error instanceof Error ? error.message : "Terjadi kesalahan.";
+            const errorMessage = {
+                id: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$uuid$2f$dist$2f$esm$2d$node$2f$v4$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__v4$3e$__["v4"])(),
+                sender: 'ai',
+                text: `Maaf, terjadi kesalahan saat menghubungi AI: ${errorMessageText}`,
+                timestamp: new Date().toLocaleTimeString('id-ID', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                })
+            };
+            setPlaygroundChatHistory((prev)=>[
+                    ...prev,
+                    errorMessage
+                ]);
+            toast({
+                title: "Error AI",
+                description: `Gagal mendapatkan respon dari AI. ${errorMessageText}`,
+                variant: "destructive"
+            });
+        } finally{
+            setIsLoadingPlaygroundSuggestion(false);
+        }
+    };
+    const handlePlaygroundKeyDown = (event)=>{
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            handleSendPlaygroundMessage();
+        }
+    };
+    const handleSendMessage = async ()=>{
+        const customerPhone = selectedCustomer?.phone;
+        if (!customerMessageInput.trim() || !selectedCustomer || isPlaygroundMode || !customerPhone) {
+            toast({
+                title: "Tidak Dapat Mengirim",
+                description: "Pesan kosong, pelanggan tidak dipilih, atau nomor HP pelanggan tidak tersedia.",
+                variant: "destructive"
+            });
+            return;
+        }
+        const formattedPhoneForSending = formatPhoneNumberForMatching(customerPhone);
+        if (!formattedPhoneForSending) {
+            toast({
+                title: "Nomor Tidak Valid",
+                description: `Nomor HP pelanggan "${customerPhone}" tidak dapat diformat dengan benar untuk pengiriman.`,
+                variant: "destructive"
+            });
+            return;
+        }
+        const textToSend = customerMessageInput.trim();
+        const originalInput = customerMessageInput;
+        setCustomerMessageInput('');
+        setIsSendingWhatsApp(true);
+        try {
+            const response = await fetch('/api/whatsapp/send', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    number: formattedPhoneForSending,
+                    message: textToSend
+                })
+            });
+            const result = await response.json();
+            if (response.ok && result.success) {
+                toast({
+                    title: "Pesan Terkirim ke WhatsApp",
+                    description: `Pesan Anda sedang dikirim ke ${selectedCustomer.name}.`
+                });
+                const directMessagesRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["db"], 'directMessages');
+                const csMessageData = {
+                    customerId: selectedCustomer.id,
+                    customerName: selectedCustomer.name,
+                    senderNumber: formattedPhoneForSending,
+                    text: textToSend,
+                    sender: 'user',
+                    timestamp: (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["serverTimestamp"])(),
+                    read: true
+                };
+                await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["addDoc"])(directMessagesRef, csMessageData);
+                console.log("CS manual reply saved to directMessages.");
+                try {
+                    const lockResponse = await fetch('/api/whatsapp/set-intervention-lock', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            senderNumber: formattedPhoneForSending
+                        })
+                    });
+                    const lockResult = await lockResponse.json();
+                    if (lockResponse.ok && lockResult.success) {
+                        console.log(`AI lock set for ${formattedPhoneForSending} via API call from UI.`);
+                    } else {
+                        console.warn(`Failed to set AI lock for ${formattedPhoneForSending} via API: ${lockResult.error}`);
+                    }
+                } catch (lockError) {
+                    console.error(`Error calling set-intervention-lock API from UI:`, lockError);
+                }
+            } else {
+                throw new Error(result.error || 'Gagal mengirim pesan via server lokal.');
+            }
+        } catch (error) {
+            console.error("Error sending WhatsApp message or saving to DB:", error);
+            toast({
+                title: "Gagal Mengirim Pesan",
+                description: error instanceof Error ? error.message : "Terjadi kesalahan.",
+                variant: "destructive"
+            });
+            setCustomerMessageInput(originalInput);
+        } finally{
+            setIsSendingWhatsApp(false);
+        }
+    };
+    const handleKeyDown = (event)=>{
+        if (event.key === 'Enter' && !event.shiftKey && !isPlaygroundMode && selectedCustomer) {
+            event.preventDefault();
+            handleSendMessage();
+        }
+    };
+    const handleSetManualLock = async ()=>{
+        if (!selectedCustomer || !selectedCustomer.phone) {
+            toast({
+                title: "Info",
+                description: "Pilih pelanggan dengan nomor HP untuk mengaktifkan lock AI.",
+                variant: "default"
+            });
+            return;
+        }
+        const formattedPhoneForLock = formatPhoneNumberForMatching(selectedCustomer.phone);
+        if (!formattedPhoneForLock) {
+            toast({
+                title: "Nomor Tidak Valid",
+                description: `Nomor HP pelanggan "${selectedCustomer.phone}" tidak dapat diformat.`,
+                variant: "destructive"
+            });
+            return;
+        }
+        setIsSendingWhatsApp(true);
+        try {
+            const response = await fetch('/api/whatsapp/set-intervention-lock', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    senderNumber: formattedPhoneForLock
+                })
+            });
+            const result = await response.json();
+            if (response.ok && result.success) {
+                toast({
+                    title: "Lock AI Aktif",
+                    description: `AI tidak akan merespons ${selectedCustomer.name} selama 1 jam.`,
+                    variant: "default"
+                });
+            } else {
+                throw new Error(result.error || "Gagal mengaktifkan lock AI.");
+            }
+        } catch (error) {
+            console.error("Error manually setting AI lock:", error);
+            toast({
+                title: "Error Lock AI",
+                description: error instanceof Error ? error.message : "Terjadi kesalahan.",
+                variant: "destructive"
+            });
+        } finally{
+            setIsSendingWhatsApp(false);
+        }
+    };
+    const handlePlaygroundFeedback = (messageId, feedback)=>{
+        setPlaygroundChatHistory((prevHistory)=>prevHistory.map((msg)=>msg.id === messageId ? {
+                    ...msg,
+                    feedback,
+                    isEditingCorrection: feedback === 'bad' && !msg.correction,
+                    currentCorrectionText: msg.currentCorrectionText ?? msg.text
+                } : msg));
+    };
+    const handlePlaygroundCorrectionChange = (messageId, text)=>{
+        setPlaygroundChatHistory((prevHistory)=>prevHistory.map((msg)=>msg.id === messageId ? {
+                    ...msg,
+                    currentCorrectionText: text
+                } : msg));
+    };
+    const handleSavePlaygroundCorrection = (messageId)=>{
+        setPlaygroundChatHistory((prevHistory)=>prevHistory.map((msg)=>msg.id === messageId ? {
+                    ...msg,
+                    correction: msg.currentCorrectionText,
+                    isEditingCorrection: false
+                } : msg));
+        toast({
+            title: "Koreksi Disimpan",
+            description: "Feedback Anda telah dicatat.",
+            variant: "default"
+        });
+    };
+    const filteredCustomers = customers.filter((customer)=>customer.name.toLowerCase().includes(searchTerm.toLowerCase()) || customer.phone && customer.phone.includes(searchTerm));
+    return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"].Fragment, {
+        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+            className: "flex flex-col h-full bg-background",
+            children: [
+                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$layout$2f$AppHeader$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
+                    title: "Asisten CS AI untuk WhatsApp"
+                }, void 0, false, {
+                    fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                    lineNumber: 468,
+                    columnNumber: 9
+                }, this),
+                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                    className: "flex-1 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 overflow-hidden",
+                    children: [
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                            className: "col-span-1 md:col-span-1 lg:col-span-1 border-r border-border bg-card flex flex-col",
+                            children: [
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardHeader"], {
+                                    className: "p-4",
+                                    children: [
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardTitle"], {
+                                            className: "text-lg flex items-center",
+                                            children: [
+                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$user$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__User$3e$__["User"], {
+                                                    className: "mr-2 h-5 w-5"
+                                                }, void 0, false, {
+                                                    fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                    lineNumber: 474,
+                                                    columnNumber: 17
+                                                }, this),
+                                                " Daftar Pelanggan"
+                                            ]
+                                        }, void 0, true, {
+                                            fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                            lineNumber: 473,
+                                            columnNumber: 15
+                                        }, this),
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                            className: "relative mt-2",
+                                            children: [
+                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$search$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Search$3e$__["Search"], {
+                                                    className: "absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground"
+                                                }, void 0, false, {
+                                                    fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                    lineNumber: 477,
+                                                    columnNumber: 17
+                                                }, this),
+                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Input"], {
+                                                    type: "search",
+                                                    placeholder: "Cari pelanggan (nama/HP)...",
+                                                    className: "pl-8 w-full h-9",
+                                                    value: searchTerm,
+                                                    onChange: (e)=>setSearchTerm(e.target.value)
+                                                }, void 0, false, {
+                                                    fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                    lineNumber: 478,
+                                                    columnNumber: 17
+                                                }, this)
+                                            ]
+                                        }, void 0, true, {
+                                            fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                            lineNumber: 476,
+                                            columnNumber: 15
+                                        }, this)
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                    lineNumber: 472,
+                                    columnNumber: 13
+                                }, this),
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                    className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["cn"])("p-3 hover:bg-muted cursor-pointer border-b border-t border-border", isPlaygroundMode ? 'bg-accent text-accent-foreground' : ''),
+                                    onClick: handleSelectPlayground,
+                                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                        className: "flex items-center space-x-3",
+                                        children: [
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$avatar$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Avatar"], {
+                                                className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["cn"])("h-9 w-9 flex items-center justify-center", isPlaygroundMode ? "bg-accent-foreground text-accent" : "bg-primary/10 text-primary"),
+                                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$bot$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Bot$3e$__["Bot"], {
+                                                    className: "h-5 w-5"
+                                                }, void 0, false, {
+                                                    fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                    lineNumber: 501,
+                                                    columnNumber: 19
+                                                }, this)
+                                            }, void 0, false, {
+                                                fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                lineNumber: 497,
+                                                columnNumber: 17
+                                            }, this),
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                className: "flex-1 min-w-0",
+                                                children: [
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                                        className: "text-sm font-medium truncate",
+                                                        children: "AI Playground"
+                                                    }, void 0, false, {
+                                                        fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                        lineNumber: 504,
+                                                        columnNumber: 19
+                                                    }, this),
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                                        className: "text-xs text-muted-foreground truncate",
+                                                        children: "Uji coba AI tanpa pelanggan."
+                                                    }, void 0, false, {
+                                                        fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                        lineNumber: 505,
+                                                        columnNumber: 19
+                                                    }, this)
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                lineNumber: 503,
+                                                columnNumber: 17
+                                            }, this)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                        lineNumber: 496,
+                                        columnNumber: 15
+                                    }, this)
+                                }, "ai-playground", false, {
+                                    fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                    lineNumber: 488,
+                                    columnNumber: 13
+                                }, this),
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$scroll$2d$area$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["ScrollArea"], {
+                                    className: "flex-grow",
+                                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardContent"], {
+                                        className: "p-0",
+                                        children: loadingCustomers ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                            className: "p-4 text-center text-muted-foreground",
+                                            children: [
+                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$loader$2d$circle$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Loader2$3e$__["Loader2"], {
+                                                    className: "h-6 w-6 animate-spin mx-auto my-4"
+                                                }, void 0, false, {
+                                                    fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                    lineNumber: 513,
+                                                    columnNumber: 21
+                                                }, this),
+                                                "Memuat pelanggan..."
+                                            ]
+                                        }, void 0, true, {
+                                            fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                            lineNumber: 512,
+                                            columnNumber: 19
+                                        }, this) : filteredCustomers.length === 0 && searchTerm ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                            className: "p-4 text-center text-muted-foreground",
+                                            children: "Pelanggan tidak ditemukan."
+                                        }, void 0, false, {
+                                            fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                            lineNumber: 517,
+                                            columnNumber: 20
+                                        }, this) : filteredCustomers.length === 0 && !searchTerm ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                            className: "p-4 text-center text-muted-foreground",
+                                            children: "Belum ada pelanggan."
+                                        }, void 0, false, {
+                                            fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                            lineNumber: 521,
+                                            columnNumber: 20
+                                        }, this) : filteredCustomers.map((customer)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                className: `p-3 hover:bg-muted cursor-pointer border-b border-border last:border-b-0 ${selectedCustomer?.id === customer.id && !isPlaygroundMode ? 'bg-accent/20' : ''}`,
+                                                onClick: ()=>handleCustomerSelect(customer),
+                                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                    className: "flex items-center space-x-3",
+                                                    children: [
+                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$avatar$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Avatar"], {
+                                                            className: "h-9 w-9",
+                                                            children: [
+                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$avatar$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AvatarImage"], {
+                                                                    src: customer.avatarUrl,
+                                                                    alt: customer.name,
+                                                                    "data-ai-hint": "avatar pelanggan"
+                                                                }, void 0, false, {
+                                                                    fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                    lineNumber: 533,
+                                                                    columnNumber: 27
+                                                                }, this),
+                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$avatar$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AvatarFallback"], {
+                                                                    children: customer.name.charAt(0)
+                                                                }, void 0, false, {
+                                                                    fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                    lineNumber: 534,
+                                                                    columnNumber: 27
+                                                                }, this)
+                                                            ]
+                                                        }, void 0, true, {
+                                                            fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                            lineNumber: 532,
+                                                            columnNumber: 25
+                                                        }, this),
+                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                            className: "flex-1 min-w-0",
+                                                            children: [
+                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                                                    className: "text-sm font-medium truncate",
+                                                                    children: customer.name
+                                                                }, void 0, false, {
+                                                                    fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                    lineNumber: 537,
+                                                                    columnNumber: 27
+                                                                }, this),
+                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                                                    className: "text-xs text-muted-foreground truncate",
+                                                                    children: customer.phone || 'No HP tidak ada'
+                                                                }, void 0, false, {
+                                                                    fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                    lineNumber: 538,
+                                                                    columnNumber: 27
+                                                                }, this)
+                                                            ]
+                                                        }, void 0, true, {
+                                                            fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                            lineNumber: 536,
+                                                            columnNumber: 25
+                                                        }, this)
+                                                    ]
+                                                }, void 0, true, {
+                                                    fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                    lineNumber: 531,
+                                                    columnNumber: 23
+                                                }, this)
+                                            }, customer.id, false, {
+                                                fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                lineNumber: 526,
+                                                columnNumber: 21
+                                            }, this))
+                                    }, void 0, false, {
+                                        fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                        lineNumber: 510,
+                                        columnNumber: 15
+                                    }, this)
+                                }, void 0, false, {
+                                    fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                    lineNumber: 509,
+                                    columnNumber: 13
+                                }, this)
+                            ]
+                        }, void 0, true, {
+                            fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                            lineNumber: 471,
+                            columnNumber: 11
+                        }, this),
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                            className: "col-span-1 md:col-span-2 lg:col-span-3 flex flex-col bg-background p-4 space-y-4 overflow-y-auto",
+                            children: [
+                                isPlaygroundMode ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Fragment"], {
+                                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
+                                        className: "flex-shrink-0",
+                                        children: [
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardHeader"], {
+                                                className: "p-4 border-b",
+                                                children: [
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardTitle"], {
+                                                        className: "text-lg flex items-center",
+                                                        children: [
+                                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$bot$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Bot$3e$__["Bot"], {
+                                                                className: "mr-2 h-6 w-6 text-primary"
+                                                            }, void 0, false, {
+                                                                fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                lineNumber: 553,
+                                                                columnNumber: 70
+                                                            }, this),
+                                                            " AI Playground"
+                                                        ]
+                                                    }, void 0, true, {
+                                                        fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                        lineNumber: 553,
+                                                        columnNumber: 21
+                                                    }, this),
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardDescription"], {
+                                                        children: "Uji coba langsung kemampuan AI. Berikan feedback untuk membantu AI belajar."
+                                                    }, void 0, false, {
+                                                        fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                        lineNumber: 554,
+                                                        columnNumber: 21
+                                                    }, this)
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                lineNumber: 552,
+                                                columnNumber: 19
+                                            }, this),
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$scroll$2d$area$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["ScrollArea"], {
+                                                className: "h-[400px] p-4 space-y-4",
+                                                children: [
+                                                    playgroundChatHistory.map((message)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                            children: [
+                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                                    className: `flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`,
+                                                                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                                        className: `px-4 py-2 rounded-xl shadow ${message.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'}`,
+                                                                        children: [
+                                                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                                                                className: "text-sm whitespace-pre-wrap",
+                                                                                children: message.text
+                                                                            }, void 0, false, {
+                                                                                fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                                lineNumber: 569,
+                                                                                columnNumber: 29
+                                                                            }, this),
+                                                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                                                                className: `text-xs mt-1 ${message.sender === 'user' ? 'text-primary-foreground/80' : 'text-secondary-foreground/80'} text-right`,
+                                                                                children: message.timestamp
+                                                                            }, void 0, false, {
+                                                                                fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                                lineNumber: 570,
+                                                                                columnNumber: 29
+                                                                            }, this)
+                                                                        ]
+                                                                    }, void 0, true, {
+                                                                        fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                        lineNumber: 562,
+                                                                        columnNumber: 27
+                                                                    }, this)
+                                                                }, void 0, false, {
+                                                                    fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                    lineNumber: 559,
+                                                                    columnNumber: 25
+                                                                }, this),
+                                                                message.sender === 'ai' && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                                    className: "flex justify-start mt-1.5 ml-1",
+                                                                    children: [
+                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
+                                                                            variant: "ghost",
+                                                                            size: "icon",
+                                                                            className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["cn"])("h-7 w-7 hover:bg-green-100 dark:hover:bg-green-800", message.feedback === 'good' && "bg-green-100 text-green-700 dark:bg-green-800 dark:text-green-300"),
+                                                                            onClick: ()=>handlePlaygroundFeedback(message.id, 'good'),
+                                                                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$thumbs$2d$up$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__ThumbsUp$3e$__["ThumbsUp"], {
+                                                                                className: "h-4 w-4"
+                                                                            }, void 0, false, {
+                                                                                fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                                lineNumber: 583,
+                                                                                columnNumber: 31
+                                                                            }, this)
+                                                                        }, void 0, false, {
+                                                                            fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                            lineNumber: 577,
+                                                                            columnNumber: 29
+                                                                        }, this),
+                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
+                                                                            variant: "ghost",
+                                                                            size: "icon",
+                                                                            className: (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$utils$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["cn"])("h-7 w-7 ml-1 hover:bg-red-100 dark:hover:bg-red-800", message.feedback === 'bad' && "bg-red-100 text-red-700 dark:bg-red-800 dark:text-red-300"),
+                                                                            onClick: ()=>handlePlaygroundFeedback(message.id, 'bad'),
+                                                                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$thumbs$2d$down$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__ThumbsDown$3e$__["ThumbsDown"], {
+                                                                                className: "h-4 w-4"
+                                                                            }, void 0, false, {
+                                                                                fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                                lineNumber: 591,
+                                                                                columnNumber: 31
+                                                                            }, this)
+                                                                        }, void 0, false, {
+                                                                            fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                            lineNumber: 585,
+                                                                            columnNumber: 29
+                                                                        }, this)
+                                                                    ]
+                                                                }, void 0, true, {
+                                                                    fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                    lineNumber: 576,
+                                                                    columnNumber: 27
+                                                                }, this),
+                                                                message.sender === 'ai' && message.feedback === 'bad' && message.isEditingCorrection && !message.correction && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                                    className: "mt-2 ml-1 space-y-2",
+                                                                    children: [
+                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$textarea$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Textarea"], {
+                                                                            placeholder: "Tulis koreksi Anda di sini...",
+                                                                            value: message.currentCorrectionText || '',
+                                                                            onChange: (e)=>handlePlaygroundCorrectionChange(message.id, e.target.value),
+                                                                            rows: 3,
+                                                                            className: "text-sm bg-background"
+                                                                        }, void 0, false, {
+                                                                            fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                            lineNumber: 597,
+                                                                            columnNumber: 29
+                                                                        }, this),
+                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
+                                                                            size: "sm",
+                                                                            onClick: ()=>handleSavePlaygroundCorrection(message.id),
+                                                                            className: "bg-accent text-accent-foreground hover:bg-accent/90",
+                                                                            children: [
+                                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$pen$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Edit2$3e$__["Edit2"], {
+                                                                                    className: "mr-2 h-4 w-4"
+                                                                                }, void 0, false, {
+                                                                                    fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                                    lineNumber: 605,
+                                                                                    columnNumber: 31
+                                                                                }, this),
+                                                                                " Simpan Koreksi"
+                                                                            ]
+                                                                        }, void 0, true, {
+                                                                            fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                            lineNumber: 604,
+                                                                            columnNumber: 29
+                                                                        }, this)
+                                                                    ]
+                                                                }, void 0, true, {
+                                                                    fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                    lineNumber: 596,
+                                                                    columnNumber: 27
+                                                                }, this),
+                                                                message.sender === 'ai' && message.correction && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
+                                                                    className: "mt-2 ml-1 p-3 border-green-500 bg-green-50 dark:bg-green-900/30",
+                                                                    children: [
+                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                                                            className: "text-xs font-medium text-green-700 dark:text-green-300",
+                                                                            children: "Koreksi Anda:"
+                                                                        }, void 0, false, {
+                                                                            fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                            lineNumber: 611,
+                                                                            columnNumber: 29
+                                                                        }, this),
+                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                                                            className: "text-sm text-green-800 dark:text-green-200 whitespace-pre-wrap",
+                                                                            children: message.correction
+                                                                        }, void 0, false, {
+                                                                            fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                            lineNumber: 612,
+                                                                            columnNumber: 29
+                                                                        }, this)
+                                                                    ]
+                                                                }, void 0, true, {
+                                                                    fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                    lineNumber: 610,
+                                                                    columnNumber: 27
+                                                                }, this)
+                                                            ]
+                                                        }, message.id, true, {
+                                                            fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                            lineNumber: 558,
+                                                            columnNumber: 23
+                                                        }, this)),
+                                                    playgroundChatHistory.length === 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                                        className: "text-center text-muted-foreground py-10",
+                                                        children: "Mulai percakapan dengan AI di bawah."
+                                                    }, void 0, false, {
+                                                        fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                        lineNumber: 618,
+                                                        columnNumber: 25
+                                                    }, this),
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                        ref: playgroundMessagesEndRef
+                                                    }, void 0, false, {
+                                                        fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                        lineNumber: 620,
+                                                        columnNumber: 21
+                                                    }, this)
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                lineNumber: 556,
+                                                columnNumber: 19
+                                            }, this),
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Separator"], {}, void 0, false, {
+                                                fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                lineNumber: 622,
+                                                columnNumber: 19
+                                            }, this),
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardFooter"], {
+                                                className: "p-4",
+                                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                    className: "flex items-end space-x-2 w-full",
+                                                    children: [
+                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$textarea$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Textarea"], {
+                                                            id: "playground-chat-input",
+                                                            placeholder: "Ketik pertanyaan atau skenario Anda...",
+                                                            value: currentPlaygroundInput,
+                                                            onChange: (e)=>setCurrentPlaygroundInput(e.target.value),
+                                                            onKeyDown: handlePlaygroundKeyDown,
+                                                            rows: 2,
+                                                            disabled: isLoadingPlaygroundSuggestion,
+                                                            className: "bg-background flex-1 resize-none"
+                                                        }, void 0, false, {
+                                                            fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                            lineNumber: 625,
+                                                            columnNumber: 23
+                                                        }, this),
+                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
+                                                            size: "icon",
+                                                            onClick: handleSendPlaygroundMessage,
+                                                            disabled: isLoadingPlaygroundSuggestion || !currentPlaygroundInput.trim(),
+                                                            className: "h-10 w-10 shrink-0",
+                                                            "aria-label": "Kirim Pesan ke AI",
+                                                            children: isLoadingPlaygroundSuggestion ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$loader$2d$circle$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Loader2$3e$__["Loader2"], {
+                                                                className: "h-5 w-5 animate-spin"
+                                                            }, void 0, false, {
+                                                                fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                lineNumber: 642,
+                                                                columnNumber: 58
+                                                            }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$send$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Send$3e$__["Send"], {
+                                                                className: "h-5 w-5"
+                                                            }, void 0, false, {
+                                                                fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                lineNumber: 642,
+                                                                columnNumber: 105
+                                                            }, this)
+                                                        }, void 0, false, {
+                                                            fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                            lineNumber: 635,
+                                                            columnNumber: 23
+                                                        }, this)
+                                                    ]
+                                                }, void 0, true, {
+                                                    fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                    lineNumber: 624,
+                                                    columnNumber: 21
+                                                }, this)
+                                            }, void 0, false, {
+                                                fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                lineNumber: 623,
+                                                columnNumber: 19
+                                            }, this)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                        lineNumber: 551,
+                                        columnNumber: 17
+                                    }, this)
+                                }, void 0, false) : !selectedCustomer ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                    className: "flex-1 flex flex-col items-center justify-center text-center p-6",
+                                    children: [
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$message$2d$square$2d$text$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__MessageSquareText$3e$__["MessageSquareText"], {
+                                            className: "h-16 w-16 text-muted-foreground mb-4"
+                                        }, void 0, false, {
+                                            fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                            lineNumber: 650,
+                                            columnNumber: 17
+                                        }, this),
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                            className: "text-xl text-muted-foreground",
+                                            children: "Pilih pelanggan untuk memulai percakapan"
+                                        }, void 0, false, {
+                                            fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                            lineNumber: 651,
+                                            columnNumber: 17
+                                        }, this),
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                            className: "text-sm text-muted-foreground",
+                                            children: "atau masuk ke mode Playground AI dari daftar di samping."
+                                        }, void 0, false, {
+                                            fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                            lineNumber: 652,
+                                            columnNumber: 17
+                                        }, this)
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                    lineNumber: 649,
+                                    columnNumber: 15
+                                }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Fragment"], {
+                                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
+                                        className: "flex-shrink-0",
+                                        children: [
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardHeader"], {
+                                                className: "p-4 border-b",
+                                                children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                    className: "flex justify-between items-center",
+                                                    children: [
+                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                            children: [
+                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardTitle"], {
+                                                                    className: "text-lg flex items-center",
+                                                                    children: [
+                                                                        "Percakapan dengan: ",
+                                                                        selectedCustomer.name
+                                                                    ]
+                                                                }, void 0, true, {
+                                                                    fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                    lineNumber: 660,
+                                                                    columnNumber: 29
+                                                                }, this),
+                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardDescription"], {
+                                                                    children: selectedCustomer.phone || "Nomor HP tidak tersedia"
+                                                                }, void 0, false, {
+                                                                    fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                    lineNumber: 663,
+                                                                    columnNumber: 29
+                                                                }, this)
+                                                            ]
+                                                        }, void 0, true, {
+                                                            fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                            lineNumber: 659,
+                                                            columnNumber: 25
+                                                        }, this),
+                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
+                                                            variant: "outline",
+                                                            size: "sm",
+                                                            onClick: handleSetManualLock,
+                                                            disabled: isSendingWhatsApp || !selectedCustomer.phone,
+                                                            title: "Aktifkan lock AI selama 1 jam (jika Anda baru balas dari HP)",
+                                                            children: [
+                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$shield$2d$alert$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__ShieldAlert$3e$__["ShieldAlert"], {
+                                                                    className: "mr-2 h-4 w-4"
+                                                                }, void 0, false, {
+                                                                    fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                    lineNumber: 672,
+                                                                    columnNumber: 29
+                                                                }, this),
+                                                                "Ambil Alih (Lock AI 1 Jam)"
+                                                            ]
+                                                        }, void 0, true, {
+                                                            fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                            lineNumber: 665,
+                                                            columnNumber: 25
+                                                        }, this)
+                                                    ]
+                                                }, void 0, true, {
+                                                    fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                    lineNumber: 658,
+                                                    columnNumber: 21
+                                                }, this)
+                                            }, void 0, false, {
+                                                fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                lineNumber: 657,
+                                                columnNumber: 19
+                                            }, this),
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$scroll$2d$area$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["ScrollArea"], {
+                                                className: "h-[400px] p-4 space-y-4",
+                                                children: [
+                                                    chatHistory.map((message)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                            className: `flex ${message.sender === 'customer' ? 'justify-start' : 'justify-end'}`,
+                                                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                                className: `px-4 py-2 rounded-xl shadow ${message.sender === 'customer' ? 'bg-muted text-muted-foreground' : message.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'}`,
+                                                                children: [
+                                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                                                        className: "text-sm whitespace-pre-wrap",
+                                                                        children: message.text
+                                                                    }, void 0, false, {
+                                                                        fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                        lineNumber: 692,
+                                                                        columnNumber: 27
+                                                                    }, this),
+                                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                                                        className: `text-xs mt-1 ${message.sender === 'customer' ? 'text-muted-foreground/80' : message.sender === 'user' ? 'text-primary-foreground/80' : 'text-secondary-foreground/80'} text-right`,
+                                                                        children: [
+                                                                            message.timestamp,
+                                                                            " ",
+                                                                            message.sender === 'ai' && '(AI Otomatis)'
+                                                                        ]
+                                                                    }, void 0, true, {
+                                                                        fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                        lineNumber: 693,
+                                                                        columnNumber: 27
+                                                                    }, this)
+                                                                ]
+                                                            }, void 0, true, {
+                                                                fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                lineNumber: 683,
+                                                                columnNumber: 25
+                                                            }, this)
+                                                        }, message.id, false, {
+                                                            fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                            lineNumber: 679,
+                                                            columnNumber: 23
+                                                        }, this)),
+                                                    chatHistory.length === 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                                        className: "text-center text-muted-foreground py-10",
+                                                        children: "Belum ada riwayat chat untuk pelanggan ini."
+                                                    }, void 0, false, {
+                                                        fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                        lineNumber: 704,
+                                                        columnNumber: 25
+                                                    }, this),
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                        ref: messagesEndRef
+                                                    }, void 0, false, {
+                                                        fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                        lineNumber: 706,
+                                                        columnNumber: 21
+                                                    }, this)
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                lineNumber: 677,
+                                                columnNumber: 19
+                                            }, this),
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Separator"], {}, void 0, false, {
+                                                fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                lineNumber: 708,
+                                                columnNumber: 19
+                                            }, this),
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Card"], {
+                                                className: "rounded-none border-0 border-t shadow-none",
+                                                children: [
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardHeader"], {
+                                                        className: "p-4",
+                                                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardTitle"], {
+                                                            className: "text-lg flex items-center",
+                                                            children: [
+                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$message$2d$circle$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__MessageCircle$3e$__["MessageCircle"], {
+                                                                    className: "mr-2 h-5 w-5 text-primary"
+                                                                }, void 0, false, {
+                                                                    fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                    lineNumber: 712,
+                                                                    columnNumber: 25
+                                                                }, this),
+                                                                "Balas Pesan Pelanggan"
+                                                            ]
+                                                        }, void 0, true, {
+                                                            fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                            lineNumber: 711,
+                                                            columnNumber: 23
+                                                        }, this)
+                                                    }, void 0, false, {
+                                                        fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                        lineNumber: 710,
+                                                        columnNumber: 21
+                                                    }, this),
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardContent"], {
+                                                        className: "p-4",
+                                                        children: [
+                                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                                className: "flex items-end space-x-2",
+                                                                children: [
+                                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$textarea$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Textarea"], {
+                                                                        id: "customer-message-input",
+                                                                        placeholder: "Ketik balasan Anda di sini...",
+                                                                        value: customerMessageInput,
+                                                                        onChange: (e)=>setCustomerMessageInput(e.target.value),
+                                                                        onKeyDown: handleKeyDown,
+                                                                        rows: 3,
+                                                                        disabled: isSendingWhatsApp || !selectedCustomer?.phone,
+                                                                        className: "bg-background flex-1 resize-none"
+                                                                    }, void 0, false, {
+                                                                        fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                        lineNumber: 718,
+                                                                        columnNumber: 25
+                                                                    }, this),
+                                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
+                                                                        size: "icon",
+                                                                        onClick: handleSendMessage,
+                                                                        disabled: isSendingWhatsApp || !customerMessageInput.trim() || !selectedCustomer?.phone,
+                                                                        className: "h-10 w-10 shrink-0",
+                                                                        "aria-label": "Kirim Pesan Manual",
+                                                                        children: isSendingWhatsApp ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$loader$2d$circle$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Loader2$3e$__["Loader2"], {
+                                                                            className: "h-5 w-5 animate-spin"
+                                                                        }, void 0, false, {
+                                                                            fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                            lineNumber: 735,
+                                                                            columnNumber: 48
+                                                                        }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$send$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Send$3e$__["Send"], {
+                                                                            className: "h-5 w-5"
+                                                                        }, void 0, false, {
+                                                                            fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                            lineNumber: 735,
+                                                                            columnNumber: 95
+                                                                        }, this)
+                                                                    }, void 0, false, {
+                                                                        fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                        lineNumber: 728,
+                                                                        columnNumber: 25
+                                                                    }, this)
+                                                                ]
+                                                            }, void 0, true, {
+                                                                fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                lineNumber: 717,
+                                                                columnNumber: 23
+                                                            }, this),
+                                                            !selectedCustomer?.phone && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
+                                                                className: "text-xs text-destructive mt-1",
+                                                                children: "Nomor HP pelanggan tidak tersedia untuk pengiriman WhatsApp."
+                                                            }, void 0, false, {
+                                                                fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                                lineNumber: 739,
+                                                                columnNumber: 29
+                                                            }, this)
+                                                        ]
+                                                    }, void 0, true, {
+                                                        fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                        lineNumber: 716,
+                                                        columnNumber: 21
+                                                    }, this)
+                                                ]
+                                            }, void 0, true, {
+                                                fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                lineNumber: 709,
+                                                columnNumber: 19
+                                            }, this)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                        lineNumber: 656,
+                                        columnNumber: 17
+                                    }, this)
+                                }, void 0, false),
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                    className: "mt-auto p-4 flex justify-start",
+                                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
+                                        variant: "outline",
+                                        asChild: true,
+                                        children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
+                                            href: "/ai-cs-assistant/settings",
+                                            children: [
+                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$settings$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Settings$3e$__["Settings"], {
+                                                    className: "mr-2 h-4 w-4"
+                                                }, void 0, false, {
+                                                    fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                                    lineNumber: 750,
+                                                    columnNumber: 19
+                                                }, this),
+                                                " Pengaturan Agen & Knowledge Base AI"
+                                            ]
+                                        }, void 0, true, {
+                                            fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                            lineNumber: 749,
+                                            columnNumber: 17
+                                        }, this)
+                                    }, void 0, false, {
+                                        fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                        lineNumber: 748,
+                                        columnNumber: 15
+                                    }, this)
+                                }, void 0, false, {
+                                    fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                                    lineNumber: 747,
+                                    columnNumber: 13
+                                }, this)
+                            ]
+                        }, void 0, true, {
+                            fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                            lineNumber: 548,
+                            columnNumber: 11
+                        }, this)
+                    ]
+                }, void 0, true, {
+                    fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+                    lineNumber: 469,
+                    columnNumber: 9
+                }, this)
+            ]
+        }, void 0, true, {
+            fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+            lineNumber: 467,
+            columnNumber: 7
+        }, this)
+    }, void 0, false, {
+        fileName: "[project]/src/app/(app)/ai-cs-assistant/page.tsx",
+        lineNumber: 466,
+        columnNumber: 5
+    }, this);
+}
+}}),
+
+};
+
+//# sourceMappingURL=%5Broot-of-the-server%5D__4a7e23dd._.js.map

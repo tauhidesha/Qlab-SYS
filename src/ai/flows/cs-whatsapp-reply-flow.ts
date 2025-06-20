@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview Flow AI untuk WhatsApp Customer Service QLAB.
@@ -8,8 +9,8 @@ import * as z from 'zod';
 import { db } from '@/lib/firebase';
 import { collection, query as firestoreQuery, where, getDocs as getFirestoreDocs, Timestamp, doc, getDoc as getFirestoreDoc, limit } from 'firebase/firestore';
 import { DEFAULT_AI_SETTINGS } from '@/types/aiSettings';
-import type { ProductServiceInfo } from '@/types/aiToolSchemas';
-import { ProductServiceInfoSchema } from '@/types/aiToolSchemas';
+import type { ProductServiceInfo } from '@/types/aiToolSchemas'; // Import tipe
+import { ProductServiceInfoSchema } from '@/types/aiToolSchemas'; // Import skema jika diperlukan untuk output tool
 
 // == Definisi Tool cariSizeMotorTool ==
 const CariSizeMotorInputSchema = z.object({
@@ -56,9 +57,6 @@ async function findMotorSize(input: CariSizeMotorInput): Promise<CariSizeMotorOu
           foundVehicleData = querySnapshot.docs[0].data();
         } else {
           // 3. Fallback: search by model name (case-insensitive by client-side filtering)
-          // This is less efficient and should be a last resort.
-          // For a more robust solution, consider full-text search capabilities if available (e.g., Algolia, Typesense)
-          // or ensure all relevant variations are in `aliases` or `model_lowercase`.
           console.log(`[cariSizeMotorTool.fn] Tidak ditemukan via model_lowercase, mencoba model (client-side filter): "${namaMotorLower}"`);
           const allVehiclesSnapshot = await getFirestoreDocs(vehicleTypesRef); // Get all
           for (const doc of allVehiclesSnapshot.docs) {
@@ -154,7 +152,7 @@ async function findLayananByKeyword(input: CariInfoLayananInput): Promise<CariIn
           pointsAwarded: serviceData.pointsAwarded || undefined,
           estimatedDuration: serviceData.estimatedDuration || undefined,
           variants: serviceData.variants?.map((v: any) => ({
-            id: v.id || undefined, // Varian mungkin belum punya ID jika baru
+            id: v.id || undefined,
             name: v.name,
             price: v.price,
             pointsAwarded: v.pointsAwarded,
@@ -203,8 +201,8 @@ const ChatMessageSchemaInternal = z.object({
 });
 export type ChatMessage = z.infer<typeof ChatMessageSchemaInternal>;
 
-// Skema input untuk ZoyaChatFlow
-export const ZoyaChatInputSchema = z.object({
+// Skema input untuk ZoyaChatFlow (TIDAK DI-EXPORT)
+const ZoyaChatInputSchema = z.object({
   messages: z.array(ChatMessageSchemaInternal).optional().describe("Riwayat percakapan lengkap, jika ada."),
   customerMessage: z.string().min(1, "Pesan pelanggan tidak boleh kosong.").describe("Pesan terbaru dari customer."),
   senderNumber: z.string().optional().describe("Nomor WhatsApp pengirim (opsional)."),
@@ -216,11 +214,17 @@ export const ZoyaChatInputSchema = z.object({
 });
 export type ZoyaChatInput = z.infer<typeof ZoyaChatInputSchema>;
 
+const ZoyaChatOutputSchema = z.object({ // Schema output untuk wrapper function
+  suggestedReply: z.string().describe('Saran balasan yang dihasilkan AI untuk dikirim ke pelanggan.'),
+});
+export type WhatsAppReplyOutput = z.infer<typeof ZoyaChatOutputSchema>;
+
+
 const zoyaChatFlow = ai.defineFlow(
   {
     name: 'zoyaChatFlow',
     inputSchema: ZoyaChatInputSchema,
-    outputSchema: z.string(), // Outputnya adalah string balasan AI
+    outputSchema: z.string(), // Output flow adalah string balasan AI
   },
   async (input: ZoyaChatInput): Promise<string> => {
     console.log("[CS-FLOW] zoyaChatFlow input. Customer Message:", input.customerMessage, "History Length:", (input.messages || []).length);
@@ -244,22 +248,20 @@ const zoyaChatFlow = ai.defineFlow(
       .filter(msg => msg.content && msg.content.trim() !== '')
       .map((msg) => ({
         role: msg.role,
-        content: [{ text: msg.content }], // Format content jadi array of Part
+        content: [{ text: msg.content }],
     }));
 
     const mainPromptFromSettings = input.mainPromptString || DEFAULT_AI_SETTINGS.mainPrompt;
 
-    // Gabungkan prompt sistem dengan konteks dinamis dan pesan pengguna terakhir
     const finalSystemPrompt = mainPromptFromSettings
                                 .replace("{{{dynamicContext}}}", dynamicContext)
-                                .replace("{{{customerMessage}}}", input.customerMessage) 
+                                .replace("{{{customerMessage}}}", input.customerMessage) // customerMessage sudah ada di pesan terakhir, tapi ini bisa jadi placeholder tambahan
                                 .replace(/{{#if messages.length}}[\s\S]*?{{\/if}}/g, "") 
                                 .replace(/{{#if senderNumber}}[\s\S]*?{{\/if}}/g, "")
                                 .replace(/{{#if currentDate}}[\s\S]*?{{\/if}}/g, "")
                                 .replace(/{{#if tomorrowDate}}[\s\S]*?{{\/if}}/g, "");
 
 
-    // Struktur messages untuk ai.generate
     const messagesForAI = [
       ...historyForAI,
       { role: 'user' as const, content: [{ text: input.customerMessage }] }
@@ -271,21 +273,20 @@ const zoyaChatFlow = ai.defineFlow(
     try {
       const result = await ai.generate({
         model: 'googleai/gemini-1.5-flash-latest',
-        prompt: finalSystemPrompt, // System-level instructions
-        messages: messagesForAI,    // Conversation history + latest user message
-        tools: [cariSizeMotorTool, cariInfoLayananTool], // Aktifkan tools
-        toolChoice: 'auto',
+        prompt: finalSystemPrompt, 
+        messages: messagesForAI,
+        tools: [cariSizeMotorTool, cariInfoLayananTool], 
         config: { temperature: 0.5 },
       });
 
       console.log("[CS-FLOW] Raw AI generate result:", JSON.stringify(result, null, 2));
       
       let suggestedReply = "";
-      const toolRequestData = result.toolRequest; // Akses toolRequest sebagai properti
+      const toolRequestData = result.toolRequest; 
 
       if (toolRequestData) {
         console.log("[CS-FLOW] AI requested a tool call:", JSON.stringify(toolRequestData, null, 2));
-        let toolOutput: any = null; // Harus any karena output bisa berbeda
+        let toolOutput: any = null;
 
         if (toolRequestData.name === 'cariSizeMotor' && toolRequestData.input) {
           toolOutput = await findMotorSize(toolRequestData.input as CariSizeMotorInput);
@@ -293,18 +294,16 @@ const zoyaChatFlow = ai.defineFlow(
           toolOutput = await findLayananByKeyword(toolRequestData.input as CariInfoLayananInput);
         } else {
            suggestedReply = "Tool tidak dikenal atau input salah.";
-           // TODO: Harusnya tidak sampai sini jika tool terdefinisi dengan baik.
         }
 
         if (toolOutput) {
           console.log(`[CS-FLOW] Tool ${toolRequestData.name} output:`, JSON.stringify(toolOutput, null, 2));
-          // Kirim ulang ke AI dengan hasil tool
           const modelResponseAfterTool = await ai.generate({
             model: 'googleai/gemini-1.5-flash-latest',
-            prompt: finalSystemPrompt, // Kirim lagi prompt sistem awal
-            messages: [ // Kirim riwayat, permintaan AI awal, dan respons tool
-              ...messagesForAI, // Riwayat awal + pesan user
-              result.message,   // Permintaan tool dari AI
+            prompt: finalSystemPrompt,
+            messages: [ 
+              ...messagesForAI, 
+              result.message,  
               { 
                 role: 'tool',
                 content: [{
@@ -318,13 +317,13 @@ const zoyaChatFlow = ai.defineFlow(
             config: { temperature: 0.5 },
           });
           suggestedReply = modelResponseAfterTool.text || "Zoya bingung setelah pakai alat, coba lagi ya.";
-        } else if (!suggestedReply) { // Jika toolOutput null tapi tidak ada error tool di atas
+        } else if (!suggestedReply) { 
             suggestedReply = "Maaf, Zoya tidak berhasil memproses permintaan alatnya.";
         }
         console.log("[CS-FLOW] Tool output message / AI reply after tool:", suggestedReply);
 
       } else {
-        suggestedReply = result.text || ""; // Jika tidak ada tool request, langsung ambil teks
+        suggestedReply = result.text || ""; 
       }
 
       const finishReason = result.finishReason;
@@ -351,7 +350,7 @@ const zoyaChatFlow = ai.defineFlow(
   }
 );
 
-export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<{ suggestedReply: string }> {
+export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<WhatsAppReplyOutput> {
   console.log("[CS-FLOW] generateWhatsAppReply input:", JSON.stringify(input, null, 2));
 
   let mainPromptToUse = input.mainPromptString;
@@ -366,17 +365,15 @@ export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<{ sug
           console.log("[CS-FLOW] generateWhatsAppReply: Using mainPromptString from Firestore.");
         } else {
           console.log("[CS-FLOW] generateWhatsAppReply: mainPrompt not found in Firestore or is empty. Checking default.");
-          // Pastikan DEFAULT_AI_SETTINGS dan mainPrompt-nya tidak undefined
           if (DEFAULT_AI_SETTINGS && DEFAULT_AI_SETTINGS.mainPrompt) {
             mainPromptToUse = DEFAULT_AI_SETTINGS.mainPrompt;
             console.log("[CS-FLOW] generateWhatsAppReply: Using DEFAULT_AI_SETTINGS.mainPrompt.");
           } else {
             console.error("[CS-FLOW] generateWhatsAppReply: FATAL - DEFAULT_AI_SETTINGS or its mainPrompt is undefined!");
-            // Fallback ke string kosong atau prompt darurat jika DEFAULT_AI_SETTINGS tidak terdefinisi
             mainPromptToUse = "Anda adalah asisten AI yang membantu. Jawab pertanyaan pelanggan.";
           }
         }
-      } else { // Jika db tidak ada
+      } else { 
         console.log("[CS-FLOW] generateWhatsAppReply: Firestore (db) not available. Checking default for mainPrompt.");
         if (DEFAULT_AI_SETTINGS && DEFAULT_AI_SETTINGS.mainPrompt) {
           mainPromptToUse = DEFAULT_AI_SETTINGS.mainPrompt;
@@ -413,3 +410,4 @@ export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<{ sug
     return { suggestedReply: `Maaf, Zoya sedang ada kendala teknis. (${error.message || 'Tidak diketahui'})` };
   }
 }
+    

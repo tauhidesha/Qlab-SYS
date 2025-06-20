@@ -251,17 +251,16 @@ export default function AiCsAssistantPage() {
 
     // Map playground history to Genkit ChatMessage format
     const genkitMessagesForFlow: ChatMessage[] = updatedPlaygroundHistory
-      .filter(msg => msg.sender === 'user' || msg.sender === 'ai') // Only include user and AI messages
+      .filter(msg => msg.sender === 'user' || msg.sender === 'ai') 
       .map(msg => ({
-        role: msg.sender === 'user' ? 'user' : 'model', // 'model' for AI replies
+        role: msg.sender === 'user' ? 'user' : 'model', 
         content: msg.text,
       }));
     
     // Prepare ZoyaChatInput
     const flowInput: ZoyaChatInput = {
-      messages: genkitMessagesForFlow.slice(0, -1), // All messages except the last user message
-      customerMessage: userMessageText, // The last user message
-      // Other optional fields like senderNumber, currentDate, etc., can be added if needed
+      messages: genkitMessagesForFlow.slice(0, -1), 
+      customerMessage: userMessageText,
     };
 
     try {
