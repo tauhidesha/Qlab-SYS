@@ -8,12 +8,12 @@ import { ai } from '@/ai/genkit';
 import * as z from 'zod';
 import { db } from '@/lib/firebase';
 import { doc, getDoc as getFirestoreDoc } from 'firebase/firestore';
-import { DEFAULT_AI_SETTINGS } from '@/types/aiSettings';
+import { DEFAULT_AI_SETTINGS, DEFAULT_MAIN_PROMPT_ZOYA } from '@/types/aiSettings';
 
 // Import tools modular
-import { cariSizeMotorTool, type CariSizeMotorInput, type CariSizeMotorOutput } from '@/ai/tools/cari-size-motor-tool';
-import { getProductServiceDetailsByNameTool, type ProductLookupInput } from '@/ai/tools/productLookupTool';
-import { cariInfoLayananTool, type CariInfoLayananInput, type CariInfoLayananOutput } from '@/ai/tools/cariInfoLayananTool'; // Tool untuk kategori umum
+import { cariSizeMotorTool, type CariSizeMotorInput, type CariSizeMotorOutput, findMotorSize } from '@/ai/tools/cari-size-motor-tool';
+import { getProductServiceDetailsByNameTool, type ProductLookupInput, findProductServiceByName } from '@/ai/tools/productLookupTool';
+import { cariInfoLayananTool, type CariInfoLayananInput, type CariInfoLayananOutput, findLayananByCategory } from '@/ai/tools/cariInfoLayananTool';
 import type { ProductServiceInfo } from '@/types/aiToolSchemas';
 
 // Skema internal untuk validasi input chat history di flow
@@ -37,12 +37,15 @@ const ZoyaChatInputSchema = z.object({
     name: z.string(),
     size: z.string().optional(),
   }).optional().describe("Informasi motor pelanggan jika sudah diketahui dari interaksi sebelumnya atau database."),
+  activeSpecificServiceInquiry: z.string().optional().describe("Layanan spesifik yang sedang aktif ditanyakan (mis. 'Cuci Premium') jika Zoya sebelumnya bertanya tipe motor untuk layanan ini."),
 });
 export type ZoyaChatInput = z.infer<typeof ZoyaChatInputSchema>;
 
 // Schema output untuk wrapper function (digunakan oleh UI)
 const WhatsAppReplyOutputSchema = z.object({
   suggestedReply: z.string().describe('Saran balasan yang dihasilkan AI untuk dikirim ke pelanggan.'),
+  activeSpecificServiceInquiry: z.string().optional().describe("Jika AI bertanya tipe motor untuk layanan spesifik, layanan itu akan ada di sini."),
+  detectedMotorcycleInfo: z.object({ name: z.string(), size: z.string().optional() }).optional().describe("Info motor yang terdeteksi atau diperbarui."),
 });
 export type WhatsAppReplyOutput = z.infer<typeof WhatsAppReplyOutputSchema>;
 
@@ -52,54 +55,46 @@ const zoyaChatFlow = ai.defineFlow(
   {
     name: 'zoyaChatFlow',
     inputSchema: ZoyaChatInputSchema,
-    outputSchema: z.string(), // Output flow adalah string balasan
+    outputSchema: WhatsAppReplyOutputSchema,
   },
-  async (input: ZoyaChatInput): Promise<string> => {
-    console.log("[CS-FLOW] zoyaChatFlow input. Customer Message:", input.customerMessage, "History Length:", (input.messages || []).length, "KnownMotorcycleInfo:", JSON.stringify(input.knownMotorcycleInfo));
+  async (input: ZoyaChatInput): Promise<WhatsAppReplyOutput> => {
+    console.log("[CS-FLOW] zoyaChatFlow input:", JSON.stringify(input, null, 2));
 
-    const lastUserMessageContent = input.customerMessage ||
-                                   (input.messages && input.messages.length > 0 ? input.messages[input.messages.length - 1].content : '');
+    let customerMessageToProcess = input.customerMessage;
+    let currentKnownMotorcycleInfo = input.knownMotorcycleInfo;
+    let currentActiveSpecificServiceInquiry = input.activeSpecificServiceInquiry;
+    let suggestedReply = "Maaf, Zoya lagi bingung nih.";
 
-    if (!lastUserMessageContent || lastUserMessageContent.trim() === '') {
-      return "Maaf, Zoya tidak menerima pesan yang jelas.";
+    if (!customerMessageToProcess || customerMessageToProcess.trim() === '') {
+      return { suggestedReply: "Maaf, Zoya tidak menerima pesan yang jelas." };
     }
 
-    const lowerCaseCustomerMessage = lastUserMessageContent.toLowerCase();
-    // Kata kunci umum untuk layanan (kategori)
-    const generalServiceKeywords = ["cuci", "coating", "poles", "detailing", "repaint", "servis", "layanan", "produk", "jual"];
+    const lowerCaseCustomerMessage = customerMessageToProcess.toLowerCase();
+    
+    // Deteksi kata kunci layanan umum (kategori)
+    const generalServiceKeywords = ["cuci", "coating", "poles", "detailing", "repaint", "servis", "layanan", "produk", "jual", "harga", "info", "katalog"];
     let detectedGeneralServiceKeyword: string | null = null;
-
     for (const keyword of generalServiceKeywords) {
         if (lowerCaseCustomerMessage.includes(keyword)) {
             detectedGeneralServiceKeyword = keyword;
-            // Disambiguasi sederhana
-            if ((keyword === "cuci" && lowerCaseCustomerMessage.includes("cuci motor")) || (keyword === "layanan" && lowerCaseCustomerMessage.includes("layanan cuci"))) detectedGeneralServiceKeyword = "cuci";
-            else if ((keyword === "coating" && lowerCaseCustomerMessage.includes("coating motor")) || (keyword === "layanan" && lowerCaseCustomerMessage.includes("layanan coating"))) detectedGeneralServiceKeyword = "coating";
-            else if ((keyword === "poles" && lowerCaseCustomerMessage.includes("poles motor")) || (keyword === "layanan" && lowerCaseCustomerMessage.includes("layanan poles"))) detectedGeneralServiceKeyword = "poles";
-            else if ((keyword === "detailing" && lowerCaseCustomerMessage.includes("detailing motor")) || (keyword === "layanan" && lowerCaseCustomerMessage.includes("layanan detailing"))) detectedGeneralServiceKeyword = "detailing";
-            else if ((keyword === "repaint" && lowerCaseCustomerMessage.includes("repaint motor")) || (keyword === "layanan" && lowerCaseCustomerMessage.includes("layanan repaint"))) detectedGeneralServiceKeyword = "repaint";
+            if ((keyword === "cuci" && (lowerCaseCustomerMessage.includes("cuci motor") || lowerCaseCustomerMessage.includes("nyuci"))) ) detectedGeneralServiceKeyword = "cuci";
+            else if (keyword === "coating" && (lowerCaseCustomerMessage.includes("coating motor") || lowerCaseCustomerMessage.includes("laminating"))) detectedGeneralServiceKeyword = "coating";
+            else if (keyword === "poles" && (lowerCaseCustomerMessage.includes("poles motor") || lowerCaseCustomerMessage.includes("poles bodi"))) detectedGeneralServiceKeyword = "poles";
+            else if (keyword === "detailing" && lowerCaseCustomerMessage.includes("detailing motor")) detectedGeneralServiceKeyword = "detailing";
+            else if (keyword === "repaint" && (lowerCaseCustomerMessage.includes("repaint motor") || lowerCaseCustomerMessage.includes("cat motor"))) detectedGeneralServiceKeyword = "repaint";
             break;
         }
     }
     console.log("[CS-FLOW] Detected general service keyword from user message:", detectedGeneralServiceKeyword);
 
-
-    // --- Logika Flow Utama Zoya (tanpa sub-flow) ---
-    let dynamicContext = `INFO_UMUM_BENGKEL: QLAB Moto Detailing adalah bengkel perawatan dan detailing motor.`;
-    if (!db) {
-        console.warn("[CS-FLOW] Firestore DB (db) is not initialized. Some context might be missing.");
-        dynamicContext += " WARNING: Database tidak terhubung, info detail mungkin tidak akurat.";
-    } else {
-        console.log("[CS-FLOW] Firestore DB (db) is available. Context should be complete.");
-    }
-
-    const mainPromptFromSettings = input.mainPromptString || DEFAULT_AI_SETTINGS.mainPrompt;
+    const mainPromptFromSettings = input.mainPromptString || DEFAULT_MAIN_PROMPT_ZOYA;
 
     const finalSystemPrompt = mainPromptFromSettings
-                                .replace("{{{dynamicContext}}}", dynamicContext)
-                                .replace("{{{knownMotorcycleName}}}", input.knownMotorcycleInfo?.name || "belum diketahui")
-                                .replace("{{{knownMotorcycleSize}}}", input.knownMotorcycleInfo?.size || "belum diketahui")
-                                .replace("{{{detectedGeneralServiceKeyword}}}", detectedGeneralServiceKeyword || "tidak ada kategori spesifik terdeteksi");
+                                .replace("{{{dynamicContext}}}", `INFO_UMUM_BENGKEL: QLAB Moto Detailing, Jl. Sukasenang V No.1A, Cikutra, Bandung. Buka 09:00 - 21:00 WIB. Full Detailing hanya untuk cat glossy. Coating beda harga untuk doff & glossy. Tanggal hari ini: ${input.currentDate || new Date().toLocaleDateString('id-ID')}.`)
+                                .replace("{{{knownMotorcycleName}}}", currentKnownMotorcycleInfo?.name || "belum diketahui")
+                                .replace("{{{knownMotorcycleSize}}}", currentKnownMotorcycleInfo?.size || "belum diketahui")
+                                .replace("{{{detectedGeneralServiceKeyword}}}", detectedGeneralServiceKeyword || "tidak ada kategori spesifik terdeteksi")
+                                .replace("{{{activeSpecificServiceInquiry}}}", currentActiveSpecificServiceInquiry || "tidak ada");
 
 
     const historyForAI = (input.messages || [])
@@ -111,38 +106,47 @@ const zoyaChatFlow = ai.defineFlow(
 
     const messagesForAI = [
       ...historyForAI,
-      { role: 'user' as const, content: [{ text: input.customerMessage }] }
+      { role: 'user' as const, content: [{ text: customerMessageToProcess }] }
     ];
 
-    console.log(`[CS-FLOW] Calling MAIN ai.generate with model googleai/gemini-1.5-flash-latest. History Length: ${historyForAI.length}`);
-    console.log(`[CS-FLOW] System Prompt being used (simplified): ${finalSystemPrompt.substring(0, 300)}...`);
+    console.log(`[CS-FLOW] Calling MAIN ai.generate. History Length: ${historyForAI.length}. Prompt snippet: ${finalSystemPrompt.substring(0, 300)}...`);
 
     try {
       const result = await ai.generate({
         model: 'googleai/gemini-1.5-flash-latest',
         prompt: finalSystemPrompt,
         messages: messagesForAI,
-        tools: [cariSizeMotorTool, getProductServiceDetailsByNameTool, cariInfoLayananTool], // Semua tool tersedia untuk Zoya utama
+        tools: [cariSizeMotorTool, getProductServiceDetailsByNameTool, cariInfoLayananTool],
         toolChoice: 'auto',
-        config: { temperature: 0.5 },
+        config: { temperature: 0.3, topP: 0.9 },
       });
 
       console.log("[CS-FLOW] Raw MAIN AI generate result:", JSON.stringify(result, null, 2));
 
-      let suggestedReply = result.text || "";
+      suggestedReply = result.text || "";
       const toolRequest = result.toolRequest;
+      let nextActiveSpecificServiceInquiry: string | undefined = undefined;
+      let updatedMotorcycleInfo = currentKnownMotorcycleInfo;
 
       if (toolRequest) {
         console.log("[CS-FLOW] MAIN AI requested a tool call:", JSON.stringify(toolRequest, null, 2));
-        let finalReplyFromTool = "Maaf, Zoya lagi bingung mau pakai alat apa.";
         let toolOutputToRelay: any = "Error: Tool output tidak diset.";
 
         if (toolRequest.name === 'cariSizeMotor' && toolRequest.input) {
-          toolOutputToRelay = await (cariSizeMotorTool.fn as Function)(toolRequest.input as CariSizeMotorInput);
+          toolOutputToRelay = await findMotorSize(toolRequest.input as CariSizeMotorInput);
+          if (toolOutputToRelay.success && toolOutputToRelay.size && toolOutputToRelay.vehicleModelFound) {
+              updatedMotorcycleInfo = { name: toolOutputToRelay.vehicleModelFound, size: toolOutputToRelay.size };
+          }
         } else if (toolRequest.name === 'getProductServiceDetailsByNameTool' && toolRequest.input) {
-          toolOutputToRelay = await (getProductServiceDetailsByNameTool.fn as Function)(toolRequest.input as ProductLookupInput);
+          toolOutputToRelay = await findProductServiceByName(toolRequest.input as ProductLookupInput);
+          // Jika tool ini dipanggil, kemungkinan AI bertanya tipe motor untuk layanan ini.
+          // Kita set activeSpecificServiceInquiry jika motor belum diketahui.
+          if (!currentKnownMotorcycleInfo?.name && (toolRequest.input as ProductLookupInput).productName) {
+             nextActiveSpecificServiceInquiry = (toolRequest.input as ProductLookupInput).productName;
+          }
+
         } else if (toolRequest.name === 'cariInfoLayananTool' && toolRequest.input) {
-          toolOutputToRelay = await (cariInfoLayananTool.fn as Function)(toolRequest.input as CariInfoLayananInput);
+          toolOutputToRelay = await findLayananByCategory(toolRequest.input as CariInfoLayananInput);
         }
 
         if (toolOutputToRelay !== "Error: Tool output tidak diset.") {
@@ -150,7 +154,7 @@ const zoyaChatFlow = ai.defineFlow(
 
             const messagesAfterTool = [
                 ...messagesForAI,
-                result.message,
+                result.message, // Pesan dari AI yang berisi permintaan tool
                 {
                     role: 'tool' as const,
                     content: [{
@@ -161,47 +165,99 @@ const zoyaChatFlow = ai.defineFlow(
                     }]
                 }
             ];
+            
+            // Update prompt dengan info motor jika baru didapat dari cariSizeMotorTool
+            const promptForSecondCall = finalSystemPrompt
+                .replace("{{{knownMotorcycleName}}}", updatedMotorcycleInfo?.name || "belum diketahui")
+                .replace("{{{knownMotorcycleSize}}}", updatedMotorcycleInfo?.size || "belum diketahui");
+
 
             const modelResponseAfterTool = await ai.generate({
                 model: 'googleai/gemini-1.5-flash-latest',
-                prompt: finalSystemPrompt,
+                prompt: promptForSecondCall,
                 messages: messagesAfterTool,
-                config: { temperature: 0.5 },
-                // No tools needed for the second call, as it's just processing the tool output
+                config: { temperature: 0.3, topP: 0.9 },
+                // Di panggilan kedua, AI seharusnya tidak perlu tool lagi.
             });
-            finalReplyFromTool = modelResponseAfterTool.text || `Zoya dapet info dari alat ${toolRequest.name}, tapi bingung mau ngomong apa.`;
-        }
-        return finalReplyFromTool;
+            suggestedReply = modelResponseAfterTool.text || `Zoya dapet info dari alat ${toolRequest.name}, tapi bingung mau ngomong apa.`;
+            
+            // Cek apakah AI di panggilan kedua bertanya tipe motor
+            // Ini kurang ideal, idealnya AI langsung jawab spesifik. Tapi sebagai fallback.
+            if (!updatedMotorcycleInfo?.name && suggestedReply.toLowerCase().includes("motornya tipe apa")) {
+                const specificServiceMentionedInAIReply = extractSpecificServiceFromAIReply(suggestedReply, toolOutputToRelay);
+                if (specificServiceMentionedInAIReply) {
+                    nextActiveSpecificServiceInquiry = specificServiceMentionedInAIReply;
+                }
+            }
 
+        }
       } else if (suggestedReply) {
+        // Tidak ada tool request, AI langsung menjawab
         const finishReason = result.finishReason;
-        const safetyRatings = result.safetyRatings;
         console.log(`[CS-FLOW] MAIN AI Finish Reason (no tool): ${finishReason}`);
-        if (safetyRatings && safetyRatings.length > 0) {
-            console.log('[CS-FLOW] MAIN AI Safety Ratings (no tool):', JSON.stringify(safetyRatings, null, 2));
-        }
-
         if (!suggestedReply && finishReason !== "stop") {
-            console.error(`[CS-FLOW] ❌ MAIN AI generation failed or no text output. Finish Reason: ${finishReason}. Safety: ${JSON.stringify(safetyRatings)}`);
-            return "Maaf, Zoya lagi agak bingung nih boskuu. Coba tanya lagi dengan cara lain ya, atau hubungi CS langsung.";
+            console.error(`[CS-FLOW] ❌ MAIN AI generation failed or no text output. Finish Reason: ${finishReason}.`);
+            suggestedReply = "Maaf, Zoya lagi agak bingung nih boskuu. Coba tanya lagi dengan cara lain ya.";
         }
-        return suggestedReply;
+        // Cek apakah AI bertanya tipe motor di sini
+        if (!currentKnownMotorcycleInfo?.name && suggestedReply.toLowerCase().includes("motornya tipe apa")) {
+            // Mencoba ekstrak nama layanan spesifik dari pesan user atau konteks sebelumnya.
+            // Ini adalah bagian yang perlu diperhalus, untuk sekarang kita coba dari currentActiveSpecificServiceInquiry
+            // atau dari pesan user terakhir jika mengandung nama layanan yang dikenal.
+            const specificServiceMentioned = currentActiveSpecificServiceInquiry || extractServiceNameFromUserMessage(customerMessageToProcess, await getAllServiceNames());
+            if (specificServiceMentioned) {
+                nextActiveSpecificServiceInquiry = specificServiceMentioned;
+            }
+        }
       } else {
         console.error(`[CS-FLOW] ❌ No tool request and no text output from MAIN AI. Result: ${JSON.stringify(result, null, 2)}`);
-        return "Waduh, Zoya lagi nggak bisa jawab nih. Coba lagi ya.";
+        suggestedReply = "Waduh, Zoya lagi nggak bisa jawab nih. Coba lagi ya.";
       }
+
+      return { suggestedReply, activeSpecificServiceInquiry: nextActiveSpecificServiceInquiry, detectedMotorcycleInfo: updatedMotorcycleInfo };
 
     } catch (flowError: any) {
         console.error("[CS-FLOW] ❌ Critical error dalam MAIN zoyaChatFlow:", flowError);
         if (flowError.cause) console.error("[CS-FLOW] Error Cause:", JSON.stringify(flowError.cause, null, 2));
-        return `Waduh, Zoya lagi error nih, boskuu. Coba tanya lagi nanti ya. (Pesan Error: ${flowError.message || 'Kesalahan internal tidak diketahui'})`;
+        return { suggestedReply: `Waduh, Zoya lagi error nih, boskuu. Coba tanya lagi nanti ya. (Error: ${flowError.message || 'Kesalahan internal'})` };
     }
   }
 );
 
+// Helper sederhana untuk mencoba ekstrak nama layanan dari pesan AI jika AI bertanya tipe motor
+function extractSpecificServiceFromAIReply(aiReply: string, toolOutput: any): string | undefined {
+    // Jika tool output adalah detail layanan tunggal (dari getProductServiceDetailsByNameTool)
+    if (toolOutput && typeof toolOutput === 'object' && toolOutput.name && typeof toolOutput.name === 'string') {
+        if (aiReply.toLowerCase().includes("motornya tipe apa") && aiReply.toLowerCase().includes(toolOutput.name.toLowerCase().substring(0,5))) { // Cocokkan sebagian nama layanan
+            return toolOutput.name;
+        }
+    }
+    // Jika tool output adalah array layanan (dari cariInfoLayananTool) dan AI bertanya tipe motor,
+    // kita tidak bisa tahu layanan spesifik mana yang user minati hanya dari sini.
+    // Mungkin perlu analisa lebih lanjut atau biarkan kosong.
+    return undefined;
+}
+async function getAllServiceNames(): Promise<string[]> {
+    // Fungsi ini akan mengambil semua nama layanan dari Firestore untuk pencocokan.
+    // Implementasi di-skip untuk keringkasan, asumsikan ini mengembalikan array nama layanan.
+    // Contoh: ['Cuci Premium', 'Coating Nano Ceramic', 'Ganti Oli Shell']
+    const items = await findLayananByCategory({ keyword: "" }); // Hack untuk dapat semua, atau query langsung
+    return items.map(i => i.name);
+}
+
+function extractServiceNameFromUserMessage(userMessage: string, serviceNames: string[]): string | undefined {
+    const lowerUserMessage = userMessage.toLowerCase();
+    for (const serviceName of serviceNames) {
+        if (lowerUserMessage.includes(serviceName.toLowerCase())) {
+            return serviceName;
+        }
+    }
+    return undefined;
+}
+
 // Wrapper function yang akan dipanggil oleh UI atau API route
 export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<WhatsAppReplyOutput> {
-  console.log("[CS-FLOW] generateWhatsAppReply (wrapper) input:", JSON.stringify(input, null, 2));
+  console.log("[CS-FLOW Wrapper] generateWhatsAppReply input:", JSON.stringify(input, null, 2));
 
   let mainPromptToUse = input.mainPromptString;
 
@@ -212,22 +268,21 @@ export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<Whats
         const docSnap = await getFirestoreDoc(settingsDocRef);
         if (docSnap.exists() && docSnap.data()?.mainPrompt) {
           mainPromptToUse = docSnap.data().mainPrompt;
-          console.log("[CS-FLOW] generateWhatsAppReply (wrapper): Using mainPromptString from Firestore.");
+          console.log("[CS-FLOW Wrapper]: Using mainPromptString from Firestore.");
         } else {
-          console.log("[CS-FLOW] generateWhatsAppReply (wrapper): mainPrompt not found in Firestore or is empty. Checking default.");
-          mainPromptToUse = DEFAULT_AI_SETTINGS.mainPrompt;
-          console.log("[CS-FLOW] generateWhatsAppReply (wrapper): Using DEFAULT_AI_SETTINGS.mainPrompt.");
+          mainPromptToUse = DEFAULT_MAIN_PROMPT_ZOYA;
+          console.log("[CS-FLOW Wrapper]: Using DEFAULT_MAIN_PROMPT_ZOYA.");
         }
       } else {
-        console.log("[CS-FLOW] generateWhatsAppReply (wrapper): Firestore (db) not available. Using default for mainPrompt.");
-        mainPromptToUse = DEFAULT_AI_SETTINGS.mainPrompt;
+        mainPromptToUse = DEFAULT_MAIN_PROMPT_ZOYA;
+        console.log("[CS-FLOW Wrapper]: Firestore (db) not available. Using default for mainPrompt.");
       }
     } catch (error) {
-      console.error("[CS-FLOW] generateWhatsAppReply (wrapper): Error fetching mainPrompt from Firestore. Using default.", error);
-      mainPromptToUse = DEFAULT_AI_SETTINGS.mainPrompt;
+      console.error("[CS-FLOW Wrapper]: Error fetching mainPrompt from Firestore. Using default.", error);
+      mainPromptToUse = DEFAULT_MAIN_PROMPT_ZOYA;
     }
   } else {
-     console.log("[CS-FLOW] generateWhatsAppReply (wrapper): Using mainPromptString directly from input.");
+     console.log("[CS-FLOW Wrapper]: Using mainPromptString directly from input.");
   }
 
   const flowInput: ZoyaChatInput = {
@@ -237,8 +292,8 @@ export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<Whats
   };
 
   try {
-    const replyText = await zoyaChatFlow(flowInput);
-    return { suggestedReply: replyText };
+    const result = await zoyaChatFlow(flowInput);
+    return result;
   } catch (error: any) {
     console.error("[CS-FLOW Wrapper] Error running zoyaChatFlow:", error);
     return { suggestedReply: `Maaf, Zoya sedang ada kendala teknis. (${error.message || 'Tidak diketahui'})` };
