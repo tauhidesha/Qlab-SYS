@@ -11,7 +11,7 @@ import { DEFAULT_SERVICE_INQUIRY_SUB_FLOW_PROMPT } from '@/types/aiSettings';
 
 // Import tool yang akan digunakan oleh sub-flow ini
 import { cariInfoLayananTool, type CariInfoLayananInput, type CariInfoLayananOutput } from '@/ai/tools/cariInfoLayananTool';
-import { cariSizeMotorTool, type CariSizeMotorInput, type CariSizeMotorOutput } from '@/ai/tools/cari-size-motor-tool'; // Jika sub-flow juga perlu ini
+import { cariSizeMotorTool, type CariSizeMotorInput, type CariSizeMotorOutput } from '@/ai/tools/cari-size-motor-tool';
 
 // Schema input untuk sub-flow ini (TIDAK di-export, hanya tipenya)
 const HandleServiceInquiryInputSchema = z.object({
@@ -21,14 +21,12 @@ const HandleServiceInquiryInputSchema = z.object({
     name: z.string(),
     size: z.string().optional(),
   }).optional().describe("Informasi motor pelanggan jika sudah diketahui."),
-  // Tambahkan field lain yang mungkin dibutuhkan sub-flow, misal currentDate
 });
 export type HandleServiceInquiryInput = z.infer<typeof HandleServiceInquiryInputSchema>;
 
 // Schema output untuk sub-flow ini (TIDAK di-export, hanya tipenya)
 const HandleServiceInquiryOutputSchema = z.object({
   responseText: z.string().describe("Jawaban lengkap yang dihasilkan oleh sub-flow ini untuk disampaikan ke pelanggan."),
-  // Mungkin ada field output lain di masa depan, mis. layanan yang direkomendasikan
 });
 export type HandleServiceInquiryOutput = z.infer<typeof HandleServiceInquiryOutputSchema>;
 
@@ -41,78 +39,104 @@ const serviceInquirySpecialistFlow = ai.defineFlow(
   },
   async (input: HandleServiceInquiryInput): Promise<HandleServiceInquiryOutput> => {
     console.log("[SUB-FLOW handleServiceInquiry] Input:", JSON.stringify(input, null, 2));
+    let responseText = "Maaf, ada sedikit kendala saat memproses permintaan layanan Anda."; // Default error
 
-    const systemPromptForSubFlow = DEFAULT_SERVICE_INQUIRY_SUB_FLOW_PROMPT
+    // --- Tahap 1: Panggil cariInfoLayananTool ---
+    const firstCallSystemPrompt = `Anda adalah asisten yang bertugas mengambil informasi daftar layanan berdasarkan kategori. Panggil tool 'cariInfoLayananTool' dengan keyword kategori yang diberikan. Keyword kategori: "${input.serviceKeyword}".`;
+    
+    const firstCallResult = await ai.generate({
+      model: 'googleai/gemini-1.5-flash-latest',
+      prompt: firstCallSystemPrompt,
+      messages: [
+        { role: 'user', content: [{ text: `Tolong dapatkan daftar layanan untuk kategori: "${input.serviceKeyword}"` }] }
+      ],
+      tools: [cariInfoLayananTool], // Hanya tool ini untuk panggilan pertama
+      toolChoice: 'auto', 
+      config: { temperature: 0.1 }, // Suhu rendah untuk panggilan tool yang lebih deterministik
+    });
+
+    console.log("[SUB-FLOW handleServiceInquiry] Hasil panggilan AI pertama (untuk tool):", JSON.stringify(firstCallResult, null, 2));
+
+    if (firstCallResult.toolRequest && firstCallResult.toolRequest.name === 'cariInfoLayananTool') {
+      const toolRequest = firstCallResult.toolRequest;
+      const toolOutputContent = await (cariInfoLayananTool.fn as Function)(toolRequest.input as CariInfoLayananInput);
+      console.log(`[SUB-FLOW handleServiceInquiry] Output tool 'cariInfoLayananTool':`, JSON.stringify(toolOutputContent, null, 2));
+
+      // --- Tahap 2: Proses hasil tool dengan prompt utama sub-flow ---
+      const systemPromptForProcessing = DEFAULT_SERVICE_INQUIRY_SUB_FLOW_PROMPT
         .replace("{{{serviceKeyword}}}", input.serviceKeyword)
         .replace("{{{customerQuery}}}", input.customerQuery) // customerQuery masih ada di prompt untuk konteks
         .replace("{{{knownMotorcycleName}}}", input.knownMotorcycleInfo?.name || "belum diketahui")
         .replace("{{{knownMotorcycleSize}}}", input.knownMotorcycleInfo?.size || "belum diketahui");
     
-    console.log("[SUB-FLOW handleServiceInquiry] Menggunakan system prompt:", systemPromptForSubFlow.substring(0,250) + "...");
+      console.log("[SUB-FLOW handleServiceInquiry] Menggunakan system prompt untuk pemrosesan:", systemPromptForProcessing.substring(0,250) + "...");
 
-    // Panggilan AI pertama untuk memicu tool call
-    const result = await ai.generate({
-      model: 'googleai/gemini-1.5-flash-latest',
-      prompt: systemPromptForSubFlow, 
-      messages: [ // Tambahkan pesan user simulasi untuk memicu AI
-        { role: 'user', content: [{ text: `Tolong jelaskan dan cari info layanan tentang "${input.serviceKeyword}". Pertanyaan asli pelanggan adalah: "${input.customerQuery}"` }] }
-      ],
-      tools: [cariInfoLayananTool, cariSizeMotorTool], 
-      toolChoice: 'auto', // Biarkan AI memilih tool, tapi prompt sudah lebih mengarahkan
-      config: { temperature: 0.3 }, 
-    });
-
-    console.log("[SUB-FLOW handleServiceInquiry] Raw AI generate result (first call):", JSON.stringify(result, null, 2));
-    
-    let responseText = result.text || "Maaf, Zoya lagi bingung soal layanan itu.";
-    const toolRequest = result.toolRequest;
-
-    if (toolRequest) {
-      console.log("[SUB-FLOW handleServiceInquiry] AI requested a tool call:", JSON.stringify(toolRequest, null, 2));
-      let toolOutputContent: any = "Tool tidak dikenal atau input salah.";
-      let toolNameInvoked = toolRequest.name;
-
-      if (toolRequest.name === 'cariInfoLayananTool' && toolRequest.input) {
-        const toolOutput = await (cariInfoLayananTool.fn as Function)(toolRequest.input as CariInfoLayananInput);
-        toolOutputContent = toolOutput;
-      } else if (toolRequest.name === 'cariSizeMotor' && toolRequest.input) {
-        const toolOutput = await (cariSizeMotorTool.fn as Function)(toolRequest.input as CariSizeMotorInput);
-        toolOutputContent = toolOutput;
-      }
-      // ... (logika untuk tool lain jika ada)
-
-      console.log(`[SUB-FLOW handleServiceInquiry] Tool ${toolNameInvoked} output:`, JSON.stringify(toolOutputContent, null, 2));
+      const messagesForProcessing = [
+        // Pesan user awal yang memicu sub-flow (untuk konteks AI)
+        { role: 'user' as const, content: [{ text: `Tolong info dong soal layanan ${input.serviceKeyword}. ${input.customerQuery}` }] },
+        // Pesan dari AI yang meminta tool (dari firstCallResult)
+        firstCallResult.message,
+        // Pesan hasil dari tool
+        {
+          role: 'tool' as const,
+          content: [{
+            toolResponse: {
+              name: toolRequest.name,
+              output: toolOutputContent, // Hasil dari cariInfoLayananTool
+            }
+          }]
+        }
+      ];
       
-      // Kirim kembali hasil tool ke AI di sub-flow ini untuk dirangkai jadi jawaban
-      // Prompt sistem yang sama digunakan, AI diharapkan melanjutkan berdasarkan instruksi di prompt
-      // dan history percakapan yang sekarang berisi hasil tool.
       const modelResponseAfterTool = await ai.generate({
         model: 'googleai/gemini-1.5-flash-latest',
-        prompt: systemPromptForSubFlow, 
-        messages: [ 
-          { role: 'user', content: [{ text: `Tolong jelaskan dan cari info layanan tentang "${input.serviceKeyword}". Pertanyaan asli pelanggan adalah: "${input.customerQuery}"` }] }, // Pesan user awal
-          result.message, // Pesan dari AI yang meminta tool
-          {               // Pesan hasil dari tool
-            role: 'tool',
+        prompt: systemPromptForProcessing,
+        messages: messagesForProcessing,
+        tools: [cariSizeMotorTool], // Sediakan tool cariSizeMotor jika AI perlu menanyakan ukuran
+        toolChoice: 'auto',
+        config: { temperature: 0.3 },
+      });
+      
+      console.log("[SUB-FLOW handleServiceInquiry] Hasil panggilan AI kedua (setelah tool):", JSON.stringify(modelResponseAfterTool, null, 2));
+      responseText = modelResponseAfterTool.text || "Zoya dapet infonya, tapi bingung mau ngomong apa setelah pakai alat.";
+
+      // Logika jika AI di tahap kedua ini meminta tool cariSizeMotor
+      if (modelResponseAfterTool.toolRequest && modelResponseAfterTool.toolRequest.name === 'cariSizeMotor') {
+        const sizeToolRequest = modelResponseAfterTool.toolRequest;
+        const sizeToolOutput = await (cariSizeMotorTool.fn as Function)(sizeToolRequest.input as CariSizeMotorInput);
+        console.log(`[SUB-FLOW handleServiceInquiry] Output tool 'cariSizeMotor':`, JSON.stringify(sizeToolOutput, null, 2));
+
+        const messagesAfterSizeTool = [
+          ...messagesForProcessing,
+          modelResponseAfterTool.message, // Pesan AI yang minta sizeTool
+           { // Pesan hasil dari sizeTool
+            role: 'tool' as const,
             content: [{
               toolResponse: {
-                name: toolNameInvoked,
-                output: toolOutputContent,
+                name: sizeToolRequest.name,
+                output: sizeToolOutput,
               }
             }]
           }
-        ],
-        // Tidak perlu tools lagi di sini, karena tugasnya merangkai jawaban
-        config: { temperature: 0.3 },
-      });
-      responseText = modelResponseAfterTool.text || "Zoya dapet infonya, tapi bingung mau ngomong apa setelah pakai alat.";
-    } else if (responseText && responseText.trim() !== "") {
-        console.log("[SUB-FLOW handleServiceInquiry] AI generated text directly (no tool call):", responseText);
-    } else {
-        console.error("[SUB-FLOW handleServiceInquiry] No tool request and no text output from AI.");
-        responseText = "Maaf, Zoya lagi ada kendala internal buat cari info layanan itu.";
-    }
+        ];
+        const finalResponseFromAI = await ai.generate({
+            model: 'googleai/gemini-1.5-flash-latest',
+            prompt: systemPromptForProcessing, // Gunakan prompt yang sama untuk merangkai jawaban akhir
+            messages: messagesAfterSizeTool,
+            config: {temperature: 0.3},
+        });
+        responseText = finalResponseFromAI.text || "Zoya udah cek ukuran motornya, tapi bingung mau lanjutin gimana."
+      }
 
+
+    } else if (firstCallResult.text) {
+      // AI tidak meminta tool di panggilan pertama, tapi malah ngasih teks. Ini di luar dugaan.
+      console.warn("[SUB-FLOW handleServiceInquiry] AI tidak meminta 'cariInfoLayananTool' di panggilan pertama, malah merespon:", firstCallResult.text);
+      responseText = `Saya coba cari info soal "${input.serviceKeyword}", tapi sepertinya ada sedikit kendala. ${firstCallResult.text}`;
+    } else {
+      console.error("[SUB-FLOW handleServiceInquiry] Panggilan pertama AI gagal meminta tool 'cariInfoLayananTool' dan tidak menghasilkan teks.");
+      // responseText sudah diinisialisasi dengan pesan error default.
+    }
 
     console.log("[SUB-FLOW handleServiceInquiry] Final responseText:", responseText);
     return { responseText };
@@ -123,4 +147,3 @@ const serviceInquirySpecialistFlow = ai.defineFlow(
 export async function handleServiceInquiry(input: HandleServiceInquiryInput): Promise<HandleServiceInquiryOutput> {
   return serviceInquirySpecialistFlow(input);
 }
-
