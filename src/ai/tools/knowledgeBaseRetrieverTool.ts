@@ -87,13 +87,13 @@ export const knowledgeBaseRetrieverTool = ai.defineTool(
       
       const searchTermLower = input.query.toLowerCase();
 
-      // Perform a simple text search on Knowledge Base
+      // Perform a simple text search on Knowledge Base with added safety checks
       const fallbackKbEntries: ScoredEntry[] = kbSnapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() } as KnowledgeBaseEntry))
         .filter(entry => 
-            entry.topic.toLowerCase().includes(searchTermLower) ||
-            entry.content.toLowerCase().includes(searchTermLower) ||
-            entry.keywords.some(kw => kw.toLowerCase().includes(searchTermLower))
+            (entry.topic && entry.topic.toLowerCase().includes(searchTermLower)) ||
+            (entry.content && entry.content.toLowerCase().includes(searchTermLower)) ||
+            (entry.keywords && Array.isArray(entry.keywords) && entry.keywords.some(kw => kw && kw.toLowerCase().includes(searchTermLower)))
         )
         .map(entry => ({
             id: entry.id,
@@ -103,11 +103,11 @@ export const knowledgeBaseRetrieverTool = ai.defineTool(
             score: 0.7, // Assign a decent score
         }));
 
-      // Perform a simple text search on services
+      // Perform a simple text search on services with added safety checks
       const fallbackServiceEntries: ScoredEntry[] = servicesSnapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() } as ServiceProduct))
         .filter(service => 
-            service.name.toLowerCase().includes(searchTermLower) || 
+            (service.name && service.name.toLowerCase().includes(searchTermLower)) || 
             (service.description && service.description.toLowerCase().includes(searchTermLower))
         )
         .map(service => ({

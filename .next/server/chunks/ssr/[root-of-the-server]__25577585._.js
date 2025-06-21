@@ -262,6 +262,7 @@ if (!process.env.GOOGLE_API_KEY) {
 }
 const ai = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$genkit$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["genkit"])({
     plugins: [
+        // Secara eksplisit memberikan API key untuk memastikan inisialisasi yang benar.
         (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$genkit$2d$ai$2f$googleai$2f$lib$2f$index$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["googleAI"])({
             apiKey: process.env.GOOGLE_API_KEY
         })
@@ -361,41 +362,30 @@ Anda adalah "Zoya", seorang asisten AI customer service untuk QLAB Moto Detailin
 
 TOOLS ANDA:
 Anda memiliki akses ke beberapa tools canggih untuk membantu Anda. Gunakan tools ini SECARA PROAKTIF untuk mendapatkan informasi akurat.
-1.  'knowledgeBaseRetrieverTool': Gunakan tool ini untuk menjawab pertanyaan UMUM, konseptual, atau kebijakan. Contoh: "apa bedanya coating dan wax?", "garansi servisnya gimana?", "tips merawat motor doff".
-2.  'getProductServiceDetailsByNameTool': Gunakan tool ini jika user bertanya soal HARGA, DURASI, atau KETERSEDIAAN layanan/produk yang SPESIFIK. Tool ini akan mencari di katalog harga resmi. Contoh: "harga cuci premium nmax?", "poles bodi vario berapa lama?".
-3.  'createBookingTool': Gunakan tool ini HANYA JIKA pelanggan sudah mengonfirmasi untuk membuat jadwal booking dan semua detail (layanan, motor, tanggal, jam) sudah jelas.
+1. 'knowledgeBaseRetrieverTool': Ini adalah OTAK UTAMA Anda. Tool ini mencari informasi di seluruh Knowledge Base DAN Katalog Layanan/Produk. Gunakan ini PERTAMA KALI untuk semua pertanyaan tentang layanan, masalah motor, kebijakan, atau apapun yang bersifat informasional.
+2. 'getProductServiceDetailsByNameTool': Ini adalah 'katalog harga'. Gunakan tool ini HANYA jika Anda sudah tau nama layanan yang PASTI dan hanya butuh detail harga/durasi spesifiknya. JANGAN gunakan ini untuk menebak-nebak layanan.
+3. 'createBookingTool': Gunakan tool ini HANYA JIKA pelanggan sudah mengonfirmasi untuk membuat jadwal booking dan semua detail (layanan, motor, tanggal, jam) sudah jelas.
 
 ALUR KERJA UTAMA ANDA (WAJIB DIIKUTI):
-1.  **PAHAMI MAKSUD PELANGGAN:** Baca pesan terakhir pelanggan dengan saksama.
-    -   Jika pertanyaannya umum/konseptual -> Lanjut ke Langkah 2.
-    -   Jika pertanyaannya spesifik tentang harga/durasi -> Lanjut ke Langkah 3.
-    -   Jika pelanggan mau booking -> Lanjut ke Langkah 4.
+1. **PAHAMI MAKSUD & GUNAKAN OTAK UTAMA:** Untuk semua pertanyaan yang butuh informasi (misal 'motor saya baret', 'coating berapa lama?', 'garansi servis gimana?'), LANGSUNG panggil tool 'knowledgeBaseRetrieverTool' dengan pertanyaan pelanggan sebagai 'query'.
+    - Berdasarkan hasil dari tool itu, berikan jawaban informatif atau rekomendasikan layanan yang paling cocok. Sebutkan nama layanan yang Anda rekomendasikan dengan jelas.
+    - Jika tool tidak memberikan hasil yang relevan, katakan dengan sopan bahwa Anda tidak menemukan informasinya dan minta pelanggan bertanya dengan cara lain.
 
-2.  **JAWAB PERTANYAAN UMUM (Gunakan 'knowledgeBaseRetrieverTool'):**
-    -   Panggil tool 'knowledgeBaseRetrieverTool' dengan pertanyaan lengkap pelanggan sebagai 'query'.
-    -   JAWABAN ANDA HARUS DIBUAT BERDASARKAN "contekan" yang diberikan oleh tool tersebut.
-    -   Jika tool mengembalikan hasil kosong, artinya informasi tidak ditemukan. Jawab dengan sopan: "Waduh, sori banget nih Bro, buat pertanyaan itu Zoya belum nemu info pastinya di catatan. Mungkin bisa coba tanya dengan cara lain?"
-    -   **JANGAN PERNAH MENGARANG JAWABAN** jika informasi tidak ada di hasil tool.
+2. **KONFIRMASI DETAIL & HARGA (Jika Diperlukan):** Setelah Anda merekomendasikan layanan dari Langkah 1, pelanggan mungkin akan bertanya harga spesifiknya.
+    - SEKARANG adalah waktu yang tepat untuk menggunakan 'getProductServiceDetailsByNameTool'. Gunakan nama layanan yang sudah Anda sebutkan tadi.
+    - Sampaikan informasi harga, durasi, dan detail lainnya dari hasil tool ini ke pelanggan.
 
-3.  **JAWAB PERTANYAAN HARGA/LAYANAN SPESIFIK (Gunakan 'getProductServiceDetailsByNameTool'):**
-    -   Identifikasi nama layanan/produk dari pertanyaan user.
-    -   Panggil tool 'getProductServiceDetailsByNameTool' dengan nama tersebut.
-    -   **Evaluasi hasil tool:**
-        -   Jika hasil tool memiliki 'success: true': Gunakan informasi dari 'productInfo' (seperti 'price', 'name', 'estimatedDuration') untuk menjawab pertanyaan pelanggan. Format harga dalam Rupiah (Rp).
-        -   Jika hasil tool memiliki 'success: false': Gunakan 'message' dari output tool sebagai dasar untuk memberitahu pelanggan dengan sopan bahwa Anda tidak menemukan informasinya. Jangan pernah mengarang harga. Contoh: "Maaf Bro, untuk 'Poles Ajaib' Zoya belum nemu info harganya nih, mungkin bisa coba nama layanan lain?".
-
-4.  **PROSES BOOKING (Gunakan 'createBookingTool'):**
-    -   Hanya mulai proses ini jika pelanggan sudah menyatakan ingin membuat jadwal (mis. "booking", "jadwalin", "pesan tempat").
-    -   Pastikan Anda memiliki semua detail yang diperlukan: NAMA LAYANAN, INFO KENDARAAN, TANGGAL, dan JAM. Gunakan tools lain jika perlu untuk mengonfirmasi detail ini.
-    -   Setelah semua detail lengkap dan dikonfirmasi oleh pelanggan, panggil tool 'createBookingTool'.
+3. **PROSES BOOKING (Final Step):** Jika pelanggan setuju untuk booking setelah mendapat semua informasi.
+    - Pastikan semua detail (nama layanan, info kendaraan, tanggal, jam) sudah lengkap.
+    - Panggil 'createBookingTool' untuk membuat jadwal.
 
 GAYA BAHASA (WAJIB):
--   Sapaan: "Wih, boskuu!", "Ashiaaap!", "Gaspol!", "Yok!", "Santuy, bro!"
--   Sebutan buat user: "Bro", "Kak", "Bos".
--   Istilah anak motor: "kinclong parah", "poles biar ganteng maksimal", "coating anti badai".
--   Emoji: Gunakan secukupnya untuk membuat suasana cair 😎✨💸🛠️🏍️💨.
+- Sapaan: "Wih, boskuu!", "Ashiaaap!", "Gaspol!", "Yok!", "Santuy, bro!"
+- Sebutan buat user: "Bro", "Kak", "Bos".
+- Istilah anak motor: "kinclong parah", "poles biar ganteng maksimal", "coating anti badai".
+- Emoji: Gunakan secukupnya untuk membuat suasana cair 😎✨💸🛠️🏍️💨.
 
-Selalu berikan jawaban yang ringkas, akurat, dan bermanfaat berdasarkan data yang Anda miliki dari tools.
+Selalu berikan jawaban yang ringkas, akurat, dan bermanfaat berdasarkan data yang Anda miliki dari tools. Jangan mengarang jawaban.
 `.trim();
 const DEFAULT_AI_SETTINGS = {
     agentBehavior: "Humoris & Santai",
@@ -520,20 +510,42 @@ async function findProductServiceByName(input) {
         let bestMatch = null;
         const searchTermLower = searchTerm.toLowerCase();
         for (const doc of querySnapshot.docs){
-            const item = {
+            const itemData = {
                 id: doc.id,
                 ...doc.data()
+            };
+            let itemTypeFormatted = undefined;
+            if (typeof itemData.type === 'string') {
+                if (itemData.type.toLowerCase() === 'layanan') {
+                    itemTypeFormatted = 'Layanan';
+                } else if (itemData.type.toLowerCase() === 'produk') {
+                    itemTypeFormatted = 'Produk';
+                }
+            }
+            if (!itemTypeFormatted) {
+                continue; // Skip items with invalid or missing type
+            }
+            const item = {
+                ...itemData,
+                type: itemTypeFormatted
             };
             const itemNameLower = item.name.toLowerCase();
             // Check for base item match
             if (itemNameLower.includes(searchTermLower)) {
                 let score = 0;
-                if (itemNameLower === searchTermLower) score = 100; // Exact match = highest score
-                else if (itemNameLower.startsWith(searchTermLower)) score = 50; // Starts with is good
-                else score = 20; // Includes is okay
+                if (itemNameLower === searchTermLower) score = 100;
+                else if (itemNameLower.startsWith(searchTermLower)) score = 50;
+                else score = 20;
                 const candidate = {
-                    ...item,
+                    id: item.id,
+                    name: item.name,
+                    type: item.type,
+                    category: item.category,
                     price: item.price ?? 0,
+                    description: item.description,
+                    pointsAwarded: item.pointsAwarded,
+                    estimatedDuration: item.estimatedDuration,
+                    variants: item.variants,
                     score: score
                 };
                 if (!bestMatch || candidate.score > bestMatch.score || candidate.score === bestMatch.score && candidate.name.length < bestMatch.name.length) {
@@ -541,13 +553,13 @@ async function findProductServiceByName(input) {
                 }
             }
             // Check for variant matches (higher scores for more specific matches)
-            if (item.variants) {
+            if (item.variants && Array.isArray(item.variants)) {
                 for (const variant of item.variants){
                     const fullVariantName = `${item.name} - ${variant.name}`;
                     const fullVariantNameLower = fullVariantName.toLowerCase();
                     if (fullVariantNameLower.includes(searchTermLower)) {
                         let score = 0;
-                        if (fullVariantNameLower === searchTermLower) score = 110; // Exact variant match is king
+                        if (fullVariantNameLower === searchTermLower) score = 110;
                         else if (fullVariantNameLower.startsWith(searchTermLower)) score = 60;
                         else score = 30;
                         const candidate = {
@@ -784,7 +796,7 @@ var { g: global, __dirname } = __turbopack_context__;
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$server$2d$reference$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/build/webpack/loaders/next-flight-loader/server-reference.js [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$app$2d$render$2f$encryption$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/app-render/encryption.js [app-rsc] (ecmascript)");
 /**
- * @fileOverview Genkit tool to retrieve relevant knowledge base entries and services using vector similarity.
+ * @fileOverview Genkit tool to retrieve relevant knowledge base entries and services using vector similarity and text fallback.
  */ var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/ai/genkit.ts [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$index$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/zod/dist/esm/index.js [app-rsc] (ecmascript) <module evaluation>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__ = __turbopack_context__.i("[project]/node_modules/zod/dist/esm/v3/external.js [app-rsc] (ecmascript) <export * as z>");
@@ -803,7 +815,11 @@ const KnowledgeBaseRetrieverInputSchema = __TURBOPACK__imported__module__$5b$pro
 });
 const KnowledgeBaseRetrieverOutputSchema = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].array(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].object({
     topic: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].string().describe("The topic of the knowledge base entry or service name."),
-    content: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].string().describe("The content of the knowledge base entry or service description.")
+    content: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].string().describe("The content of the knowledge base entry or service description."),
+    source: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].enum([
+        'knowledge-base',
+        'service-product'
+    ]).describe("The source of the information.")
 })).describe("A list of relevant entries from the knowledge base and service catalog, or an empty list if none are found.");
 /**
  * Calculates the cosine similarity between two vectors.
@@ -836,13 +852,11 @@ const knowledgeBaseRetrieverTool = __TURBOPACK__imported__module__$5b$project$5d
     outputSchema: KnowledgeBaseRetrieverOutputSchema
 }, async (input)=>{
     console.log(`[knowledgeBaseRetrieverTool] Received query: "${input.query}"`);
+    console.warn("[knowledgeBaseRetrieverTool] RUNNING IN TEXT-ONLY FALLBACK MODE (Vector search disabled for debugging).");
     try {
-        // 1. Generate an embedding for the user's query
-        const { embedding: queryEmbedding } = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].embed({
-            model: 'googleai/text-embedding-004',
-            content: input.query
-        });
-        // 2. Fetch all active KB entries and all services in parallel
+        // --- VECTOR SEARCH IS TEMPORARILY DISABLED TO BYPASS API ISSUES ---
+        // The original code would generate an embedding for the query here.
+        // We are skipping directly to fetching and text-searching all documents.
         const kbCollectionRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'knowledge_base_entries');
         const servicesCollectionRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'services');
         const kbQuery = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["query"])(kbCollectionRef, (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["where"])('isActive', '==', true));
@@ -851,40 +865,49 @@ const knowledgeBaseRetrieverTool = __TURBOPACK__imported__module__$5b$project$5d
             (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(kbQuery),
             (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(servicesQuery)
         ]);
-        // 3. Score Knowledge Base entries
-        const scoredKbEntries = kbSnapshot.docs.map((doc)=>({
+        const searchTermLower = input.query.toLowerCase();
+        // Perform a simple text search on Knowledge Base
+        const fallbackKbEntries = kbSnapshot.docs.map((doc)=>({
                 id: doc.id,
                 ...doc.data()
-            })).filter((entry)=>entry.embedding && Array.isArray(entry.embedding) && entry.embedding.length > 0).map((entry)=>({
+            })).filter((entry)=>entry.topic.toLowerCase().includes(searchTermLower) || entry.content.toLowerCase().includes(searchTermLower) || entry.keywords.some((kw)=>kw.toLowerCase().includes(searchTermLower))).map((entry)=>({
+                id: entry.id,
                 topic: entry.topic,
                 content: entry.content,
-                score: cosineSimilarity(queryEmbedding, entry.embedding)
+                source: 'knowledge-base',
+                score: 0.7
             }));
-        // 4. Score Service/Product entries
-        const scoredServiceEntries = servicesSnapshot.docs.map((doc)=>({
+        // Perform a simple text search on services
+        const fallbackServiceEntries = servicesSnapshot.docs.map((doc)=>({
                 id: doc.id,
                 ...doc.data()
-            })).filter((service)=>service.embedding && Array.isArray(service.embedding) && service.embedding.length > 0).map((service)=>({
+            })).filter((service)=>service.name.toLowerCase().includes(searchTermLower) || service.description && service.description.toLowerCase().includes(searchTermLower)).map((service)=>({
+                id: service.id,
                 topic: service.name,
                 content: service.description || 'Tidak ada deskripsi detail.',
-                score: cosineSimilarity(queryEmbedding, service.embedding)
+                source: 'service-product',
+                score: 0.7
             }));
-        // 5. Combine, sort, filter, and take the top N results
-        const allScoredEntries = [
-            ...scoredKbEntries,
-            ...scoredServiceEntries
+        // Combine all results, deduplicate, sort, and take the top N
+        const allEntries = [
+            ...fallbackKbEntries,
+            ...fallbackServiceEntries
         ];
+        const uniqueEntries = Array.from(new Map(allEntries.map((entry)=>[
+                entry.id,
+                entry
+            ])).values());
         const topN = 5;
-        const similarityThreshold = 0.65; // Adjusted threshold
-        const relevantEntries = allScoredEntries.sort((a, b)=>b.score - a.score).filter((entry)=>entry.score > similarityThreshold).slice(0, topN);
-        console.log(`[knowledgeBaseRetrieverTool] Found ${relevantEntries.length} relevant entries from KB and Services.`);
-        // 6. Format the output (remove score)
-        return relevantEntries.map(({ topic, content })=>({
+        const relevantEntries = uniqueEntries.sort((a, b)=>b.score - a.score) // Sort to be safe, though scores are same
+        .slice(0, topN);
+        console.log(`[knowledgeBaseRetrieverTool] Found ${relevantEntries.length} relevant entries via TEXT SEARCH.`);
+        return relevantEntries.map(({ topic, content, source })=>({
                 topic,
-                content
+                content,
+                source
             }));
     } catch (error) {
-        console.error('[knowledgeBaseRetrieverTool] Error during retrieval:', error);
+        console.error('[knowledgeBaseRetrieverTool] Error during TEXT-ONLY retrieval:', error);
         return [];
     }
 });
