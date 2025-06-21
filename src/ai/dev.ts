@@ -1,6 +1,7 @@
 
-import { config } from 'dotenv';
-config(); // Load variables from .env and .env.local
+
+// The dotenv config is removed because Next.js handles .env files automatically.
+// Explicitly calling it can cause conflicts in some environments.
 
 console.log(`[src/ai/dev.ts] Genkit Dev Environment Initializing...`);
 console.log(`  - Project ID (from env): ${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'NOT FOUND'}`);

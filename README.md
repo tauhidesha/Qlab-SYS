@@ -1,4 +1,4 @@
-
+npm
 # Firebase Studio
 
 Ini adalah starter NextJS di Firebase Studio.
