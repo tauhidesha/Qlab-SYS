@@ -16,16 +16,9 @@ import '@/ai/flows/embed-text-flow'; // Import the new embedding flow
 // import '@/ai/flows/handle-service-inquiry-flow';
 
 // Import modular tools. Files for tools do not contain 'use server' and only export the tool object and types.
-import '@/ai/tools/cari-size-motor-tool';
-import '@/ai/tools/cariInfoLayananTool';
 import '@/ai/tools/productLookupTool';
 import '@/ai/tools/createBookingTool'; // Import tool booking baru
 import '@/ai/tools/knowledgeBaseRetrieverTool'; // Import the new retriever tool
-
-// Import placeholder tools (jika masih ada dan belum dihapus)
-import '@/ai/tools/extractMotorInfoTool';
-import '@/ai/tools/searchServiceByKeywordTool';
-
 
 console.log("[src/ai/dev.ts] Main flows (cs-whatsapp-reply-flow, embed-text-flow) imported.");
 console.log("[src/ai/dev.ts] All tools imported, including the new knowledgeBaseRetrieverTool.");

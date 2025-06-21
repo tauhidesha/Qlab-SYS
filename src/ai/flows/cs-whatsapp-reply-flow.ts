@@ -11,12 +11,8 @@ import { doc, getDoc as getFirestoreDoc, setDoc as setFirestoreDoc, serverTimest
 import { DEFAULT_MAIN_PROMPT_ZOYA } from '@/types/aiSettings';
 import { format, addDays, parse as parseDateFns } from 'date-fns'; // Import date-fns
 
-import { cariSizeMotorTool, type CariSizeMotorInput, findMotorSize } from '@/ai/tools/cari-size-motor-tool';
-import { getProductServiceDetailsByNameTool, type ProductLookupInput, findProductServiceByName } from '@/ai/tools/productLookupTool';
-// Mengimpor tool object 'cariInfoLayananTool' DAN fungsi 'findLayananByCategory'
-import { cariInfoLayananTool, findLayananByCategory, type CariInfoLayananInput, type CariInfoLayananOutput } from '@/ai/tools/cariInfoLayananTool';
-import { createBookingTool, type CreateBookingToolInput } from '@/ai/tools/createBookingTool';
-import type { ProductServiceInfo } from '@/types/aiToolSchemas';
+import { getProductServiceDetailsByNameTool } from '@/ai/tools/productLookupTool';
+import { createBookingTool } from '@/ai/tools/createBookingTool';
 import { knowledgeBaseRetrieverTool } from '@/ai/tools/knowledgeBaseRetrieverTool';
 
 // Skema internal untuk validasi input chat history di flow
@@ -26,30 +22,6 @@ const ChatMessageSchemaInternal = z.object({
 });
 export type ChatMessage = z.infer<typeof ChatMessageSchemaInternal>;
 
-// --- User Session Structure (in Firestore: userAiSessions/{senderNumber}) ---
-interface UserAiSession {
-  userId: string;
-  activeSpecificServiceInquiry?: string; // Nama layanan yang sedang aktif ditanyakan/dibahas
-  activeSpecificServiceId?: string;    // ID layanan yang sedang aktif
-  knownMotorcycleName?: string;
-  knownMotorcycleSize?: string;
-  // Untuk booking
-  pendingBookingDate?: string; // YYYY-MM-DD
-  pendingBookingTime?: string; // HH:MM
-  lastAiInteractionType?:
-    | 'asked_for_motor_type_for_specific_service'
-    | 'provided_specific_service_details'
-    | 'provided_category_service_list'
-    | 'asked_for_service_after_motor_size'
-    | 'general_response'
-    | 'initial_greeting'
-    | 'asked_for_paint_type_for_coating'
-    | 'ready_for_booking_details' // User mengindikasikan mau booking
-    | 'waiting_for_booking_datetime' // AI sudah tanya tanggal & jam
-    | 'waiting_for_booking_notes' // AI sudah tanya catatan
-    | 'booking_attempted'; // AI sudah panggil tool createBookingTool
-  lastUpdatedAt: Timestamp;
-}
 
 // Skema input utama untuk ZoyaChatFlow (digunakan oleh UI)
 const ZoyaChatInputSchema = z.object({
@@ -119,7 +91,7 @@ const zoyaChatFlow = ai.defineFlow(
         model: 'googleai/gemini-1.5-flash-latest',
         prompt: finalSystemPrompt,
         messages: messagesForAI,
-        tools: [knowledgeBaseRetrieverTool, createBookingTool],
+        tools: [knowledgeBaseRetrieverTool, getProductServiceDetailsByNameTool, createBookingTool],
         toolChoice: 'auto',
         config: {
             temperature: 0.5,
@@ -127,7 +99,7 @@ const zoyaChatFlow = ai.defineFlow(
         },
       });
 
-      suggestedReply = result.text || `Maaf, Zoya tidak bisa memberikan jawaban saat ini. Silakan coba lagi. (Finish Reason: ${result.finishReason})`;
+      suggestedReply = result.text || `Maaf, Zoya tidak bisa memberikan jawaban saat ini. (Finish Reason: ${result.finishReason})`;
       console.log(`[MAIN-FLOW] Final response text: "${suggestedReply}"`);
 
       // We are simplifying the session management logic for now to rely on the RAG approach.
