@@ -8,30 +8,6 @@ import { z } from 'zod';
 import { collection, query as firestoreQuery, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { ProductServiceInfoSchema, type ProductServiceInfo } from '@/types/aiToolSchemas';
-import { v4 as uuidv4 } from 'uuid';
-
-// Define ServiceProduct type locally or import if it's broadly used
-interface ServiceProductDbData {
-  id: string;
-  name: string;
-  type: 'Layanan' | 'Produk';
-  category: string;
-  price: number;
-  description?: string;
-  pointsAwarded?: number;
-  estimatedDuration?: string;
-  variants?: {
-    id: string;
-    name: string;
-    price: number;
-    pointsAwarded?: number;
-    estimatedDuration?: string;
-  }[];
-  stockQuantity?: number;
-  costPrice?: number;
-  [key: string]: any; // Allow other fields that might exist in Firestore
-}
-
 
 const ProductLookupInputSchema = z.object({
   productName: z.string().describe("Nama produk atau layanan yang ingin dicari detailnya. Harus spesifik."),
@@ -70,19 +46,40 @@ export async function findProductServiceByName(input: ProductLookupInput): Promi
       const searchTermLower = searchTerm.toLowerCase();
 
       for (const doc of querySnapshot.docs) {
-        const item = { id: doc.id, ...doc.data() } as ServiceProductDbData;
+        const itemData: any = { id: doc.id, ...doc.data() };
+        
+        let itemTypeFormatted: 'Layanan' | 'Produk' | undefined = undefined;
+        if (typeof itemData.type === 'string') {
+          if (itemData.type.toLowerCase() === 'layanan') {
+            itemTypeFormatted = 'Layanan';
+          } else if (itemData.type.toLowerCase() === 'produk') {
+            itemTypeFormatted = 'Produk';
+          }
+        }
+        if (!itemTypeFormatted) {
+          continue; // Skip items with invalid or missing type
+        }
+        
+        const item = { ...itemData, type: itemTypeFormatted };
         const itemNameLower = item.name.toLowerCase();
 
         // Check for base item match
         if (itemNameLower.includes(searchTermLower)) {
             let score = 0;
-            if (itemNameLower === searchTermLower) score = 100; // Exact match = highest score
-            else if (itemNameLower.startsWith(searchTermLower)) score = 50; // Starts with is good
-            else score = 20; // Includes is okay
+            if (itemNameLower === searchTermLower) score = 100;
+            else if (itemNameLower.startsWith(searchTermLower)) score = 50;
+            else score = 20; 
             
             const candidate: ProductServiceInfo & { score: number } = {
-                ...item,
+                id: item.id,
+                name: item.name,
+                type: item.type,
+                category: item.category,
                 price: item.price ?? 0,
+                description: item.description,
+                pointsAwarded: item.pointsAwarded,
+                estimatedDuration: item.estimatedDuration,
+                variants: item.variants,
                 score: score,
             };
 
@@ -92,14 +89,14 @@ export async function findProductServiceByName(input: ProductLookupInput): Promi
         }
 
         // Check for variant matches (higher scores for more specific matches)
-        if (item.variants) {
+        if (item.variants && Array.isArray(item.variants)) {
             for (const variant of item.variants) {
                 const fullVariantName = `${item.name} - ${variant.name}`;
                 const fullVariantNameLower = fullVariantName.toLowerCase();
 
                 if (fullVariantNameLower.includes(searchTermLower)) {
                     let score = 0;
-                    if (fullVariantNameLower === searchTermLower) score = 110; // Exact variant match is king
+                    if (fullVariantNameLower === searchTermLower) score = 110;
                     else if (fullVariantNameLower.startsWith(searchTermLower)) score = 60;
                     else score = 30;
 
