@@ -46,6 +46,13 @@ interface DailyIncomeChartData {
 }
 
 export default function DashboardPage() {
+  const [isClient, setIsClient] = useState(false); // State to ensure client-side rendering for charts
+
+  useEffect(() => {
+    // This effect runs only on the client, after the component has mounted.
+    setIsClient(true);
+  }, []);
+
   const [summaryData, setSummaryData] = useState<DashboardSummary>({
     todaysRevenue: 0,
     transactionsToday: 0,
@@ -295,6 +302,8 @@ export default function DashboardPage() {
             <CardContent>
                 {loadingDailyIncome ? (
                     <div className="flex items-center justify-center h-[350px]"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
+                ) : !isClient ? (
+                    <div className="flex items-center justify-center h-[350px]"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
                 ) : dailyIncomeData.length === 0 ? (
                     <p className="text-center text-muted-foreground py-10 h-[350px] flex items-center justify-center">Belum ada data pendapatan untuk bulan ini.</p>
                 ) : (
@@ -448,6 +457,7 @@ export default function DashboardPage() {
     </div>
   );
 }
+
 
 
 
