@@ -147,9 +147,8 @@ export default function SettingsPage() {
   const kbEntryForm = useForm<KnowledgeBaseFormData>({
     resolver: zodResolver(KnowledgeBaseEntryFormSchema),
     defaultValues: {
-      topic: '',
-      content: '',
-      keywordsInput: '',
+      question: '',
+      answer: '',
       isActive: true,
     }
   });
@@ -278,7 +277,7 @@ export default function SettingsPage() {
     setIsLoadingKnowledgeBase(true);
     try {
       const kbCollectionRef = collection(db, 'knowledge_base_entries');
-      const q = query(kbCollectionRef, orderBy("topic"));
+      const q = query(kbCollectionRef, orderBy("question"));
       const querySnapshot = await getFirestoreDocs(q);
       const entriesData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as KnowledgeBaseEntry));
       setKnowledgeBaseEntries(entriesData);
@@ -461,16 +460,14 @@ export default function SettingsPage() {
     setEditingKbEntry(entry);
     if (entry) {
       kbEntryForm.reset({
-        topic: entry.topic,
-        content: entry.content,
-        keywordsInput: entry.keywords.join(', '),
+        question: entry.question,
+        answer: entry.answer,
         isActive: entry.isActive !== undefined ? entry.isActive : true,
       });
     } else {
       kbEntryForm.reset({
-        topic: '',
-        content: '',
-        keywordsInput: '',
+        question: '',
+        answer: '',
         isActive: true,
       });
     }
@@ -479,22 +476,14 @@ export default function SettingsPage() {
 
   const handleKbFormSubmit = async (values: KnowledgeBaseFormData) => {
     setIsSubmittingKbEntry(true);
-    const keywordsArray = values.keywordsInput.split(',').map(kw => kw.trim()).filter(kw => kw.length > 0);
     
-    if (keywordsArray.length === 0) {
-      kbEntryForm.setError("keywordsInput", { type: "manual", message: "Minimal satu kata kunci valid diperlukan setelah dipisah koma." });
-      setIsSubmittingKbEntry(false);
-      return;
-    }
-
     try {
-      const textToEmbed = `Topik: ${values.topic}. Kata Kunci: ${values.keywordsInput}. Konten: ${values.content}`;
+      const textToEmbed = `Pertanyaan: ${values.question}. Jawaban: ${values.answer}.`;
       const embedding = await embedText(textToEmbed);
 
       const kbData: Omit<KnowledgeBaseEntry, 'id' | 'createdAt' | 'updatedAt'> = {
-        topic: values.topic,
-        content: values.content,
-        keywords: keywordsArray,
+        question: values.question,
+        answer: values.answer,
         isActive: values.isActive,
         embedding: embedding,
       };
@@ -523,7 +512,7 @@ export default function SettingsPage() {
     setIsSubmittingKbEntry(true);
     try {
       await deleteDoc(doc(db, 'knowledge_base_entries', kbEntryToDelete.id));
-      toast({ title: "Sukses", description: `Entri Knowledge Base "${kbEntryToDelete.topic}" berhasil dihapus.` });
+      toast({ title: "Sukses", description: `Entri Knowledge Base "${kbEntryToDelete.question}" berhasil dihapus.` });
       fetchKnowledgeBaseEntries();
       setKbEntryToDelete(null); 
     } catch (error) {
@@ -725,10 +714,10 @@ export default function SettingsPage() {
                 <CardHeader className="flex flex-row items-center justify-between">
                   <div>
                     <CardTitle>Manajemen Knowledge Base</CardTitle>
-                    <CardDescription>Tambah, edit, atau hapus informasi yang dapat diakses oleh AI. Setiap perubahan akan otomatis menghasilkan embedding baru.</CardDescription>
+                    <CardDescription>Tambah atau edit pertanyaan dan jawaban yang dapat diakses oleh AI. Setiap perubahan akan otomatis menghasilkan embedding baru.</CardDescription>
                   </div>
                   <Button onClick={() => handleOpenKbForm(null)}>
-                      <PlusCircle className="mr-2 h-4 w-4" /> Tambah Entri KB
+                      <PlusCircle className="mr-2 h-4 w-4" /> Tambah Entri
                   </Button>
                 </CardHeader>
                 <CardContent>
@@ -742,9 +731,8 @@ export default function SettingsPage() {
                       <Table>
                       <TableHeader>
                           <TableRow>
-                          <TableHead>Topik</TableHead>
-                          <TableHead>Potongan Konten</TableHead>
-                          <TableHead>Kata Kunci</TableHead>
+                          <TableHead>Pertanyaan</TableHead>
+                          <TableHead>Potongan Jawaban</TableHead>
                           <TableHead className="text-center">Status</TableHead>
                           <TableHead className="text-right">Aksi</TableHead>
                           </TableRow>
@@ -752,11 +740,8 @@ export default function SettingsPage() {
                       <TableBody>
                           {knowledgeBaseEntries.map((entry) => (
                           <TableRow key={entry.id}>
-                              <TableCell className="font-medium max-w-xs truncate">{entry.topic}</TableCell>
-                              <TableCell className="max-w-md truncate">{entry.content}</TableCell>
-                              <TableCell className="text-xs max-w-xs">
-                              {entry.keywords.map(kw => <Badge key={kw} variant="outline" className="mr-1 mb-1">{kw}</Badge>)}
-                              </TableCell>
+                              <TableCell className="font-medium max-w-xs truncate">{entry.question}</TableCell>
+                              <TableCell className="max-w-md truncate">{entry.answer}</TableCell>
                               <TableCell className="text-center">
                               <Badge variant={entry.isActive ? "default" : "outline"}>
                                   {entry.isActive ? "Aktif" : "Nonaktif"}
@@ -783,7 +768,7 @@ export default function SettingsPage() {
                   <AlertDialogHeader>
                   <AlertDialogTitle>Konfirmasi Penghapusan</AlertDialogTitle>
                   <AlertDialogDescription>
-                      Apakah Anda yakin ingin menghapus entri knowledge base dengan topik "{kbEntryToDelete?.topic}"? Tindakan ini tidak dapat diurungkan.
+                      Apakah Anda yakin ingin menghapus entri knowledge base dengan pertanyaan "{kbEntryToDelete?.question}"? Tindakan ini tidak dapat diurungkan.
                   </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -1146,34 +1131,22 @@ export default function SettingsPage() {
               <form onSubmit={kbEntryForm.handleSubmit(handleKbFormSubmit)} className="space-y-4 py-2 pb-4">
                 <FormField
                   control={kbEntryForm.control}
-                  name="topic"
+                  name="question"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Topik Utama</FormLabel>
-                      <FormControl><Input placeholder="mis. Jam Buka, Kebijakan Garansi" {...field} /></FormControl>
+                      <FormLabel>Pertanyaan</FormLabel>
+                      <FormControl><Input placeholder="mis. Berapa lama proses coating?" {...field} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
                 <FormField
                   control={kbEntryForm.control}
-                  name="content"
+                  name="answer"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Konten Informasi</FormLabel>
-                      <FormControl><Textarea placeholder="Tuliskan detail informasi atau jawaban untuk topik ini..." {...field} rows={5} /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={kbEntryForm.control}
-                  name="keywordsInput"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Kata Kunci (pisahkan dengan koma)</FormLabel>
-                      <FormControl><Textarea placeholder="mis. operasional, jadwal, garansi servis, syarat klaim" {...field} rows={2} /></FormControl>
-                      <FormDescription className="text-xs">Kata kunci membantu AI menemukan informasi ini.</FormDescription>
+                      <FormLabel>Jawaban</FormLabel>
+                      <FormControl><Textarea placeholder="Tuliskan jawaban dari pertanyaan di atas..." {...field} rows={5} /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

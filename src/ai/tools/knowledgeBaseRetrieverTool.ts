@@ -92,8 +92,8 @@ export const knowledgeBaseRetrieverTool = ai.defineTool(
           if (score >= SIMILARITY_THRESHOLD) {
             allEntries.push({
               id: entry.id,
-              topic: entry.topic,
-              content: entry.content,
+              topic: entry.question, // MAPPING from new schema
+              content: entry.answer, // MAPPING from new schema
               source: 'knowledge-base',
               score: score,
             });
@@ -124,14 +124,15 @@ export const knowledgeBaseRetrieverTool = ai.defineTool(
 
       kbSnapshot.docs.forEach(doc => {
         const entry = { id: doc.id, ...doc.data() } as KnowledgeBaseEntry;
-        const textMatch = (entry.topic?.toLowerCase().includes(searchTermLower)) ||
-                          (entry.content?.toLowerCase().includes(searchTermLower)) ||
-                          (Array.isArray(entry.keywords) && entry.keywords.some(kw => kw && kw.toLowerCase().includes(searchTermLower)));
+        // Search in question and answer fields
+        const textMatch = (entry.question?.toLowerCase().includes(searchTermLower)) ||
+                          (entry.answer?.toLowerCase().includes(searchTermLower));
+                          
         if (textMatch) {
             allEntries.push({
                 id: entry.id,
-                topic: entry.topic,
-                content: entry.content,
+                topic: entry.question, // MAPPING from new schema
+                content: entry.answer, // MAPPING from new schema
                 source: 'knowledge-base',
                 score: 0.7, // Assign a decent baseline score for text match
             });
