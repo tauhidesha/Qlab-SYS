@@ -68,10 +68,17 @@ export const knowledgeBaseRetrieverTool = ai.defineTool(
     console.log(`[knowledgeBaseRetrieverTool] Received query: "${input.query}"`);
     try {
       // 1. Generate an embedding for the user's query
-      const { embedding: queryEmbedding } = await ai.embed({
+      const embedResult = await ai.embed({
         model: 'googleai/text-embedding-004',
         content: input.query,
       });
+
+      // Safety check for null/undefined result before destructuring
+      if (!embedResult || !embedResult.embedding) {
+        console.error("[knowledgeBaseRetrieverTool] ai.embed() returned a nullish or incomplete value.");
+        throw new Error("AI service returned an invalid embedding response.");
+      }
+      const { embedding: queryEmbedding } = embedResult;
 
       // 2. Fetch all active KB entries and all services in parallel
       const kbCollectionRef = collection(db, 'knowledge_base_entries');

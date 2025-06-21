@@ -13,10 +13,18 @@ import { ai } from '@/ai/genkit';
  */
 export async function embedText(text: string): Promise<number[]> {
   try {
-    const { embedding } = await ai.embed({
+    const result = await ai.embed({
       model: 'googleai/text-embedding-004',
       content: text,
     });
+    
+    // Safety check for null/undefined result before destructuring
+    if (!result || !result.embedding) {
+      console.error("ai.embed() returned a nullish or incomplete value.");
+      throw new Error("Failed to generate embedding: AI service returned an invalid response.");
+    }
+    
+    const { embedding } = result;
     return embedding;
   } catch (error) {
     console.error("Error generating text embedding:", error);
