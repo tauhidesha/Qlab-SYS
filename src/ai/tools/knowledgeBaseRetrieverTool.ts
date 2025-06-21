@@ -10,7 +10,7 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, or } from 'firebase/firestore';
 import type { KnowledgeBaseEntry } from '@/types/knowledgeBase';
 import type { ServiceProduct } from '@/app/(app)/services/page';
-import { embedText } from '@/ai/flows/embed-text-flow'; // Import the (now bypassed) embedText function
+import { embedText } from '@/ai/flows/embed-text-flow';
 
 const KnowledgeBaseRetrieverInputSchema = z.object({
   query: z.string().describe('The user question to find relevant knowledge for.'),
@@ -25,7 +25,7 @@ const KnowledgeBaseRetrieverOutputSchema = z.array(
 ).describe("A list of relevant entries from the knowledge base and service catalog, or an empty list if none are found.");
 
 interface ScoredEntry {
-  id: string; // Add ID for deduplication
+  id: string;
   topic: string;
   content: string;
   source: 'knowledge-base' | 'service-product';
@@ -39,7 +39,7 @@ interface ScoredEntry {
  * @returns The cosine similarity score (0 to 1).
  */
 function cosineSimilarity(vecA: number[], vecB: number[]): number {
-  if (vecA.length !== vecB.length || vecA.length === 0) {
+  if (!vecA || !vecB || vecA.length !== vecB.length || vecA.length === 0) {
     return 0;
   }
   let dotProduct = 0;
@@ -67,69 +67,100 @@ export const knowledgeBaseRetrieverTool = ai.defineTool(
   },
   async (input) => {
     console.log(`[knowledgeBaseRetrieverTool] Received query: "${input.query}"`);
-    console.warn("[knowledgeBaseRetrieverTool] RUNNING IN TEXT-ONLY FALLBACK MODE (Vector search disabled for debugging).");
+    const SIMILARITY_THRESHOLD = 0.75;
+    const allEntries: ScoredEntry[] = [];
 
     try {
-      // --- VECTOR SEARCH IS TEMPORARILY DISABLED TO BYPASS API ISSUES ---
-      // The original code would generate an embedding for the query here.
-      // We are skipping directly to fetching and text-searching all documents.
+      // 1. Generate query embedding
+      const queryEmbedding = await embedText(input.query);
 
+      // 2. Fetch all documents
       const kbCollectionRef = collection(db, 'knowledge_base_entries');
       const servicesCollectionRef = collection(db, 'services');
-      
       const kbQuery = query(kbCollectionRef, where('isActive', '==', true));
-      const servicesQuery = query(servicesCollectionRef);
-
+      
       const [kbSnapshot, servicesSnapshot] = await Promise.all([
         getDocs(kbQuery),
-        getDocs(servicesQuery),
+        getDocs(servicesCollectionRef),
       ]);
-      
+
+      // 3. Process with vector search
+      kbSnapshot.docs.forEach(doc => {
+        const entry = { id: doc.id, ...doc.data() } as KnowledgeBaseEntry;
+        if (entry.embedding && Array.isArray(entry.embedding) && entry.embedding.length > 0) {
+          const score = cosineSimilarity(queryEmbedding, entry.embedding);
+          if (score >= SIMILARITY_THRESHOLD) {
+            allEntries.push({
+              id: entry.id,
+              topic: entry.topic,
+              content: entry.content,
+              source: 'knowledge-base',
+              score: score,
+            });
+          }
+        }
+      });
+
+      servicesSnapshot.docs.forEach(doc => {
+        const service = { id: doc.id, ...doc.data() } as ServiceProduct;
+        if (service.embedding && Array.isArray(service.embedding) && service.embedding.length > 0) {
+            const score = cosineSimilarity(queryEmbedding, service.embedding);
+            if (score >= SIMILARITY_THRESHOLD) {
+                allEntries.push({
+                    id: service.id,
+                    topic: service.name,
+                    content: service.description || 'Tidak ada deskripsi detail.',
+                    source: 'service-product',
+                    score: score,
+                });
+            }
+        }
+      });
+
+      console.log(`[knowledgeBaseRetrieverTool] Found ${allEntries.length} entries via VECTOR search.`);
+
+      // 4. Supplement with text search (fallback / broader search)
       const searchTermLower = input.query.toLowerCase();
 
-      // Perform a simple text search on Knowledge Base with added safety checks
-      const fallbackKbEntries: ScoredEntry[] = kbSnapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() } as KnowledgeBaseEntry))
-        .filter(entry => 
-            (entry.topic && entry.topic.toLowerCase().includes(searchTermLower)) ||
-            (entry.content && entry.content.toLowerCase().includes(searchTermLower)) ||
-            (entry.keywords && Array.isArray(entry.keywords) && entry.keywords.some(kw => kw && kw.toLowerCase().includes(searchTermLower)))
-        )
-        .map(entry => ({
-            id: entry.id,
-            topic: entry.topic,
-            content: entry.content,
-            source: 'knowledge-base',
-            score: 0.7, // Assign a decent score
-        }));
+      kbSnapshot.docs.forEach(doc => {
+        const entry = { id: doc.id, ...doc.data() } as KnowledgeBaseEntry;
+        const textMatch = (entry.topic?.toLowerCase().includes(searchTermLower)) ||
+                          (entry.content?.toLowerCase().includes(searchTermLower)) ||
+                          (Array.isArray(entry.keywords) && entry.keywords.some(kw => kw && kw.toLowerCase().includes(searchTermLower)));
+        if (textMatch) {
+            allEntries.push({
+                id: entry.id,
+                topic: entry.topic,
+                content: entry.content,
+                source: 'knowledge-base',
+                score: 0.7, // Assign a decent baseline score for text match
+            });
+        }
+      });
 
-      // Perform a simple text search on services with added safety checks
-      const fallbackServiceEntries: ScoredEntry[] = servicesSnapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() } as ServiceProduct))
-        .filter(service => 
-            (service.name && service.name.toLowerCase().includes(searchTermLower)) || 
-            (service.description && service.description.toLowerCase().includes(searchTermLower))
-        )
-        .map(service => ({
-            id: service.id,
-            topic: service.name,
-            content: service.description || 'Tidak ada deskripsi detail.',
-            source: 'service-product',
-            score: 0.7, // Assign a decent score
-        }));
-      
-      // Combine all results, deduplicate, sort, and take the top N
-      const allEntries = [...fallbackKbEntries, ...fallbackServiceEntries];
-      
+      servicesSnapshot.docs.forEach(doc => {
+        const service = { id: doc.id, ...doc.data() } as ServiceProduct;
+        const textMatch = (service.name?.toLowerCase().includes(searchTermLower)) || 
+                          (service.description?.toLowerCase().includes(searchTermLower));
+        if (textMatch) {
+             allEntries.push({
+                id: service.id,
+                topic: service.name,
+                content: service.description || 'Tidak ada deskripsi detail.',
+                source: 'service-product',
+                score: 0.7,
+            });
+        }
+      });
+
+      // 5. Deduplicate, sort, and get top results
       const uniqueEntries = Array.from(new Map(allEntries.map(entry => [entry.id, entry])).values());
-      
       const topN = 5;
-      
       const relevantEntries = uniqueEntries
-        .sort((a, b) => b.score - a.score) // Sort to be safe, though scores are same
+        .sort((a, b) => b.score - a.score)
         .slice(0, topN);
 
-      console.log(`[knowledgeBaseRetrieverTool] Found ${relevantEntries.length} relevant entries via TEXT SEARCH.`);
+      console.log(`[knowledgeBaseRetrieverTool] Returning ${relevantEntries.length} unique, sorted entries.`);
       
       return relevantEntries.map(({ topic, content, source }) => ({
         topic,
@@ -138,7 +169,7 @@ export const knowledgeBaseRetrieverTool = ai.defineTool(
       }));
 
     } catch (error) {
-      console.error('[knowledgeBaseRetrieverTool] Error during TEXT-ONLY retrieval:', error);
+      console.error('[knowledgeBaseRetrieverTool] Critical error during retrieval:', error);
       return [];
     }
   }
