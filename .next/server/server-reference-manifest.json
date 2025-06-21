@@ -1,33 +1,5 @@
 {
-  "node": {
-    "40fb659f9b18e8a5d14b6373a67023c25e58627d25": {
-      "workers": {
-        "app/(app)/services/[id]/edit/page": {
-          "moduleId": "[project]/.next-internal/server/app/(app)/services/[id]/edit/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/ai/flows/embed-text-flow.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
-          "async": false
-        },
-        "app/(app)/services/page": {
-          "moduleId": "[project]/.next-internal/server/app/(app)/services/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/ai/flows/embed-text-flow.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
-          "async": false
-        }
-      },
-      "layer": {
-        "app/(app)/services/[id]/edit/page": "action-browser",
-        "app/(app)/services/page": "action-browser"
-      }
-    },
-    "4053660f6447b38038e1d20965a3df3cd57a2a7b51": {
-      "workers": {
-        "app/(app)/ai-cs-assistant/page": {
-          "moduleId": "[project]/.next-internal/server/app/(app)/ai-cs-assistant/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/ai/flows/cs-whatsapp-reply-flow.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
-          "async": false
-        }
-      },
-      "layer": {
-        "app/(app)/ai-cs-assistant/page": "action-browser"
-      }
-    }
-  },
+  "node": {},
   "edge": {},
   "encryptionKey": "20m0tpSp/RKmRB7jBunBJQ+QtIWgX4j4MOpzFYd7xBc="
 }
