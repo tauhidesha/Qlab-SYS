@@ -10,6 +10,7 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, or } from 'firebase/firestore';
 import type { KnowledgeBaseEntry } from '@/types/knowledgeBase';
 import type { ServiceProduct } from '@/app/(app)/services/page';
+import { embedText } from '@/ai/flows/embed-text-flow'; // Import the (now bypassed) embedText function
 
 const KnowledgeBaseRetrieverInputSchema = z.object({
   query: z.string().describe('The user question to find relevant knowledge for.'),
@@ -66,29 +67,13 @@ export const knowledgeBaseRetrieverTool = ai.defineTool(
   },
   async (input) => {
     console.log(`[knowledgeBaseRetrieverTool] Received query: "${input.query}"`);
+    console.warn("[knowledgeBaseRetrieverTool] RUNNING IN TEXT-ONLY FALLBACK MODE (Vector search disabled for debugging).");
+
     try {
-      // 1. Generate an embedding for the user's query
-      const embedResult = await ai.embed({
-        model: 'googleai/text-embedding-004',
-        content: input.query,
-        config: {
-            safetySettings: [
-                { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-                { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-                { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-                { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-            ]
-        }
-      });
+      // --- VECTOR SEARCH IS TEMPORARILY DISABLED TO BYPASS API ISSUES ---
+      // The original code would generate an embedding for the query here.
+      // We are skipping directly to fetching and text-searching all documents.
 
-      // Safety check for null/undefined result before destructuring
-      if (!embedResult || !embedResult.embedding) {
-        console.error("[knowledgeBaseRetrieverTool] ai.embed() returned a nullish or incomplete value.");
-        throw new Error("AI service returned an invalid embedding response.");
-      }
-      const { embedding: queryEmbedding } = embedResult;
-
-      // 2. Fetch all active KB entries and all services in parallel
       const kbCollectionRef = collection(db, 'knowledge_base_entries');
       const servicesCollectionRef = collection(db, 'services');
       
@@ -100,32 +85,25 @@ export const knowledgeBaseRetrieverTool = ai.defineTool(
         getDocs(servicesQuery),
       ]);
       
-      // 3. Score Knowledge Base entries based on vector similarity
-      const scoredKbEntries: ScoredEntry[] = kbSnapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() } as KnowledgeBaseEntry))
-        .filter(entry => entry.embedding && Array.isArray(entry.embedding) && entry.embedding.length > 0)
-        .map(entry => ({
-          id: entry.id,
-          topic: entry.topic,
-          content: entry.content,
-          source: 'knowledge-base',
-          score: cosineSimilarity(queryEmbedding, entry.embedding!),
-        }));
-
-      // 4. Score Service/Product entries based on vector similarity
-      const scoredServiceEntries: ScoredEntry[] = servicesSnapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() } as ServiceProduct & { embedding?: number[] }))
-        .filter(service => service.embedding && Array.isArray(service.embedding) && service.embedding.length > 0)
-        .map(service => ({
-          id: service.id,
-          topic: service.name,
-          content: service.description || 'Tidak ada deskripsi detail.',
-          source: 'service-product',
-          score: cosineSimilarity(queryEmbedding, service.embedding!),
-        }));
-
-      // 5. [FALLBACK] Perform a simple text search on services for items that might not have embeddings
       const searchTermLower = input.query.toLowerCase();
+
+      // Perform a simple text search on Knowledge Base
+      const fallbackKbEntries: ScoredEntry[] = kbSnapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as KnowledgeBaseEntry))
+        .filter(entry => 
+            entry.topic.toLowerCase().includes(searchTermLower) ||
+            entry.content.toLowerCase().includes(searchTermLower) ||
+            entry.keywords.some(kw => kw.toLowerCase().includes(searchTermLower))
+        )
+        .map(entry => ({
+            id: entry.id,
+            topic: entry.topic,
+            content: entry.content,
+            source: 'knowledge-base',
+            score: 0.7, // Assign a decent score
+        }));
+
+      // Perform a simple text search on services
       const fallbackServiceEntries: ScoredEntry[] = servicesSnapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() } as ServiceProduct))
         .filter(service => 
@@ -137,25 +115,22 @@ export const knowledgeBaseRetrieverTool = ai.defineTool(
             topic: service.name,
             content: service.description || 'Tidak ada deskripsi detail.',
             source: 'service-product',
-            score: 0.5, // Assign a medium-low score to fallback results to prioritize vector matches
+            score: 0.7, // Assign a decent score
         }));
       
-      // 6. Combine all results, deduplicate, sort, filter, and take the top N
-      const allEntries = [...scoredKbEntries, ...scoredServiceEntries, ...fallbackServiceEntries];
+      // Combine all results, deduplicate, sort, and take the top N
+      const allEntries = [...fallbackKbEntries, ...fallbackServiceEntries];
       
       const uniqueEntries = Array.from(new Map(allEntries.map(entry => [entry.id, entry])).values());
       
       const topN = 5;
-      const similarityThreshold = 0.60; // Slightly lower threshold to be more inclusive
       
       const relevantEntries = uniqueEntries
-        .filter(entry => entry.score >= similarityThreshold)
-        .sort((a, b) => b.score - a.score)
+        .sort((a, b) => b.score - a.score) // Sort to be safe, though scores are same
         .slice(0, topN);
 
-      console.log(`[knowledgeBaseRetrieverTool] Found ${relevantEntries.length} relevant entries after combining and filtering.`);
+      console.log(`[knowledgeBaseRetrieverTool] Found ${relevantEntries.length} relevant entries via TEXT SEARCH.`);
       
-      // 7. Format the output (remove score and id)
       return relevantEntries.map(({ topic, content, source }) => ({
         topic,
         content,
@@ -163,7 +138,7 @@ export const knowledgeBaseRetrieverTool = ai.defineTool(
       }));
 
     } catch (error) {
-      console.error('[knowledgeBaseRetrieverTool] Error during retrieval:', error);
+      console.error('[knowledgeBaseRetrieverTool] Error during TEXT-ONLY retrieval:', error);
       return [];
     }
   }

@@ -2,6 +2,7 @@
 'use server';
 /**
  * @fileOverview A simple flow to generate text embeddings.
+ * IMPORTANT: This flow has been temporarily modified to bypass a potential API issue.
  */
 
 import { ai } from '@/ai/genkit';
@@ -17,32 +18,11 @@ const embedTextOutputSchema = z.array(z.number());
  * @returns A promise that resolves to an array of numbers representing the embedding.
  */
 export async function embedText(text: string): Promise<number[]> {
-  try {
-    const result = await ai.embed({
-      model: 'googleai/text-embedding-004',
-      content: text,
-      config: {
-        safetySettings: [
-            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-        ]
-      }
-    });
-    
-    // Safety check for null/undefined result before destructuring
-    if (!result || !result.embedding) {
-      console.error("ai.embed() returned a nullish or incomplete value.");
-      throw new Error("Failed to generate embedding: AI service returned an invalid response.");
-    }
-    
-    return result.embedding;
-  } catch (error) {
-    console.error("Error generating text embedding:", error);
-    // Re-throwing the error to be handled by the caller.
-    throw new Error("Failed to generate text embedding.");
-  }
+  console.warn("<<<<<<<<<< WARNING: embedText function is in DEBUG mode and returning a DUMMY vector. This is a temporary bypass for a suspected API/environment issue. >>>>>>>>>>");
+  // Return a dummy vector of the correct dimension (768 for text-embedding-004)
+  // This allows other parts of the app (like saving a new service) to proceed without crashing.
+  // The actual vector search will not be accurate, but the app will run.
+  return Array(768).fill(0.1);
 }
 
 /**
