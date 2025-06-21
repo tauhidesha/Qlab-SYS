@@ -68,15 +68,13 @@ export const knowledgeBaseRetrieverTool = ai.defineTool(
   async (input) => {
     console.log(`[knowledgeBaseRetrieverTool] Received query: "${input.query}"`);
     const allEntries: ScoredEntry[] = [];
+    const SIMILARITY_THRESHOLD = 0.7; // Tweak this threshold as needed
 
     try {
-      // WORKAROUND: Vector search is temporarily disabled to prevent crashes from API errors.
-      // This tool will only use text-based search for now.
-      // The user needs to enable the "Generative Language API" in their Google Cloud project
-      // and then the original code with vector search can be restored.
-      console.warn("WORKAROUND ACTIVE: knowledgeBaseRetrieverTool is running in TEXT-ONLY search mode.");
+      // 1. Generate embedding for the user's query
+      const queryEmbedding = await embedText(input.query);
 
-      // 1. Fetch all documents
+      // 2. Fetch all documents from both collections
       const kbCollectionRef = collection(db, 'knowledge_base_entries');
       const servicesCollectionRef = collection(db, 'services');
       const kbQuery = query(kbCollectionRef, where('isActive', '==', true));
@@ -86,48 +84,71 @@ export const knowledgeBaseRetrieverTool = ai.defineTool(
         getDocs(servicesCollectionRef),
       ]);
       
-      // 2. Perform text search
+      // 3. Perform hybrid search (Vector + Text)
       const searchTermLower = input.query.toLowerCase();
 
+      // Process Knowledge Base Entries
       kbSnapshot.docs.forEach(doc => {
         const entry = { id: doc.id, ...doc.data() } as KnowledgeBaseEntry;
-        const textMatch = (entry.question?.toLowerCase().includes(searchTermLower)) ||
-                          (entry.answer?.toLowerCase().includes(searchTermLower));
-                          
-        if (textMatch) {
-            allEntries.push({
-                id: entry.id,
-                topic: entry.question,
-                content: entry.answer,
-                source: 'knowledge-base',
-                score: 0.7, // Assign a decent baseline score for text match
-            });
+        let score = 0;
+        
+        // Vector search
+        if (queryEmbedding.length > 0 && entry.embedding && entry.embedding.length > 0) {
+          score = cosineSimilarity(queryEmbedding, entry.embedding);
+        }
+        
+        // Text fallback/boost
+        const questionMatch = entry.question?.toLowerCase().includes(searchTermLower);
+        const answerMatch = entry.answer?.toLowerCase().includes(searchTermLower);
+        if (questionMatch) score += 0.2; // Boost score for direct keyword match
+        if (answerMatch) score += 0.1;
+
+        if (score >= SIMILARITY_THRESHOLD) {
+          allEntries.push({
+            id: entry.id,
+            topic: entry.question || 'Tanpa Topik',
+            content: entry.answer || 'Tidak ada konten.',
+            source: 'knowledge-base',
+            score: Math.min(score, 1.0), // Cap score at 1.0
+          });
         }
       });
 
+      // Process Service/Product Entries
       servicesSnapshot.docs.forEach(doc => {
         const service = { id: doc.id, ...doc.data() } as ServiceProduct;
-        const textMatch = (service.name?.toLowerCase().includes(searchTermLower)) || 
-                          (service.description?.toLowerCase().includes(searchTermLower));
-        if (textMatch) {
-             allEntries.push({
-                id: service.id,
-                topic: service.name,
-                content: service.description || 'Tidak ada deskripsi detail.',
-                source: 'service-product',
-                score: 0.7,
-            });
+        let score = 0;
+
+        // Vector search
+        if (queryEmbedding.length > 0 && (service as any).embedding && (service as any).embedding.length > 0) {
+            score = cosineSimilarity(queryEmbedding, (service as any).embedding);
+        }
+        
+        // Text fallback/boost
+        const nameMatch = service.name?.toLowerCase().includes(searchTermLower);
+        const descriptionMatch = service.description?.toLowerCase().includes(searchTermLower);
+        if (nameMatch) score += 0.2;
+        if (descriptionMatch) score += 0.1;
+
+        if (score >= SIMILARITY_THRESHOLD) {
+          allEntries.push({
+            id: service.id,
+            topic: service.name || 'Tanpa Nama',
+            content: service.description || 'Tidak ada deskripsi detail.',
+            source: 'service-product',
+            score: Math.min(score, 1.0),
+          });
         }
       });
 
-      // 3. Deduplicate, sort, and get top results
+      // 4. Deduplicate, sort, and get top results
       const uniqueEntries = Array.from(new Map(allEntries.map(entry => [entry.id, entry])).values());
       const topN = 5;
       const relevantEntries = uniqueEntries
         .sort((a, b) => b.score - a.score)
         .slice(0, topN);
 
-      console.log(`[knowledgeBaseRetrieverTool] Returning ${relevantEntries.length} unique, sorted entries from text search.`);
+      console.log(`[knowledgeBaseRetrieverTool] Returning ${relevantEntries.length} unique, sorted entries from hybrid search.`);
       
       return relevantEntries.map(({ topic, content, source }) => ({
         topic,
@@ -136,8 +157,8 @@ export const knowledgeBaseRetrieverTool = ai.defineTool(
       }));
 
     } catch (error) {
-      console.error('[knowledgeBaseRetrieverTool] Critical error during text-only retrieval:', error);
-      return [];
+      console.error('[knowledgeBaseRetrieverTool] Critical error during hybrid retrieval:', error);
+      return []; // Return empty on error
     }
   }
 );
