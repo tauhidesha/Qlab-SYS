@@ -1,7 +1,7 @@
 
 'use server';
 /**
- * @fileOverview Genkit tool to retrieve relevant knowledge base entries using vector similarity.
+ * @fileOverview Genkit tool to retrieve relevant knowledge base entries and services using vector similarity.
  */
 
 import { ai } from '@/ai/genkit';
@@ -10,6 +10,7 @@ import { embed } from 'genkit';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import type { KnowledgeBaseEntry } from '@/types/knowledgeBase';
+import type { ServiceProduct } from '@/app/(app)/services/page';
 
 const KnowledgeBaseRetrieverInputSchema = z.object({
   query: z.string().describe('The user question to find relevant knowledge for.'),
@@ -17,11 +18,16 @@ const KnowledgeBaseRetrieverInputSchema = z.object({
 
 const KnowledgeBaseRetrieverOutputSchema = z.array(
   z.object({
-    topic: z.string().describe("The topic of the knowledge base entry."),
-    content: z.string().describe("The content of the knowledge base entry."),
-    // score: z.number().optional().describe("Similarity score."), // Optional for debugging
+    topic: z.string().describe("The topic of the knowledge base entry or service name."),
+    content: z.string().describe("The content of the knowledge base entry or service description."),
   })
-).describe("A list of relevant knowledge base entries, or an empty list if none are found.");
+).describe("A list of relevant entries from the knowledge base and service catalog, or an empty list if none are found.");
+
+interface ScoredEntry {
+  topic: string;
+  content: string;
+  score: number;
+}
 
 /**
  * Calculates the cosine similarity between two vectors.
@@ -52,7 +58,7 @@ function cosineSimilarity(vecA: number[], vecB: number[]): number {
 export const knowledgeBaseRetrieverTool = ai.defineTool(
   {
     name: 'knowledgeBaseRetrieverTool',
-    description: 'Searches the internal knowledge base for information relevant to a user\'s query. Use this first to get context before answering questions about pricing, policies, or general information.',
+    description: "Searches the internal knowledge base AND the service/product catalog for information relevant to a user's query. Use this first to get context before answering questions about policies, general information, or to find suitable services based on a user's problem description.",
     inputSchema: KnowledgeBaseRetrieverInputSchema,
     outputSchema: KnowledgeBaseRetrieverOutputSchema,
   },
@@ -65,46 +71,58 @@ export const knowledgeBaseRetrieverTool = ai.defineTool(
         content: input.query,
       });
 
-      // 2. Fetch all active knowledge base entries from Firestore
+      // 2. Fetch all active KB entries and all services in parallel
       const kbCollectionRef = collection(db, 'knowledge_base_entries');
-      const q = query(kbCollectionRef, where('isActive', '==', true));
-      const snapshot = await getDocs(q);
+      const servicesCollectionRef = collection(db, 'services');
       
-      const entriesWithEmbeddings = snapshot.docs
+      const kbQuery = query(kbCollectionRef, where('isActive', '==', true));
+      const servicesQuery = query(servicesCollectionRef);
+
+      const [kbSnapshot, servicesSnapshot] = await Promise.all([
+        getDocs(kbQuery),
+        getDocs(servicesQuery),
+      ]);
+      
+      // 3. Score Knowledge Base entries
+      const scoredKbEntries: ScoredEntry[] = kbSnapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() } as KnowledgeBaseEntry))
-        .filter(entry => entry.embedding && Array.isArray(entry.embedding) && entry.embedding.length > 0);
+        .filter(entry => entry.embedding && Array.isArray(entry.embedding) && entry.embedding.length > 0)
+        .map(entry => ({
+          topic: entry.topic,
+          content: entry.content,
+          score: cosineSimilarity(queryEmbedding, entry.embedding!),
+        }));
 
-      if (entriesWithEmbeddings.length === 0) {
-        console.log('[knowledgeBaseRetrieverTool] No active KB entries with embeddings found.');
-        return [];
-      }
+      // 4. Score Service/Product entries
+      const scoredServiceEntries: ScoredEntry[] = servicesSnapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as ServiceProduct & { embedding?: number[] }))
+        .filter(service => service.embedding && Array.isArray(service.embedding) && service.embedding.length > 0)
+        .map(service => ({
+          topic: service.name,
+          content: service.description || 'Tidak ada deskripsi detail.',
+          score: cosineSimilarity(queryEmbedding, service.embedding!),
+        }));
+
+      // 5. Combine, sort, filter, and take the top N results
+      const allScoredEntries = [...scoredKbEntries, ...scoredServiceEntries];
+      const topN = 5;
+      const similarityThreshold = 0.65; // Adjusted threshold
       
-      // 3. Calculate cosine similarity for each entry
-      const scoredEntries = entriesWithEmbeddings.map(entry => {
-        const score = cosineSimilarity(queryEmbedding, entry.embedding!);
-        return { ...entry, score };
-      });
-
-      // 4. Sort by similarity score and take the top N results
-      const topN = 3;
-      const similarityThreshold = 0.7; // Only return results with a decent score
-      const relevantEntries = scoredEntries
+      const relevantEntries = allScoredEntries
         .sort((a, b) => b.score - a.score)
         .filter(entry => entry.score > similarityThreshold)
         .slice(0, topN);
 
-      console.log(`[knowledgeBaseRetrieverTool] Found ${relevantEntries.length} relevant entries.`);
+      console.log(`[knowledgeBaseRetrieverTool] Found ${relevantEntries.length} relevant entries from KB and Services.`);
       
-      // 5. Format the output
-      return relevantEntries.map(entry => ({
-        topic: entry.topic,
-        content: entry.content,
-        // score: entry.score, // Uncomment for debugging if needed
+      // 6. Format the output (remove score)
+      return relevantEntries.map(({ topic, content }) => ({
+        topic,
+        content,
       }));
 
     } catch (error) {
       console.error('[knowledgeBaseRetrieverTool] Error during retrieval:', error);
-      // Return an empty array in case of an error to prevent the flow from breaking
       return [];
     }
   }

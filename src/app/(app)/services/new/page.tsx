@@ -22,6 +22,7 @@ import Link from 'next/link';
 import type { ServiceProduct, ServiceProductVariant } from '../page';
 import { v4 as uuidv4 } from 'uuid';
 import { Separator } from '@/components/ui/separator';
+import { embedText } from '@/ai/flows/embed-text-flow';
 
 const variantSchema = z.object({
   id: z.string(), 
@@ -122,7 +123,21 @@ export default function NewServiceProductPage() {
   const onSubmit = async (data: ServiceProductFormValues) => {
     setIsSubmitting(true);
     try {
-      const newServiceProductData: Omit<ServiceProduct, 'id'> & { createdAt: any } = {
+      let embedding: number[] | undefined;
+      try {
+        const textToEmbed = `Layanan/Produk: ${data.name}. Deskripsi: ${data.description || 'Tidak ada deskripsi.'}`;
+        embedding = await embedText(textToEmbed);
+      } catch (embedError) {
+        console.error("Embedding failed for new service:", data.name, embedError);
+        toast({
+          title: "Peringatan Embedding",
+          description: "Gagal membuat embedding AI untuk item ini. Item tetap disimpan, tapi mungkin kurang optimal untuk pencarian AI.",
+          variant: "default",
+        });
+        embedding = undefined;
+      }
+
+      const newServiceProductData: Omit<ServiceProduct, 'id'> & { createdAt: any, embedding?: number[] } = {
         name: data.name,
         type: data.type,
         category: data.category,
@@ -142,6 +157,7 @@ export default function NewServiceProductPage() {
           costPrice: data.type === 'Produk' ? (v.costPrice || 0) : undefined,
         })) || [],
         createdAt: serverTimestamp(),
+        ...(embedding && { embedding: embedding }),
       };
 
       if (data.type !== 'Produk') {
@@ -529,4 +545,3 @@ export default function NewServiceProductPage() {
   );
 }
     
-

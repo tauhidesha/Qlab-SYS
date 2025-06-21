@@ -22,6 +22,7 @@ import Link from 'next/link';
 import type { ServiceProduct, ServiceProductVariant } from '../page'; 
 import { v4 as uuidv4 } from 'uuid';
 import { Separator } from '@/components/ui/separator';
+import { embedText } from '@/ai/flows/embed-text-flow';
 
 const variantSchema = z.object({
   id: z.string(), 
@@ -177,8 +178,21 @@ export default function EditServiceProductPage() {
     if (!itemId) return;
     setIsSubmitting(true);
     try {
-      const itemDocRef = doc(db, 'services', itemId);
-      const updateData: Partial<Omit<ServiceProduct, 'id' | 'createdAt'>> & { updatedAt: any } = {
+      let embedding: number[] | undefined;
+      try {
+        const textToEmbed = `Layanan/Produk: ${data.name}. Deskripsi: ${data.description || 'Tidak ada deskripsi.'}`;
+        embedding = await embedText(textToEmbed);
+      } catch (embedError) {
+        console.error("Embedding failed for updated service:", data.name, embedError);
+        toast({
+          title: "Peringatan Embedding",
+          description: "Gagal memperbarui embedding AI untuk item ini. Item tetap disimpan, tapi mungkin kurang optimal untuk pencarian AI.",
+          variant: "default",
+        });
+        embedding = undefined;
+      }
+      
+      const updateData: Partial<Omit<ServiceProduct, 'id' | 'createdAt'>> & { updatedAt: any, embedding?: number[] } = {
         name: data.name,
         type: data.type,
         category: data.category,
@@ -198,6 +212,7 @@ export default function EditServiceProductPage() {
             costPrice: data.type === 'Produk' ? (v.costPrice || 0) : undefined,
         })) || [],
         updatedAt: serverTimestamp(),
+        ...(embedding && { embedding: embedding }),
       };
 
       if (data.type !== 'Produk') {
@@ -209,7 +224,7 @@ export default function EditServiceProductPage() {
         });
       }
 
-
+      const itemDocRef = doc(db, 'services', itemId);
       await updateDoc(itemDocRef, updateData);
       toast({
         title: "Sukses!",
@@ -612,4 +627,3 @@ export default function EditServiceProductPage() {
   );
 }
     
-
