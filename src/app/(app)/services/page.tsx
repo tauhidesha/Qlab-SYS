@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/dialog';
 import Papa from 'papaparse';
 import { v4 as uuidv4 } from 'uuid'; 
+import { embedText } from '@/ai/flows/embed-text-flow';
 
 export interface ServiceProductVariant { 
   id: string; 
@@ -150,11 +151,12 @@ export default function ServicesPage() {
           let itemsAddedCount = 0;
           let itemsFailedCount = 0;
 
-          parsedData.forEach((row, index) => {
+          for (const row of parsedData) {
+            const index = parsedData.indexOf(row);
             const name = row.name?.trim();
             const type = row.type?.trim() as ServiceProduct['type'] | undefined;
             const category = row.category?.trim();
-            const priceString = row.price?.trim() || row['']?.trim(); // Handle if price header is empty
+            const priceString = row.price?.trim() || row['']?.trim(); 
             const description = row.description?.trim();
             const pointsAwardedString = row.pointsAwarded?.trim();
             const estimatedDurationString = row.estimatedDuration?.trim();
@@ -164,13 +166,13 @@ export default function ServicesPage() {
             if (!name || !type || !category) {
               console.warn(`Baris ${index + 2} dilewati: field wajib (name, type, category) tidak lengkap.`);
               itemsFailedCount++;
-              return;
+              continue;
             }
 
             if (type !== 'Layanan' && type !== 'Produk') {
               console.warn(`Baris ${index + 2} dilewati: 'type' tidak valid ('${type}'). Harus 'Layanan' atau 'Produk'.`);
               itemsFailedCount++;
-              return;
+              continue;
             }
             
             let basePrice = parseFloat(priceString); 
@@ -248,7 +250,7 @@ export default function ServicesPage() {
                 if (isNaN(basePrice) || basePrice <= 0) {
                     console.warn(`Baris ${index + 2} dilewati: 'price' (harga dasar) wajib dan harus positif jika tidak ada varian. Diterima: '${priceString}'.`);
                     itemsFailedCount++;
-                    return; 
+                    continue; 
                 }
             }
 
@@ -270,15 +272,23 @@ export default function ServicesPage() {
             
             if (type === 'Produk') {
               if (baseStockQuantity !== undefined) newItemObject.stockQuantity = baseStockQuantity;
-              else newItemObject.stockQuantity = 0; // Default to 0 if not specified for Product
+              else newItemObject.stockQuantity = 0; 
 
               if (baseCostPrice !== undefined) newItemObject.costPrice = baseCostPrice;
-              else newItemObject.costPrice = 0; // Default to 0 if not specified for Product
+              else newItemObject.costPrice = 0; 
             }
             
+            try {
+              const textToEmbed = `Layanan/Produk: ${newItemObject.name}. Deskripsi: ${newItemObject.description || 'Tidak ada deskripsi.'}`;
+              const embedding = await embedText(textToEmbed);
+              newItemObject.embedding = embedding;
+            } catch (embedError) {
+              console.warn(`Embedding failed for CSV row ${index + 2} (${newItemObject.name}). Saving without embedding.`, embedError);
+            }
+
             batch.set(newItemRef, newItemObject);
             itemsAddedCount++;
-          });
+          }
 
           try {
             await batch.commit();
