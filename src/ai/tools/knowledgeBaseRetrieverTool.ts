@@ -71,6 +71,14 @@ export const knowledgeBaseRetrieverTool = ai.defineTool(
       const embedResult = await ai.embed({
         model: 'googleai/text-embedding-004',
         content: input.query,
+        config: {
+            safetySettings: [
+                { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+                { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+                { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+                { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+            ]
+        }
       });
 
       // Safety check for null/undefined result before destructuring

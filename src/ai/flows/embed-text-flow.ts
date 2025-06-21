@@ -21,6 +21,14 @@ export async function embedText(text: string): Promise<number[]> {
     const result = await ai.embed({
       model: 'googleai/text-embedding-004',
       content: text,
+      config: {
+        safetySettings: [
+            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+        ]
+      }
     });
     
     // Safety check for null/undefined result before destructuring
