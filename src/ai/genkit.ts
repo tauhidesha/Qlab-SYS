@@ -11,10 +11,9 @@ if (!process.env.GOOGLE_API_KEY) {
 
 export const ai = genkit({
   plugins: [
-    googleAI(), // Gunakan plugin Google AI
+    googleAI({ apiKey: process.env.GOOGLE_API_KEY }), // Secara eksplisit menyediakan API key
   ],
   model: 'googleai/gemini-1.5-flash-latest', // Model diubah ke Gemini 1.5 Flash terbaru
   // Opsi telemetry tidak lagi dikonfigurasi di sini untuk Genkit v1.x
   // Jika butuh logging, konfigurasi dilakukan secara berbeda atau via environment.
 });
-
