@@ -5,15 +5,10 @@
         "app/(app)/services/page": {
           "moduleId": "[project]/.next-internal/server/app/(app)/services/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/ai/flows/embed-text-flow.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
           "async": false
-        },
-        "app/(app)/settings/page": {
-          "moduleId": "[project]/.next-internal/server/app/(app)/settings/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/ai/flows/embed-text-flow.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
-          "async": false
         }
       },
       "layer": {
-        "app/(app)/services/page": "action-browser",
-        "app/(app)/settings/page": "action-browser"
+        "app/(app)/services/page": "action-browser"
       }
     }
   },
