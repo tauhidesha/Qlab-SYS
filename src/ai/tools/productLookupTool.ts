@@ -7,7 +7,7 @@ import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { collection, query as firestoreQuery, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { ProductServiceInfoSchema, type ProductServiceInfo, type ProductVariantInfo } from '@/types/aiToolSchemas';
+import { ProductServiceInfoSchema, type ProductServiceInfo } from '@/types/aiToolSchemas';
 import { v4 as uuidv4 } from 'uuid';
 
 // Define ServiceProduct type locally or import if it's broadly used
@@ -20,7 +20,13 @@ interface ServiceProductDbData {
   description?: string;
   pointsAwarded?: number;
   estimatedDuration?: string;
-  variants?: ServiceProductVariant[];
+  variants?: {
+    id: string;
+    name: string;
+    price: number;
+    pointsAwarded?: number;
+    estimatedDuration?: string;
+  }[];
   stockQuantity?: number;
   costPrice?: number;
   [key: string]: any; // Allow other fields that might exist in Firestore
@@ -38,7 +44,8 @@ export async function findProductServiceByName(input: ProductLookupInput): Promi
       console.log("ProductLookupTool Function: Nama produk kosong.");
       return null;
     }
-    console.log(`ProductLookupTool Function: Mencari produk/layanan dengan nama: "${input.productName}"`);
+    const searchTerm = input.productName.trim();
+    console.log(`ProductLookupTool Function: Mencari produk/layanan dengan nama: "${searchTerm}"`);
 
     if (!db) {
       console.error("[ProductLookupTool Function] FATAL: Firestore DB (db) is not initialized. Cannot query.");
@@ -50,106 +57,79 @@ export async function findProductServiceByName(input: ProductLookupInput): Promi
       const q = firestoreQuery(servicesRef); // Get all services/products
       const querySnapshot = await getDocs(q);
 
-      let foundItem: ProductServiceInfo | null = null;
-      const searchTermLower = input.productName.toLowerCase().trim();
-
-      let bestMatchCandidate: (ProductServiceInfo & { originalItem?: ServiceProductDbData, isVariantMatch?: boolean, matchScore?: number }) | null = null;
+      let bestMatch: (ProductServiceInfo & { score: number }) | null = null;
+      const searchTermLower = searchTerm.toLowerCase();
 
       for (const doc of querySnapshot.docs) {
-        const item = { id: doc.id, ...doc.data() } as ServiceProductDbData; 
+        const item = { id: doc.id, ...doc.data() } as ServiceProductDbData;
+        const itemNameLower = item.name.toLowerCase();
 
-        // Check base item name
-        if (item.name.toLowerCase().includes(searchTermLower)) {
-          let score = 0;
-          if (item.name.toLowerCase() === searchTermLower) score = 100; // Exact match
-          else if (item.name.toLowerCase().startsWith(searchTermLower)) score = 50; // Starts with
-          else score = 20; // Includes
-
-          if (!bestMatchCandidate || score > (bestMatchCandidate.matchScore || 0) || (score === bestMatchCandidate.matchScore && item.name.length < bestMatchCandidate.name.length)) {
-             bestMatchCandidate = { 
-                ...item, // Spread all fields from item
-                // Ensure all required fields for ProductServiceInfo are present
-                id: item.id,
-                name: item.name,
-                type: item.type,
-                category: item.category,
-                price: item.price,
-                // Optional fields:
-                description: item.description || undefined,
-                pointsAwarded: item.pointsAwarded || undefined,
-                estimatedDuration: item.estimatedDuration || undefined,
-                variants: item.variants?.map(v => ({...v, id: v.id || uuidv4()})) || undefined,
-                originalItem: item, 
-                isVariantMatch: false, 
-                matchScore: score 
+        // Check for base item match
+        if (itemNameLower.includes(searchTermLower)) {
+            let score = 0;
+            if (itemNameLower === searchTermLower) score = 100; // Exact match = highest score
+            else if (itemNameLower.startsWith(searchTermLower)) score = 50; // Starts with is good
+            else score = 20; // Includes is okay
+            
+            const candidate: ProductServiceInfo & { score: number } = {
+                ...item,
+                price: item.price ?? 0,
+                score: score,
             };
-          }
+
+            if (!bestMatch || candidate.score > bestMatch.score || (candidate.score === bestMatch.score && candidate.name.length < bestMatch.name.length)) {
+                bestMatch = candidate;
+            }
         }
 
-        // Check variants
+        // Check for variant matches (higher scores for more specific matches)
         if (item.variants) {
-          for (const variant of item.variants) {
-            const fullVariantName = `${item.name} - ${variant.name}`;
-            if (fullVariantName.toLowerCase().includes(searchTermLower)) {
-              let score = 0;
-              if (fullVariantName.toLowerCase() === searchTermLower) score = 110; // Higher score for exact variant match
-              else if (fullVariantName.toLowerCase().startsWith(searchTermLower)) score = 60;
-              else score = 30;
+            for (const variant of item.variants) {
+                const fullVariantName = `${item.name} - ${variant.name}`;
+                const fullVariantNameLower = fullVariantName.toLowerCase();
 
-              if (!bestMatchCandidate || score > (bestMatchCandidate.matchScore || 0) || (score === bestMatchCandidate.matchScore && fullVariantName.length < bestMatchCandidate.name.length)) {
-                bestMatchCandidate = {
-                  id: item.id, 
-                  name: fullVariantName, 
-                  type: item.type,
-                  category: item.category,
-                  price: variant.price, 
-                  description: item.description || undefined, 
-                  pointsAwarded: variant.pointsAwarded ?? item.pointsAwarded,
-                  estimatedDuration: variant.estimatedDuration ?? item.estimatedDuration,
-                  variants: undefined, 
-                  originalItem: item, 
-                  isVariantMatch: true, 
-                  matchScore: score
-                };
-              }
+                if (fullVariantNameLower.includes(searchTermLower)) {
+                    let score = 0;
+                    if (fullVariantNameLower === searchTermLower) score = 110; // Exact variant match is king
+                    else if (fullVariantNameLower.startsWith(searchTermLower)) score = 60;
+                    else score = 30;
+
+                    const candidate: ProductServiceInfo & { score: number } = {
+                      id: item.id,
+                      name: fullVariantName,
+                      type: item.type,
+                      category: item.category,
+                      price: variant.price,
+                      description: item.description || undefined,
+                      pointsAwarded: variant.pointsAwarded ?? item.pointsAwarded,
+                      estimatedDuration: variant.estimatedDuration ?? item.estimatedDuration,
+                      variants: undefined, // It's a specific variant, so no further variants
+                      score: score,
+                    };
+                    
+                    if (!bestMatch || candidate.score > bestMatch.score || (candidate.score === bestMatch.score && candidate.name.length < bestMatch.name.length)) {
+                        bestMatch = candidate;
+                    }
+                }
             }
-          }
         }
       }
       
-      if (bestMatchCandidate) {
-        console.log(`ProductLookupTool Function: Ditemukan kandidat terbaik: ${bestMatchCandidate.name} (Score: ${bestMatchCandidate.matchScore})`);
-        // Construct the final item to return, ensuring it matches ProductServiceInfoSchema
-        foundItem = {
-            id: bestMatchCandidate.id,
-            name: bestMatchCandidate.name,
-            type: bestMatchCandidate.type,
-            category: bestMatchCandidate.category,
-            price: bestMatchCandidate.price,
-            description: bestMatchCandidate.description || undefined,
-            pointsAwarded: bestMatchCandidate.pointsAwarded || undefined,
-            estimatedDuration: bestMatchCandidate.estimatedDuration || undefined,
-            variants: !bestMatchCandidate.isVariantMatch && bestMatchCandidate.originalItem?.variants 
-                ? bestMatchCandidate.originalItem.variants.map((v: any) => ({ // Ensure v has id or generate one
-                    id: v.id || uuidv4(),
-                    name: v.name,
-                    price: v.price,
-                    pointsAwarded: v.pointsAwarded,
-                    estimatedDuration: v.estimatedDuration,
-                  })) 
-                : undefined,
-        };
+      if (bestMatch) {
+        console.log(`ProductLookupTool Function: Ditemukan kandidat terbaik: "${bestMatch.name}" (Score: ${bestMatch.score})`);
+        
+        const { score, ...result } = bestMatch; // Remove score before returning
 
         try {
-          ProductServiceInfoSchema.parse(foundItem);
-          return foundItem;
+          ProductServiceInfoSchema.parse(result);
+          return result;
         } catch (zodError: any) {
           console.error("ProductLookupTool Function: Zod validation error for found item:", JSON.stringify(zodError.format(), null, 2));
-          console.error("ProductLookupTool Function: Data that failed validation:", JSON.stringify(foundItem, null, 2));
+          console.error("ProductLookupTool Function: Data that failed validation:", JSON.stringify(result, null, 2));
           return null;
         }
       } else {
-        console.log(`ProductLookupTool Function: Tidak ada produk/layanan yang cocok dengan nama "${input.productName}".`);
+        console.log(`ProductLookupTool Function: Tidak ada produk/layanan yang cocok dengan nama "${searchTerm}".`);
         return null;
       }
     } catch (error) {
@@ -167,6 +147,3 @@ export const getProductServiceDetailsByNameTool = ai.defineTool(
   },
   findProductServiceByName // Pass the actual function here
 );
-
-
-    
