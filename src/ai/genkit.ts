@@ -1,4 +1,7 @@
 
+import { config } from 'dotenv';
+config(); // Force load environment variables from .env to prevent timing issues
+
 import '@/lib/firebase'; // Ensure Firebase is initialized early
 import {genkit} from 'genkit';
 import {googleAI} from '@genkit-ai/googleai'; // Impor plugin Google AI

@@ -2,6 +2,7 @@
   "/(app)/ai-cs-assistant/page": "app/(app)/ai-cs-assistant/page.js",
   "/(app)/ai-cs-assistant/settings/page": "app/(app)/ai-cs-assistant/settings/page.js",
   "/(app)/dashboard/page": "app/(app)/dashboard/page.js",
+  "/(app)/services/page": "app/(app)/services/page.js",
   "/(app)/settings/page": "app/(app)/settings/page.js",
   "/favicon.ico/route": "app/favicon.ico/route.js",
   "/page": "app/page.js"
