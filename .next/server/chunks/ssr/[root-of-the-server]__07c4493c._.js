@@ -875,6 +875,7 @@ function ServicesPage() {
                     const batch = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["writeBatch"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["db"]);
                     let itemsAddedCount = 0;
                     let itemsFailedCount = 0;
+                    const failedItemsLog = [];
                     for (const row of parsedData){
                         const index = parsedData.indexOf(row);
                         const name = row.name?.trim();
@@ -888,11 +889,13 @@ function ServicesPage() {
                         const costPriceString = row.costPrice?.trim();
                         if (!name || !type || !category) {
                             console.warn(`Baris ${index + 2} dilewati: field wajib (name, type, category) tidak lengkap.`);
+                            failedItemsLog.push(`Baris ${index + 2}: Kolom wajib tidak lengkap.`);
                             itemsFailedCount++;
                             continue;
                         }
                         if (type !== 'Layanan' && type !== 'Produk') {
                             console.warn(`Baris ${index + 2} dilewati: 'type' tidak valid ('${type}'). Harus 'Layanan' atau 'Produk'.`);
+                            failedItemsLog.push(`Baris ${index + 2}: Tipe tidak valid.`);
                             itemsFailedCount++;
                             continue;
                         }
@@ -964,6 +967,7 @@ function ServicesPage() {
                         } else {
                             if (isNaN(basePrice) || basePrice <= 0) {
                                 console.warn(`Baris ${index + 2} dilewati: 'price' (harga dasar) wajib dan harus positif jika tidak ada varian. Diterima: '${priceString}'.`);
+                                failedItemsLog.push(`Baris ${index + 2}: Harga dasar tidak valid.`);
                                 itemsFailedCount++;
                                 continue;
                             }
@@ -987,13 +991,17 @@ function ServicesPage() {
                             if (baseCostPrice !== undefined) newItemObject.costPrice = baseCostPrice;
                             else newItemObject.costPrice = 0;
                         }
+                        let embedding;
                         try {
                             const textToEmbed = `Layanan/Produk: ${newItemObject.name}. Deskripsi: ${newItemObject.description || 'Tidak ada deskripsi.'}`;
-                            const embedding = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$flows$2f$data$3a$626f81__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$text$2f$javascript$3e$__["embedText"])(textToEmbed);
-                            newItemObject.embedding = embedding;
+                            embedding = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$flows$2f$data$3a$626f81__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$text$2f$javascript$3e$__["embedText"])(textToEmbed);
                         } catch (embedError) {
-                            console.warn(`Embedding failed for CSV row ${index + 2} (${newItemObject.name}). Saving without embedding.`, embedError);
+                            console.warn(`Embedding failed for CSV row ${index + 2} (${newItemObject.name}). Skipping this item. Error: ${embedError.message}`);
+                            failedItemsLog.push(`Baris ${index + 2} (${name}): Gagal embedding.`);
+                            itemsFailedCount++;
+                            continue;
                         }
+                        newItemObject.embedding = embedding;
                         batch.set(newItemRef, newItemObject);
                         itemsAddedCount++;
                     }
@@ -1001,7 +1009,8 @@ function ServicesPage() {
                         await batch.commit();
                         toast({
                             title: "Import Selesai",
-                            description: `${itemsAddedCount} item berhasil diimpor. ${itemsFailedCount > 0 ? `${itemsFailedCount} item gagal (cek konsol untuk detail).` : ''}`
+                            description: `${itemsAddedCount} item berhasil diimpor dengan embedding. ${itemsFailedCount > 0 ? `${itemsFailedCount} item gagal (cek konsol untuk detail: ${failedItemsLog.slice(0, 2).join(', ')}...).` : ''}`,
+                            duration: 7000
                         });
                         fetchItems();
                     } catch (error) {
@@ -1045,7 +1054,7 @@ function ServicesPage() {
                     title: "Layanan & Produk"
                 }, void 0, false, {
                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                    lineNumber: 335,
+                    lineNumber: 345,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1055,7 +1064,7 @@ function ServicesPage() {
                             className: "h-8 w-8 animate-spin text-primary"
                         }, void 0, false, {
                             fileName: "[project]/src/app/(app)/services/page.tsx",
-                            lineNumber: 337,
+                            lineNumber: 347,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1063,19 +1072,19 @@ function ServicesPage() {
                             children: "Memuat layanan & produk..."
                         }, void 0, false, {
                             fileName: "[project]/src/app/(app)/services/page.tsx",
-                            lineNumber: 338,
+                            lineNumber: 348,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                    lineNumber: 336,
+                    lineNumber: 346,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/src/app/(app)/services/page.tsx",
-            lineNumber: 334,
+            lineNumber: 344,
             columnNumber: 7
         }, this);
     }
@@ -1086,7 +1095,7 @@ function ServicesPage() {
                 title: "Layanan & Produk"
             }, void 0, false, {
                 fileName: "[project]/src/app/(app)/services/page.tsx",
-                lineNumber: 346,
+                lineNumber: 356,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("main", {
@@ -1106,20 +1115,20 @@ function ServicesPage() {
                                                     children: "Katalog Layanan & Produk"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                    lineNumber: 352,
+                                                    lineNumber: 362,
                                                     columnNumber: 17
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardDescription"], {
                                                     children: "Kelola penawaran Anda dan detailnya, termasuk varian produk, stok, dan harga modal."
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                    lineNumber: 353,
+                                                    lineNumber: 363,
                                                     columnNumber: 17
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/app/(app)/services/page.tsx",
-                                            lineNumber: 351,
+                                            lineNumber: 361,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1132,7 +1141,7 @@ function ServicesPage() {
                                                             className: "absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                            lineNumber: 357,
+                                                            lineNumber: 367,
                                                             columnNumber: 19
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$input$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Input"], {
@@ -1143,13 +1152,13 @@ function ServicesPage() {
                                                             onChange: (e)=>setSearchTerm(e.target.value)
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                            lineNumber: 358,
+                                                            lineNumber: 368,
                                                             columnNumber: 19
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                    lineNumber: 356,
+                                                    lineNumber: 366,
                                                     columnNumber: 18
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
@@ -1160,7 +1169,7 @@ function ServicesPage() {
                                                     onChange: handleFileChange
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                    lineNumber: 366,
+                                                    lineNumber: 376,
                                                     columnNumber: 17
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Dialog"], {
@@ -1175,12 +1184,12 @@ function ServicesPage() {
                                                                 children: "Info Format CSV"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                lineNumber: 375,
+                                                                lineNumber: 385,
                                                                 columnNumber: 21
                                                             }, this)
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                            lineNumber: 374,
+                                                            lineNumber: 384,
                                                             columnNumber: 19
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DialogContent"], {
@@ -1192,20 +1201,20 @@ function ServicesPage() {
                                                                             children: "Format CSV untuk Impor Layanan/Produk"
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                            lineNumber: 379,
+                                                                            lineNumber: 389,
                                                                             columnNumber: 23
                                                                         }, this),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DialogDescription"], {
                                                                             children: "Pastikan file CSV Anda memiliki header kolom berikut (urutan tidak masalah, case-sensitive):"
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                            lineNumber: 380,
+                                                                            lineNumber: 390,
                                                                             columnNumber: 23
                                                                         }, this)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                    lineNumber: 378,
+                                                                    lineNumber: 388,
                                                                     columnNumber: 21
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("ul", {
@@ -1218,180 +1227,10 @@ function ServicesPage() {
                                                                                     children: "name"
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                                    lineNumber: 385,
-                                                                                    columnNumber: 27
-                                                                                }, this),
-                                                                                " (Teks, Wajib)"
-                                                                            ]
-                                                                        }, void 0, true, {
-                                                                            fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                            lineNumber: 385,
-                                                                            columnNumber: 23
-                                                                        }, this),
-                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
-                                                                            children: [
-                                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
-                                                                                    className: "bg-muted px-1 rounded-sm",
-                                                                                    children: "type"
-                                                                                }, void 0, false, {
-                                                                                    fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                                    lineNumber: 386,
-                                                                                    columnNumber: 27
-                                                                                }, this),
-                                                                                " (Teks, Wajib) - Harus 'Layanan' atau 'Produk'."
-                                                                            ]
-                                                                        }, void 0, true, {
-                                                                            fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                            lineNumber: 386,
-                                                                            columnNumber: 23
-                                                                        }, this),
-                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
-                                                                            children: [
-                                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
-                                                                                    className: "bg-muted px-1 rounded-sm",
-                                                                                    children: "category"
-                                                                                }, void 0, false, {
-                                                                                    fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                                    lineNumber: 387,
-                                                                                    columnNumber: 27
-                                                                                }, this),
-                                                                                " (Teks, Wajib)"
-                                                                            ]
-                                                                        }, void 0, true, {
-                                                                            fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                            lineNumber: 387,
-                                                                            columnNumber: 23
-                                                                        }, this),
-                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
-                                                                            children: [
-                                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
-                                                                                    className: "bg-muted px-1 rounded-sm",
-                                                                                    children: "price"
-                                                                                }, void 0, false, {
-                                                                                    fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                                    lineNumber: 388,
-                                                                                    columnNumber: 27
-                                                                                }, this),
-                                                                                " (Angka, Wajib jika tidak ada varian, bisa 0 jika ada varian)"
-                                                                            ]
-                                                                        }, void 0, true, {
-                                                                            fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                            lineNumber: 388,
-                                                                            columnNumber: 23
-                                                                        }, this),
-                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
-                                                                            children: [
-                                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
-                                                                                    className: "bg-muted px-1 rounded-sm",
-                                                                                    children: "description"
-                                                                                }, void 0, false, {
-                                                                                    fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                                    lineNumber: 389,
-                                                                                    columnNumber: 27
-                                                                                }, this),
-                                                                                " (Teks, Opsional)"
-                                                                            ]
-                                                                        }, void 0, true, {
-                                                                            fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                            lineNumber: 389,
-                                                                            columnNumber: 23
-                                                                        }, this),
-                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
-                                                                            children: [
-                                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
-                                                                                    className: "bg-muted px-1 rounded-sm",
-                                                                                    children: "pointsAwarded"
-                                                                                }, void 0, false, {
-                                                                                    fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                                    lineNumber: 390,
-                                                                                    columnNumber: 27
-                                                                                }, this),
-                                                                                " (Angka, Opsional)"
-                                                                            ]
-                                                                        }, void 0, true, {
-                                                                            fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                            lineNumber: 390,
-                                                                            columnNumber: 23
-                                                                        }, this),
-                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
-                                                                            children: [
-                                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
-                                                                                    className: "bg-muted px-1 rounded-sm",
-                                                                                    children: "estimatedDuration"
-                                                                                }, void 0, false, {
-                                                                                    fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                                    lineNumber: 391,
-                                                                                    columnNumber: 27
-                                                                                }, this),
-                                                                                ' (Teks, Opsional) - Mis. "30 mnt".'
-                                                                            ]
-                                                                        }, void 0, true, {
-                                                                            fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                            lineNumber: 391,
-                                                                            columnNumber: 23
-                                                                        }, this),
-                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
-                                                                            children: [
-                                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
-                                                                                    className: "bg-muted px-1 rounded-sm",
-                                                                                    children: "stockQuantity"
-                                                                                }, void 0, false, {
-                                                                                    fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                                    lineNumber: 392,
-                                                                                    columnNumber: 27
-                                                                                }, this),
-                                                                                " (Angka, Opsional) - Hanya untuk Produk."
-                                                                            ]
-                                                                        }, void 0, true, {
-                                                                            fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                            lineNumber: 392,
-                                                                            columnNumber: 23
-                                                                        }, this),
-                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
-                                                                            children: [
-                                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
-                                                                                    className: "bg-muted px-1 rounded-sm",
-                                                                                    children: "costPrice"
-                                                                                }, void 0, false, {
-                                                                                    fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                                    lineNumber: 393,
-                                                                                    columnNumber: 27
-                                                                                }, this),
-                                                                                " (Angka, Opsional) - Hanya untuk Produk."
-                                                                            ]
-                                                                        }, void 0, true, {
-                                                                            fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                            lineNumber: 393,
-                                                                            columnNumber: 23
-                                                                        }, this),
-                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
-                                                                            className: "font-semibold mt-2",
-                                                                            children: "Untuk Varian (Opsional, maksimal 5 varian):"
-                                                                        }, void 0, false, {
-                                                                            fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                            lineNumber: 394,
-                                                                            columnNumber: 23
-                                                                        }, this),
-                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
-                                                                            children: [
-                                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
-                                                                                    className: "bg-muted px-1 rounded-sm",
-                                                                                    children: "variantN_name"
-                                                                                }, void 0, false, {
-                                                                                    fileName: "[project]/src/app/(app)/services/page.tsx",
                                                                                     lineNumber: 395,
                                                                                     columnNumber: 27
                                                                                 }, this),
-                                                                                " (Wajib jika ",
-                                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
-                                                                                    className: "bg-muted px-1 rounded-sm",
-                                                                                    children: "variantN_price"
-                                                                                }, void 0, false, {
-                                                                                    fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                                    lineNumber: 395,
-                                                                                    columnNumber: 103
-                                                                                }, this),
-                                                                                " diisi)"
+                                                                                " (Teks, Wajib)"
                                                                             ]
                                                                         }, void 0, true, {
                                                                             fileName: "[project]/src/app/(app)/services/page.tsx",
@@ -1402,22 +1241,13 @@ function ServicesPage() {
                                                                             children: [
                                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
                                                                                     className: "bg-muted px-1 rounded-sm",
-                                                                                    children: "variantN_price"
+                                                                                    children: "type"
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/app/(app)/services/page.tsx",
                                                                                     lineNumber: 396,
                                                                                     columnNumber: 27
                                                                                 }, this),
-                                                                                " (Angka, Wajib jika ",
-                                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
-                                                                                    className: "bg-muted px-1 rounded-sm",
-                                                                                    children: "variantN_name"
-                                                                                }, void 0, false, {
-                                                                                    fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                                    lineNumber: 396,
-                                                                                    columnNumber: 111
-                                                                                }, this),
-                                                                                " diisi, >0)"
+                                                                                " (Teks, Wajib) - Harus 'Layanan' atau 'Produk'."
                                                                             ]
                                                                         }, void 0, true, {
                                                                             fileName: "[project]/src/app/(app)/services/page.tsx",
@@ -1428,13 +1258,13 @@ function ServicesPage() {
                                                                             children: [
                                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
                                                                                     className: "bg-muted px-1 rounded-sm",
-                                                                                    children: "variantN_pointsAwarded"
+                                                                                    children: "category"
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/app/(app)/services/page.tsx",
                                                                                     lineNumber: 397,
                                                                                     columnNumber: 27
                                                                                 }, this),
-                                                                                " (Angka, Opsional)"
+                                                                                " (Teks, Wajib)"
                                                                             ]
                                                                         }, void 0, true, {
                                                                             fileName: "[project]/src/app/(app)/services/page.tsx",
@@ -1445,13 +1275,13 @@ function ServicesPage() {
                                                                             children: [
                                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
                                                                                     className: "bg-muted px-1 rounded-sm",
-                                                                                    children: "variantN_estimatedDuration"
+                                                                                    children: "price"
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/app/(app)/services/page.tsx",
                                                                                     lineNumber: 398,
                                                                                     columnNumber: 27
                                                                                 }, this),
-                                                                                " (Teks, Opsional)"
+                                                                                " (Angka, Wajib jika tidak ada varian, bisa 0 jika ada varian)"
                                                                             ]
                                                                         }, void 0, true, {
                                                                             fileName: "[project]/src/app/(app)/services/page.tsx",
@@ -1462,13 +1292,13 @@ function ServicesPage() {
                                                                             children: [
                                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
                                                                                     className: "bg-muted px-1 rounded-sm",
-                                                                                    children: "variantN_stockQuantity"
+                                                                                    children: "description"
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/app/(app)/services/page.tsx",
                                                                                     lineNumber: 399,
                                                                                     columnNumber: 27
                                                                                 }, this),
-                                                                                " (Angka, Opsional) - Hanya untuk Produk."
+                                                                                " (Teks, Opsional)"
                                                                             ]
                                                                         }, void 0, true, {
                                                                             fileName: "[project]/src/app/(app)/services/page.tsx",
@@ -1479,13 +1309,13 @@ function ServicesPage() {
                                                                             children: [
                                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
                                                                                     className: "bg-muted px-1 rounded-sm",
-                                                                                    children: "variantN_costPrice"
+                                                                                    children: "pointsAwarded"
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/app/(app)/services/page.tsx",
                                                                                     lineNumber: 400,
                                                                                     columnNumber: 27
                                                                                 }, this),
-                                                                                " (Angka, Opsional) - Hanya untuk Produk."
+                                                                                " (Angka, Opsional)"
                                                                             ]
                                                                         }, void 0, true, {
                                                                             fileName: "[project]/src/app/(app)/services/page.tsx",
@@ -1493,16 +1323,195 @@ function ServicesPage() {
                                                                             columnNumber: 23
                                                                         }, this),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
+                                                                            children: [
+                                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
+                                                                                    className: "bg-muted px-1 rounded-sm",
+                                                                                    children: "estimatedDuration"
+                                                                                }, void 0, false, {
+                                                                                    fileName: "[project]/src/app/(app)/services/page.tsx",
+                                                                                    lineNumber: 401,
+                                                                                    columnNumber: 27
+                                                                                }, this),
+                                                                                ' (Teks, Opsional) - Mis. "30 mnt".'
+                                                                            ]
+                                                                        }, void 0, true, {
+                                                                            fileName: "[project]/src/app/(app)/services/page.tsx",
+                                                                            lineNumber: 401,
+                                                                            columnNumber: 23
+                                                                        }, this),
+                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
+                                                                            children: [
+                                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
+                                                                                    className: "bg-muted px-1 rounded-sm",
+                                                                                    children: "stockQuantity"
+                                                                                }, void 0, false, {
+                                                                                    fileName: "[project]/src/app/(app)/services/page.tsx",
+                                                                                    lineNumber: 402,
+                                                                                    columnNumber: 27
+                                                                                }, this),
+                                                                                " (Angka, Opsional) - Hanya untuk Produk."
+                                                                            ]
+                                                                        }, void 0, true, {
+                                                                            fileName: "[project]/src/app/(app)/services/page.tsx",
+                                                                            lineNumber: 402,
+                                                                            columnNumber: 23
+                                                                        }, this),
+                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
+                                                                            children: [
+                                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
+                                                                                    className: "bg-muted px-1 rounded-sm",
+                                                                                    children: "costPrice"
+                                                                                }, void 0, false, {
+                                                                                    fileName: "[project]/src/app/(app)/services/page.tsx",
+                                                                                    lineNumber: 403,
+                                                                                    columnNumber: 27
+                                                                                }, this),
+                                                                                " (Angka, Opsional) - Hanya untuk Produk."
+                                                                            ]
+                                                                        }, void 0, true, {
+                                                                            fileName: "[project]/src/app/(app)/services/page.tsx",
+                                                                            lineNumber: 403,
+                                                                            columnNumber: 23
+                                                                        }, this),
+                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
+                                                                            className: "font-semibold mt-2",
+                                                                            children: "Untuk Varian (Opsional, maksimal 5 varian):"
+                                                                        }, void 0, false, {
+                                                                            fileName: "[project]/src/app/(app)/services/page.tsx",
+                                                                            lineNumber: 404,
+                                                                            columnNumber: 23
+                                                                        }, this),
+                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
+                                                                            children: [
+                                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
+                                                                                    className: "bg-muted px-1 rounded-sm",
+                                                                                    children: "variantN_name"
+                                                                                }, void 0, false, {
+                                                                                    fileName: "[project]/src/app/(app)/services/page.tsx",
+                                                                                    lineNumber: 405,
+                                                                                    columnNumber: 27
+                                                                                }, this),
+                                                                                " (Wajib jika ",
+                                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
+                                                                                    className: "bg-muted px-1 rounded-sm",
+                                                                                    children: "variantN_price"
+                                                                                }, void 0, false, {
+                                                                                    fileName: "[project]/src/app/(app)/services/page.tsx",
+                                                                                    lineNumber: 405,
+                                                                                    columnNumber: 103
+                                                                                }, this),
+                                                                                " diisi)"
+                                                                            ]
+                                                                        }, void 0, true, {
+                                                                            fileName: "[project]/src/app/(app)/services/page.tsx",
+                                                                            lineNumber: 405,
+                                                                            columnNumber: 23
+                                                                        }, this),
+                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
+                                                                            children: [
+                                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
+                                                                                    className: "bg-muted px-1 rounded-sm",
+                                                                                    children: "variantN_price"
+                                                                                }, void 0, false, {
+                                                                                    fileName: "[project]/src/app/(app)/services/page.tsx",
+                                                                                    lineNumber: 406,
+                                                                                    columnNumber: 27
+                                                                                }, this),
+                                                                                " (Angka, Wajib jika ",
+                                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
+                                                                                    className: "bg-muted px-1 rounded-sm",
+                                                                                    children: "variantN_name"
+                                                                                }, void 0, false, {
+                                                                                    fileName: "[project]/src/app/(app)/services/page.tsx",
+                                                                                    lineNumber: 406,
+                                                                                    columnNumber: 111
+                                                                                }, this),
+                                                                                " diisi, >0)"
+                                                                            ]
+                                                                        }, void 0, true, {
+                                                                            fileName: "[project]/src/app/(app)/services/page.tsx",
+                                                                            lineNumber: 406,
+                                                                            columnNumber: 23
+                                                                        }, this),
+                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
+                                                                            children: [
+                                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
+                                                                                    className: "bg-muted px-1 rounded-sm",
+                                                                                    children: "variantN_pointsAwarded"
+                                                                                }, void 0, false, {
+                                                                                    fileName: "[project]/src/app/(app)/services/page.tsx",
+                                                                                    lineNumber: 407,
+                                                                                    columnNumber: 27
+                                                                                }, this),
+                                                                                " (Angka, Opsional)"
+                                                                            ]
+                                                                        }, void 0, true, {
+                                                                            fileName: "[project]/src/app/(app)/services/page.tsx",
+                                                                            lineNumber: 407,
+                                                                            columnNumber: 23
+                                                                        }, this),
+                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
+                                                                            children: [
+                                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
+                                                                                    className: "bg-muted px-1 rounded-sm",
+                                                                                    children: "variantN_estimatedDuration"
+                                                                                }, void 0, false, {
+                                                                                    fileName: "[project]/src/app/(app)/services/page.tsx",
+                                                                                    lineNumber: 408,
+                                                                                    columnNumber: 27
+                                                                                }, this),
+                                                                                " (Teks, Opsional)"
+                                                                            ]
+                                                                        }, void 0, true, {
+                                                                            fileName: "[project]/src/app/(app)/services/page.tsx",
+                                                                            lineNumber: 408,
+                                                                            columnNumber: 23
+                                                                        }, this),
+                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
+                                                                            children: [
+                                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
+                                                                                    className: "bg-muted px-1 rounded-sm",
+                                                                                    children: "variantN_stockQuantity"
+                                                                                }, void 0, false, {
+                                                                                    fileName: "[project]/src/app/(app)/services/page.tsx",
+                                                                                    lineNumber: 409,
+                                                                                    columnNumber: 27
+                                                                                }, this),
+                                                                                " (Angka, Opsional) - Hanya untuk Produk."
+                                                                            ]
+                                                                        }, void 0, true, {
+                                                                            fileName: "[project]/src/app/(app)/services/page.tsx",
+                                                                            lineNumber: 409,
+                                                                            columnNumber: 23
+                                                                        }, this),
+                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
+                                                                            children: [
+                                                                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
+                                                                                    className: "bg-muted px-1 rounded-sm",
+                                                                                    children: "variantN_costPrice"
+                                                                                }, void 0, false, {
+                                                                                    fileName: "[project]/src/app/(app)/services/page.tsx",
+                                                                                    lineNumber: 410,
+                                                                                    columnNumber: 27
+                                                                                }, this),
+                                                                                " (Angka, Opsional) - Hanya untuk Produk."
+                                                                            ]
+                                                                        }, void 0, true, {
+                                                                            fileName: "[project]/src/app/(app)/services/page.tsx",
+                                                                            lineNumber: 410,
+                                                                            columnNumber: 23
+                                                                        }, this),
+                                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("li", {
                                                                             children: "Ganti 'N' dengan angka 1 sampai 5 (mis. variant1_name, variant2_price)."
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                            lineNumber: 401,
+                                                                            lineNumber: 411,
                                                                             columnNumber: 23
                                                                         }, this)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                    lineNumber: 384,
+                                                                    lineNumber: 394,
                                                                     columnNumber: 21
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1510,7 +1519,7 @@ function ServicesPage() {
                                                                     children: "Baris pertama CSV harus berisi nama header. Kolom ke-4 (setelah category) bisa kosong atau diisi dengan header 'price'."
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                    lineNumber: 403,
+                                                                    lineNumber: 413,
                                                                     columnNumber: 21
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["DialogFooter"], {
@@ -1522,29 +1531,29 @@ function ServicesPage() {
                                                                             children: "Tutup"
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                            lineNumber: 406,
+                                                                            lineNumber: 416,
                                                                             columnNumber: 25
                                                                         }, this)
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                        lineNumber: 405,
+                                                                        lineNumber: 415,
                                                                         columnNumber: 23
                                                                     }, this)
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                    lineNumber: 404,
+                                                                    lineNumber: 414,
                                                                     columnNumber: 21
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                            lineNumber: 377,
+                                                            lineNumber: 387,
                                                             columnNumber: 19
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                    lineNumber: 373,
+                                                    lineNumber: 383,
                                                     columnNumber: 17
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -1555,20 +1564,20 @@ function ServicesPage() {
                                                             className: "mr-2 h-4 w-4 animate-spin"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                            lineNumber: 412,
+                                                            lineNumber: 422,
                                                             columnNumber: 34
                                                         }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$cloud$2d$upload$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__UploadCloud$3e$__["UploadCloud"], {
                                                             className: "mr-2 h-4 w-4"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                            lineNumber: 412,
+                                                            lineNumber: 422,
                                                             columnNumber: 86
                                                         }, this),
                                                         "Import CSV"
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                    lineNumber: 411,
+                                                    lineNumber: 421,
                                                     columnNumber: 17
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["Button"], {
@@ -1580,31 +1589,31 @@ function ServicesPage() {
                                                                 className: "mr-2 h-4 w-4"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                lineNumber: 417,
+                                                                lineNumber: 427,
                                                                 columnNumber: 21
                                                             }, this),
                                                             " Tambah Item Baru"
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                        lineNumber: 416,
+                                                        lineNumber: 426,
                                                         columnNumber: 19
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                    lineNumber: 415,
+                                                    lineNumber: 425,
                                                     columnNumber: 17
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/app/(app)/services/page.tsx",
-                                            lineNumber: 355,
+                                            lineNumber: 365,
                                             columnNumber: 16
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                                    lineNumber: 350,
+                                    lineNumber: 360,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -1618,21 +1627,21 @@ function ServicesPage() {
                                                                 children: "Nama"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                lineNumber: 426,
+                                                                lineNumber: 436,
                                                                 columnNumber: 21
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["TableHead"], {
                                                                 children: "Jenis"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                lineNumber: 427,
+                                                                lineNumber: 437,
                                                                 columnNumber: 21
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["TableHead"], {
                                                                 children: "Kategori"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                lineNumber: 428,
+                                                                lineNumber: 438,
                                                                 columnNumber: 21
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["TableHead"], {
@@ -1640,7 +1649,7 @@ function ServicesPage() {
                                                                 children: "Harga Dasar"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                lineNumber: 429,
+                                                                lineNumber: 439,
                                                                 columnNumber: 21
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["TableHead"], {
@@ -1648,7 +1657,7 @@ function ServicesPage() {
                                                                 children: "Poin"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                lineNumber: 430,
+                                                                lineNumber: 440,
                                                                 columnNumber: 21
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["TableHead"], {
@@ -1656,7 +1665,7 @@ function ServicesPage() {
                                                                 children: "Stok"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                lineNumber: 431,
+                                                                lineNumber: 441,
                                                                 columnNumber: 21
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["TableHead"], {
@@ -1664,7 +1673,7 @@ function ServicesPage() {
                                                                 children: "Hrg. Modal"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                lineNumber: 432,
+                                                                lineNumber: 442,
                                                                 columnNumber: 21
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["TableHead"], {
@@ -1672,7 +1681,7 @@ function ServicesPage() {
                                                                 children: "Varian"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                lineNumber: 433,
+                                                                lineNumber: 443,
                                                                 columnNumber: 21
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["TableHead"], {
@@ -1680,18 +1689,18 @@ function ServicesPage() {
                                                                 children: "Aksi"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                lineNumber: 434,
+                                                                lineNumber: 444,
                                                                 columnNumber: 21
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                        lineNumber: 425,
+                                                        lineNumber: 435,
                                                         columnNumber: 19
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                    lineNumber: 424,
+                                                    lineNumber: 434,
                                                     columnNumber: 17
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["TableBody"], {
@@ -1702,7 +1711,7 @@ function ServicesPage() {
                                                                     children: item.name
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                    lineNumber: 440,
+                                                                    lineNumber: 450,
                                                                     columnNumber: 23
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["TableCell"], {
@@ -1714,32 +1723,32 @@ function ServicesPage() {
                                                                                 className: "mr-1 h-3 w-3"
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                                lineNumber: 443,
+                                                                                lineNumber: 453,
                                                                                 columnNumber: 54
                                                                             }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$shopping$2d$bag$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__ShoppingBag$3e$__["ShoppingBag"], {
                                                                                 className: "mr-1 h-3 w-3"
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                                lineNumber: 443,
+                                                                                lineNumber: 453,
                                                                                 columnNumber: 92
                                                                             }, this),
                                                                             item.type
                                                                         ]
                                                                     }, void 0, true, {
                                                                         fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                        lineNumber: 442,
+                                                                        lineNumber: 452,
                                                                         columnNumber: 25
                                                                     }, this)
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                    lineNumber: 441,
+                                                                    lineNumber: 451,
                                                                     columnNumber: 23
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["TableCell"], {
                                                                     children: item.category
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                    lineNumber: 447,
+                                                                    lineNumber: 457,
                                                                     columnNumber: 23
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["TableCell"], {
@@ -1750,7 +1759,7 @@ function ServicesPage() {
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                    lineNumber: 448,
+                                                                    lineNumber: 458,
                                                                     columnNumber: 23
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["TableCell"], {
@@ -1762,7 +1771,7 @@ function ServicesPage() {
                                                                                 className: "mr-1 h-3 w-3 text-yellow-500"
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                                lineNumber: 452,
+                                                                                lineNumber: 462,
                                                                                 columnNumber: 30
                                                                             }, this),
                                                                             " ",
@@ -1770,12 +1779,12 @@ function ServicesPage() {
                                                                         ]
                                                                     }, void 0, true, {
                                                                         fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                        lineNumber: 451,
+                                                                        lineNumber: 461,
                                                                         columnNumber: 28
                                                                     }, this) : '-'
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                    lineNumber: 449,
+                                                                    lineNumber: 459,
                                                                     columnNumber: 23
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["TableCell"], {
@@ -1783,7 +1792,7 @@ function ServicesPage() {
                                                                     children: item.type === 'Produk' ? item.stockQuantity !== undefined ? item.stockQuantity : '-' : '-'
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                    lineNumber: 458,
+                                                                    lineNumber: 468,
                                                                     columnNumber: 24
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["TableCell"], {
@@ -1791,7 +1800,7 @@ function ServicesPage() {
                                                                     children: item.type === 'Produk' ? item.costPrice !== undefined ? `Rp ${item.costPrice.toLocaleString('id-ID')}` : '-' : '-'
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                    lineNumber: 461,
+                                                                    lineNumber: 471,
                                                                     columnNumber: 23
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["TableCell"], {
@@ -1799,7 +1808,7 @@ function ServicesPage() {
                                                                     children: item.variants?.length || 0
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                    lineNumber: 464,
+                                                                    lineNumber: 474,
                                                                     columnNumber: 23
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["TableCell"], {
@@ -1816,17 +1825,17 @@ function ServicesPage() {
                                                                                     className: "h-4 w-4"
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                                    lineNumber: 468,
+                                                                                    lineNumber: 478,
                                                                                     columnNumber: 29
                                                                                 }, this)
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                                lineNumber: 467,
+                                                                                lineNumber: 477,
                                                                                 columnNumber: 28
                                                                             }, this)
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                            lineNumber: 466,
+                                                                            lineNumber: 476,
                                                                             columnNumber: 25
                                                                         }, this),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AlertDialogTrigger"], {
@@ -1840,40 +1849,40 @@ function ServicesPage() {
                                                                                     className: "h-4 w-4"
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                                    lineNumber: 473,
+                                                                                    lineNumber: 483,
                                                                                     columnNumber: 29
                                                                                 }, this)
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                                lineNumber: 472,
+                                                                                lineNumber: 482,
                                                                                 columnNumber: 27
                                                                             }, this)
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                            lineNumber: 471,
+                                                                            lineNumber: 481,
                                                                             columnNumber: 25
                                                                         }, this)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                                    lineNumber: 465,
+                                                                    lineNumber: 475,
                                                                     columnNumber: 23
                                                                 }, this)
                                                             ]
                                                         }, item.id, true, {
                                                             fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                            lineNumber: 439,
+                                                            lineNumber: 449,
                                                             columnNumber: 21
                                                         }, this))
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                    lineNumber: 437,
+                                                    lineNumber: 447,
                                                     columnNumber: 17
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/app/(app)/services/page.tsx",
-                                            lineNumber: 423,
+                                            lineNumber: 433,
                                             columnNumber: 15
                                         }, this),
                                         filteredItems.length === 0 && !loading && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1886,19 +1895,19 @@ function ServicesPage() {
                                                     children: "Tambah item baru"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                                                    lineNumber: 484,
+                                                    lineNumber: 494,
                                                     columnNumber: 43
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/app/(app)/services/page.tsx",
-                                            lineNumber: 482,
+                                            lineNumber: 492,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                                    lineNumber: 422,
+                                    lineNumber: 432,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["CardFooter"], {
@@ -1913,18 +1922,18 @@ function ServicesPage() {
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/app/(app)/services/page.tsx",
-                                        lineNumber: 489,
+                                        lineNumber: 499,
                                         columnNumber: 15
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                                    lineNumber: 488,
+                                    lineNumber: 498,
                                     columnNumber: 14
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/app/(app)/services/page.tsx",
-                            lineNumber: 349,
+                            lineNumber: 359,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AlertDialogContent"], {
@@ -1935,7 +1944,7 @@ function ServicesPage() {
                                             children: "Konfirmasi Penghapusan"
                                         }, void 0, false, {
                                             fileName: "[project]/src/app/(app)/services/page.tsx",
-                                            lineNumber: 494,
+                                            lineNumber: 504,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AlertDialogDescription"], {
@@ -1946,13 +1955,13 @@ function ServicesPage() {
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/src/app/(app)/services/page.tsx",
-                                            lineNumber: 495,
+                                            lineNumber: 505,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                                    lineNumber: 493,
+                                    lineNumber: 503,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AlertDialogFooter"], {
@@ -1962,7 +1971,7 @@ function ServicesPage() {
                                             children: "Batal"
                                         }, void 0, false, {
                                             fileName: "[project]/src/app/(app)/services/page.tsx",
-                                            lineNumber: 500,
+                                            lineNumber: 510,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["AlertDialogAction"], {
@@ -1973,36 +1982,36 @@ function ServicesPage() {
                                             children: "Hapus"
                                         }, void 0, false, {
                                             fileName: "[project]/src/app/(app)/services/page.tsx",
-                                            lineNumber: 501,
+                                            lineNumber: 511,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                                    lineNumber: 499,
+                                    lineNumber: 509,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/app/(app)/services/page.tsx",
-                            lineNumber: 492,
+                            lineNumber: 502,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/app/(app)/services/page.tsx",
-                    lineNumber: 348,
+                    lineNumber: 358,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/app/(app)/services/page.tsx",
-                lineNumber: 347,
+                lineNumber: 357,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/app/(app)/services/page.tsx",
-        lineNumber: 345,
+        lineNumber: 355,
         columnNumber: 5
     }, this);
 }

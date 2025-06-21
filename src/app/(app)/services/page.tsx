@@ -150,6 +150,7 @@ export default function ServicesPage() {
           const batch = writeBatch(db);
           let itemsAddedCount = 0;
           let itemsFailedCount = 0;
+          const failedItemsLog: string[] = [];
 
           for (const row of parsedData) {
             const index = parsedData.indexOf(row);
@@ -165,12 +166,14 @@ export default function ServicesPage() {
 
             if (!name || !type || !category) {
               console.warn(`Baris ${index + 2} dilewati: field wajib (name, type, category) tidak lengkap.`);
+              failedItemsLog.push(`Baris ${index + 2}: Kolom wajib tidak lengkap.`);
               itemsFailedCount++;
               continue;
             }
 
             if (type !== 'Layanan' && type !== 'Produk') {
               console.warn(`Baris ${index + 2} dilewati: 'type' tidak valid ('${type}'). Harus 'Layanan' atau 'Produk'.`);
+              failedItemsLog.push(`Baris ${index + 2}: Tipe tidak valid.`);
               itemsFailedCount++;
               continue;
             }
@@ -249,6 +252,7 @@ export default function ServicesPage() {
             } else {
                 if (isNaN(basePrice) || basePrice <= 0) {
                     console.warn(`Baris ${index + 2} dilewati: 'price' (harga dasar) wajib dan harus positif jika tidak ada varian. Diterima: '${priceString}'.`);
+                    failedItemsLog.push(`Baris ${index + 2}: Harga dasar tidak valid.`);
                     itemsFailedCount++;
                     continue; 
                 }
@@ -278,13 +282,18 @@ export default function ServicesPage() {
               else newItemObject.costPrice = 0; 
             }
             
+            let embedding;
             try {
               const textToEmbed = `Layanan/Produk: ${newItemObject.name}. Deskripsi: ${newItemObject.description || 'Tidak ada deskripsi.'}`;
-              const embedding = await embedText(textToEmbed);
-              newItemObject.embedding = embedding;
-            } catch (embedError) {
-              console.warn(`Embedding failed for CSV row ${index + 2} (${newItemObject.name}). Saving without embedding.`, embedError);
+              embedding = await embedText(textToEmbed);
+            } catch (embedError: any) {
+              console.warn(`Embedding failed for CSV row ${index + 2} (${newItemObject.name}). Skipping this item. Error: ${embedError.message}`);
+              failedItemsLog.push(`Baris ${index + 2} (${name}): Gagal embedding.`);
+              itemsFailedCount++;
+              continue;
             }
+
+            newItemObject.embedding = embedding;
 
             batch.set(newItemRef, newItemObject);
             itemsAddedCount++;
@@ -294,7 +303,8 @@ export default function ServicesPage() {
             await batch.commit();
             toast({
               title: "Import Selesai",
-              description: `${itemsAddedCount} item berhasil diimpor. ${itemsFailedCount > 0 ? `${itemsFailedCount} item gagal (cek konsol untuk detail).` : ''}`,
+              description: `${itemsAddedCount} item berhasil diimpor dengan embedding. ${itemsFailedCount > 0 ? `${itemsFailedCount} item gagal (cek konsol untuk detail: ${failedItemsLog.slice(0,2).join(', ')}...).` : ''}`,
+              duration: 7000,
             });
             fetchItems(); 
           } catch (error) {

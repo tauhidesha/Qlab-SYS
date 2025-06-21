@@ -122,21 +122,26 @@ export default function NewServiceProductPage() {
 
   const onSubmit = async (data: ServiceProductFormValues) => {
     setIsSubmitting(true);
+    
+    // Step 1: Generate Embedding. Fail fast if it doesn't work.
+    let embedding: number[] | undefined;
     try {
-      let embedding: number[] | undefined;
-      try {
-        const textToEmbed = `Layanan/Produk: ${data.name}. Deskripsi: ${data.description || 'Tidak ada deskripsi.'}`;
-        embedding = await embedText(textToEmbed);
-      } catch (embedError) {
-        console.error("Embedding failed for new service:", data.name, embedError);
-        toast({
-          title: "Peringatan Embedding",
-          description: "Gagal membuat embedding AI untuk item ini. Item tetap disimpan, tapi mungkin kurang optimal untuk pencarian AI.",
-          variant: "default",
-        });
-        embedding = undefined;
-      }
+      const textToEmbed = `Layanan/Produk: ${data.name}. Deskripsi: ${data.description || 'Tidak ada deskripsi.'}`;
+      embedding = await embedText(textToEmbed);
+    } catch (embedError: any) {
+      console.error("Fatal: Embedding failed for new service:", data.name, embedError);
+      toast({
+        title: "Error Kritis: Gagal Membuat Embedding AI",
+        description: `Item tidak dapat disimpan karena fitur AI gagal. Pastikan koneksi dan API Key benar. Error: ${embedError.message}`,
+        variant: "destructive",
+        duration: 9000,
+      });
+      setIsSubmitting(false);
+      return; // Stop the entire submission process
+    }
 
+    // Step 2: If embedding is successful, proceed to save the document.
+    try {
       const newServiceProductData: Omit<ServiceProduct, 'id'> & { createdAt: any, embedding?: number[] } = {
         name: data.name,
         type: data.type,
@@ -157,7 +162,7 @@ export default function NewServiceProductPage() {
           costPrice: data.type === 'Produk' ? (v.costPrice || 0) : undefined,
         })) || [],
         createdAt: serverTimestamp(),
-        ...(embedding && { embedding: embedding }),
+        embedding: embedding, // embedding is guaranteed to be defined here
       };
 
       if (data.type !== 'Produk') {
@@ -169,18 +174,17 @@ export default function NewServiceProductPage() {
         });
       }
 
-
       await addDoc(collection(db, 'services'), newServiceProductData);
       toast({
         title: "Sukses!",
-        description: `Item baru "${data.name}" berhasil ditambahkan.`,
+        description: `Item baru "${data.name}" berhasil ditambahkan dengan embedding AI.`,
       });
       router.push('/services');
-    } catch (error) {
-      console.error("Error adding service/product: ", error);
+    } catch (dbError) {
+      console.error("Error adding service/product to DB:", dbError);
       toast({
-        title: "Error",
-        description: "Gagal menambahkan item baru. Silakan coba lagi.",
+        title: "Error Database",
+        description: "Gagal menyimpan item baru setelah embedding berhasil. Silakan coba lagi.",
         variant: "destructive",
       });
     } finally {

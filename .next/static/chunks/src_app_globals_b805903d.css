@@ -1492,10 +1492,6 @@ body {
   background-color: hsl(var(--background));
 }
 
-.bg-background\/95 {
-  background-color: hsl(var(--background) / .95);
-}
-
 .bg-black\/80 {
   background-color: #000c;
 }
@@ -1749,10 +1745,6 @@ body {
   padding-left: .75rem;
 }
 
-.pl-4 {
-  padding-left: 1rem;
-}
-
 .pl-6 {
   padding-left: 1.5rem;
 }
@@ -1900,10 +1892,6 @@ body {
 
 .leading-none {
   line-height: 1;
-}
-
-.leading-relaxed {
-  line-height: 1.625;
 }
 
 .tracking-tight {
@@ -2178,11 +2166,6 @@ body {
 
 .filter {
   filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
-}
-
-.backdrop-blur {
-  --tw-backdrop-blur: blur(8px);
-  backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
 }
 
 .transition {
@@ -3308,10 +3291,6 @@ body {
 
   .sm\:flex-grow-0 {
     flex-grow: 0;
-  }
-
-  .sm\:grid-cols-2 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .sm\:grid-cols-3 {

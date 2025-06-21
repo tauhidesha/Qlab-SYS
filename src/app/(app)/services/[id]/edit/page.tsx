@@ -177,21 +177,26 @@ export default function EditServiceProductPage() {
   const onSubmit = async (data: ServiceProductFormValues) => {
     if (!itemId) return;
     setIsSubmitting(true);
+    
+    // Step 1: Generate Embedding. Fail fast if it doesn't work.
+    let embedding: number[] | undefined;
     try {
-      let embedding: number[] | undefined;
-      try {
         const textToEmbed = `Layanan/Produk: ${data.name}. Deskripsi: ${data.description || 'Tidak ada deskripsi.'}`;
         embedding = await embedText(textToEmbed);
-      } catch (embedError) {
-        console.error("Embedding failed for updated service:", data.name, embedError);
+    } catch (embedError: any) {
+        console.error("Fatal: Embedding failed for updated service:", data.name, embedError);
         toast({
-          title: "Peringatan Embedding",
-          description: "Gagal memperbarui embedding AI untuk item ini. Item tetap disimpan, tapi mungkin kurang optimal untuk pencarian AI.",
-          variant: "default",
+            title: "Error Kritis: Gagal Memperbarui Embedding AI",
+            description: `Perubahan tidak dapat disimpan karena fitur AI gagal. Pastikan koneksi dan API Key benar. Error: ${embedError.message}`,
+            variant: "destructive",
+            duration: 9000,
         });
-        embedding = undefined;
-      }
-      
+        setIsSubmitting(false);
+        return; // Stop the entire submission process
+    }
+
+    // Step 2: If embedding is successful, proceed to update the document.
+    try {
       const updateData: Partial<Omit<ServiceProduct, 'id' | 'createdAt'>> & { updatedAt: any, embedding?: number[] } = {
         name: data.name,
         type: data.type,
@@ -212,7 +217,7 @@ export default function EditServiceProductPage() {
             costPrice: data.type === 'Produk' ? (v.costPrice || 0) : undefined,
         })) || [],
         updatedAt: serverTimestamp(),
-        ...(embedding && { embedding: embedding }),
+        embedding: embedding, // embedding is guaranteed to be defined here
       };
 
       if (data.type !== 'Produk') {
@@ -228,14 +233,14 @@ export default function EditServiceProductPage() {
       await updateDoc(itemDocRef, updateData);
       toast({
         title: "Sukses!",
-        description: `Item "${data.name}" berhasil diperbarui.`,
+        description: `Item "${data.name}" berhasil diperbarui dengan embedding AI.`,
       });
       router.push('/services');
-    } catch (error) {
-      console.error("Error updating service/product: ", error);
+    } catch (dbError) {
+      console.error("Error updating service/product in DB: ", dbError);
       toast({
-        title: "Error",
-        description: "Gagal memperbarui item. Silakan coba lagi.",
+        title: "Error Database",
+        description: "Gagal memperbarui item setelah embedding berhasil. Silakan coba lagi.",
         variant: "destructive",
       });
     } finally {
