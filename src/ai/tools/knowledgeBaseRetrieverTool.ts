@@ -1,13 +1,13 @@
 
 'use server';
 /**
- * @fileOverview Genkit tool to retrieve relevant knowledge base entries and services using vector similarity.
+ * @fileOverview Genkit tool to retrieve relevant knowledge base entries and services using vector similarity and text fallback.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, or } from 'firebase/firestore';
 import type { KnowledgeBaseEntry } from '@/types/knowledgeBase';
 import type { ServiceProduct } from '@/app/(app)/services/page';
 
@@ -19,12 +19,15 @@ const KnowledgeBaseRetrieverOutputSchema = z.array(
   z.object({
     topic: z.string().describe("The topic of the knowledge base entry or service name."),
     content: z.string().describe("The content of the knowledge base entry or service description."),
+    source: z.enum(['knowledge-base', 'service-product']).describe("The source of the information."),
   })
 ).describe("A list of relevant entries from the knowledge base and service catalog, or an empty list if none are found.");
 
 interface ScoredEntry {
+  id: string; // Add ID for deduplication
   topic: string;
   content: string;
+  source: 'knowledge-base' | 'service-product';
   score: number;
 }
 
@@ -82,42 +85,66 @@ export const knowledgeBaseRetrieverTool = ai.defineTool(
         getDocs(servicesQuery),
       ]);
       
-      // 3. Score Knowledge Base entries
+      // 3. Score Knowledge Base entries based on vector similarity
       const scoredKbEntries: ScoredEntry[] = kbSnapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() } as KnowledgeBaseEntry))
         .filter(entry => entry.embedding && Array.isArray(entry.embedding) && entry.embedding.length > 0)
         .map(entry => ({
+          id: entry.id,
           topic: entry.topic,
           content: entry.content,
+          source: 'knowledge-base',
           score: cosineSimilarity(queryEmbedding, entry.embedding!),
         }));
 
-      // 4. Score Service/Product entries
+      // 4. Score Service/Product entries based on vector similarity
       const scoredServiceEntries: ScoredEntry[] = servicesSnapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() } as ServiceProduct & { embedding?: number[] }))
         .filter(service => service.embedding && Array.isArray(service.embedding) && service.embedding.length > 0)
         .map(service => ({
+          id: service.id,
           topic: service.name,
           content: service.description || 'Tidak ada deskripsi detail.',
+          source: 'service-product',
           score: cosineSimilarity(queryEmbedding, service.embedding!),
         }));
 
-      // 5. Combine, sort, filter, and take the top N results
-      const allScoredEntries = [...scoredKbEntries, ...scoredServiceEntries];
-      const topN = 5;
-      const similarityThreshold = 0.65; // Adjusted threshold
+      // 5. [FALLBACK] Perform a simple text search on services for items that might not have embeddings
+      const searchTermLower = input.query.toLowerCase();
+      const fallbackServiceEntries: ScoredEntry[] = servicesSnapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as ServiceProduct))
+        .filter(service => 
+            service.name.toLowerCase().includes(searchTermLower) || 
+            (service.description && service.description.toLowerCase().includes(searchTermLower))
+        )
+        .map(service => ({
+            id: service.id,
+            topic: service.name,
+            content: service.description || 'Tidak ada deskripsi detail.',
+            source: 'service-product',
+            score: 0.5, // Assign a medium-low score to fallback results to prioritize vector matches
+        }));
       
-      const relevantEntries = allScoredEntries
+      // 6. Combine all results, deduplicate, sort, filter, and take the top N
+      const allEntries = [...scoredKbEntries, ...scoredServiceEntries, ...fallbackServiceEntries];
+      
+      const uniqueEntries = Array.from(new Map(allEntries.map(entry => [entry.id, entry])).values());
+      
+      const topN = 5;
+      const similarityThreshold = 0.60; // Slightly lower threshold to be more inclusive
+      
+      const relevantEntries = uniqueEntries
+        .filter(entry => entry.score >= similarityThreshold)
         .sort((a, b) => b.score - a.score)
-        .filter(entry => entry.score > similarityThreshold)
         .slice(0, topN);
 
-      console.log(`[knowledgeBaseRetrieverTool] Found ${relevantEntries.length} relevant entries from KB and Services.`);
+      console.log(`[knowledgeBaseRetrieverTool] Found ${relevantEntries.length} relevant entries after combining and filtering.`);
       
-      // 6. Format the output (remove score)
-      return relevantEntries.map(({ topic, content }) => ({
+      // 7. Format the output (remove score and id)
+      return relevantEntries.map(({ topic, content, source }) => ({
         topic,
         content,
+        source,
       }));
 
     } catch (error) {
