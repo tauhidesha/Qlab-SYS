@@ -22,4 +22,5 @@ export interface KnowledgeBaseEntry {
   isActive?: boolean;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
+  embedding?: number[]; // Field baru untuk menyimpan vektor embedding
 }

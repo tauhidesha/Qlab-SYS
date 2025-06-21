@@ -1357,12 +1357,17 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
             pendingBookingDate = parsedDate;
             pendingBookingTime = parsedTime;
             console.log(`[MAIN-FLOW] Booking date/time parsed: ${parsedDate} ${parsedTime}`);
+            // Langsung set state ke waiting_for_booking_notes jika tanggal dan jam berhasil diparse
+            sessionDataToSave.lastAiInteractionType = 'waiting_for_booking_notes';
+            lastAiInteractionType = 'waiting_for_booking_notes'; // Update local state juga
         } else {
-            console.log("[MAIN-FLOW] Gagal parse booking date/time dari user message.");
+            console.log("[MAIN-FLOW] Gagal parse booking date/time dari user message. Tetap di waiting_for_booking_datetime.");
+        // State tetap 'waiting_for_booking_datetime', AI akan diminta bertanya ulang
         }
     }
     const mainPromptFromSettings = input.mainPromptString || __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiSettings$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["DEFAULT_MAIN_PROMPT_ZOYA"];
-    const finalSystemPrompt = mainPromptFromSettings.replace("{{{SESSION_MOTOR_NAME}}}", knownMotorcycleName).replace("{{{SESSION_MOTOR_SIZE}}}", knownMotorcycleSize).replace("{{{SESSION_ACTIVE_SERVICE}}}", activeSpecificServiceInquiry).replace("{{{SESSION_ACTIVE_SERVICE_ID}}}", activeSpecificServiceId).replace("{{{SESSION_LAST_AI_INTERACTION_TYPE}}}", lastAiInteractionType).replace("{{{detectedGeneralServiceKeyword}}}", detectedGeneralServiceKeyword || "tidak ada").replace("{{{dynamicContext}}}", dynamicContextFromPreToolCall || `INFO_UMUM_BENGKEL: QLAB Moto Detailing, Jl. Sukasenang V No.1A, Cikutra, Bandung. Buka 09:00 - 21:00 WIB. Full Detailing hanya untuk cat glossy. Coating beda harga untuk doff & glossy.`).replace("{{{currentDate}}}", input.currentDate || "tidak diketahui").replace("{{{tomorrowDate}}}", input.tomorrowDate || "tidak diketahui").replace("{{{dayAfterTomorrowDate}}}", input.dayAfterTomorrowDate || "tidak diketahui").replace("{{{senderNumber}}}", userId).replace("{{{pendingBookingDate}}}", pendingBookingDate || "belum ada").replace("{{{pendingBookingTime}}}", pendingBookingTime || "belum ada");
+    const finalSystemPrompt = mainPromptFromSettings.replace("{{{SESSION_MOTOR_NAME}}}", knownMotorcycleName).replace("{{{SESSION_MOTOR_SIZE}}}", knownMotorcycleSize).replace("{{{SESSION_ACTIVE_SERVICE}}}", activeSpecificServiceInquiry).replace("{{{SESSION_ACTIVE_SERVICE_ID}}}", activeSpecificServiceId).replace("{{{SESSION_LAST_AI_INTERACTION_TYPE}}}", sessionDataToSave.lastAiInteractionType || lastAiInteractionType) // Gunakan state yang mungkin baru diubah
+    .replace("{{{detectedGeneralServiceKeyword}}}", detectedGeneralServiceKeyword || "tidak ada").replace("{{{dynamicContext}}}", dynamicContextFromPreToolCall || `INFO_UMUM_BENGKEL: QLAB Moto Detailing, Jl. Sukasenang V No.1A, Cikutra, Bandung. Buka 09:00 - 21:00 WIB. Full Detailing hanya untuk cat glossy. Coating beda harga untuk doff & glossy.`).replace("{{{currentDate}}}", input.currentDate || "tidak diketahui").replace("{{{tomorrowDate}}}", input.tomorrowDate || "tidak diketahui").replace("{{{dayAfterTomorrowDate}}}", input.dayAfterTomorrowDate || "tidak diketahui").replace("{{{senderNumber}}}", userId).replace("{{{pendingBookingDate}}}", pendingBookingDate || "belum ada").replace("{{{pendingBookingTime}}}", pendingBookingTime || "belum ada");
     const historyForAI = (input.messages || []).filter((msg)=>msg.content && msg.content.trim() !== '').map((msg)=>({
             role: msg.role,
             content: [
@@ -1383,7 +1388,9 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
         }
     ];
     console.log(`[MAIN-FLOW] Calling MAIN ai.generate. History Length: ${historyForAI.length}. Prompt snippet: ${finalSystemPrompt.substring(0, 300)}...`);
-    sessionDataToSave.lastAiInteractionType = 'general_response';
+    if (!sessionDataToSave.lastAiInteractionType) {
+        sessionDataToSave.lastAiInteractionType = 'general_response';
+    }
     try {
         const result = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].generate({
             model: 'googleai/gemini-1.5-flash-latest',
@@ -1397,7 +1404,7 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
             ],
             toolChoice: 'auto',
             config: {
-                temperature: 0.6,
+                temperature: 0.5,
                 topP: 0.9
             }
         });
@@ -1484,7 +1491,7 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
                     prompt: promptForSecondCall,
                     messages: messagesAfterTool,
                     config: {
-                        temperature: 0.6,
+                        temperature: 0.5,
                         topP: 0.9
                     },
                     tools: [
@@ -1500,9 +1507,11 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
                     console.warn("[MAIN-FLOW] AI requested another tool after a tool response. This is not deeply handled yet. Returning current text.");
                 }
                 const lowerFinalReply = suggestedReply.toLowerCase();
-                if (lowerFinalReply.includes("tanggal") && lowerFinalReply.includes("jam") && (interactionTypeAfterTool === 'provided_specific_service_details' || interactionTypeAfterTool === 'ready_for_booking_details')) {
+                if (lowerFinalReply.includes("tanggal") && lowerFinalReply.includes("jam") && (interactionTypeAfterTool === 'provided_specific_service_details' || interactionTypeAfterTool === 'ready_for_booking_details' || interactionTypeAfterTool === 'asked_for_service_after_motor_size')) {
                     sessionDataToSave.lastAiInteractionType = 'waiting_for_booking_datetime';
                 } else if ((lowerFinalReply.includes("catatan tambahan") || lowerFinalReply.includes("ada lagi yang bisa dibantu?")) && (interactionTypeAfterTool === 'waiting_for_booking_datetime' || lastAiInteractionType === 'waiting_for_booking_datetime')) {
+                    sessionDataToSave.lastAiInteractionType = 'waiting_for_booking_notes';
+                } else if ((lowerFinalReply.includes("catatan tambahan") || lowerFinalReply.includes("ada lagi yang bisa dibantu?")) && sessionDataToSave.lastAiInteractionType === 'waiting_for_booking_datetime') {
                     sessionDataToSave.lastAiInteractionType = 'waiting_for_booking_notes';
                 }
             }
@@ -1539,7 +1548,10 @@ const zoyaChatFlow = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2
                 } else if (lowerReply.includes("tanggal") && lowerReply.includes("jam") && (lastAiInteractionType === 'ready_for_booking_details' || lastAiInteractionType === 'provided_specific_service_details' || lastAiInteractionType === 'asked_for_service_after_motor_size')) {
                     sessionDataToSave.lastAiInteractionType = 'waiting_for_booking_datetime';
                 } else if ((lowerReply.includes("catatan tambahan") || lowerReply.includes("ada lagi yang bisa dibantu?")) && lastAiInteractionType === 'waiting_for_booking_datetime') {
-                    sessionDataToSave.lastAiInteractionType = 'waiting_for_booking_notes';
+                    // Sudah dihandle di atas, tapi untuk safety:
+                    if (sessionDataToSave.lastAiInteractionType !== 'waiting_for_booking_notes') {
+                        sessionDataToSave.lastAiInteractionType = 'waiting_for_booking_notes';
+                    }
                 } else if (lowerReply.includes("booking lo udah zoya catet") || lowerReply.includes("booking berhasil") || lowerReply.includes("udah zoya bikinin jadwalnya") || lowerReply.includes("udah zoya bookingin")) {
                     sessionDataToSave.lastAiInteractionType = 'booking_attempted';
                     if (lowerReply.includes("berhasil") || lowerReply.includes("udah zoya catet")) {

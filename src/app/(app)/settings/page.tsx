@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { LoyaltyReward } from '@/types/loyalty';
 import type { DirectReward, DirectRewardFormData } from '@/types/directReward';
 import type { ServiceProduct } from '@/app/(app)/services/page';
+import { embedText } from '@/ai/flows/embed-text-flow';
 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -45,6 +46,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { KnowledgeBaseEntryFormSchema, type KnowledgeBaseFormData, type KnowledgeBaseEntry } from '@/types/knowledgeBase';
 
 
 const loyaltyRewardFormSchema = z.object({
@@ -108,6 +110,13 @@ export default function SettingsPage() {
   const [editingReward, setEditingReward] = useState<LoyaltyReward | null>(null);
   const [rewardToDelete, setRewardToDelete] = useState<LoyaltyReward | null>(null);
   const [isSubmittingReward, setIsSubmittingReward] = useState(false);
+  
+  const [knowledgeBaseEntries, setKnowledgeBaseEntries] = useState<KnowledgeBaseEntry[]>([]);
+  const [isLoadingKnowledgeBase, setIsLoadingKnowledgeBase] = useState(true);
+  const [isKbFormDialogOpen, setIsKbFormDialogOpen] = useState(false);
+  const [editingKbEntry, setEditingKbEntry] = useState<KnowledgeBaseEntry | null>(null);
+  const [kbEntryToDelete, setKbEntryToDelete] = useState<KnowledgeBaseEntry | null>(null);
+  const [isSubmittingKbEntry, setIsSubmittingKbEntry] = useState(false);
 
   const [directRewards, setDirectRewards] = useState<DirectReward[]>([]);
   const [isLoadingDirectRewards, setIsLoadingDirectRewards] = useState(true);
@@ -133,6 +142,16 @@ export default function SettingsPage() {
     },
   });
   const watchedRewardType = rewardForm.watch('type');
+  
+  const kbEntryForm = useForm<KnowledgeBaseFormData>({
+    resolver: zodResolver(KnowledgeBaseEntryFormSchema),
+    defaultValues: {
+      topic: '',
+      content: '',
+      keywordsInput: '',
+      isActive: true,
+    }
+  });
 
   const directRewardForm = useForm<DirectRewardFormValues>({
     resolver: zodResolver(directRewardFormSchema),
@@ -253,6 +272,26 @@ export default function SettingsPage() {
   useEffect(() => {
     fetchLoyaltyRewards();
   }, [fetchLoyaltyRewards]);
+  
+  const fetchKnowledgeBaseEntries = useCallback(async () => {
+    setIsLoadingKnowledgeBase(true);
+    try {
+      const kbCollectionRef = collection(db, 'knowledge_base_entries');
+      const q = query(kbCollectionRef, orderBy("topic"));
+      const querySnapshot = await getFirestoreDocs(q);
+      const entriesData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as KnowledgeBaseEntry));
+      setKnowledgeBaseEntries(entriesData);
+    } catch (error) {
+      console.error("Error fetching knowledge base entries: ", error);
+      toast({ title: "Error", description: "Gagal memuat data knowledge base.", variant: "destructive" });
+    } finally {
+      setIsLoadingKnowledgeBase(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchKnowledgeBaseEntries();
+  }, [fetchKnowledgeBaseEntries]);
 
   const fetchDirectRewards = useCallback(async () => {
     setIsLoadingDirectRewards(true);
@@ -416,6 +455,84 @@ export default function SettingsPage() {
       setIsSubmittingReward(false);
     }
   };
+  
+  const handleOpenKbForm = (entry: KnowledgeBaseEntry | null = null) => {
+    setEditingKbEntry(entry);
+    if (entry) {
+      kbEntryForm.reset({
+        topic: entry.topic,
+        content: entry.content,
+        keywordsInput: entry.keywords.join(', '),
+        isActive: entry.isActive !== undefined ? entry.isActive : true,
+      });
+    } else {
+      kbEntryForm.reset({
+        topic: '',
+        content: '',
+        keywordsInput: '',
+        isActive: true,
+      });
+    }
+    setIsKbFormDialogOpen(true);
+  };
+
+  const handleKbFormSubmit = async (values: KnowledgeBaseFormData) => {
+    setIsSubmittingKbEntry(true);
+    const keywordsArray = values.keywordsInput.split(',').map(kw => kw.trim()).filter(kw => kw.length > 0);
+    
+    if (keywordsArray.length === 0) {
+      kbEntryForm.setError("keywordsInput", { type: "manual", message: "Minimal satu kata kunci valid diperlukan setelah dipisah koma." });
+      setIsSubmittingKbEntry(false);
+      return;
+    }
+
+    try {
+      const textToEmbed = `Topik: ${values.topic}. Kata Kunci: ${values.keywordsInput}. Konten: ${values.content}`;
+      const embedding = await embedText(textToEmbed);
+
+      const kbData: Omit<KnowledgeBaseEntry, 'id' | 'createdAt' | 'updatedAt'> = {
+        topic: values.topic,
+        content: values.content,
+        keywords: keywordsArray,
+        isActive: values.isActive,
+        embedding: embedding,
+      };
+
+      if (editingKbEntry) {
+        const kbDocRef = doc(db, 'knowledge_base_entries', editingKbEntry.id);
+        await updateDoc(kbDocRef, { ...kbData, updatedAt: serverTimestamp() });
+        toast({ title: "Sukses", description: "Entri Knowledge Base berhasil diperbarui (dengan embedding)." });
+      } else {
+        await addDoc(collection(db, 'knowledge_base_entries'), { ...kbData, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+        toast({ title: "Sukses", description: "Entri Knowledge Base baru berhasil ditambahkan (dengan embedding)." });
+      }
+      fetchKnowledgeBaseEntries();
+      setIsKbFormDialogOpen(false);
+      setEditingKbEntry(null);
+    } catch (error) {
+      console.error("Error saving Knowledge Base entry or embedding:", error);
+      toast({ title: "Error", description: "Gagal menyimpan entri Knowledge Base atau membuat embedding.", variant: "destructive" });
+    } finally {
+      setIsSubmittingKbEntry(false);
+    }
+  };
+
+  const handleDeleteKbEntry = async () => {
+    if (!kbEntryToDelete) return;
+    setIsSubmittingKbEntry(true);
+    try {
+      await deleteDoc(doc(db, 'knowledge_base_entries', kbEntryToDelete.id));
+      toast({ title: "Sukses", description: `Entri Knowledge Base "${kbEntryToDelete.topic}" berhasil dihapus.` });
+      fetchKnowledgeBaseEntries();
+      setKbEntryToDelete(null); 
+    } catch (error) {
+      console.error("Error deleting Knowledge Base entry: ", error);
+      toast({ title: "Error", description: "Gagal menghapus entri Knowledge Base.", variant: "destructive" });
+    } finally {
+      setIsSubmittingKbEntry(false);
+    }
+  };
+
 
   const handleOpenDirectRewardForm = (reward: DirectReward | null = null) => {
     setEditingDirectReward(reward);
@@ -498,14 +615,13 @@ export default function SettingsPage() {
     <div className="flex flex-col h-full">
       <AppHeader title="Pengaturan" />
       <main className="flex-1 overflow-y-auto p-6">
-        <Tabs defaultValue="general" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-5 mb-6"> {/* Adjusted to lg:grid-cols-5 */}
+        <Tabs defaultValue="knowledge-base" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-5 mb-6">
             <TabsTrigger value="general"><SlidersHorizontal className="mr-2 h-4 w-4 hidden md:inline" />Umum</TabsTrigger>
-            {/* Knowledge Base Tab Removed */}
+            <TabsTrigger value="knowledge-base"><Gift className="mr-2 h-4 w-4 hidden md:inline" />Knowledge Base</TabsTrigger>
             <TabsTrigger value="loyalty"><Gift className="mr-2 h-4 w-4 hidden md:inline" />Loyalitas Dasar</TabsTrigger>
             <TabsTrigger value="loyalty_rewards"><Award className="mr-2 h-4 w-4 hidden md:inline" />Daftar Reward Poin</TabsTrigger>
             <TabsTrigger value="direct_rewards"><Zap className="mr-2 h-4 w-4 hidden md:inline" />Reward Langsung</TabsTrigger>
-            <TabsTrigger value="appearance" disabled><Palette className="mr-2 h-4 w-4 hidden md:inline" />Tampilan</TabsTrigger>
           </TabsList>
           
           <TabsContent value="general" className="space-y-6">
@@ -602,7 +718,83 @@ export default function SettingsPage() {
             </Card>
           </TabsContent>
 
-          {/* Knowledge Base Tab Content Removed */}
+          <TabsContent value="knowledge-base">
+            <AlertDialog open={!!kbEntryToDelete} onOpenChange={(open) => !open && setKbEntryToDelete(null)}>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>Manajemen Knowledge Base</CardTitle>
+                    <CardDescription>Tambah, edit, atau hapus informasi yang dapat diakses oleh AI. Setiap perubahan akan otomatis menghasilkan embedding baru.</CardDescription>
+                  </div>
+                  <Button onClick={() => handleOpenKbForm(null)}>
+                      <PlusCircle className="mr-2 h-4 w-4" /> Tambah Entri KB
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  {isLoadingKnowledgeBase ? (
+                      <div className="flex items-center justify-center py-10">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      </div>
+                  ) : knowledgeBaseEntries.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-8">Belum ada entri knowledge base.</p>
+                  ) : (
+                      <Table>
+                      <TableHeader>
+                          <TableRow>
+                          <TableHead>Topik</TableHead>
+                          <TableHead>Potongan Konten</TableHead>
+                          <TableHead>Kata Kunci</TableHead>
+                          <TableHead className="text-center">Status</TableHead>
+                          <TableHead className="text-right">Aksi</TableHead>
+                          </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                          {knowledgeBaseEntries.map((entry) => (
+                          <TableRow key={entry.id}>
+                              <TableCell className="font-medium max-w-xs truncate">{entry.topic}</TableCell>
+                              <TableCell className="max-w-md truncate">{entry.content}</TableCell>
+                              <TableCell className="text-xs max-w-xs">
+                              {entry.keywords.map(kw => <Badge key={kw} variant="outline" className="mr-1 mb-1">{kw}</Badge>)}
+                              </TableCell>
+                              <TableCell className="text-center">
+                              <Badge variant={entry.isActive ? "default" : "outline"}>
+                                  {entry.isActive ? "Aktif" : "Nonaktif"}
+                              </Badge>
+                              </TableCell>
+                              <TableCell className="text-right">
+                              <Button variant="ghost" size="icon" onClick={() => handleOpenKbForm(entry)} className="hover:text-primary">
+                                  <Edit3 className="h-4 w-4" />
+                              </Button>
+                              <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="icon" onClick={() => setKbEntryToDelete(entry)} className="text-destructive hover:text-destructive">
+                                  <Trash2 className="h-4 w-4" />
+                                  </Button>
+                              </AlertDialogTrigger>
+                              </TableCell>
+                          </TableRow>
+                          ))}
+                      </TableBody>
+                      </Table>
+                  )}
+                </CardContent>
+              </Card>
+              <AlertDialogContent>
+                  <AlertDialogHeader>
+                  <AlertDialogTitle>Konfirmasi Penghapusan</AlertDialogTitle>
+                  <AlertDialogDescription>
+                      Apakah Anda yakin ingin menghapus entri knowledge base dengan topik "{kbEntryToDelete?.topic}"? Tindakan ini tidak dapat diurungkan.
+                  </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => setKbEntryToDelete(null)} disabled={isSubmittingKbEntry}>Batal</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeleteKbEntry} disabled={isSubmittingKbEntry} className={buttonVariants({variant: "destructive"})}>
+                      {isSubmittingKbEntry ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                      Hapus
+                  </AlertDialogAction>
+                  </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </TabsContent>
 
           <TabsContent value="loyalty">
             <Card>
@@ -815,27 +1007,6 @@ export default function SettingsPage() {
             </AlertDialog>
           </TabsContent>
 
-
-          <TabsContent value="appearance">
-            <Card>
-              <CardHeader>
-                <CardTitle>Tampilan</CardTitle>
-                <CardDescription>Sesuaikan tampilan dan nuansa aplikasi.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-muted-foreground">Pengaturan tema (mis., mode terang/gelap) dapat dikelola di sini.</p>
-                <div className="flex items-center space-x-2">
-                  <Label htmlFor="dark-mode-toggle">Mode Gelap</Label>
-                  <Switch id="dark-mode-toggle" defaultChecked disabled aria-readonly /> 
-                  <span className="text-xs text-muted-foreground">(Default dan direkomendasikan)</span>
-                </div>
-              </CardContent>
-               <CardFooter>
-                <Button disabled>Simpan Perubahan Tampilan (Segera)</Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-
         </Tabs>
 
         <Dialog open={isRewardFormDialogOpen} onOpenChange={(isOpen) => {
@@ -952,6 +1123,78 @@ export default function SettingsPage() {
                   <Button type="submit" disabled={isSubmittingReward} className="bg-accent text-accent-foreground hover:bg-accent/90">
                     {isSubmittingReward && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Simpan Reward Poin
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+        
+        <Dialog open={isKbFormDialogOpen} onOpenChange={(isOpen: boolean) => {
+          setIsKbFormDialogOpen(isOpen);
+          if (!isOpen) setEditingKbEntry(null);
+        }}>
+          <DialogContent className="sm:max-w-xl">
+            <DialogHeader>
+              <DialogTitle>{editingKbEntry ? "Edit Entri Knowledge Base" : "Tambah Entri Knowledge Base Baru"}</DialogTitle>
+              <DialogDescription>
+                {editingKbEntry ? "Ubah detail entri di bawah ini." : "Isi detail untuk entri knowledge base baru."}
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...kbEntryForm}>
+              <form onSubmit={kbEntryForm.handleSubmit(handleKbFormSubmit)} className="space-y-4 py-2 pb-4">
+                <FormField
+                  control={kbEntryForm.control}
+                  name="topic"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Topik Utama</FormLabel>
+                      <FormControl><Input placeholder="mis. Jam Buka, Kebijakan Garansi" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={kbEntryForm.control}
+                  name="content"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Konten Informasi</FormLabel>
+                      <FormControl><Textarea placeholder="Tuliskan detail informasi atau jawaban untuk topik ini..." {...field} rows={5} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={kbEntryForm.control}
+                  name="keywordsInput"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Kata Kunci (pisahkan dengan koma)</FormLabel>
+                      <FormControl><Textarea placeholder="mis. operasional, jadwal, garansi servis, syarat klaim" {...field} rows={2} /></FormControl>
+                      <FormDescription className="text-xs">Kata kunci membantu AI menemukan informasi ini.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={kbEntryForm.control}
+                  name="isActive"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                      <div className="space-y-0.5">
+                        <FormLabel>Aktifkan Entri Ini</FormLabel>
+                        <FormDescription className="text-xs">Entri ini akan digunakan oleh AI jika aktif.</FormDescription>
+                      </div>
+                      <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                    </FormItem>
+                  )}
+                />
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => setIsKbFormDialogOpen(false)} disabled={isSubmittingKbEntry}>Batal</Button>
+                  <Button type="submit" disabled={isSubmittingKbEntry} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                    {isSubmittingKbEntry && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Simpan Entri KB
                   </Button>
                 </DialogFooter>
               </form>

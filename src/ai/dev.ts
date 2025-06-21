@@ -11,6 +11,7 @@ import '@/lib/firebase-admin';
 
 // Import flows and tools
 import '@/ai/flows/cs-whatsapp-reply-flow';
+import '@/ai/flows/embed-text-flow'; // Import the new embedding flow
 // File handle-service-inquiry-flow.ts dikosongkan, jadi impor ini bisa dihapus atau diabaikan
 // import '@/ai/flows/handle-service-inquiry-flow';
 
@@ -19,13 +20,13 @@ import '@/ai/tools/cari-size-motor-tool';
 import '@/ai/tools/cariInfoLayananTool';
 import '@/ai/tools/productLookupTool';
 import '@/ai/tools/createBookingTool'; // Import tool booking baru
+import '@/ai/tools/knowledgeBaseRetrieverTool'; // Import the new retriever tool
 
 // Import placeholder tools (jika masih ada dan belum dihapus)
 import '@/ai/tools/extractMotorInfoTool';
 import '@/ai/tools/searchServiceByKeywordTool';
 
 
-console.log("[src/ai/dev.ts] Main flow (cs-whatsapp-reply-flow) imported.");
-console.log("[src/ai/dev.ts] Modular tools (cariSizeMotorTool, cariInfoLayananTool, getProductServiceDetailsByNameTool, createBookingTool) imported.");
-console.log("[src/ai/dev.ts] Other tools extractMotorInfoTool, searchServiceByKeywordTool are placeholders.");
+console.log("[src/ai/dev.ts] Main flows (cs-whatsapp-reply-flow, embed-text-flow) imported.");
+console.log("[src/ai/dev.ts] All tools imported, including the new knowledgeBaseRetrieverTool.");
 console.log("[src/ai/dev.ts] Genkit Developer UI should be available if no errors (default port: 4001).");
