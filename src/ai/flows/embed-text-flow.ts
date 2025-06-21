@@ -18,6 +18,19 @@ const embedTextOutputSchema = z.array(z.number());
  * @returns A promise that resolves to an array of numbers representing the embedding.
  */
 export async function embedText(text: string): Promise<number[]> {
+  // WORKAROUND: Bypassing the actual embedding API call to prevent crashes
+  // if the Google Generative Language API is not enabled on the user's project.
+  // This returns a "fake" vector, allowing other parts of the app to function.
+  // To enable real embeddings, the user must activate the API in their Google Cloud Console.
+  console.warn("WORKAROUND ACTIVE: Returning fake vector from embedText(). Enable 'Generative Language API' in Google Cloud for real embeddings.");
+  if (!text || text.trim() === '') {
+    return [];
+  }
+  // Return a dummy vector of the correct dimension (768 for text-embedding-004)
+  return Array(768).fill(0.1);
+
+  /*
+  // ORIGINAL CODE - UNCOMMENT WHEN API IS CONFIRMED TO BE WORKING
   if (!text || text.trim() === '') {
     console.warn("embedText: Input text is empty. Returning empty vector.");
     return [];
@@ -44,6 +57,7 @@ export async function embedText(text: string): Promise<number[]> {
     console.error(`Error in embedText for text: "${text.substring(0, 50)}..."`, error);
     throw new Error(`Failed to generate text embedding. Error: ${error instanceof Error ? error.message : String(error)}`);
   }
+  */
 }
 
 /**

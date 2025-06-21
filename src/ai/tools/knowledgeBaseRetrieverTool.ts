@@ -67,14 +67,16 @@ export const knowledgeBaseRetrieverTool = ai.defineTool(
   },
   async (input) => {
     console.log(`[knowledgeBaseRetrieverTool] Received query: "${input.query}"`);
-    const SIMILARITY_THRESHOLD = 0.75;
     const allEntries: ScoredEntry[] = [];
 
     try {
-      // 1. Generate query embedding
-      const queryEmbedding = await embedText(input.query);
+      // WORKAROUND: Vector search is temporarily disabled to prevent crashes from API errors.
+      // This tool will only use text-based search for now.
+      // The user needs to enable the "Generative Language API" in their Google Cloud project
+      // and then the original code with vector search can be restored.
+      console.warn("WORKAROUND ACTIVE: knowledgeBaseRetrieverTool is running in TEXT-ONLY search mode.");
 
-      // 2. Fetch all documents
+      // 1. Fetch all documents
       const kbCollectionRef = collection(db, 'knowledge_base_entries');
       const servicesCollectionRef = collection(db, 'services');
       const kbQuery = query(kbCollectionRef, where('isActive', '==', true));
@@ -83,56 +85,20 @@ export const knowledgeBaseRetrieverTool = ai.defineTool(
         getDocs(kbQuery),
         getDocs(servicesCollectionRef),
       ]);
-
-      // 3. Process with vector search
-      kbSnapshot.docs.forEach(doc => {
-        const entry = { id: doc.id, ...doc.data() } as KnowledgeBaseEntry;
-        if (entry.embedding && Array.isArray(entry.embedding) && entry.embedding.length > 0) {
-          const score = cosineSimilarity(queryEmbedding, entry.embedding);
-          if (score >= SIMILARITY_THRESHOLD) {
-            allEntries.push({
-              id: entry.id,
-              topic: entry.question, // MAPPING from new schema
-              content: entry.answer, // MAPPING from new schema
-              source: 'knowledge-base',
-              score: score,
-            });
-          }
-        }
-      });
-
-      servicesSnapshot.docs.forEach(doc => {
-        const service = { id: doc.id, ...doc.data() } as ServiceProduct;
-        if (service.embedding && Array.isArray(service.embedding) && service.embedding.length > 0) {
-            const score = cosineSimilarity(queryEmbedding, service.embedding);
-            if (score >= SIMILARITY_THRESHOLD) {
-                allEntries.push({
-                    id: service.id,
-                    topic: service.name,
-                    content: service.description || 'Tidak ada deskripsi detail.',
-                    source: 'service-product',
-                    score: score,
-                });
-            }
-        }
-      });
-
-      console.log(`[knowledgeBaseRetrieverTool] Found ${allEntries.length} entries via VECTOR search.`);
-
-      // 4. Supplement with text search (fallback / broader search)
+      
+      // 2. Perform text search
       const searchTermLower = input.query.toLowerCase();
 
       kbSnapshot.docs.forEach(doc => {
         const entry = { id: doc.id, ...doc.data() } as KnowledgeBaseEntry;
-        // Search in question and answer fields
         const textMatch = (entry.question?.toLowerCase().includes(searchTermLower)) ||
                           (entry.answer?.toLowerCase().includes(searchTermLower));
                           
         if (textMatch) {
             allEntries.push({
                 id: entry.id,
-                topic: entry.question, // MAPPING from new schema
-                content: entry.answer, // MAPPING from new schema
+                topic: entry.question,
+                content: entry.answer,
                 source: 'knowledge-base',
                 score: 0.7, // Assign a decent baseline score for text match
             });
@@ -154,14 +120,14 @@ export const knowledgeBaseRetrieverTool = ai.defineTool(
         }
       });
 
-      // 5. Deduplicate, sort, and get top results
+      // 3. Deduplicate, sort, and get top results
       const uniqueEntries = Array.from(new Map(allEntries.map(entry => [entry.id, entry])).values());
       const topN = 5;
       const relevantEntries = uniqueEntries
         .sort((a, b) => b.score - a.score)
         .slice(0, topN);
 
-      console.log(`[knowledgeBaseRetrieverTool] Returning ${relevantEntries.length} unique, sorted entries.`);
+      console.log(`[knowledgeBaseRetrieverTool] Returning ${relevantEntries.length} unique, sorted entries from text search.`);
       
       return relevantEntries.map(({ topic, content, source }) => ({
         topic,
@@ -170,7 +136,7 @@ export const knowledgeBaseRetrieverTool = ai.defineTool(
       }));
 
     } catch (error) {
-      console.error('[knowledgeBaseRetrieverTool] Critical error during retrieval:', error);
+      console.error('[knowledgeBaseRetrieverTool] Critical error during text-only retrieval:', error);
       return [];
     }
   }
