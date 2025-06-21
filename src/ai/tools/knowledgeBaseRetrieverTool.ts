@@ -6,7 +6,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { embed } from 'genkit/ai';
+import { embed } from 'genkit';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import type { KnowledgeBaseEntry } from '@/types/knowledgeBase';

@@ -5,7 +5,7 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { embed } from 'genkit/ai';
+import { embed } from 'genkit';
 
 /**
  * Generates an embedding vector for a given piece of text.
