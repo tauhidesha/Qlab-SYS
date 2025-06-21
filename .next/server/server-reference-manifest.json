@@ -1,20 +1,20 @@
 {
   "node": {
-    "4053660f6447b38038e1d20965a3df3cd57a2a7b51": {
+    "40f65ffc327a28b8b30cc9a06ebf40ce2419c0da58": {
       "workers": {
-        "app/(app)/ai-cs-assistant/page": {
-          "moduleId": "[project]/.next-internal/server/app/(app)/ai-cs-assistant/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/ai/flows/cs-whatsapp-reply-flow.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+        "app/(app)/settings/page": {
+          "moduleId": "(action-browser)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2Fhome%2Fuser%2Fstudio%2Fsrc%2Fai%2Fflows%2Fembed-text-flow.ts%22%2C%5B%7B%22id%22%3A%2240f65ffc327a28b8b30cc9a06ebf40ce2419c0da58%22%2C%22exportedName%22%3A%22embedText%22%7D%2C%7B%22id%22%3A%227fea77300d4987c6e4e2ddb7cd6bc9e0727817118a%22%2C%22exportedName%22%3A%22embedTextFlow%22%7D%5D%5D%5D&__client_imported__=true!",
           "async": false
         }
       },
       "layer": {
-        "app/(app)/ai-cs-assistant/page": "action-browser"
+        "app/(app)/settings/page": "action-browser"
       }
     },
-    "40fb659f9b18e8a5d14b6373a67023c25e58627d25": {
+    "7fea77300d4987c6e4e2ddb7cd6bc9e0727817118a": {
       "workers": {
         "app/(app)/settings/page": {
-          "moduleId": "[project]/.next-internal/server/app/(app)/settings/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/ai/flows/embed-text-flow.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "moduleId": "(action-browser)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2Fhome%2Fuser%2Fstudio%2Fsrc%2Fai%2Fflows%2Fembed-text-flow.ts%22%2C%5B%7B%22id%22%3A%2240f65ffc327a28b8b30cc9a06ebf40ce2419c0da58%22%2C%22exportedName%22%3A%22embedText%22%7D%2C%7B%22id%22%3A%227fea77300d4987c6e4e2ddb7cd6bc9e0727817118a%22%2C%22exportedName%22%3A%22embedTextFlow%22%7D%5D%5D%5D&__client_imported__=true!",
           "async": false
         }
       },
