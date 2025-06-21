@@ -5,7 +5,6 @@
  */
 
 import { ai } from '@/ai/genkit';
-import * as genkit from 'genkit';
 
 /**
  * Generates an embedding vector for a given piece of text.
@@ -14,7 +13,7 @@ import * as genkit from 'genkit';
  */
 export async function embedText(text: string): Promise<number[]> {
   try {
-    const { embedding } = await genkit.embed({
+    const { embedding } = await ai.embed({
       model: 'googleai/text-embedding-004',
       content: text,
     });

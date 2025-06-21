@@ -6,7 +6,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import * as genkit from 'genkit';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import type { KnowledgeBaseEntry } from '@/types/knowledgeBase';
@@ -66,7 +65,7 @@ export const knowledgeBaseRetrieverTool = ai.defineTool(
     console.log(`[knowledgeBaseRetrieverTool] Received query: "${input.query}"`);
     try {
       // 1. Generate an embedding for the user's query
-      const { embedding: queryEmbedding } = await genkit.embed({
+      const { embedding: queryEmbedding } = await ai.embed({
         model: 'googleai/text-embedding-004',
         content: input.query,
       });
