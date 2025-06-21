@@ -13,7 +13,7 @@ if (!process.env.GOOGLE_API_KEY) {
 
 export const ai = genkit({
   plugins: [
-    googleAI({ apiKey: process.env.GOOGLE_API_KEY }), // Explicitly provide the API key
+    googleAI(), // Rely on environment variable, don't pass apiKey explicitly
   ],
   model: 'googleai/gemini-1.5-flash-latest',
   // Telemetry options are no longer configured here in Genkit v1.x
