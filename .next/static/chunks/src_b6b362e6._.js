@@ -820,7 +820,8 @@ __turbopack_context__.s({
     "AI_AGENT_BEHAVIORS": (()=>AI_AGENT_BEHAVIORS),
     "AI_TRANSFER_CONDITIONS": (()=>AI_TRANSFER_CONDITIONS),
     "AiSettingsFormSchema": (()=>AiSettingsFormSchema),
-    "DEFAULT_AI_SETTINGS": (()=>DEFAULT_AI_SETTINGS)
+    "DEFAULT_AI_SETTINGS": (()=>DEFAULT_AI_SETTINGS),
+    "DEFAULT_MAIN_PROMPT_ZOYA": (()=>DEFAULT_MAIN_PROMPT_ZOYA)
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/zod/dist/esm/index.js [app-client] (ecmascript) <module evaluation>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__ = __turbopack_context__.i("[project]/node_modules/zod/dist/esm/v3/external.js [app-client] (ecmascript) <export * as z>");
@@ -864,7 +865,7 @@ const AiSettingsFormSchema = __TURBOPACK__imported__module__$5b$project$5d2f$nod
     enableFollowUp: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].boolean().default(false).describe("Aktifkan fitur follow-up otomatis untuk pelanggan yang pernah menghubungi via WhatsApp namun belum melakukan kunjungan atau transaksi. Follow-up berhenti jika pelanggan tercatat datang/bertransaksi."),
     followUpMessageTemplate: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].string().max(300, "Template pesan follow-up maksimal 300 karakter.").optional(),
     followUpDelays: FollowUpDelaysSchema.optional(),
-    mainPrompt: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].string().min(100, "Prompt utama minimal 100 karakter.").max(15000, "Prompt utama maksimal 15000 karakter.").optional().describe("Prompt utama yang mengarahkan perilaku dan logika Zoya.")
+    mainPrompt: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].string().min(100, "Prompt utama minimal 100 karakter.").max(20000, "Prompt utama maksimal 20000 karakter.").optional().describe("Prompt utama yang mengarahkan perilaku dan logika Zoya.")
 }).superRefine(_c = (data, ctx)=>{
     if (data.enableFollowUp) {
         if (!data.followUpMessageTemplate || data.followUpMessageTemplate.trim() === "") {
@@ -898,122 +899,58 @@ const AiSettingsFormSchema = __TURBOPACK__imported__module__$5b$project$5d2f$nod
     }
 });
 _c1 = AiSettingsFormSchema;
-// Default Main Prompt - diambil dari prompt terakhir yang kamu berikan
 const DEFAULT_MAIN_PROMPT_ZOYA = `
-Kamu adalah Zoya, Customer Service AI dari QLAB Moto Detailing.
+Anda adalah "Zoya", seorang asisten AI customer service untuk QLAB Moto Detailing. Anda sangat terampil, ramah, dan profesional. Gaya bicara Anda gaul dan santai, khas anak motor, namun tetap jelas dan informatif.
 
-🎯 Gaya Bahasa:
-- Santai dan akrab, kayak ngobrol sama temen tongkrongan.
-- Gunakan sapaan seperti "bro", "kak", atau "mas".
-- Tetap informatif, jelas, dan cepat nangkep maksud pelanggan.
+TOOLS ANDA:
+Anda memiliki akses ke beberapa tools canggih untuk membantu Anda. Gunakan tools ini SECARA PROAKTIF untuk mendapatkan informasi akurat.
+1.  \`knowledgeBaseRetrieverTool\`: Gunakan tool ini untuk menjawab pertanyaan UMUM, konseptual, atau kebijakan. Contoh: "apa bedanya coating dan wax?", "garansi servisnya gimana?", "tips merawat motor doff".
+2.  \`getProductServiceDetailsByNameTool\`: Gunakan tool ini jika user bertanya soal HARGA, DURASI, atau KETERSEDIAAN layanan/produk yang SPESIFIK. Tool ini akan mencari di katalog harga resmi. Contoh: "harga cuci premium nmax?", "poles bodi vario berapa lama?".
+3.  \`createBookingTool\`: Gunakan tool ini HANYA JIKA pelanggan sudah mengonfirmasi untuk membuat jadwal booking dan semua detail (layanan, motor, tanggal, jam) sudah jelas.
 
-🛠 Tool yang Bisa Kamu Pakai:
-1. 'extractMotorInfoTool': Deteksi jenis motor dan ukurannya dari teks.
-   Input: {"text": "deskripsi motor"}
-   Output: {"brand": "...", "model": "...", "size": "S/M/L/XL"}
+ALUR KERJA UTAMA ANDA (WAJIB DIIKUTI):
+1.  **PAHAMI MAKSUD PELANGGAN:** Baca pesan terakhir pelanggan dengan saksama.
+    -   Jika pertanyaannya umum/konseptual -> Lanjut ke Langkah 2.
+    -   Jika pertanyaannya spesifik tentang harga/durasi -> Lanjut ke Langkah 3.
+    -   Jika pelanggan mau booking -> Lanjut ke Langkah 4.
 
-2. 'searchServiceByKeywordTool': Cari detail layanan berdasarkan kata kunci + ukuran motor (optional) + jenis cat (optional)
-   Input: {"keyword": "...", "size": "...", "paintType": "doff/glossy"}
-   Output: {"name": "...", "description": "...", "price": ..., "duration": "...", "variantMatched": "..."}
+2.  **JAWAB PERTANYAAN UMUM (Gunakan \`knowledgeBaseRetrieverTool\`):**
+    -   Panggil tool \`knowledgeBaseRetrieverTool\` dengan pertanyaan lengkap pelanggan sebagai \`query\`.
+    -   JAWABAN ANDA HARUS DIBUAT BERDASARKAN "contekan" yang diberikan oleh tool tersebut.
+    -   Jika tool mengembalikan hasil kosong, artinya informasi tidak ditemukan. Jawab dengan sopan: "Waduh, sori banget nih Bro, buat pertanyaan itu Zoya belum nemu info pastinya di catatan. Mungkin bisa coba tanya dengan cara lain?"
+    -   **JANGAN PERNAH MENGARANG JAWABAN** jika informasi tidak ada di hasil tool.
 
-3. 'createBookingTool': Catat booking.
-   Input: {
-     customerName, customerPhone, clientId,
-     serviceId, serviceName,
-     vehicleInfo, bookingDate, bookingTime,
-     estimatedDuration, notes
-   }
+3.  **JAWAB PERTANYAAN HARGA/LAYANAN SPESIFIK (Gunakan \`getProductServiceDetailsByNameTool\`):**
+    -   Identifikasi nama layanan/produk dari pertanyaan user.
+    -   Panggil tool \`getProductServiceDetailsByNameTool\` dengan nama tersebut.
+    -   Jika tool berhasil menemukan data: Gunakan harga, durasi, dan detail dari hasil tool untuk menjawab. Format harga dalam Rupiah (Rp).
+    -   Jika tool tidak menemukan (hasilnya null): Informasikan dengan sopan bahwa layanan tersebut mungkin perlu dicek manual atau minta pelanggan memperjelas nama layanannya. Jangan sebutkan nama toolnya ke user.
 
-🧠 Logika Utama:
+4.  **PROSES BOOKING (Gunakan \`createBookingTool\`):**
+    -   Hanya mulai proses ini jika pelanggan sudah menyatakan ingin membuat jadwal (mis. "booking", "jadwalin", "pesan tempat").
+    -   Pastikan Anda memiliki semua detail yang diperlukan: NAMA LAYANAN, INFO KENDARAAN, TANGGAL, dan JAM. Gunakan tools lain jika perlu untuk mengonfirmasi detail ini.
+    -   Setelah semua detail lengkap dan dikonfirmasi oleh pelanggan, panggil tool \`createBookingTool\`.
 
-1. **Kalau pelanggan menyebut jenis motor (kayak "nmax", "xmax", "supra", dll)**:
-   - Langsung panggil 'extractMotorInfoTool' dengan input \`{"text": customerMessage}\`
-   - Simpan hasilnya untuk dipakai di langkah selanjutnya (khususnya size)
+GAYA BAHASA (WAJIB):
+-   Sapaan: "Wih, boskuu!", "Ashiaaap!", "Gaspol!", "Yok!", "Santuy, bro!"
+-   Sebutan buat user: "Bro", "Kak", "Bos".
+-   Istilah anak motor: "kinclong parah", "poles biar ganteng maksimal", "coating anti badai".
+-   Emoji: Gunakan secukupnya untuk membuat suasana cair 😎✨💸🛠️🏍️💨.
 
-2. **Kalau pelanggan nanya tentang coating**:
-   - Selalu pastikan dulu data motor dan cat (doff/glossy)
-   - Kalau belum disebut:
-     - Belum jelas motor & cat → tanya: "Motornya apa nih? Doff atau glossy, bro?"
-     - Motor doang → tanya: "Oke bro, motornya {{model}} ya. Catnya doff atau glossy, bro?"
-     - Cat doang → tanya: "Sip, coating doff ya. Motornya apa nih, bro?"
-   - Kalau **motor & cat udah jelas**:
-     - Panggil 'extractMotorInfoTool' (jika belum dan size belum diketahui dari histori)
-     - Panggil 'searchServiceByKeywordTool' dengan keyword "coating" + size (dari extractMotorInfoTool atau histori) + paintType.
-     - Kalau dapet harga (field 'price' ada dan bukan 0 atau null) → kasih info detail (nama layanan, harga, durasi) + tawarkan booking.
-     - Kalau TIDAK dapet harga (field 'price' undefined/null/0 dan bukan gratis) dari tool → SANGAT PENTING: JANGAN bilang "sebentar aku cek" lagi. LANGSUNG informasikan bahwa harga spesifik belum ketemu, tapi bisa kasih gambaran umum layanannya (ambil dari deskripsi jika ada). Misal: "Untuk coating NMAX doff, deskripsinya sih [deskripsi layanan]. Tapi buat harga pastinya, Zoya belum nemu nih bro, mungkin tergantung kondisi motornya juga. Mau Zoya bantu tanyain ke tim CS langsung?" atau "Coating NMAX doff ya, bro. Detailnya sih [deskripsi]. Untuk harganya Zoya belum dapet info pasti nih, biasanya tergantung ukuran & kondisi motor. Mau dibantu booking dulu aja biar nanti dikonfirmasi tim kami?"
-
-3. **Kalau pelanggan nanya layanan lain (cuci, detailing, poles, repaint, dll)**:
-   - Cek apakah menyebut motor → panggil 'extractMotorInfoTool' jika ada dan size belum diketahui.
-   - Panggil 'searchServiceByKeywordTool' dengan keyword sesuai + size (jika ada dari extractMotorInfoTool atau histori).
-   - Kalau dapet harga → langsung kasih info detail (nama layanan, harga, durasi) + tawarkan booking.
-   - Kalau cuma dapet deskripsi (TIDAK dapet harga dari tool) → kasih deskripsi + tanya motornya buat bisa kasih info harga (jika size belum diketahui). Jika size sudah diketahui tapi harga tetap tidak ada, sampaikan seperti poin 2 (harga tidak ketemu).
-
-4. **Kalau pelanggan mau booking** (atau menyebutkan niat booking seperti "mau booking", "jadwalin dong", atau memberikan info tanggal/jam):
-   - **Cek & Ekstrak Info dari Pesan Pelanggan & Riwayat:**
-     *   Nama Pelanggan? (Dari histori atau 'senderName' jika ada)
-     *   No HP? (Dari histori atau 'senderNumber' jika ada)
-     *   Jenis Motor? (Dari hasil 'extractMotorInfoTool' sebelumnya, atau dari histori/pesan pelanggan)
-     *   Layanan? (Dari hasil 'searchServiceByKeywordTool' sebelumnya, atau dari histori/pesan pelanggan. Ingat untuk dapatkan 'serviceId' dan 'serviceName' yang tepat.)
-     *   Tanggal & Jam?
-         -   Kalau pelanggan bilang 'hari ini', isi Tanggal dengan '{{{currentDate}}}'. Formatnya harus YYYY-MM-DD. (Contoh: jika {{{currentDate}}} adalah '18/06/2024', ubah jadi '2024-06-18').
-         -   Kalau pelanggan bilang 'besok', isi Tanggal dengan '{{{tomorrowDate}}}'. Formatnya harus YYYY-MM-DD.
-         -   Kalau pelanggan bilang 'lusa', isi Tanggal dengan '{{{dayAfterTomorrowDate}}}'. Formatnya harus YYYY-MM-DD.
-         -   Kalau pelanggan sebut jam spesifik (mis. 'jam 5 sore', 'jam 10 pagi', 'jam 14.30'):
-             -   'jam 5 sore' -> Jam: '17:00'
-             -   'jam 10 pagi' -> Jam: '10:00'
-             -   'jam 2 siang' -> Jam: '14:00'
-             -   'jam 7 malam' -> Jam: '19:00'
-             -   'jam 14.30' -> Jam: '14:30'
-             -   Jika hanya jam tanpa keterangan hari, dan belum ada tanggal, asumsikan 'hari ini' (gunakan '{{{currentDate}}}' yang sudah diformat YYYY-MM-DD).
-         -   Jika pelanggan menyebut tanggal dan bulan (mis. "17 Agustus"), coba pahami dan format ke YYYY-MM-DD. Jika ragu, tanyakan tahunnya atau konfirmasi.
-   - **Formulasikan Pertanyaan (Jika Info Kurang):**
-     *   Sebutkan dulu info yang SUDAH kamu pahami.
-     *   Contoh jika layanan, motor, tanggal, jam sudah ada: "Oke bro, NMAX doff buat coating ya, hari ini ({DD/MM/YYYY}) jam 17:00. Boleh minta Nama sama No HP-nya buat konfirmasi booking?" (Ganti {DD/MM/YYYY} dengan tanggal sebenarnya dari {{{currentDate}}})
-     *   Contoh jika hanya layanan & motor: "Sip, coating buat NMAX doff ya. Mau booking tanggal dan jam berapa nih, bro? Sekalian Nama sama No HP-nya ya."
-     *   Contoh jika banyak kurang: "Oke bro, untuk bookingnya, Zoya butuh info ini ya:\\nNama : [isi jika sudah tahu]\\nNo HP : [isi jika sudah tahu]\\nLayanan : [isi jika sudah tahu]\\nTanggal : [isi jika sudah tahu dari 'hari ini/besok/lusa']\\nJam kedatangan : [isi jika sudah tahu]\\nJenis Motor : [isi jika sudah tahu]"
-   - **Jika Semua Info Sudah Lengkap**:
-     *   Panggil tool 'createBookingTool' dengan semua data yang telah terkumpul.
-     *   Pastikan 'bookingDate' dalam format YYYY-MM-DD dan 'bookingTime' dalam format HH:MM.
-     *   'serviceId' dan 'serviceName' ambil dari hasil pencarian layanan sebelumnya.
-     *   'vehicleInfo' gabungkan informasi motor (mis. "NMAX Merah Doff").
-     *   Kalau sukses → balas: "Sip bro, booking kamu udah Zoya catat ya. Jadwalnya: [Nama Layanan] untuk [Jenis Motor] pada tanggal [Tanggal Booking format DD MMMM YYYY] jam [Jam Booking]. 👍"
-     *   Kalau gagal → minta maaf, arahkan ke CS manusia.
-
-📌 **Catatan Tambahan:**
-- Usahakan jawab dengan data real dari tools, jangan ngarang kalau tool belum kasih data.
-- Kalau info belum lengkap dari pelanggan, pancing dengan gaya ngobrol santai.
-- Kalau ada pertanyaan yang di luar kapasitas kamu, jawab kayak gini:
-  > "Waduh, ini agak di luar kepala gue bro... Zoya bantu terusin ke tim CS ya. #unanswered"
-
-📤 Output HARUS dalam format JSON:
-Contoh:
-{ "suggestedReply": "Oke bro, untuk coating doff ukuran M harganya 400rb. Mau sekalian booking?" }
-
-📩 Chat Pelanggan:
-user: {{{customerMessage}}}
-
-📚 Riwayat Sebelumnya:
-{{#if chatHistory.length}}
-{{#each chatHistory}}
-{{this.role}}: {{this.content}}
-{{/each}}
-{{/if}}
-
-🕒 Tanggal hari ini: {{{currentDate}}}, waktu: {{{currentTime}}}
-Besok: {{{tomorrowDate}}}, Lusa: {{{dayAfterTomorrowDate}}}
-`;
+Selalu berikan jawaban yang ringkas, akurat, dan bermanfaat berdasarkan data yang Anda miliki dari tools.
+`.trim();
 const DEFAULT_AI_SETTINGS = {
     agentBehavior: "Humoris & Santai",
-    welcomeMessage: "Halo bro! Zoya di sini, siap bantu seputar QLAB Moto Detailing. Ada yang bisa Zoya bantu?",
+    welcomeMessage: "Wih, boskuu! Zoya di sini, siap bikin motor lo makin kinclong. Ada yang bisa dibantu nih?",
     transferConditions: [
         "Pelanggan Meminta Secara Eksplisit"
     ],
-    knowledgeBaseDescription: `Anda adalah asisten AI untuk QLAB Moto Detailing. Tugas utama Anda adalah membantu pelanggan dan staf. Gunakan tools yang tersedia untuk mencari informasi produk, layanan, klien, atau detail dari knowledge base. Prioritaskan penggunaan 'getKnowledgeBaseInfoTool' untuk pertanyaan umum atau detail kebijakan, dan 'searchServiceByKeywordTool' untuk harga/durasi spesifik.`,
+    knowledgeBaseDescription: `Anda adalah Zoya, asisten AI untuk QLAB Moto Detailing. Tugas utama Anda adalah menggunakan knowledgeBaseRetrieverTool untuk menemukan informasi yang akurat dari database internal dan menjawab pertanyaan pelanggan berdasarkan hasil tersebut.`,
     mainPrompt: DEFAULT_MAIN_PROMPT_ZOYA,
     enableHumanHandoff: false,
     humanAgentWhatsAppNumber: '',
     enableFollowUp: false,
-    followUpMessageTemplate: "Halo Kak, kami perhatikan Anda sempat menghubungi kami beberapa waktu lalu. Apakah ada rencana untuk berkunjung ke bengkel kami? Ada promo menarik lho!",
+    followUpMessageTemplate: "Woy, Bro! Kemaren sempet nanya-nanya nih. Jadi kapan mau mampir ke QLAB? Ada promo asik nih, jangan sampe kelewat!",
     followUpDelays: {
         firstAttemptHours: 24,
         secondAttemptDays: 7,
@@ -1022,7 +959,7 @@ const DEFAULT_AI_SETTINGS = {
     }
 };
 var _c, _c1;
-__turbopack_context__.k.register(_c, 'AiSettingsFormSchema$z.object({\n  agentBehavior: z.enum(AI_AGENT_BEHAVIORS, {\n    required_error: "Perilaku agen AI harus dipilih.",\n  }),\n  welcomeMessage: z.string().min(10, "Pesan selamat datang minimal 10 karakter.").max(300, "Pesan selamat datang maksimal 300 karakter."),\n  transferConditions: z.array(z.enum(AI_TRANSFER_CONDITIONS)).min(1, "Minimal satu kondisi transfer harus dipilih."),\n  knowledgeBaseDescription: z.string().max(10000, "Deskripsi sumber pengetahuan maksimal 10000 karakter.").optional().describe("Panduan tingkat tinggi untuk AI. Detail pengetahuan akan diambil melalui tools."),\n  \n  enableHumanHandoff: z.boolean().default(false).describe("Aktifkan notifikasi ke agen manusia jika AI perlu bantuan."),\n  humanAgentWhatsAppNumber: z.string().regex(/^\\+?[0-9\\s-]{10,18}$|^$/, "Format nomor WhatsApp agen tidak valid (mis. +628123456789 atau kosong).").optional().describe("Nomor WhatsApp agen manusia untuk notifikasi handoff."),\n\n  enableFollowUp: z.boolean().default(false).describe("Aktifkan fitur follow-up otomatis untuk pelanggan yang pernah menghubungi via WhatsApp namun belum melakukan kunjungan atau transaksi. Follow-up berhenti jika pelanggan tercatat datang/bertransaksi."),\n  followUpMessageTemplate: z.string().max(300, "Template pesan follow-up maksimal 300 karakter.").optional(),\n  followUpDelays: FollowUpDelaysSchema.optional(),\n  mainPrompt: z.string().min(100, "Prompt utama minimal 100 karakter.").max(15000, "Prompt utama maksimal 15000 karakter.").optional().describe("Prompt utama yang mengarahkan perilaku dan logika Zoya."),\n}).superRefine');
+__turbopack_context__.k.register(_c, 'AiSettingsFormSchema$z.object({\n  agentBehavior: z.enum(AI_AGENT_BEHAVIORS, {\n    required_error: "Perilaku agen AI harus dipilih.",\n  }),\n  welcomeMessage: z.string().min(10, "Pesan selamat datang minimal 10 karakter.").max(300, "Pesan selamat datang maksimal 300 karakter."),\n  transferConditions: z.array(z.enum(AI_TRANSFER_CONDITIONS)).min(1, "Minimal satu kondisi transfer harus dipilih."),\n  knowledgeBaseDescription: z.string().max(10000, "Deskripsi sumber pengetahuan maksimal 10000 karakter.").optional().describe("Panduan tingkat tinggi untuk AI. Detail pengetahuan akan diambil melalui tools."),\n\n  enableHumanHandoff: z.boolean().default(false).describe("Aktifkan notifikasi ke agen manusia jika AI perlu bantuan."),\n  humanAgentWhatsAppNumber: z.string().regex(/^\\+?[0-9\\s-]{10,18}$|^$/, "Format nomor WhatsApp agen tidak valid (mis. +628123456789 atau kosong).").optional().describe("Nomor WhatsApp agen manusia untuk notifikasi handoff."),\n\n  enableFollowUp: z.boolean().default(false).describe("Aktifkan fitur follow-up otomatis untuk pelanggan yang pernah menghubungi via WhatsApp namun belum melakukan kunjungan atau transaksi. Follow-up berhenti jika pelanggan tercatat datang/bertransaksi."),\n  followUpMessageTemplate: z.string().max(300, "Template pesan follow-up maksimal 300 karakter.").optional(),\n  followUpDelays: FollowUpDelaysSchema.optional(),\n  mainPrompt: z.string().min(100, "Prompt utama minimal 100 karakter.").max(20000, "Prompt utama maksimal 20000 karakter.").optional().describe("Prompt utama yang mengarahkan perilaku dan logika Zoya."),\n}).superRefine');
 __turbopack_context__.k.register(_c1, "AiSettingsFormSchema");
 if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
     __turbopack_context__.k.registerExports(module, globalThis.$RefreshHelpers$);
@@ -1677,6 +1614,7 @@ var _s = __turbopack_context__.k.signature();
 ;
 ;
 ;
+;
 function AiCsAssistantSettingsPage() {
     _s();
     const router = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useRouter"])();
@@ -1924,7 +1862,7 @@ function AiCsAssistantSettingsPage() {
                 title: "Pengaturan Agen & Knowledge Base AI"
             }, void 0, false, {
                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                lineNumber: 247,
+                lineNumber: 248,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1937,19 +1875,19 @@ function AiCsAssistantSettingsPage() {
                             className: "mr-2 h-4 w-4"
                         }, void 0, false, {
                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                            lineNumber: 251,
+                            lineNumber: 252,
                             columnNumber: 11
                         }, this),
                         "Kembali ke Asisten CS"
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                    lineNumber: 250,
+                    lineNumber: 251,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                lineNumber: 249,
+                lineNumber: 250,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1967,7 +1905,7 @@ function AiCsAssistantSettingsPage() {
                                     children: "Pengaturan Agen AI"
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                    lineNumber: 259,
+                                    lineNumber: 260,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$tabs$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TabsTrigger"], {
@@ -1976,13 +1914,13 @@ function AiCsAssistantSettingsPage() {
                                     children: "Manajemen Knowledge Base"
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                    lineNumber: 260,
+                                    lineNumber: 261,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                            lineNumber: 258,
+                            lineNumber: 259,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$tabs$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TabsContent"], {
@@ -2003,27 +1941,27 @@ function AiCsAssistantSettingsPage() {
                                                                 className: "mr-2 h-5 w-5 text-primary"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                lineNumber: 268,
+                                                                lineNumber: 269,
                                                                 columnNumber: 62
                                                             }, this),
                                                             "Pengaturan Perilaku & Prompt Agen AI"
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                        lineNumber: 268,
+                                                        lineNumber: 269,
                                                         columnNumber: 21
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardDescription"], {
                                                         children: "Konfigurasi bagaimana Zoya merespon dan berinteraksi."
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                        lineNumber: 269,
+                                                        lineNumber: 270,
                                                         columnNumber: 21
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                lineNumber: 267,
+                                                lineNumber: 268,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -2035,20 +1973,20 @@ function AiCsAssistantSettingsPage() {
                                                             className: "h-5 w-5 animate-spin"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                            lineNumber: 274,
+                                                            lineNumber: 275,
                                                             columnNumber: 27
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                             children: "Memuat pengaturan AI..."
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                            lineNumber: 275,
+                                                            lineNumber: 276,
                                                             columnNumber: 27
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                    lineNumber: 273,
+                                                    lineNumber: 274,
                                                     columnNumber: 25
                                                 }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Fragment"], {
                                                     children: [
@@ -2064,14 +2002,14 @@ function AiCsAssistantSettingsPage() {
                                                                                     className: "mr-2 h-4 w-4 text-muted-foreground"
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                    lineNumber: 284,
+                                                                                    lineNumber: 285,
                                                                                     columnNumber: 72
                                                                                 }, void 0),
                                                                                 "Prompt Utama Zoya"
                                                                             ]
                                                                         }, void 0, true, {
                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                            lineNumber: 284,
+                                                                            lineNumber: 285,
                                                                             columnNumber: 31
                                                                         }, void 0),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormControl"], {
@@ -2082,12 +2020,12 @@ function AiCsAssistantSettingsPage() {
                                                                                 className: "text-xs leading-relaxed font-mono"
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                lineNumber: 285,
+                                                                                lineNumber: 286,
                                                                                 columnNumber: 44
                                                                             }, void 0)
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                            lineNumber: 285,
+                                                                            lineNumber: 286,
                                                                             columnNumber: 31
                                                                         }, void 0),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormDescription"], {
@@ -2100,28 +2038,28 @@ function AiCsAssistantSettingsPage() {
                                                                             ]
                                                                         }, void 0, true, {
                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                            lineNumber: 286,
+                                                                            lineNumber: 287,
                                                                             columnNumber: 31
                                                                         }, void 0),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                            lineNumber: 287,
+                                                                            lineNumber: 288,
                                                                             columnNumber: 31
                                                                         }, void 0)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                    lineNumber: 283,
+                                                                    lineNumber: 284,
                                                                     columnNumber: 29
                                                                 }, void 0)
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                            lineNumber: 279,
+                                                            lineNumber: 280,
                                                             columnNumber: 25
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$separator$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Separator"], {}, void 0, false, {
                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                            lineNumber: 291,
+                                                            lineNumber: 292,
                                                             columnNumber: 25
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormField"], {
@@ -2133,7 +2071,7 @@ function AiCsAssistantSettingsPage() {
                                                                             children: "Perilaku Agen AI"
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                            lineNumber: 297,
+                                                                            lineNumber: 298,
                                                                             columnNumber: 31
                                                                         }, void 0),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Select"], {
@@ -2146,17 +2084,17 @@ function AiCsAssistantSettingsPage() {
                                                                                             placeholder: "Pilih perilaku agen"
                                                                                         }, void 0, false, {
                                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                            lineNumber: 299,
+                                                                                            lineNumber: 300,
                                                                                             columnNumber: 61
                                                                                         }, void 0)
                                                                                     }, void 0, false, {
                                                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                        lineNumber: 299,
+                                                                                        lineNumber: 300,
                                                                                         columnNumber: 46
                                                                                     }, void 0)
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                    lineNumber: 299,
+                                                                                    lineNumber: 300,
                                                                                     columnNumber: 33
                                                                                 }, void 0),
                                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$select$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["SelectContent"], {
@@ -2165,34 +2103,34 @@ function AiCsAssistantSettingsPage() {
                                                                                             children: behavior
                                                                                         }, behavior, false, {
                                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                            lineNumber: 302,
+                                                                                            lineNumber: 303,
                                                                                             columnNumber: 37
                                                                                         }, void 0))
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                    lineNumber: 300,
+                                                                                    lineNumber: 301,
                                                                                     columnNumber: 33
                                                                                 }, void 0)
                                                                             ]
                                                                         }, void 0, true, {
                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                            lineNumber: 298,
+                                                                            lineNumber: 299,
                                                                             columnNumber: 31
                                                                         }, void 0),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                            lineNumber: 306,
+                                                                            lineNumber: 307,
                                                                             columnNumber: 31
                                                                         }, void 0)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                    lineNumber: 296,
+                                                                    lineNumber: 297,
                                                                     columnNumber: 29
                                                                 }, void 0)
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                            lineNumber: 292,
+                                                            lineNumber: 293,
                                                             columnNumber: 25
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormField"], {
@@ -2207,14 +2145,14 @@ function AiCsAssistantSettingsPage() {
                                                                                     className: "mr-2 h-4 w-4 text-muted-foreground"
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                    lineNumber: 315,
+                                                                                    lineNumber: 316,
                                                                                     columnNumber: 72
                                                                                 }, void 0),
                                                                                 "Pesan Selamat Datang"
                                                                             ]
                                                                         }, void 0, true, {
                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                            lineNumber: 315,
+                                                                            lineNumber: 316,
                                                                             columnNumber: 31
                                                                         }, void 0),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormControl"], {
@@ -2224,28 +2162,28 @@ function AiCsAssistantSettingsPage() {
                                                                                 rows: 3
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                lineNumber: 316,
+                                                                                lineNumber: 317,
                                                                                 columnNumber: 44
                                                                             }, void 0)
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                            lineNumber: 316,
+                                                                            lineNumber: 317,
                                                                             columnNumber: 31
                                                                         }, void 0),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                            lineNumber: 317,
+                                                                            lineNumber: 318,
                                                                             columnNumber: 31
                                                                         }, void 0)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                    lineNumber: 314,
+                                                                    lineNumber: 315,
                                                                     columnNumber: 29
                                                                 }, void 0)
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                            lineNumber: 310,
+                                                            lineNumber: 311,
                                                             columnNumber: 25
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormField"], {
@@ -2260,14 +2198,14 @@ function AiCsAssistantSettingsPage() {
                                                                                     className: "mr-2 h-4 w-4 text-muted-foreground"
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                    lineNumber: 326,
+                                                                                    lineNumber: 327,
                                                                                     columnNumber: 72
                                                                                 }, void 0),
                                                                                 "Deskripsi/Panduan Umum Knowledge Base AI"
                                                                             ]
                                                                         }, void 0, true, {
                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                            lineNumber: 326,
+                                                                            lineNumber: 327,
                                                                             columnNumber: 31
                                                                         }, void 0),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormControl"], {
@@ -2277,35 +2215,35 @@ function AiCsAssistantSettingsPage() {
                                                                                 rows: 4
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                lineNumber: 327,
+                                                                                lineNumber: 328,
                                                                                 columnNumber: 44
                                                                             }, void 0)
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                            lineNumber: 327,
+                                                                            lineNumber: 328,
                                                                             columnNumber: 31
                                                                         }, void 0),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormDescription"], {
                                                                             children: "Informasi ini akan membantu AI memahami konteks jawaban."
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                            lineNumber: 328,
+                                                                            lineNumber: 329,
                                                                             columnNumber: 31
                                                                         }, void 0),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                            lineNumber: 329,
+                                                                            lineNumber: 330,
                                                                             columnNumber: 31
                                                                         }, void 0)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                    lineNumber: 325,
+                                                                    lineNumber: 326,
                                                                     columnNumber: 29
                                                                 }, void 0)
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                            lineNumber: 321,
+                                                            lineNumber: 322,
                                                             columnNumber: 25
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormItem"], {
@@ -2314,14 +2252,14 @@ function AiCsAssistantSettingsPage() {
                                                                     children: "Kondisi Transfer ke Manusia"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                    lineNumber: 334,
+                                                                    lineNumber: 335,
                                                                     columnNumber: 27
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormDescription"], {
                                                                     children: "Pilih kondisi kapan percakapan harus dialihkan ke staf manusia."
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                    lineNumber: 335,
+                                                                    lineNumber: 336,
                                                                     columnNumber: 27
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2343,12 +2281,12 @@ function AiCsAssistantSettingsPage() {
                                                                                                 }
                                                                                             }, void 0, false, {
                                                                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                                lineNumber: 345,
+                                                                                                lineNumber: 346,
                                                                                                 columnNumber: 39
                                                                                             }, void 0)
                                                                                         }, void 0, false, {
                                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                            lineNumber: 344,
+                                                                                            lineNumber: 345,
                                                                                             columnNumber: 37
                                                                                         }, void 0),
                                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormLabel"], {
@@ -2356,36 +2294,36 @@ function AiCsAssistantSettingsPage() {
                                                                                             children: condition
                                                                                         }, void 0, false, {
                                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                            lineNumber: 358,
+                                                                                            lineNumber: 359,
                                                                                             columnNumber: 37
                                                                                         }, void 0)
                                                                                     ]
                                                                                 }, void 0, true, {
                                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                    lineNumber: 343,
+                                                                                    lineNumber: 344,
                                                                                     columnNumber: 35
                                                                                 }, void 0)
                                                                         }, condition, false, {
                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                            lineNumber: 338,
+                                                                            lineNumber: 339,
                                                                             columnNumber: 31
                                                                         }, this))
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                    lineNumber: 336,
+                                                                    lineNumber: 337,
                                                                     columnNumber: 27
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {
                                                                     children: aiSettingsForm.formState.errors.transferConditions?.message
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                    lineNumber: 364,
+                                                                    lineNumber: 365,
                                                                     columnNumber: 27
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                            lineNumber: 333,
+                                                            lineNumber: 334,
                                                             columnNumber: 25
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormField"], {
@@ -2404,27 +2342,27 @@ function AiCsAssistantSettingsPage() {
                                                                                             className: "mr-2 h-4 w-4 text-muted-foreground"
                                                                                         }, void 0, false, {
                                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                            lineNumber: 373,
+                                                                                            lineNumber: 374,
                                                                                             columnNumber: 74
                                                                                         }, void 0),
                                                                                         "Aktifkan Notifikasi Handoff"
                                                                                     ]
                                                                                 }, void 0, true, {
                                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                    lineNumber: 373,
+                                                                                    lineNumber: 374,
                                                                                     columnNumber: 33
                                                                                 }, void 0),
                                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormDescription"], {
                                                                                     children: "Notifikasi dikirim jika kondisi transfer terpenuhi."
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                    lineNumber: 374,
+                                                                                    lineNumber: 375,
                                                                                     columnNumber: 33
                                                                                 }, void 0)
                                                                             ]
                                                                         }, void 0, true, {
                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                            lineNumber: 372,
+                                                                            lineNumber: 373,
                                                                             columnNumber: 31
                                                                         }, void 0),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormControl"], {
@@ -2433,23 +2371,23 @@ function AiCsAssistantSettingsPage() {
                                                                                 onCheckedChange: field.onChange
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                lineNumber: 376,
+                                                                                lineNumber: 377,
                                                                                 columnNumber: 44
                                                                             }, void 0)
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                            lineNumber: 376,
+                                                                            lineNumber: 377,
                                                                             columnNumber: 31
                                                                         }, void 0)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                    lineNumber: 371,
+                                                                    lineNumber: 372,
                                                                     columnNumber: 29
                                                                 }, void 0)
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                            lineNumber: 367,
+                                                            lineNumber: 368,
                                                             columnNumber: 25
                                                         }, this),
                                                         watchedEnableHumanHandoff && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormField"], {
@@ -2462,7 +2400,7 @@ function AiCsAssistantSettingsPage() {
                                                                             children: "Nomor WhatsApp Agen Manusia"
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                            lineNumber: 386,
+                                                                            lineNumber: 387,
                                                                             columnNumber: 35
                                                                         }, void 0),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormControl"], {
@@ -2472,35 +2410,35 @@ function AiCsAssistantSettingsPage() {
                                                                                 ...field
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                lineNumber: 387,
+                                                                                lineNumber: 388,
                                                                                 columnNumber: 48
                                                                             }, void 0)
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                            lineNumber: 387,
+                                                                            lineNumber: 388,
                                                                             columnNumber: 35
                                                                         }, void 0),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormDescription"], {
                                                                             children: "Nomor ini akan menerima notifikasi saat handoff."
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                            lineNumber: 388,
+                                                                            lineNumber: 389,
                                                                             columnNumber: 35
                                                                         }, void 0),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                            lineNumber: 389,
+                                                                            lineNumber: 390,
                                                                             columnNumber: 35
                                                                         }, void 0)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                    lineNumber: 385,
+                                                                    lineNumber: 386,
                                                                     columnNumber: 33
                                                                 }, void 0)
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                            lineNumber: 381,
+                                                            lineNumber: 382,
                                                             columnNumber: 29
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormField"], {
@@ -2516,20 +2454,20 @@ function AiCsAssistantSettingsPage() {
                                                                                     children: "Aktifkan Fitur Follow-up"
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                    lineNumber: 401,
+                                                                                    lineNumber: 402,
                                                                                     columnNumber: 33
                                                                                 }, void 0),
                                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormDescription"], {
                                                                                     children: "AI mengirim follow-up jika pelanggan belum berkunjung/transaksi."
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                    lineNumber: 402,
+                                                                                    lineNumber: 403,
                                                                                     columnNumber: 33
                                                                                 }, void 0)
                                                                             ]
                                                                         }, void 0, true, {
                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                            lineNumber: 400,
+                                                                            lineNumber: 401,
                                                                             columnNumber: 31
                                                                         }, void 0),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormControl"], {
@@ -2538,23 +2476,23 @@ function AiCsAssistantSettingsPage() {
                                                                                 onCheckedChange: field.onChange
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                lineNumber: 404,
+                                                                                lineNumber: 405,
                                                                                 columnNumber: 44
                                                                             }, void 0)
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                            lineNumber: 404,
+                                                                            lineNumber: 405,
                                                                             columnNumber: 31
                                                                         }, void 0)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                    lineNumber: 399,
+                                                                    lineNumber: 400,
                                                                     columnNumber: 29
                                                                 }, void 0)
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                            lineNumber: 395,
+                                                            lineNumber: 396,
                                                             columnNumber: 25
                                                         }, this),
                                                         watchedEnableFollowUp && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Card"], {
@@ -2567,12 +2505,12 @@ function AiCsAssistantSettingsPage() {
                                                                         children: "Pengaturan Jadwal Follow-up"
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                        lineNumber: 411,
+                                                                        lineNumber: 412,
                                                                         columnNumber: 33
                                                                     }, this)
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                    lineNumber: 410,
+                                                                    lineNumber: 411,
                                                                     columnNumber: 29
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -2587,7 +2525,7 @@ function AiCsAssistantSettingsPage() {
                                                                                             children: "Template Pesan Follow-up"
                                                                                         }, void 0, false, {
                                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                            lineNumber: 419,
+                                                                                            lineNumber: 420,
                                                                                             columnNumber: 37
                                                                                         }, void 0),
                                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormControl"], {
@@ -2597,28 +2535,28 @@ function AiCsAssistantSettingsPage() {
                                                                                                 rows: 3
                                                                                             }, void 0, false, {
                                                                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                                lineNumber: 420,
+                                                                                                lineNumber: 421,
                                                                                                 columnNumber: 50
                                                                                             }, void 0)
                                                                                         }, void 0, false, {
                                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                            lineNumber: 420,
+                                                                                            lineNumber: 421,
                                                                                             columnNumber: 37
                                                                                         }, void 0),
                                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
                                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                            lineNumber: 421,
+                                                                                            lineNumber: 422,
                                                                                             columnNumber: 37
                                                                                         }, void 0)
                                                                                     ]
                                                                                 }, void 0, true, {
                                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                    lineNumber: 418,
+                                                                                    lineNumber: 419,
                                                                                     columnNumber: 35
                                                                                 }, void 0)
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                            lineNumber: 414,
+                                                                            lineNumber: 415,
                                                                             columnNumber: 31
                                                                         }, this),
                                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2633,7 +2571,7 @@ function AiCsAssistantSettingsPage() {
                                                                                                     children: "Penundaan Pertama (Jam)"
                                                                                                 }, void 0, false, {
                                                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                                    lineNumber: 431,
+                                                                                                    lineNumber: 432,
                                                                                                     columnNumber: 41
                                                                                                 }, void 0),
                                                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormControl"], {
@@ -2645,28 +2583,28 @@ function AiCsAssistantSettingsPage() {
                                                                                                         value: field.value === undefined ? '' : String(field.value)
                                                                                                     }, void 0, false, {
                                                                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                                        lineNumber: 432,
+                                                                                                        lineNumber: 433,
                                                                                                         columnNumber: 54
                                                                                                     }, void 0)
                                                                                                 }, void 0, false, {
                                                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                                    lineNumber: 432,
+                                                                                                    lineNumber: 433,
                                                                                                     columnNumber: 41
                                                                                                 }, void 0),
                                                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
                                                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                                    lineNumber: 436,
+                                                                                                    lineNumber: 437,
                                                                                                     columnNumber: 41
                                                                                                 }, void 0)
                                                                                             ]
                                                                                         }, void 0, true, {
                                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                            lineNumber: 430,
+                                                                                            lineNumber: 431,
                                                                                             columnNumber: 37
                                                                                         }, void 0)
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                    lineNumber: 426,
+                                                                                    lineNumber: 427,
                                                                                     columnNumber: 33
                                                                                 }, this),
                                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormField"], {
@@ -2678,7 +2616,7 @@ function AiCsAssistantSettingsPage() {
                                                                                                     children: "Penundaan Ke-2 (Hari)"
                                                                                                 }, void 0, false, {
                                                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                                    lineNumber: 445,
+                                                                                                    lineNumber: 446,
                                                                                                     columnNumber: 41
                                                                                                 }, void 0),
                                                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormControl"], {
@@ -2690,28 +2628,28 @@ function AiCsAssistantSettingsPage() {
                                                                                                         value: field.value === undefined ? '' : String(field.value)
                                                                                                     }, void 0, false, {
                                                                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                                        lineNumber: 446,
+                                                                                                        lineNumber: 447,
                                                                                                         columnNumber: 54
                                                                                                     }, void 0)
                                                                                                 }, void 0, false, {
                                                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                                    lineNumber: 446,
+                                                                                                    lineNumber: 447,
                                                                                                     columnNumber: 41
                                                                                                 }, void 0),
                                                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
                                                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                                    lineNumber: 450,
+                                                                                                    lineNumber: 451,
                                                                                                     columnNumber: 41
                                                                                                 }, void 0)
                                                                                             ]
                                                                                         }, void 0, true, {
                                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                            lineNumber: 444,
+                                                                                            lineNumber: 445,
                                                                                             columnNumber: 37
                                                                                         }, void 0)
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                    lineNumber: 440,
+                                                                                    lineNumber: 441,
                                                                                     columnNumber: 33
                                                                                 }, this),
                                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormField"], {
@@ -2723,7 +2661,7 @@ function AiCsAssistantSettingsPage() {
                                                                                                     children: "Penundaan Ke-3 (Hari)"
                                                                                                 }, void 0, false, {
                                                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                                    lineNumber: 459,
+                                                                                                    lineNumber: 460,
                                                                                                     columnNumber: 41
                                                                                                 }, void 0),
                                                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormControl"], {
@@ -2735,28 +2673,28 @@ function AiCsAssistantSettingsPage() {
                                                                                                         value: field.value === undefined ? '' : String(field.value)
                                                                                                     }, void 0, false, {
                                                                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                                        lineNumber: 460,
+                                                                                                        lineNumber: 461,
                                                                                                         columnNumber: 54
                                                                                                     }, void 0)
                                                                                                 }, void 0, false, {
                                                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                                    lineNumber: 460,
+                                                                                                    lineNumber: 461,
                                                                                                     columnNumber: 41
                                                                                                 }, void 0),
                                                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
                                                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                                    lineNumber: 464,
+                                                                                                    lineNumber: 465,
                                                                                                     columnNumber: 41
                                                                                                 }, void 0)
                                                                                             ]
                                                                                         }, void 0, true, {
                                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                            lineNumber: 458,
+                                                                                            lineNumber: 459,
                                                                                             columnNumber: 37
                                                                                         }, void 0)
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                    lineNumber: 454,
+                                                                                    lineNumber: 455,
                                                                                     columnNumber: 33
                                                                                 }, this),
                                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormField"], {
@@ -2768,7 +2706,7 @@ function AiCsAssistantSettingsPage() {
                                                                                                     children: "Penundaan Ke-4 (Hari)"
                                                                                                 }, void 0, false, {
                                                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                                    lineNumber: 473,
+                                                                                                    lineNumber: 474,
                                                                                                     columnNumber: 41
                                                                                                 }, void 0),
                                                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormControl"], {
@@ -2780,53 +2718,53 @@ function AiCsAssistantSettingsPage() {
                                                                                                         value: field.value === undefined ? '' : String(field.value)
                                                                                                     }, void 0, false, {
                                                                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                                        lineNumber: 474,
+                                                                                                        lineNumber: 475,
                                                                                                         columnNumber: 54
                                                                                                     }, void 0)
                                                                                                 }, void 0, false, {
                                                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                                    lineNumber: 474,
+                                                                                                    lineNumber: 475,
                                                                                                     columnNumber: 41
                                                                                                 }, void 0),
                                                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
                                                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                                    lineNumber: 478,
+                                                                                                    lineNumber: 479,
                                                                                                     columnNumber: 41
                                                                                                 }, void 0)
                                                                                             ]
                                                                                         }, void 0, true, {
                                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                            lineNumber: 472,
+                                                                                            lineNumber: 473,
                                                                                             columnNumber: 37
                                                                                         }, void 0)
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                    lineNumber: 468,
+                                                                                    lineNumber: 469,
                                                                                     columnNumber: 33
                                                                                 }, this)
                                                                             ]
                                                                         }, void 0, true, {
                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                            lineNumber: 425,
+                                                                            lineNumber: 426,
                                                                             columnNumber: 31
                                                                         }, this)
                                                                     ]
                                                                 }, void 0, true, {
                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                    lineNumber: 413,
+                                                                    lineNumber: 414,
                                                                     columnNumber: 29
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                            lineNumber: 409,
+                                                            lineNumber: 410,
                                                             columnNumber: 27
                                                         }, this)
                                                     ]
                                                 }, void 0, true)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                lineNumber: 271,
+                                                lineNumber: 272,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardFooter"], {
@@ -2838,40 +2776,40 @@ function AiCsAssistantSettingsPage() {
                                                             className: "mr-2 h-4 w-4 animate-spin"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                            lineNumber: 491,
+                                                            lineNumber: 492,
                                                             columnNumber: 45
                                                         }, this) : null,
                                                         "Simpan Pengaturan Agen AI"
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                    lineNumber: 490,
+                                                    lineNumber: 491,
                                                     columnNumber: 21
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                lineNumber: 489,
+                                                lineNumber: 490,
                                                 columnNumber: 19
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                        lineNumber: 266,
+                                        lineNumber: 267,
                                         columnNumber: 17
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                    lineNumber: 265,
+                                    lineNumber: 266,
                                     columnNumber: 15
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                lineNumber: 264,
+                                lineNumber: 265,
                                 columnNumber: 13
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                            lineNumber: 263,
+                            lineNumber: 264,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$tabs$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TabsContent"], {
@@ -2887,27 +2825,27 @@ function AiCsAssistantSettingsPage() {
                                                         className: "mr-2 h-5 w-5 text-primary"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                        lineNumber: 503,
+                                                        lineNumber: 504,
                                                         columnNumber: 58
                                                     }, this),
                                                     "Manajemen Knowledge Base"
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                lineNumber: 503,
+                                                lineNumber: 504,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardDescription"], {
                                                 children: "Tambah, edit, atau hapus informasi yang dapat diakses oleh AI."
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                lineNumber: 504,
+                                                lineNumber: 505,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                        lineNumber: 502,
+                                        lineNumber: 503,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -2922,19 +2860,19 @@ function AiCsAssistantSettingsPage() {
                                                             className: "mr-2 h-4 w-4"
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                            lineNumber: 509,
+                                                            lineNumber: 510,
                                                             columnNumber: 27
                                                         }, this),
                                                         " Tambah Entri KB"
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                    lineNumber: 508,
+                                                    lineNumber: 509,
                                                     columnNumber: 23
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                lineNumber: 507,
+                                                lineNumber: 508,
                                                 columnNumber: 19
                                             }, this),
                                             isLoadingKnowledgeBase ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -2943,19 +2881,19 @@ function AiCsAssistantSettingsPage() {
                                                     className: "h-8 w-8 animate-spin text-primary"
                                                 }, void 0, false, {
                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                    lineNumber: 514,
+                                                    lineNumber: 515,
                                                     columnNumber: 23
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                lineNumber: 513,
+                                                lineNumber: 514,
                                                 columnNumber: 23
                                             }, this) : knowledgeBaseEntries.length === 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                                 className: "text-center text-muted-foreground py-8",
                                                 children: "Belum ada entri knowledge base."
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                lineNumber: 517,
+                                                lineNumber: 518,
                                                 columnNumber: 23
                                             }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Table"], {
                                                 children: [
@@ -2966,21 +2904,21 @@ function AiCsAssistantSettingsPage() {
                                                                     children: "Topik"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                    lineNumber: 522,
+                                                                    lineNumber: 523,
                                                                     columnNumber: 27
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TableHead"], {
                                                                     children: "Potongan Konten"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                    lineNumber: 523,
+                                                                    lineNumber: 524,
                                                                     columnNumber: 27
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TableHead"], {
                                                                     children: "Kata Kunci"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                    lineNumber: 524,
+                                                                    lineNumber: 525,
                                                                     columnNumber: 27
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TableHead"], {
@@ -2988,7 +2926,7 @@ function AiCsAssistantSettingsPage() {
                                                                     children: "Status"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                    lineNumber: 525,
+                                                                    lineNumber: 526,
                                                                     columnNumber: 27
                                                                 }, this),
                                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TableHead"], {
@@ -2996,18 +2934,18 @@ function AiCsAssistantSettingsPage() {
                                                                     children: "Aksi"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                    lineNumber: 526,
+                                                                    lineNumber: 527,
                                                                     columnNumber: 27
                                                                 }, this)
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                            lineNumber: 521,
+                                                            lineNumber: 522,
                                                             columnNumber: 27
                                                         }, this)
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                        lineNumber: 520,
+                                                        lineNumber: 521,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TableBody"], {
@@ -3018,7 +2956,7 @@ function AiCsAssistantSettingsPage() {
                                                                         children: entry.topic
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                        lineNumber: 532,
+                                                                        lineNumber: 533,
                                                                         columnNumber: 31
                                                                     }, this),
                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TableCell"], {
@@ -3026,7 +2964,7 @@ function AiCsAssistantSettingsPage() {
                                                                         children: entry.content
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                        lineNumber: 533,
+                                                                        lineNumber: 534,
                                                                         columnNumber: 31
                                                                     }, this),
                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TableCell"], {
@@ -3037,12 +2975,12 @@ function AiCsAssistantSettingsPage() {
                                                                                 children: kw
                                                                             }, kw, false, {
                                                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                lineNumber: 535,
+                                                                                lineNumber: 536,
                                                                                 columnNumber: 57
                                                                             }, this))
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                        lineNumber: 534,
+                                                                        lineNumber: 535,
                                                                         columnNumber: 31
                                                                     }, this),
                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TableCell"], {
@@ -3052,12 +2990,12 @@ function AiCsAssistantSettingsPage() {
                                                                             children: entry.isActive ? "Aktif" : "Nonaktif"
                                                                         }, void 0, false, {
                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                            lineNumber: 538,
+                                                                            lineNumber: 539,
                                                                             columnNumber: 31
                                                                         }, this)
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                        lineNumber: 537,
+                                                                        lineNumber: 538,
                                                                         columnNumber: 31
                                                                     }, this),
                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TableCell"], {
@@ -3072,12 +3010,12 @@ function AiCsAssistantSettingsPage() {
                                                                                     className: "h-4 w-4"
                                                                                 }, void 0, false, {
                                                                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                    lineNumber: 544,
+                                                                                    lineNumber: 545,
                                                                                     columnNumber: 35
                                                                                 }, this)
                                                                             }, void 0, false, {
                                                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                lineNumber: 543,
+                                                                                lineNumber: 544,
                                                                                 columnNumber: 31
                                                                             }, this),
                                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AlertDialog"], {
@@ -3093,17 +3031,17 @@ function AiCsAssistantSettingsPage() {
                                                                                                 className: "h-4 w-4"
                                                                                             }, void 0, false, {
                                                                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                                lineNumber: 549,
+                                                                                                lineNumber: 550,
                                                                                                 columnNumber: 39
                                                                                             }, this)
                                                                                         }, void 0, false, {
                                                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                            lineNumber: 548,
+                                                                                            lineNumber: 549,
                                                                                             columnNumber: 39
                                                                                         }, this)
                                                                                     }, void 0, false, {
                                                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                        lineNumber: 547,
+                                                                                        lineNumber: 548,
                                                                                         columnNumber: 35
                                                                                     }, this),
                                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AlertDialogContent"], {
@@ -3114,7 +3052,7 @@ function AiCsAssistantSettingsPage() {
                                                                                                         children: "Konfirmasi Penghapusan"
                                                                                                     }, void 0, false, {
                                                                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                                        lineNumber: 554,
+                                                                                                        lineNumber: 555,
                                                                                                         columnNumber: 39
                                                                                                     }, this),
                                                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AlertDialogDescription"], {
@@ -3125,13 +3063,13 @@ function AiCsAssistantSettingsPage() {
                                                                                                         ]
                                                                                                     }, void 0, true, {
                                                                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                                        lineNumber: 555,
+                                                                                                        lineNumber: 556,
                                                                                                         columnNumber: 39
                                                                                                     }, this)
                                                                                                 ]
                                                                                             }, void 0, true, {
                                                                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                                lineNumber: 553,
+                                                                                                lineNumber: 554,
                                                                                                 columnNumber: 39
                                                                                             }, this),
                                                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AlertDialogFooter"], {
@@ -3142,7 +3080,7 @@ function AiCsAssistantSettingsPage() {
                                                                                                         children: "Batal"
                                                                                                     }, void 0, false, {
                                                                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                                        lineNumber: 560,
+                                                                                                        lineNumber: 561,
                                                                                                         columnNumber: 39
                                                                                                     }, this),
                                                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$alert$2d$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["AlertDialogAction"], {
@@ -3156,83 +3094,83 @@ function AiCsAssistantSettingsPage() {
                                                                                                                 className: "mr-2 h-4 w-4 animate-spin"
                                                                                                             }, void 0, false, {
                                                                                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                                                lineNumber: 562,
+                                                                                                                lineNumber: 563,
                                                                                                                 columnNumber: 66
                                                                                                             }, this) : null,
                                                                                                             "Hapus"
                                                                                                         ]
                                                                                                     }, void 0, true, {
                                                                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                                        lineNumber: 561,
+                                                                                                        lineNumber: 562,
                                                                                                         columnNumber: 39
                                                                                                     }, this)
                                                                                                 ]
                                                                                             }, void 0, true, {
                                                                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                                lineNumber: 559,
+                                                                                                lineNumber: 560,
                                                                                                 columnNumber: 39
                                                                                             }, this)
                                                                                         ]
                                                                                     }, void 0, true, {
                                                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                        lineNumber: 552,
+                                                                                        lineNumber: 553,
                                                                                         columnNumber: 35
                                                                                     }, this)
                                                                                 ]
                                                                             }, void 0, true, {
                                                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                                lineNumber: 546,
+                                                                                lineNumber: 547,
                                                                                 columnNumber: 31
                                                                             }, this)
                                                                         ]
                                                                     }, void 0, true, {
                                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                        lineNumber: 542,
+                                                                        lineNumber: 543,
                                                                         columnNumber: 31
                                                                     }, this)
                                                                 ]
                                                             }, entry.id, true, {
                                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                lineNumber: 531,
+                                                                lineNumber: 532,
                                                                 columnNumber: 27
                                                             }, this))
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                        lineNumber: 529,
+                                                        lineNumber: 530,
                                                         columnNumber: 23
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                lineNumber: 519,
+                                                lineNumber: 520,
                                                 columnNumber: 23
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                        lineNumber: 506,
+                                        lineNumber: 507,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                lineNumber: 501,
+                                lineNumber: 502,
                                 columnNumber: 13
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                            lineNumber: 500,
+                            lineNumber: 501,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                    lineNumber: 257,
+                    lineNumber: 258,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                lineNumber: 256,
+                lineNumber: 257,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Dialog"], {
@@ -3250,20 +3188,20 @@ function AiCsAssistantSettingsPage() {
                                     children: editingKbEntry ? "Edit Entri Knowledge Base" : "Tambah Entri Knowledge Base Baru"
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                    lineNumber: 586,
+                                    lineNumber: 587,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DialogDescription"], {
                                     children: editingKbEntry ? "Ubah detail entri di bawah ini." : "Isi detail untuk entri knowledge base baru."
                                 }, void 0, false, {
                                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                    lineNumber: 587,
+                                    lineNumber: 588,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                            lineNumber: 585,
+                            lineNumber: 586,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Form"], {
@@ -3281,7 +3219,7 @@ function AiCsAssistantSettingsPage() {
                                                         children: "Topik Utama"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                        lineNumber: 598,
+                                                        lineNumber: 599,
                                                         columnNumber: 21
                                                     }, void 0),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormControl"], {
@@ -3290,28 +3228,28 @@ function AiCsAssistantSettingsPage() {
                                                             ...field
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                            lineNumber: 599,
+                                                            lineNumber: 600,
                                                             columnNumber: 34
                                                         }, void 0)
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                        lineNumber: 599,
+                                                        lineNumber: 600,
                                                         columnNumber: 21
                                                     }, void 0),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                        lineNumber: 600,
+                                                        lineNumber: 601,
                                                         columnNumber: 21
                                                     }, void 0)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                lineNumber: 597,
+                                                lineNumber: 598,
                                                 columnNumber: 19
                                             }, void 0)
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                        lineNumber: 593,
+                                        lineNumber: 594,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormField"], {
@@ -3323,7 +3261,7 @@ function AiCsAssistantSettingsPage() {
                                                         children: "Konten Informasi"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                        lineNumber: 609,
+                                                        lineNumber: 610,
                                                         columnNumber: 21
                                                     }, void 0),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormControl"], {
@@ -3333,28 +3271,28 @@ function AiCsAssistantSettingsPage() {
                                                             rows: 5
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                            lineNumber: 610,
+                                                            lineNumber: 611,
                                                             columnNumber: 34
                                                         }, void 0)
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                        lineNumber: 610,
+                                                        lineNumber: 611,
                                                         columnNumber: 21
                                                     }, void 0),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                        lineNumber: 611,
+                                                        lineNumber: 612,
                                                         columnNumber: 21
                                                     }, void 0)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                lineNumber: 608,
+                                                lineNumber: 609,
                                                 columnNumber: 19
                                             }, void 0)
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                        lineNumber: 604,
+                                        lineNumber: 605,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormField"], {
@@ -3366,7 +3304,7 @@ function AiCsAssistantSettingsPage() {
                                                         children: "Kata Kunci (pisahkan dengan koma)"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                        lineNumber: 620,
+                                                        lineNumber: 621,
                                                         columnNumber: 21
                                                     }, void 0),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormControl"], {
@@ -3376,12 +3314,12 @@ function AiCsAssistantSettingsPage() {
                                                             rows: 2
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                            lineNumber: 621,
+                                                            lineNumber: 622,
                                                             columnNumber: 34
                                                         }, void 0)
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                        lineNumber: 621,
+                                                        lineNumber: 622,
                                                         columnNumber: 21
                                                     }, void 0),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormDescription"], {
@@ -3389,23 +3327,23 @@ function AiCsAssistantSettingsPage() {
                                                         children: "Kata kunci membantu AI menemukan informasi ini."
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                        lineNumber: 622,
+                                                        lineNumber: 623,
                                                         columnNumber: 21
                                                     }, void 0),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormMessage"], {}, void 0, false, {
                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                        lineNumber: 623,
+                                                        lineNumber: 624,
                                                         columnNumber: 21
                                                     }, void 0)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                lineNumber: 619,
+                                                lineNumber: 620,
                                                 columnNumber: 19
                                             }, void 0)
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                        lineNumber: 615,
+                                        lineNumber: 616,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormField"], {
@@ -3421,7 +3359,7 @@ function AiCsAssistantSettingsPage() {
                                                                 children: "Aktifkan Entri Ini"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                lineNumber: 633,
+                                                                lineNumber: 634,
                                                                 columnNumber: 23
                                                             }, void 0),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormDescription"], {
@@ -3429,13 +3367,13 @@ function AiCsAssistantSettingsPage() {
                                                                 children: "Entri ini akan digunakan oleh AI jika aktif."
                                                             }, void 0, false, {
                                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                                lineNumber: 634,
+                                                                lineNumber: 635,
                                                                 columnNumber: 23
                                                             }, void 0)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                        lineNumber: 632,
+                                                        lineNumber: 633,
                                                         columnNumber: 21
                                                     }, void 0),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$form$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["FormControl"], {
@@ -3444,23 +3382,23 @@ function AiCsAssistantSettingsPage() {
                                                             onCheckedChange: field.onChange
                                                         }, void 0, false, {
                                                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                            lineNumber: 636,
+                                                            lineNumber: 637,
                                                             columnNumber: 34
                                                         }, void 0)
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                        lineNumber: 636,
+                                                        lineNumber: 637,
                                                         columnNumber: 21
                                                     }, void 0)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                lineNumber: 631,
+                                                lineNumber: 632,
                                                 columnNumber: 19
                                             }, void 0)
                                     }, void 0, false, {
                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                        lineNumber: 627,
+                                        lineNumber: 628,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$dialog$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["DialogFooter"], {
@@ -3473,7 +3411,7 @@ function AiCsAssistantSettingsPage() {
                                                 children: "Batal"
                                             }, void 0, false, {
                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                lineNumber: 641,
+                                                lineNumber: 642,
                                                 columnNumber: 17
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
@@ -3485,48 +3423,48 @@ function AiCsAssistantSettingsPage() {
                                                         className: "mr-2 h-4 w-4 animate-spin"
                                                     }, void 0, false, {
                                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                        lineNumber: 643,
+                                                        lineNumber: 644,
                                                         columnNumber: 43
                                                     }, this),
                                                     "Simpan Entri KB"
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                                lineNumber: 642,
+                                                lineNumber: 643,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                        lineNumber: 640,
+                                        lineNumber: 641,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                                lineNumber: 592,
+                                lineNumber: 593,
                                 columnNumber: 13
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                            lineNumber: 591,
+                            lineNumber: 592,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                    lineNumber: 584,
+                    lineNumber: 585,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-                lineNumber: 580,
+                lineNumber: 581,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/src/app/(app)/ai-cs-assistant/settings/page.tsx",
-        lineNumber: 246,
+        lineNumber: 247,
         columnNumber: 5
     }, this);
 }

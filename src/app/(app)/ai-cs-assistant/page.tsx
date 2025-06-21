@@ -746,7 +746,7 @@ export default function AiCsAssistantPage() {
             
             <div className="mt-auto p-4 flex justify-start">
               <Button variant="outline" asChild>
-                <Link href="/ai-cs-assistant/settings">
+                <Link href="/settings">
                   <Settings className="mr-2 h-4 w-4" /> Pengaturan Agen & Knowledge Base AI
                 </Link>
               </Button>
