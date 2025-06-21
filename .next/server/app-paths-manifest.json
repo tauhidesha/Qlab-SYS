@@ -1,5 +1,7 @@
 {
+  "/(app)/ai-cs-assistant/page": "app/(app)/ai-cs-assistant/page.js",
   "/(app)/dashboard/page": "app/(app)/dashboard/page.js",
+  "/(app)/services/[id]/edit/page": "app/(app)/services/[id]/edit/page.js",
   "/(app)/services/page": "app/(app)/services/page.js",
   "/favicon.ico/route": "app/favicon.ico/route.js",
   "/page": "app/page.js"

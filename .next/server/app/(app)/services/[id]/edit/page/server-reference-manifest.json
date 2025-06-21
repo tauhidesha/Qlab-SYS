@@ -1,4 +1,16 @@
 {
-  "node": {},
+  "node": {
+    "40fb659f9b18e8a5d14b6373a67023c25e58627d25": {
+      "workers": {
+        "app/(app)/services/[id]/edit/page": {
+          "moduleId": "[project]/.next-internal/server/app/(app)/services/[id]/edit/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/ai/flows/embed-text-flow.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "async": false
+        }
+      },
+      "layer": {
+        "app/(app)/services/[id]/edit/page": "action-browser"
+      }
+    }
+  },
   "edge": {}
 }

@@ -120,7 +120,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2
 ;
 ;
 // Minimal logging
-console.log("[firebase.ts] Initializing Firebase...");
+console.log("[firebase.ts] Initializing Firebase client...");
 const firebaseConfig = {
     apiKey: ("TURBOPACK compile-time value", "AIzaSyB4O6ZRoRnRKWsA3v4q19jXHsSbELo2lT0"),
     authDomain: ("TURBOPACK compile-time value", "detailflow-8mkmj.firebaseapp.com"),
@@ -130,35 +130,16 @@ const firebaseConfig = {
     appId: ("TURBOPACK compile-time value", "1:940251442415:web:0227a18d7c0028ff20bf1a")
 };
 if (!firebaseConfig.projectId || !firebaseConfig.apiKey) {
-    console.error("[firebase.ts] FATAL ERROR: Firebase projectId or apiKey is MISSING in environment variables.");
+    const errorMessage = "[firebase.ts] FATAL ERROR: Firebase projectId or apiKey is MISSING. Check .env file.";
+    console.error(errorMessage);
+// Throwing an error is better than letting the app run in a broken state,
+// but in a server component context, this might just crash the render.
+// So, we log it aggressively.
 }
-let app;
-let db;
-if ((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["getApps"])().length === 0) {
-    try {
-        app = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["initializeApp"])(firebaseConfig);
-        console.log("[firebase.ts] Firebase app initialized. Project ID:", app.options.projectId);
-    } catch (e) {
-        console.error("[firebase.ts] FAILED to initialize Firebase app:", e.message);
-        // @ts-ignore
-        app = null;
-    }
-} else {
-    app = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["getApp"])();
-    console.log("[firebase.ts] Using existing Firebase app. Project ID:", app.options.projectId);
-}
-// @ts-ignore
-if (app) {
-    try {
-        // @ts-ignore
-        db = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getFirestore"])(app);
-        console.log("[firebase.ts] Firestore instance obtained.");
-    } catch (e) {
-        console.error("[firebase.ts] FAILED to get Firestore instance:", e?.message);
-    }
-} else {
-    console.error("[firebase.ts] Firebase app not properly initialized, cannot get Firestore.");
-}
+// Simplified and more robust initialization
+const app = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["getApps"])().length ? (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["getApp"])() : (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["initializeApp"])(firebaseConfig);
+const db = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getFirestore"])(app);
+console.log(`[firebase.ts] Firebase client connected to project: ${app.options.projectId || 'UNKNOWN'}`);
 ;
 }}),
 "[externals]/perf_hooks [external] (perf_hooks, cjs)": (function(__turbopack_context__) {
@@ -262,13 +243,14 @@ module.exports = mod;
 
 var { g: global, __dirname } = __turbopack_context__;
 {
+// The manual 'dotenv' call is removed to rely on Next.js's native .env handling, preventing potential conflicts.
 __turbopack_context__.s({
     "ai": (()=>ai)
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/firebase.ts [app-rsc] (ecmascript)"); // Ensure Firebase is initialized early
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$index$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/genkit/lib/index.mjs [app-rsc] (ecmascript) <module evaluation>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$genkit$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/genkit/lib/genkit.js [app-rsc] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$genkit$2d$ai$2f$googleai$2f$lib$2f$index$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/@genkit-ai/googleai/lib/index.mjs [app-rsc] (ecmascript) <module evaluation>"); // Impor plugin Google AI
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$genkit$2d$ai$2f$googleai$2f$lib$2f$index$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/@genkit-ai/googleai/lib/index.mjs [app-rsc] (ecmascript) <module evaluation>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$genkit$2d$ai$2f$googleai$2f$lib$2f$index$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__ = __turbopack_context__.i("[project]/node_modules/@genkit-ai/googleai/lib/index.mjs [app-rsc] (ecmascript) <locals>");
 ;
 ;
@@ -280,7 +262,9 @@ if (!process.env.GOOGLE_API_KEY) {
 }
 const ai = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$genkit$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["genkit"])({
     plugins: [
-        (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$genkit$2d$ai$2f$googleai$2f$lib$2f$index$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["googleAI"])()
+        (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$genkit$2d$ai$2f$googleai$2f$lib$2f$index$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$locals$3e$__["googleAI"])({
+            apiKey: process.env.GOOGLE_API_KEY
+        })
     ],
     model: 'googleai/gemini-1.5-flash-latest'
 });
@@ -396,8 +380,9 @@ ALUR KERJA UTAMA ANDA (WAJIB DIIKUTI):
 3.  **JAWAB PERTANYAAN HARGA/LAYANAN SPESIFIK (Gunakan \`getProductServiceDetailsByNameTool\`):**
     -   Identifikasi nama layanan/produk dari pertanyaan user.
     -   Panggil tool \`getProductServiceDetailsByNameTool\` dengan nama tersebut.
-    -   Jika tool berhasil menemukan data: Gunakan harga, durasi, dan detail dari hasil tool untuk menjawab. Format harga dalam Rupiah (Rp).
-    -   Jika tool tidak menemukan (hasilnya null): Informasikan dengan sopan bahwa layanan tersebut mungkin perlu dicek manual atau minta pelanggan memperjelas nama layanannya. Jangan sebutkan nama toolnya ke user.
+    -   **Evaluasi hasil tool:**
+        -   Jika hasil tool memiliki \`success: true\`: Gunakan informasi dari \`productInfo\` (seperti \`price\`, \`name\`, \`estimatedDuration\`) untuk menjawab pertanyaan pelanggan. Format harga dalam Rupiah (Rp).
+        -   Jika hasil tool memiliki \`success: false\`: Gunakan \`message\` dari output tool sebagai dasar untuk memberitahu pelanggan dengan sopan bahwa Anda tidak menemukan informasinya. Jangan pernah mengarang harga. Contoh: "Maaf Bro, untuk 'Poles Ajaib' Zoya belum nemu info harganya nih, mungkin bisa coba nama layanan lain?".
 
 4.  **PROSES BOOKING (Gunakan \`createBookingTool\`):**
     -   Hanya mulai proses ini jika pelanggan sudah menyatakan ingin membuat jadwal (mis. "booking", "jadwalin", "pesan tempat").
@@ -505,16 +490,28 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiToolSchema
 const ProductLookupInputSchema = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].object({
     productName: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].string().describe("Nama produk atau layanan yang ingin dicari detailnya. Harus spesifik.")
 });
+// NEW: Output Schema that doesn't return null
+const ProductLookupOutputSchema = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].object({
+    success: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].boolean().describe("Menandakan apakah produk/layanan yang cocok ditemukan."),
+    productInfo: __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiToolSchemas$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ProductServiceInfoSchema"].optional().describe("Detail produk/layanan yang ditemukan. Kosong jika tidak ditemukan."),
+    message: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].string().describe("Pesan yang menjelaskan hasil pencarian, mis. 'Produk ditemukan.' atau 'Tidak ada produk yang cocok dengan nama XYZ.'")
+});
 async function findProductServiceByName(input) {
     if (!input.productName || input.productName.trim() === '') {
         console.log("ProductLookupTool Function: Nama produk kosong.");
-        return null;
+        return {
+            success: false,
+            message: "Nama produk kosong, tidak bisa melakukan pencarian."
+        };
     }
     const searchTerm = input.productName.trim();
     console.log(`ProductLookupTool Function: Mencari produk/layanan dengan nama: "${searchTerm}"`);
     if (!__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"]) {
         console.error("[ProductLookupTool Function] FATAL: Firestore DB (db) is not initialized. Cannot query.");
-        return null;
+        return {
+            success: false,
+            message: "Kesalahan internal: Database tidak terhubung."
+        };
     }
     try {
         const servicesRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'services');
@@ -577,29 +574,39 @@ async function findProductServiceByName(input) {
             const { score, ...result } = bestMatch; // Remove score before returning
             try {
                 __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiToolSchemas$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ProductServiceInfoSchema"].parse(result);
-                return result;
+                return {
+                    success: true,
+                    productInfo: result,
+                    message: `Berhasil menemukan produk/layanan: ${result.name}.`
+                };
             } catch (zodError) {
                 console.error("ProductLookupTool Function: Zod validation error for found item:", JSON.stringify(zodError.format(), null, 2));
                 console.error("ProductLookupTool Function: Data that failed validation:", JSON.stringify(result, null, 2));
-                return null;
+                return {
+                    success: false,
+                    message: `Menemukan item yang cocok, namun data tidak valid. Item: ${bestMatch.name}.`
+                };
             }
         } else {
             console.log(`ProductLookupTool Function: Tidak ada produk/layanan yang cocok dengan nama "${searchTerm}".`);
-            return null;
+            return {
+                success: false,
+                message: `Tidak ada produk atau layanan yang cocok dengan nama "${searchTerm}".`
+            };
         }
     } catch (error) {
         console.error('ProductLookupTool Function: Error saat mengambil data dari Firestore:', error);
-        return null;
+        return {
+            success: false,
+            message: "Terjadi kesalahan internal saat mencari data di database."
+        };
     }
 }
 const getProductServiceDetailsByNameTool = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].defineTool({
     name: 'getProductServiceDetailsByNameTool',
     description: 'Mencari dan mengembalikan detail spesifik dari sebuah produk atau layanan berdasarkan namanya. Berguna untuk menjawab pertanyaan pelanggan tentang harga, durasi, ketersediaan, atau deskripsi item tertentu.',
     inputSchema: ProductLookupInputSchema,
-    outputSchema: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].union([
-        __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$types$2f$aiToolSchemas$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ProductServiceInfoSchema"],
-        __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].null()
-    ]).describe("Objek berisi detail produk/layanan, atau null jika tidak ditemukan.")
+    outputSchema: ProductLookupOutputSchema
 }, findProductServiceByName // Pass the actual function here
 );
 }}),
@@ -777,12 +784,10 @@ var { g: global, __dirname } = __turbopack_context__;
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$build$2f$webpack$2f$loaders$2f$next$2d$flight$2d$loader$2f$server$2d$reference$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/build/webpack/loaders/next-flight-loader/server-reference.js [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$app$2d$render$2f$encryption$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/server/app-render/encryption.js [app-rsc] (ecmascript)");
 /**
- * @fileOverview Genkit tool to retrieve relevant knowledge base entries using vector similarity.
+ * @fileOverview Genkit tool to retrieve relevant knowledge base entries and services using vector similarity.
  */ var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/ai/genkit.ts [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$index$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/zod/dist/esm/index.js [app-rsc] (ecmascript) <module evaluation>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__ = __turbopack_context__.i("[project]/node_modules/zod/dist/esm/v3/external.js [app-rsc] (ecmascript) <export * as z>");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$index$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/genkit/lib/index.mjs [app-rsc] (ecmascript) <module evaluation>");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$common$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/genkit/lib/common.js [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/src/lib/firebase.ts [app-rsc] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$firebase$2f$firestore$2f$dist$2f$index$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$module__evaluation$3e$__ = __turbopack_context__.i("[project]/node_modules/firebase/firestore/dist/index.mjs [app-rsc] (ecmascript) <module evaluation>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@firebase/firestore/dist/index.node.mjs [app-rsc] (ecmascript)");
@@ -793,14 +798,13 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist
 ;
 ;
 ;
-;
 const KnowledgeBaseRetrieverInputSchema = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].object({
     query: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].string().describe('The user question to find relevant knowledge for.')
 });
 const KnowledgeBaseRetrieverOutputSchema = __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].array(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].object({
-    topic: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].string().describe("The topic of the knowledge base entry."),
-    content: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].string().describe("The content of the knowledge base entry.")
-})).describe("A list of relevant knowledge base entries, or an empty list if none are found.");
+    topic: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].string().describe("The topic of the knowledge base entry or service name."),
+    content: __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$zod$2f$dist$2f$esm$2f$v3$2f$external$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__$3c$export__$2a$__as__z$3e$__["z"].string().describe("The content of the knowledge base entry or service description.")
+})).describe("A list of relevant entries from the knowledge base and service catalog, or an empty list if none are found.");
 /**
  * Calculates the cosine similarity between two vectors.
  * @param vecA The first vector.
@@ -827,50 +831,60 @@ const KnowledgeBaseRetrieverOutputSchema = __TURBOPACK__imported__module__$5b$pr
 }
 const knowledgeBaseRetrieverTool = __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].defineTool({
     name: 'knowledgeBaseRetrieverTool',
-    description: 'Searches the internal knowledge base for information relevant to a user\'s query. Use this first to get context before answering questions about pricing, policies, or general information.',
+    description: "Searches the internal knowledge base AND the service/product catalog for information relevant to a user's query. Use this first to get context before answering questions about policies, general information, or to find suitable services based on a user's problem description.",
     inputSchema: KnowledgeBaseRetrieverInputSchema,
     outputSchema: KnowledgeBaseRetrieverOutputSchema
 }, async (input)=>{
     console.log(`[knowledgeBaseRetrieverTool] Received query: "${input.query}"`);
     try {
         // 1. Generate an embedding for the user's query
-        const { embedding: queryEmbedding } = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$genkit$2f$lib$2f$common$2e$js__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["embed"])({
+        const { embedding: queryEmbedding } = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$ai$2f$genkit$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["ai"].embed({
             model: 'googleai/text-embedding-004',
             content: input.query
         });
-        // 2. Fetch all active knowledge base entries from Firestore
+        // 2. Fetch all active KB entries and all services in parallel
         const kbCollectionRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'knowledge_base_entries');
-        const q = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["query"])(kbCollectionRef, (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["where"])('isActive', '==', true));
-        const snapshot = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(q);
-        const entriesWithEmbeddings = snapshot.docs.map((doc)=>({
+        const servicesCollectionRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["collection"])(__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib$2f$firebase$2e$ts__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["db"], 'services');
+        const kbQuery = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["query"])(kbCollectionRef, (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["where"])('isActive', '==', true));
+        const servicesQuery = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["query"])(servicesCollectionRef);
+        const [kbSnapshot, servicesSnapshot] = await Promise.all([
+            (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(kbQuery),
+            (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$node$2e$mjs__$5b$app$2d$rsc$5d$__$28$ecmascript$29$__["getDocs"])(servicesQuery)
+        ]);
+        // 3. Score Knowledge Base entries
+        const scoredKbEntries = kbSnapshot.docs.map((doc)=>({
                 id: doc.id,
                 ...doc.data()
-            })).filter((entry)=>entry.embedding && Array.isArray(entry.embedding) && entry.embedding.length > 0);
-        if (entriesWithEmbeddings.length === 0) {
-            console.log('[knowledgeBaseRetrieverTool] No active KB entries with embeddings found.');
-            return [];
-        }
-        // 3. Calculate cosine similarity for each entry
-        const scoredEntries = entriesWithEmbeddings.map((entry)=>{
-            const score = cosineSimilarity(queryEmbedding, entry.embedding);
-            return {
-                ...entry,
-                score
-            };
-        });
-        // 4. Sort by similarity score and take the top N results
-        const topN = 3;
-        const similarityThreshold = 0.7; // Only return results with a decent score
-        const relevantEntries = scoredEntries.sort((a, b)=>b.score - a.score).filter((entry)=>entry.score > similarityThreshold).slice(0, topN);
-        console.log(`[knowledgeBaseRetrieverTool] Found ${relevantEntries.length} relevant entries.`);
-        // 5. Format the output
-        return relevantEntries.map((entry)=>({
+            })).filter((entry)=>entry.embedding && Array.isArray(entry.embedding) && entry.embedding.length > 0).map((entry)=>({
                 topic: entry.topic,
-                content: entry.content
+                content: entry.content,
+                score: cosineSimilarity(queryEmbedding, entry.embedding)
+            }));
+        // 4. Score Service/Product entries
+        const scoredServiceEntries = servicesSnapshot.docs.map((doc)=>({
+                id: doc.id,
+                ...doc.data()
+            })).filter((service)=>service.embedding && Array.isArray(service.embedding) && service.embedding.length > 0).map((service)=>({
+                topic: service.name,
+                content: service.description || 'Tidak ada deskripsi detail.',
+                score: cosineSimilarity(queryEmbedding, service.embedding)
+            }));
+        // 5. Combine, sort, filter, and take the top N results
+        const allScoredEntries = [
+            ...scoredKbEntries,
+            ...scoredServiceEntries
+        ];
+        const topN = 5;
+        const similarityThreshold = 0.65; // Adjusted threshold
+        const relevantEntries = allScoredEntries.sort((a, b)=>b.score - a.score).filter((entry)=>entry.score > similarityThreshold).slice(0, topN);
+        console.log(`[knowledgeBaseRetrieverTool] Found ${relevantEntries.length} relevant entries from KB and Services.`);
+        // 6. Format the output (remove score)
+        return relevantEntries.map(({ topic, content })=>({
+                topic,
+                content
             }));
     } catch (error) {
         console.error('[knowledgeBaseRetrieverTool] Error during retrieval:', error);
-        // Return an empty array in case of an error to prevent the flow from breaking
         return [];
     }
 });

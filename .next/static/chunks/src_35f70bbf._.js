@@ -293,7 +293,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2
 ;
 ;
 // Minimal logging
-console.log("[firebase.ts] Initializing Firebase...");
+console.log("[firebase.ts] Initializing Firebase client...");
 const firebaseConfig = {
     apiKey: ("TURBOPACK compile-time value", "AIzaSyB4O6ZRoRnRKWsA3v4q19jXHsSbELo2lT0"),
     authDomain: ("TURBOPACK compile-time value", "detailflow-8mkmj.firebaseapp.com"),
@@ -303,35 +303,16 @@ const firebaseConfig = {
     appId: ("TURBOPACK compile-time value", "1:940251442415:web:0227a18d7c0028ff20bf1a")
 };
 if (!firebaseConfig.projectId || !firebaseConfig.apiKey) {
-    console.error("[firebase.ts] FATAL ERROR: Firebase projectId or apiKey is MISSING in environment variables.");
+    const errorMessage = "[firebase.ts] FATAL ERROR: Firebase projectId or apiKey is MISSING. Check .env file.";
+    console.error(errorMessage);
+// Throwing an error is better than letting the app run in a broken state,
+// but in a server component context, this might just crash the render.
+// So, we log it aggressively.
 }
-let app;
-let db;
-if ((0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["getApps"])().length === 0) {
-    try {
-        app = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["initializeApp"])(firebaseConfig);
-        console.log("[firebase.ts] Firebase app initialized. Project ID:", app.options.projectId);
-    } catch (e) {
-        console.error("[firebase.ts] FAILED to initialize Firebase app:", e.message);
-        // @ts-ignore
-        app = null;
-    }
-} else {
-    app = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["getApp"])();
-    console.log("[firebase.ts] Using existing Firebase app. Project ID:", app.options.projectId);
-}
-// @ts-ignore
-if (app) {
-    try {
-        // @ts-ignore
-        db = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getFirestore"])(app);
-        console.log("[firebase.ts] Firestore instance obtained.");
-    } catch (e) {
-        console.error("[firebase.ts] FAILED to get Firestore instance:", e?.message);
-    }
-} else {
-    console.error("[firebase.ts] Firebase app not properly initialized, cannot get Firestore.");
-}
+// Simplified and more robust initialization
+const app = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["getApps"])().length ? (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["getApp"])() : (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$app$2f$dist$2f$esm$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$locals$3e$__["initializeApp"])(firebaseConfig);
+const db = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$firebase$2f$firestore$2f$dist$2f$index$2e$esm2017$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["getFirestore"])(app);
+console.log(`[firebase.ts] Firebase client connected to project: ${app.options.projectId || 'UNKNOWN'}`);
 ;
 if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
     __turbopack_context__.k.registerExports(module, globalThis.$RefreshHelpers$);

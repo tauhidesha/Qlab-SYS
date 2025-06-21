@@ -38,18 +38,27 @@ const ProductLookupInputSchema = z.object({
 });
 export type ProductLookupInput = z.infer<typeof ProductLookupInputSchema>;
 
+// NEW: Output Schema that doesn't return null
+const ProductLookupOutputSchema = z.object({
+  success: z.boolean().describe("Menandakan apakah produk/layanan yang cocok ditemukan."),
+  productInfo: ProductServiceInfoSchema.optional().describe("Detail produk/layanan yang ditemukan. Kosong jika tidak ditemukan."),
+  message: z.string().describe("Pesan yang menjelaskan hasil pencarian, mis. 'Produk ditemukan.' atau 'Tidak ada produk yang cocok dengan nama XYZ.'"),
+});
+export type ProductLookupOutput = z.infer<typeof ProductLookupOutputSchema>;
+
+
 // Export this function so it can be called directly from other flows if needed.
-export async function findProductServiceByName(input: ProductLookupInput): Promise<ProductServiceInfo | null> {
+export async function findProductServiceByName(input: ProductLookupInput): Promise<ProductLookupOutput> {
     if (!input.productName || input.productName.trim() === '') {
       console.log("ProductLookupTool Function: Nama produk kosong.");
-      return null;
+      return { success: false, message: "Nama produk kosong, tidak bisa melakukan pencarian." };
     }
     const searchTerm = input.productName.trim();
     console.log(`ProductLookupTool Function: Mencari produk/layanan dengan nama: "${searchTerm}"`);
 
     if (!db) {
       console.error("[ProductLookupTool Function] FATAL: Firestore DB (db) is not initialized. Cannot query.");
-      return null;
+      return { success: false, message: "Kesalahan internal: Database tidak terhubung." };
     }
 
     try {
@@ -122,19 +131,19 @@ export async function findProductServiceByName(input: ProductLookupInput): Promi
 
         try {
           ProductServiceInfoSchema.parse(result);
-          return result;
+          return { success: true, productInfo: result, message: `Berhasil menemukan produk/layanan: ${result.name}.` };
         } catch (zodError: any) {
           console.error("ProductLookupTool Function: Zod validation error for found item:", JSON.stringify(zodError.format(), null, 2));
           console.error("ProductLookupTool Function: Data that failed validation:", JSON.stringify(result, null, 2));
-          return null;
+          return { success: false, message: `Menemukan item yang cocok, namun data tidak valid. Item: ${bestMatch.name}.` };
         }
       } else {
         console.log(`ProductLookupTool Function: Tidak ada produk/layanan yang cocok dengan nama "${searchTerm}".`);
-        return null;
+        return { success: false, message: `Tidak ada produk atau layanan yang cocok dengan nama "${searchTerm}".` };
       }
     } catch (error) {
       console.error('ProductLookupTool Function: Error saat mengambil data dari Firestore:', error);
-      return null;
+      return { success: false, message: "Terjadi kesalahan internal saat mencari data di database." };
     }
 }
 
@@ -143,7 +152,7 @@ export const getProductServiceDetailsByNameTool = ai.defineTool(
     name: 'getProductServiceDetailsByNameTool',
     description: 'Mencari dan mengembalikan detail spesifik dari sebuah produk atau layanan berdasarkan namanya. Berguna untuk menjawab pertanyaan pelanggan tentang harga, durasi, ketersediaan, atau deskripsi item tertentu.',
     inputSchema: ProductLookupInputSchema,
-    outputSchema: z.union([ProductServiceInfoSchema, z.null()]).describe("Objek berisi detail produk/layanan, atau null jika tidak ditemukan."),
+    outputSchema: ProductLookupOutputSchema,
   },
   findProductServiceByName // Pass the actual function here
 );
