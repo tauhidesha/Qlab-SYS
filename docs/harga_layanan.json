@@ -3,7 +3,7 @@
     "name": "Repaint Bodi Halus",
     "category": "repaint",
     "price": 0,
-    "estimatedDuration": "7200",
+    "estimatedDuration": "2400",
     "variants": [
       { "name": "S", "price": 1000000 },
       { "name": "M", "price": 1250000 },
@@ -14,6 +14,7 @@
   {
     "name": "Repaint Bodi Kasar",
     "category": "repaint",
+	"estimatedDuration": "960",
     "price": 0,
     "variants": [
       { "name": "S", "price": 300000 },
@@ -25,15 +26,18 @@
   {
     "name": "Repaint Velg",
     "category": "repaint",
-    "price": 0,
+    "estimatedDuration": "960",
+	"price": 0,
     "variants": [
       { "name": "S", "price": 350000 },
       { "name": "M", "price": 400000 },
-      { "name": "L", "price": 400000 }
+      { "name": "L", "price": 400000 },
+	  { "name": "XL", "price": 500000 }
     ]
   },
   {
     "name": "Repaint Cover CVT / Arm",
+	"estimatedDuration": "480",
     "category": "repaint",
     "price": 150000
   },

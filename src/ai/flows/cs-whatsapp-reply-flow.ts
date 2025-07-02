@@ -30,7 +30,7 @@ function extractInfoForPriceCheck(message: string): { service: string, motor: st
     const msg = message.toLowerCase();
     const priceIntent = /berapa|harga|price|biaya/i.test(msg);
     if (!priceIntent) return null;
-    const serviceKeywords = [ { name: 'Repaint Bodi Halus', keywords: ['repaint bodi', 'cat bodi'] }, { name: 'Repaint Velg', keywords: ['repaint velg', 'cat velg'] }, { name: 'Coating Motor Doff', keywords: ['coating doff', 'coating matte'] }, { name: 'Coating Motor Glossy', keywords: ['coating glossy', 'coating kilap'] }, { name: 'Full Detailing Glossy', keywords: ['full detailing'] }, { name: 'Poles Bodi Glossy', keywords: ['poles bodi', 'poles body'] }, { name: 'Cuci Premium', keywords: ['cuci premium'] }, ];
+    const serviceKeywords = [ { name: 'Repaint Bodi Halus', keywords: ['repaint bodi', 'cat bodi', 'repaint bodi alus', 'bodi halus', 'cat bodi halus'] }, { name: 'Repaint Velg', keywords: ['repaint velg', 'cat velg'] }, { name: 'Coating Motor Doff', keywords: ['coating doff', 'coating matte'] }, { name: 'Coating Motor Glossy', keywords: ['coating glossy', 'coating kilap'] }, { name: 'Full Detailing Glossy', keywords: ['full detailing'] }, { name: 'Poles Bodi Glossy', keywords: ['poles bodi', 'poles body'] }, { name: 'Cuci Premium', keywords: ['cuci premium'] }, ];
     const motorKeywords = ['pcx', 'nmax', 'vario', 'aerox', 'scoopy', 'beat', 'xmax', 'forza', 'cbr', 'vixion', 'r15', 'klx', 'ninja', 'fazzio', 'filano'];
     let foundService = null;
     for (const service of serviceKeywords) { if (service.keywords.some(keyword => msg.includes(keyword))) { foundService = service.name; break; } }
@@ -165,7 +165,7 @@ async function getServiceIdByName(serviceName: string): Promise<string | null> {
 // --- Konfigurasi AI & Tools ---
 const zoyaTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     { type: 'function', function: { name: 'listServicesByCategory', description: "Gunakan saat pelanggan bertanya layanan secara umum berdasarkan kategori (coating, detailing, dll).", parameters: { type: 'object', properties: { category: { type: 'string', enum: ['coating', 'detailing', 'cuci', 'repaint'] } }, required: ['category'] } } },
-    { type: 'function', function: { name: 'getSpecificServicePrice', description: "Gunakan untuk mendapatkan harga final jika layanan spesifik DAN motor sudah diketahui.", parameters: { type: 'object', properties: { service_name: { type: 'string' }, motor_query: { type: 'string' } }, required: ['service_name', 'motor_query'] } } },
+    { type: 'function', function: { name: 'getSpecificServicePrice', description: "Gunakan untuk mendapatkan harga final jika layanan spesifik DAN motor sudah diketahui. Jika user menyebut nama warna yang mengandung kata spesial seperti 'candy', 'bunglon', 'lembayung', 'hologram', atau 'xyrallic', set 'is_special_paint' ke true. Contoh: 'red candy', 'lembayung biru', 'black xyralic'.",  parameters: { type: 'object', properties: { service_name: { type: 'string' }, motor_query: { type: 'string' } }, required: ['service_name', 'motor_query'] } } },
     { type: 'function', function: { name: 'getServiceDescription', description: "Gunakan saat pelanggan bertanya detail tentang satu layanan spesifik.", parameters: { type: 'object', properties: { service_name: { type: 'string' } }, required: ['service_name'] } } },
     { type: 'function', function: { name: 'getMotorSizeDetails', description: "Gunakan saat pelanggan bertanya ukuran atau kategori ukuran motornya (misal: 'vario 160 masuk size apa?').", parameters: { type: 'object', properties: { motor_query: { type: 'string' } }, required: ['motor_query'] } } },
     
@@ -192,6 +192,10 @@ Lo punya 6 senjata: listServicesByCategory, getSpecificServicePrice, getServiceD
 - Lo ngomong kayak ngobrol di bengkel.
 - Panggil user: “bro”, “bang”, “kak” — fleksibel.
 - Boleh pakai emoji tapi secukupnya (🛠️✨😎). Jangan spam.
+## 💰 ATURAN HARGA & PENJELASAN
+- Saat memberikan harga, selalu cek apakah ada 'note' dari hasil tool.
+- Jika ada 'note', gunakan itu untuk menjelaskan rincian harga. Contoh: "Totalnya jadi Rp500.000 ya bro. Harga dasarnya 250rb, tapi karena warnanya candy, ada tambahan biaya 250rb."
+- Jika tidak ada 'note', langsung sebutkan harga finalnya.
 ## ⚡ TANGGAPAN CEPAT & SAMBUNG OBROLAN
 - Kalau user nulis “2” atau “pilih nomor”, cocokkan dengan 'lastOfferedServices' dari sesi.
 - Selalu gunakan ingatan sesi ('lastMentionedMotor', 'lastMentionedService') untuk menyambung obrolan.
@@ -339,6 +343,11 @@ MOTOR: ${motor}
             for (const toolCall of responseMessage.tool_calls) {
                 const functionName = toolCall.function.name as 'listServicesByCategory' | 'getSpecificServicePrice' | 'getServiceDescription' | 'getMotorSizeDetails';
                 const functionArgs = JSON.parse(toolCall.function.arguments);
+                 // ==========================================================
+              // ===== SISIPKAN 2 BARIS INI (WAJIB) =====
+              // "Membekali" argumen dengan pesan asli dari user
+              functionArgs.original_query = input.customerMessage;
+              // ==========================================================
                 let toolResult;
                 // ... (Switch case untuk tool calls tetap sama seperti kode target)
                 switch (functionName) {
