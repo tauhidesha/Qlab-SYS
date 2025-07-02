@@ -1,5 +1,1 @@
-{
-  "node": {},
-  "edge": {},
-  "encryptionKey": "/Fof6Gu6f6jsCDBqse3HcwvOO8yk/RngYMq+vw0UA4U="
-}
+{"node":{"9d1f8bbbee09239290d476043ca89e3d487d6b5e":{"workers":{"app/(app)/services/[id]/edit/page":"23640","app/(app)/services/new/page":"23640","app/(app)/services/page":"23640","app/(app)/settings/page":"23640"},"layer":{"app/(app)/services/[id]/edit/page":"action-browser","app/(app)/services/new/page":"action-browser","app/(app)/services/page":"action-browser","app/(app)/settings/page":"action-browser"}},"778c8d8f40784f9d929739404c5250aaad6aa91d":{"workers":{"app/(app)/ai-cs-assistant/page":"18279"},"layer":{"app/(app)/ai-cs-assistant/page":"action-browser"}}},"edge":{},"encryptionKey":"QXo4coqV9lcZBhqajg2lLhc0Qy0LsNZyciOm5z1A7JQ="}

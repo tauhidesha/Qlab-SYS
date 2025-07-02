@@ -403,7 +403,7 @@ export default function ServicesPage() {
                       <li><code className="bg-muted px-1 rounded-sm">costPrice</code> (Angka, Opsional) - Hanya untuk Produk.</li>
                       <li className="font-semibold mt-2">Untuk Varian (Opsional, maksimal 5 varian):</li>
                       <li><code className="bg-muted px-1 rounded-sm">variantN_name</code> (Wajib jika <code className="bg-muted px-1 rounded-sm">variantN_price</code> diisi)</li>
-                      <li><code className="bg-muted px-1 rounded-sm">variantN_price</code> (Angka, Wajib jika <code className="bg-muted px-1 rounded-sm">variantN_name</code> diisi, >0)</li>
+                      <li><code className="bg-muted px-1 rounded-sm">variantN_price</code> (Angka, Wajib jika <code className="bg-muted px-1 rounded-sm">variantN_name</code> diisi, &gt;0)</li>
                       <li><code className="bg-muted px-1 rounded-sm">variantN_pointsAwarded</code> (Angka, Opsional)</li>
                       <li><code className="bg-muted px-1 rounded-sm">variantN_estimatedDuration</code> (Teks, Opsional)</li>
                       <li><code className="bg-muted px-1 rounded-sm">variantN_stockQuantity</code> (Angka, Opsional) - Hanya untuk Produk.</li>

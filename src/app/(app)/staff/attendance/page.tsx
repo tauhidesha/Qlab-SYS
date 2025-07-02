@@ -337,7 +337,7 @@ export default function AttendancePage() {
             const recordDocRef = doc(db, 'attendanceRecords', staff.attendance.id);
             await updateDoc(recordDocRef, { 
                 ...newRecordData,
-                updatedAt: serverTimestamp() 
+                updatedAt: serverTimestamp(),
             });
              toast({ title: "Sukses", description: `${staff.name} berhasil clock-in (update).` });
           } else {
@@ -396,6 +396,7 @@ export default function AttendancePage() {
 
   const handleManualSubmit = async (data: ManualAttendanceFormData) => {
     setIsSubmittingManualEntry(true);
+    
     const selectedStaffMember = allStaffMembers.find(s => s.id === data.staffId);
     if (!selectedStaffMember) {
       toast({ title: "Error", description: "Staf yang dipilih tidak valid.", variant: "destructive" });
@@ -404,53 +405,49 @@ export default function AttendancePage() {
     }
 
     try {
-        const formattedDate = formatDateForFirestore(selectedDate);
-        // Check if an attendance record already exists for this staff on this date
-        const attendanceCollectionRef = collection(db, 'attendanceRecords');
-        const q = query(attendanceCollectionRef, where("staffId", "==", data.staffId), where("date", "==", formattedDate));
-        const querySnapshot = await getDocs(q);
-
-        const updateData: Partial<AttendanceRecord> & {updatedAt: DocumentData} = {
-            clockIn: data.clockIn || undefined,
-            clockOut: data.clockOut || undefined,
-            status: data.status,
-            notes: data.notes || undefined,
-            updatedAt: serverTimestamp(),
-        };
-         // Remove location data if it exists as this is a manual entry
-        if (updateData.clockInLocation) delete updateData.clockInLocation;
-        if (updateData.clockOutLocation) delete updateData.clockOutLocation;
-
-
-        if (!querySnapshot.empty) {
-            // Update existing record
-            const existingDocRef = querySnapshot.docs[0].ref;
-            await updateDoc(existingDocRef, updateData);
-            toast({ title: "Sukses", description: `Absensi manual untuk ${selectedStaffMember.name} berhasil diperbarui.` });
-        } else {
-            // Create new record
-            const newRecordData: Omit<AttendanceRecord, 'id' | 'createdAt' | 'updatedAt' | 'clockInLocation' | 'clockOutLocation'> = {
-                staffId: data.staffId,
-                staffName: selectedStaffMember.name,
-                date: formattedDate,
-                clockIn: data.clockIn || undefined,
-                clockOut: data.clockOut || undefined,
-                status: data.status,
-                notes: data.notes || undefined,
-            };
-            await addDoc(collection(db, 'attendanceRecords'), {
-                ...newRecordData,
-                createdAt: serverTimestamp(),
-                updatedAt: serverTimestamp(),
-            });
-            toast({ title: "Sukses", description: `Entri absensi manual untuk ${selectedStaffMember.name} berhasil ditambahkan.` });
-        }
+      const formattedDate = formatDateForFirestore(selectedDate);
       
+      const attendanceCollectionRef = collection(db, 'attendanceRecords');
+      const q = query(attendanceCollectionRef, where("staffId", "==", data.staffId), where("date", "==", formattedDate));
+      const querySnapshot = await getDocs(q);
+
+      // Siapkan data inti dari form
+      const payload: { [key: string]: any } = {
+        status: data.status,
+        notes: data.notes || '',
+        clockIn: data.clockIn || '',
+        clockOut: data.clockOut || '',
+      };
+
+      if (querySnapshot.empty) {
+        // Jika TIDAK ADA record, buat dokumen baru
+        await addDoc(attendanceCollectionRef, {
+          ...payload,
+          staffId: data.staffId,
+          staffName: selectedStaffMember.name,
+          date: formattedDate,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+        toast({ title: "Sukses", description: "Entri absensi manual berhasil dibuat." });
+      } else {
+        // Jika SUDAH ADA record, perbarui dokumen yang ada
+        const existingDocId = querySnapshot.docs[0].id;
+        const recordDocRef = doc(db, 'attendanceRecords', existingDocId);
+        await updateDoc(recordDocRef, {
+          ...payload,
+          updatedAt: serverTimestamp(),
+        });
+        toast({ title: "Sukses", description: "Entri absensi manual berhasil diperbarui." });
+      }
+
+      // Tutup dialog dan refresh data di halaman
       setIsManualEntryDialogOpen(false);
       fetchStaffAndAttendance(selectedDate);
+
     } catch (error) {
-      console.error("Error adding/updating manual attendance entry: ", error);
-      toast({ title: "Error", description: "Gagal memproses entri absensi manual.", variant: "destructive" });
+      console.error("Error submitting manual attendance: ", error);
+      toast({ title: "Error", description: "Gagal menyimpan entri manual.", variant: "destructive" });
     } finally {
       setIsSubmittingManualEntry(false);
     }

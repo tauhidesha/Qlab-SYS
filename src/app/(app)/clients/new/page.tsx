@@ -57,7 +57,12 @@ export default function NewClientPage() {
       const newClientData: NewClientFormData & { loyaltyPoints: number; lastVisit: string; createdAt: any } = {
         name: data.name,
         phone: data.phone,
-        motorcycles: data.motorcycles.filter(mc => mc.name && mc.licensePlate), // Only add motorcycles with both fields filled
+         motorcycles: data.motorcycles
+        .filter(mc => mc.name && mc.licensePlate) // 1. Filter dulu motor yang tidak lengkap
+        .map(mc => ({ // 2. Lalu buat objek baru dengan tipe yang dijamin benar
+            name: mc.name!,
+            licensePlate: mc.licensePlate!
+        })),
         loyaltyPoints: 0,
         lastVisit: new Date().toLocaleDateString('en-CA'), // YYYY-MM-DD
         createdAt: serverTimestamp(),

@@ -1,21 +1,28 @@
-
 'use server';
-/**
- * @fileOverview Genkit tool for creating new bookings.
- */
-import { ai } from '@/ai/genkit';
+
+// import { ai } from '@/ai/genkit'; // DIHAPUS
 import { z } from 'zod';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp, Timestamp, updateDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, Timestamp, updateDoc, doc, getDoc } from 'firebase/firestore';
 import { CreateBookingToolInputSchema, CreateBookingToolOutputSchema, type CreateBookingToolInput, type CreateBookingToolOutput } from '@/types/booking';
 import { type ServiceProduct } from '@/app/(app)/services/page';
 import { isSameDay, setHours, setMinutes, parse } from 'date-fns';
 
-async function createBookingImplementation(input: CreateBookingToolInput): Promise<CreateBookingToolOutput> {
+// Helper function untuk mendapatkan kategori dari nama layanan.
+function getServiceCategory(serviceName: string): 'detailing' | 'coating' | 'repaint' | 'other' {
+  const name = serviceName.toLowerCase();
+  if (name.includes('detailing') || name.includes('poles')) return 'detailing';
+  if (name.includes('coating')) return 'coating';
+  if (name.includes('repaint')) return 'repaint';
+  return 'other';
+}
+
+// Fungsi implementasi tool, sekarang diekspor secara langsung
+export async function createBookingImplementation(input: CreateBookingToolInput): Promise<CreateBookingToolOutput> {
   console.log("[createBookingTool] Input received:", JSON.stringify(input, null, 2));
 
   try {
-    // 1. Validasi input (sudah dilakukan oleh Zod, tapi bisa tambah validasi kustom di sini)
+    // 1. Validasi input
     const parsedDate = parse(input.bookingDate, 'yyyy-MM-dd', new Date());
     if (isNaN(parsedDate.getTime())) {
       return { success: false, message: "Format tanggal booking tidak valid." };
@@ -24,36 +31,36 @@ async function createBookingImplementation(input: CreateBookingToolInput): Promi
     const bookingDateTime = setMinutes(setHours(parsedDate, hour), minute);
     const bookingTimestamp = Timestamp.fromDate(bookingDateTime);
 
-    // 2. Ambil detail layanan untuk estimasi durasi (jika belum ada)
+    // 2. Ambil detail layanan untuk estimasi durasi
     let estimatedDuration = input.estimatedDuration;
     if (!estimatedDuration && input.serviceId) {
       try {
         const serviceDocRef = doc(db, 'services', input.serviceId);
-        const serviceSnap = await serviceDocRef.get();
+        const serviceSnap = await getDoc(serviceDocRef);
         if (serviceSnap.exists()) {
           const serviceData = serviceSnap.data() as ServiceProduct;
           estimatedDuration = serviceData.estimatedDuration || 'N/A';
-          // Jika ada varian, idealnya sudah ditangani di input.serviceName dan input.estimatedDuration
         }
       } catch (e) {
-        console.warn("[createBookingTool] Gagal mengambil durasi dari serviceId, akan menggunakan N/A jika tidak ada di input.", e);
+        console.warn("[createBookingTool] Gagal mengambil durasi dari serviceId.", e);
       }
     }
 
+    const category = getServiceCategory(input.serviceName);
+
     // 3. Siapkan data untuk Firestore
-    const bookingDataPayload: Omit<import('@/types/booking').BookingEntry, 'id' | 'createdAt' | 'updatedAt' | 'queueItemId'> = {
-      customerName: input.customerName,
-      clientId: input.clientId,
-      customerPhone: input.customerPhone,
-      vehicleInfo: input.vehicleInfo,
-      serviceId: input.serviceId,
-      serviceName: input.serviceName,
-      bookingDateTime: bookingTimestamp,
-      status: 'Confirmed', // Atau 'Pending' jika perlu konfirmasi manual
-      notes: input.notes,
-      source: 'WhatsApp', // Asumsi dari AI
-      estimatedDuration: estimatedDuration || 'N/A',
-    };
+   const bookingDataPayload: any = { // Gunakan 'any' sementara untuk fleksibilitas
+  customerName: input.customerName,
+  vehicleInfo: input.vehicleInfo,
+  serviceId: input.serviceId,
+  serviceName: input.serviceName,
+  category: category,
+  bookingDateTime: bookingTimestamp,
+  status: 'Confirmed',
+  source: 'WhatsApp',
+  estimatedDuration: estimatedDuration || 'N/A',
+};
+
 
     // 4. Simpan ke koleksi 'bookings'
     const bookingDocRef = await addDoc(collection(db, "bookings"), {
@@ -74,11 +81,10 @@ async function createBookingImplementation(input: CreateBookingToolInput): Promi
         vehicleInfo: input.vehicleInfo,
         service: input.serviceName,
         serviceId: input.serviceId,
-        // variantId: (jika ada dan disimpan di input, perlu ditambahkan ke schema input tool)
         status: 'Menunggu' as 'Menunggu',
         estimatedTime: estimatedDuration || 'N/A',
         bookingId: bookingDocRef.id,
-        createdAt: bookingTimestamp, // Waktu booking jadi createdAt antrian
+        createdAt: bookingTimestamp,
       };
       const queueDocRef = await addDoc(collection(db, 'queueItems'), queueItemData);
       queueItemId = queueDocRef.id;
@@ -104,12 +110,4 @@ async function createBookingImplementation(input: CreateBookingToolInput): Promi
   }
 }
 
-export const createBookingTool = ai.defineTool(
-  {
-    name: 'createBookingTool',
-    description: 'Membuat jadwal booking baru untuk pelanggan di sistem. Gunakan setelah semua detail (nama, layanan, motor, tanggal, jam) dikonfirmasi.',
-    inputSchema: CreateBookingToolInputSchema,
-    outputSchema: CreateBookingToolOutputSchema,
-  },
-  createBookingImplementation
-);
+// Bagian ai.defineTool DIHAPUS TOTAL

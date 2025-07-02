@@ -16,7 +16,6 @@ import type { IncomeEntry, IncomeCategory } from '@/types/income';
 import type { Expense, ExpenseCategory } from '@/types/expense';
 import { format as formatDateFns, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { id as indonesiaLocale } from 'date-fns/locale';
-import { analyzeProfitLoss, type AnalyzeProfitLossInput, type AnalyzeProfitLossOutput } from '@/ai/flows/analyze-profit-loss-flow';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface ProfitLossReportData {
@@ -53,22 +52,17 @@ export default function ProfitLossPage() {
   const availablePeriods = React.useMemo(() => generatePreviousMonths(12), []);
   const [selectedPeriod, setSelectedPeriod] = useState<string>(availablePeriods[0]?.value || '');
   
-  const [aiAnalysis, setAiAnalysis] = useState<AnalyzeProfitLossOutput | null>(null);
-  const [isLoadingAiAnalysis, setIsLoadingAiAnalysis] = useState(false);
-  const [aiAnalysisError, setAiAnalysisError] = useState<string | null>(null);
+  
 
   const { toast } = useToast();
 
   const fetchProfitLossData = useCallback(async (periodValue: string) => {
     if (!periodValue) {
       setReportData(null);
-      setAiAnalysis(null);
       setLoading(false);
       return;
     }
     setLoading(true);
-    setAiAnalysis(null); 
-    setAiAnalysisError(null);
 
     const [year, month] = periodValue.split('-').map(Number);
     const startDate = Timestamp.fromDate(startOfMonth(new Date(year, month - 1, 1)));
@@ -168,42 +162,10 @@ export default function ProfitLossPage() {
       fetchProfitLossData(selectedPeriod);
     } else {
       setReportData(null);
-      setAiAnalysis(null);
+      
       setLoading(false);
     }
-  }, [selectedPeriod, fetchProfitLossData]);
-
-  useEffect(() => {
-    if (reportData && !isLoadingAiAnalysis && !aiAnalysis && !aiAnalysisError) {
-      const fetchAnalysis = async () => {
-        setIsLoadingAiAnalysis(true);
-        setAiAnalysisError(null);
-        try {
-          const inputForAI: AnalyzeProfitLossInput = {
-            period: reportData.period,
-            totalRevenue: reportData.totalRevenue,
-            revenueFromServiceSales: reportData.revenueFromServiceSales,
-            revenueFromProductSales: reportData.revenueFromProductSales,
-            revenueFromOtherIncome: reportData.revenueFromOtherIncome,
-            otherIncomeBreakdown: reportData.otherIncomeBreakdown,
-            totalExpenses: reportData.totalExpenses,
-            expensesBreakdown: reportData.expensesBreakdown,
-            netProfit: reportData.netProfit,
-          };
-          const analysisResult = await analyzeProfitLoss(inputForAI);
-          setAiAnalysis(analysisResult);
-        } catch (error) {
-          console.error("Error fetching AI analysis: ", error);
-          setAiAnalysisError("Gagal mendapatkan analisa AI. Silakan coba lagi nanti.");
-          toast({ title: "Analisa AI Error", description: "Terjadi masalah saat mengambil analisa dari AI.", variant: "destructive" });
-        } finally {
-          setIsLoadingAiAnalysis(false);
-        }
-      };
-      fetchAnalysis();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reportData]); 
+  }, [selectedPeriod, fetchProfitLossData]); 
 
   return (
     <div className="flex flex-col h-full">
@@ -283,52 +245,7 @@ export default function ProfitLossPage() {
               </CardContent>
             </Card>
             
-            {isLoadingAiAnalysis ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center"><Sparkles className="mr-2 h-5 w-5 text-accent" />Analisa AI ✨</CardTitle>
-                </CardHeader>
-                <CardContent className="flex items-center justify-center py-10">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <p className="ml-2 text-muted-foreground">AI sedang menganalisa data...</p>
-                </CardContent>
-              </Card>
-            ) : aiAnalysisError ? (
-              <Alert variant="destructive">
-                <Sparkles className="h-4 w-4" />
-                <AlertTitle>Analisa AI Gagal</AlertTitle>
-                <AlertDescription>{aiAnalysisError}</AlertDescription>
-              </Alert>
-            ) : aiAnalysis && (
-              <Card className="bg-accent/5 dark:bg-accent/10 border-accent/30">
-                <CardHeader>
-                  <CardTitle className="flex items-center text-accent"><Sparkles className="mr-2 h-6 w-6" />Analisa AI ✨</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <h4 className="font-semibold mb-1">Ringkasan Performa:</h4>
-                    <p className="text-sm">{aiAnalysis.summary}</p>
-                  </div>
-                  {aiAnalysis.keyObservations && aiAnalysis.keyObservations.length > 0 && (
-                    <div>
-                      <h4 className="font-semibold mb-1">Observasi Kunci:</h4>
-                      <ul className="list-disc list-inside space-y-1 text-sm">
-                        {aiAnalysis.keyObservations.map((obs, index) => <li key={index}>{obs}</li>)}
-                      </ul>
-                    </div>
-                  )}
-                  {aiAnalysis.recommendations && aiAnalysis.recommendations.length > 0 && (
-                    <div>
-                      <h4 className="font-semibold mb-1">Saran/Rekomendasi:</h4>
-                      <ul className="list-disc list-inside space-y-1 text-sm">
-                        {aiAnalysis.recommendations.map((rec, index) => <li key={index}>{rec}</li>)}
-                      </ul>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
+          
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>

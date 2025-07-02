@@ -127,7 +127,7 @@ export default function EditStaffPage() {
     try {
       const staffDocRef = doc(db, 'staffMembers', staffId);
 
-      const updateData: Partial<Omit<StaffMember, 'id' | 'createdAt'>> & { updatedAt?: any } = {
+      const updateData: { [key: string]: any } = {
         name: data.name,
         role: data.role,
         phone: (data.phone && data.phone.trim() !== '') ? data.phone : undefined,

@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, MessageSquareText, Sparkles, Copy, Send, User, Search, Bot, MessageCircle, ThumbsUp, ThumbsDown, Edit2, ShieldAlert, Settings } from 'lucide-react'; // Removed BrainCircuit, PhoneForwarded, Info, PlusCircle, Trash2
 import { useToast } from '@/hooks/use-toast';
 import { generateWhatsAppReply } from '@/ai/flows/cs-whatsapp-reply-flow';
-import type { ChatMessage, ZoyaChatInput, WhatsAppReplyOutput } from '@/ai/flows/cs-whatsapp-reply-flow'; // Updated import path for ZoyaChatInput
+import type { ChatMessage, ZoyaChatInput, WhatsAppReplyOutput } from '@/types/ai/cs-whatsapp-reply';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
@@ -67,6 +67,7 @@ function formatPhoneNumberForMatching(number?: string): string {
   }
   if (cleaned.startsWith('62') && cleaned.length >= 10) {
     return cleaned;
+	
   }
   return '';
 }
@@ -110,33 +111,57 @@ export default function AiCsAssistantPage() {
   }, [playgroundChatHistory, isPlaygroundMode]);
 
 
-  const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
-    console.log("Fetching actual customers from Firestore...");
-    try {
-      const clientsCollectionRef = collection(db, 'clients');
-      const q = query(clientsCollectionRef, orderBy("name"));
-      const querySnapshot = await getFirestoreDocs(q);
-      const clientsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
+const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
+  console.log("Fetching actual customers from Firestore (based on WA messages)...");
 
-      return clientsData.map(client => ({
-        id: client.id,
-        name: client.name,
-        avatarUrl: client.photoUrl || `https://placehold.co/40x40.png?text=${client.name.charAt(0)}`,
-        lastMessageTimestamp: client.lastVisit || 'N/A',
-        lastMessage: 'Klik untuk melihat chat...',
+  try {
+    const directMessagesRef = collection(db, 'directMessages');
+    const q = query(directMessagesRef, orderBy('lastMessageAt', 'desc'));
+    const querySnapshot = await getFirestoreDocs(q);
+
+    const customersData: Customer[] = await Promise.all(querySnapshot.docs.map(async docSnap => {
+      const phone = docSnap.id;
+      const parentData = docSnap.data();
+      const lastMessageAt = parentData.lastMessageAt || 'N/A';
+
+      // 🔍 Ambil metadata dari meta/info
+      const metaDocRef = doc(db, 'directMessages', phone, 'meta', 'info');
+      const metaDocSnap = await getFirestoreDoc(metaDocRef);
+      const metaData = metaDocSnap.exists() ? metaDocSnap.data() : {};
+
+      // Ambil pesan terakhir
+      const messagesRef = collection(db, 'directMessages', phone, 'messages');
+      const lastMsgQuery = query(messagesRef, orderBy('timestamp', 'desc'), limit(1));
+      const lastMsgSnap = await getFirestoreDocs(lastMsgQuery);
+      const lastMsgData = lastMsgSnap.docs[0]?.data();
+
+      const displayName = metaData.name || lastMsgData?.waName || parentData.name || phone;
+      const lastMessage = lastMsgData?.text || 'Klik untuk melihat chat...';
+
+      return {
+        id: phone,
+        name: displayName,
+        avatarUrl: `https://placehold.co/40x40.png?text=${displayName.charAt(0)}`,
+        lastMessageTimestamp: lastMessageAt,
+        lastMessage,
         unreadCount: 0,
-        phone: client.phone,
-      }));
-    } catch (error) {
-      console.error("Error fetching customers from Firestore: ", error);
-      toast({
-        title: "Error Database",
-        description: "Gagal mengambil daftar pelanggan dari database.",
-        variant: "destructive",
-      });
-      return [];
-    }
-  }, [toast]);
+        phone,
+      };
+    }));
+
+    return customersData;
+
+  } catch (error) {
+    console.error("Error fetching customers from Firestore: ", error);
+    toast({
+      title: "Error Database",
+      description: "Gagal mengambil daftar pelanggan dari database.",
+      variant: "destructive",
+    });
+    return [];
+  }
+}, [toast]);
+
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -162,13 +187,17 @@ export default function AiCsAssistantPage() {
     if (selectedCustomer && !isPlaygroundMode) {
       const phoneToQuery = formatPhoneNumberForMatching(selectedCustomer.phone);
 
-      if (phoneToQuery) {
-        const messagesRef = collection(db, 'directMessages');
-        const q = query(
-          messagesRef,
-          where("senderNumber", "==", phoneToQuery),
-          orderBy("timestamp", "asc")
-        );
+      // --- KODE BARU (BENAR) ---
+
+if (phoneToQuery) {
+    // FIX: Alamatnya sekarang langsung menunjuk ke dalam "laci" messages
+    const messagesRef = collection(db, 'directMessages', phoneToQuery, 'messages');
+    
+    // FIX: Query jadi lebih simpel, tidak perlu 'where' lagi
+    const q = query(messagesRef, orderBy("timestamp", "asc"));
+    
+    console.log(`[UI] Listening for real-time chat at path: directMessages/${phoneToQuery}/messages`);
+        
 
         unsubscribeChatRef.current = onSnapshot(q, (querySnapshot) => {
           const history: ChatMessageUi[] = [];
@@ -253,13 +282,13 @@ export default function AiCsAssistantPage() {
     const genkitMessagesForFlow: ChatMessage[] = updatedPlaygroundHistory
       .filter(msg => msg.sender === 'user' || msg.sender === 'ai') 
       .map(msg => ({
-        role: msg.sender === 'user' ? 'user' : 'model', 
+        role: msg.sender === 'user' ? 'user' : 'assistant', 
         content: msg.text,
       }));
     
     // Prepare ZoyaChatInput
     const flowInput: ZoyaChatInput = {
-      messages: genkitMessagesForFlow.slice(0, -1), 
+      chatHistory: genkitMessagesForFlow.slice(0, -1), 
       customerMessage: userMessageText,
     };
 
@@ -744,13 +773,7 @@ export default function AiCsAssistantPage() {
               </>
             )}
             
-            <div className="mt-auto p-4 flex justify-start">
-              <Button variant="outline" asChild>
-                <Link href="/settings">
-                  <Settings className="mr-2 h-4 w-4" /> Pengaturan Agen & Knowledge Base AI
-                </Link>
-              </Button>
-            </div>
+            
           </div>
         </div>
       </div>

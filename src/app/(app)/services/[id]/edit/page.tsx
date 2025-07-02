@@ -19,7 +19,7 @@ import { db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import type { ServiceProduct, ServiceProductVariant } from '../page'; 
+import type { ServiceProduct, ServiceProductVariant } from '@/types/service'; 
 import { v4 as uuidv4 } from 'uuid';
 import { Separator } from '@/components/ui/separator';
 import { embedText } from '@/ai/flows/embed-text-flow';

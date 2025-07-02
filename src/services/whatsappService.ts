@@ -1,4 +1,3 @@
-
 // src/services/whatsappService.ts
 
 interface SendMessageResponse {
@@ -29,7 +28,8 @@ function formatPhoneNumber(number: string): string {
 
 
 export async function sendWhatsAppMessage(number: string, message: string): Promise<SendMessageResponse> {
-  const whatsappServerUrl = 'https://c2b4-103-3-220-151.ngrok-free.app/send-message';
+  // Pastikan URL server bot WA lo bener, bisa juga ditaruh di .env
+  const whatsappServerUrl = 'http://localhost:4000';
   
   console.log(`WhatsappService: Menerima nomor asli: "${number}"`);
   const formattedNumber = formatPhoneNumber(number);
@@ -41,12 +41,17 @@ export async function sendWhatsAppMessage(number: string, message: string): Prom
     return { success: false, error: errorMsg };
   }
 
+  // --- INI DIA PERBAIKANNYA ---
+  // Kita tambahkan path endpoint yang benar ke URL dasar
+  const endpoint = `${whatsappServerUrl}/send-manual-message`;
+  // -----------------------------
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 detik timeout
 
   try {
-    console.log(`WhatsappService: Mengirim permintaan ke server WhatsApp di ${whatsappServerUrl} untuk nomor ${formattedNumber}`);
-    const response = await fetch(whatsappServerUrl, {
+    console.log(`WhatsappService: Mengirim permintaan ke server WhatsApp di ${endpoint} untuk nomor ${formattedNumber}`);
+    const response = await fetch(endpoint, { // <-- Variabel endpoint dipakai di sini
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -67,7 +72,7 @@ export async function sendWhatsAppMessage(number: string, message: string): Prom
       } catch (e) {
         errorData = { error: errorBody };
       }
-      console.error(`WhatsappService: Server WhatsApp merespons dengan error ${response.status} dari ${whatsappServerUrl}:`, errorData);
+      console.error(`WhatsappService: Server WhatsApp merespons dengan error ${response.status} dari ${endpoint}:`, errorData);
       return { success: false, error: `Server WhatsApp error: ${response.status} - ${errorData.error || errorData.details || response.statusText}` };
     }
 
@@ -76,19 +81,19 @@ export async function sendWhatsAppMessage(number: string, message: string): Prom
     return { success: true, messageId: responseData.messageId || 'N/A' };
   } catch (error: any) {
     clearTimeout(timeoutId);
-    console.error(`WhatsappService: Gagal mengirim pesan ke ${formattedNumber} via ${whatsappServerUrl}. Error:`, error);
+    console.error(`WhatsappService: Gagal mengirim pesan ke ${formattedNumber} via ${endpoint}. Error:`, error);
     let detailedErrorMessage = 'Error tidak diketahui saat menghubungi server WhatsApp lokal.';
 
     if (error.name === 'AbortError') {
-      detailedErrorMessage = `Permintaan ke server WhatsApp (${whatsappServerUrl}) timed out setelah 15 detik. Pastikan server responsif dan tidak ada error di konsol whatsapp-server.js.`;
+      detailedErrorMessage = `Permintaan ke server WhatsApp (${endpoint}) timed out setelah 15 detik. Pastikan server responsif dan tidak ada error di konsol whatsapp-server.js.`;
     } else if (error instanceof TypeError && error.message.toLowerCase().includes('failed to fetch')) {
-      detailedErrorMessage = `Gagal menghubungi server WhatsApp di ${whatsappServerUrl}. Pastikan:
-1. Server lokal (whatsapp-server.js) berjalan.
-2. Ngrok tunnel (${whatsappServerUrl}) aktif dengan URL yang benar dan dapat diakses.
-3. TIDAK ADA ERROR di konsol tempat whatsapp-server.js berjalan, terutama saat menangani POST request.
+      detailedErrorMessage = `Gagal menghubungi server WhatsApp di ${endpoint}. Pastikan:
+1. Server lokal (run.js) berjalan.
+2. Alamat dan port sudah benar.
+3. TIDAK ADA ERROR di konsol tempat run.js berjalan.
 Error asli: ${error.message}`;
     } else if (error instanceof Error) {
-      detailedErrorMessage = `Error koneksi ke server WhatsApp lokal: ${error.message}. Periksa konsol whatsapp-server.js.`;
+      detailedErrorMessage = `Error koneksi ke server WhatsApp lokal: ${error.message}. Periksa konsol run.js.`;
     }
     return { success: false, error: detailedErrorMessage };
   }

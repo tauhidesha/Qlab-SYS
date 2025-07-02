@@ -59,6 +59,15 @@ import * as z from 'zod';
 import { buttonVariants } from '@/components/ui/button';
 import Link from 'next/link';
 
+function getServiceCategory(serviceName: string): 'detailing' | 'coating' | 'repaint' | 'other' {
+  const name = serviceName.toLowerCase();
+  if (name.includes('detailing') || name.includes('poles')) return 'detailing';
+  if (name.includes('coating')) return 'coating';
+  if (name.includes('repaint')) return 'repaint';
+  return 'other';
+}
+
+
 const WALK_IN_CLIENT_VALUE = "##WALK_IN_CLIENT##";
 
 const manualBookingFormSchema = z.object({
@@ -205,19 +214,22 @@ function BookingFormDialog({ onSubmitSuccess, clientsList, allServicesList, exis
         }
       }
 
-      const bookingDataPayload: Omit<BookingEntry, 'id' | 'createdAt' | 'updatedAt' | 'queueItemId'> = {
-        customerName: data.customerName,
-        clientId: data.clientId === WALK_IN_CLIENT_VALUE ? undefined : data.clientId,
-        customerPhone: data.clientId !== WALK_IN_CLIENT_VALUE ? clientsList.find(c => c.id === data.clientId)?.phone : undefined,
-        vehicleInfo: data.vehicleInfo,
-        serviceId: data.serviceId,
-        serviceName: serviceNameDisplay,
-        bookingDateTime: bookingTimestamp,
-        status: 'Confirmed',
-        notes: data.notes,
-        source: data.source,
-        estimatedDuration: estimatedDuration || undefined,
-      };
+      const category = getServiceCategory(serviceNameDisplay);
+
+    const bookingDataPayload: Omit<BookingEntry, 'id' | 'createdAt' | 'updatedAt' | 'queueItemId'> = {
+      customerName: data.customerName,
+      clientId: data.clientId === WALK_IN_CLIENT_VALUE ? undefined : data.clientId,
+      customerPhone: data.clientId !== WALK_IN_CLIENT_VALUE ? clientsList.find(c => c.id === data.clientId)?.phone : undefined,
+      vehicleInfo: data.vehicleInfo,
+      serviceId: data.serviceId,
+      serviceName: serviceNameDisplay,
+      category: category, // <-- VVV L-2: TAMBAHKAN PROPERTI INI VVV
+      bookingDateTime: bookingTimestamp,
+      status: 'Confirmed',
+      notes: data.notes,
+      source: data.source,
+      estimatedDuration: estimatedDuration || undefined,
+    };
 
       if (existingBooking?.id) {
         const bookingDocRef = doc(db, "bookings", existingBooking.id);

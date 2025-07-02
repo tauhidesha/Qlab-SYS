@@ -55,16 +55,17 @@ export default function NewCashDepositPage() {
   const onSubmit = async (data: CashDepositFormValues) => {
     setIsSubmitting(true);
     try {
-      const newExpenseData: Omit<ExpenseFormData, 'category' | 'description' | 'receiptUrl'> & { category: "Setoran Tunai ke Bank"; description: string; createdAt: any; updatedAt: any; date: Timestamp; bankDestination: string; } = {
-        date: Timestamp.fromDate(data.date),
-        category: "Setoran Tunai ke Bank",
-        description: `Setoran tunai ke ${data.bankDestination}`,
-        amount: Number(data.amount),
-        bankDestination: data.bankDestination,
-        notes: data.notes,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      };
+      // Hasil akhir yang benar
+const newExpenseData: { [key: string]: any } = {
+    date: Timestamp.fromDate(data.date),
+    category: "Setoran Tunai ke Bank",
+    description: `Setoran tunai ke ${data.bankDestination}`,
+    amount: Number(data.amount),
+    bankDestination: data.bankDestination,
+    notes: data.notes,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+};
 
       await addDoc(collection(db, 'expenses'), newExpenseData);
       toast({

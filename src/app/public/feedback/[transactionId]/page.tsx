@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -12,24 +11,28 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import { z } from 'zod';
 import { Star, Send, Loader2, CheckCircle } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import type { FeedbackFormData } from '@/types/feedback';
+// Hapus impor manual FeedbackFormData dari file lain
+// import type { FeedbackFormData } from '@/types/feedback'; 
 import Link from 'next/link';
 import Logo from '@/components/Logo';
+import { cn } from '@/lib/utils'; // Import cn utility if not already present
 
+
+// 1. Definisikan skema sebagai satu-satunya sumber kebenaran
 const feedbackFormSchema = z.object({
-  rating: z.preprocess(
-    (val) => (val === undefined || val === null || val === "") ? undefined : parseInt(String(val), 10),
-    z.number().min(1).max(5).optional()
-  ),
-  suggestion: z.string().min(5, "Saran minimal 5 karakter.").max(1000, "Saran maksimal 1000 karakter."),
-  customerName: z.string().max(100, "Nama maksimal 100 karakter.").optional(),
-  customerContact: z.string().max(100, "Kontak maksimal 100 karakter.").optional(),
+  rating: z.number({ required_error: "Rating wajib diisi." }).min(1, "Rating wajib diisi.").max(5),
+  suggestion: z.string().min(1, "Saran atau masukan tidak boleh kosong."),
+  customerName: z.string().optional(),
+  customerContact: z.string().optional(),
 });
+
+// 2. Buat tipe FeedbackFormData secara otomatis dari skema di atas
+type FeedbackFormData = z.infer<typeof feedbackFormSchema>;
 
 export default function FeedbackPage() {
   const params = useParams();
@@ -41,6 +44,7 @@ export default function FeedbackPage() {
   const [submissionSuccess, setSubmissionSuccess] = useState(false);
   const [transactionExists, setTransactionExists] = useState<boolean | null>(null);
 
+  // 3. Sekarang useForm<FeedbackFormData> akan 100% cocok dengan resolver
   const form = useForm<FeedbackFormData>({
     resolver: zodResolver(feedbackFormSchema),
     defaultValues: {
@@ -133,7 +137,7 @@ export default function FeedbackPage() {
           <p className="text-muted-foreground text-lg">
             Masukan Anda sangat berharga bagi kami untuk terus meningkatkan kualitas layanan QLAB Auto Detailing.
           </p>
-           <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
             ID Transaksi: {transactionId.substring(0,8)}...
           </p>
         </CardContent>

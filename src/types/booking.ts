@@ -11,6 +11,7 @@ export interface BookingEntry {
   clientId?: string;
   serviceId: string; // ID dari katalog 'services'
   serviceName: string; // Nama layanan (bisa termasuk varian)
+  category: 'detailing' | 'coating' | 'repaint' | 'other'; 
   vehicleInfo: string;
   bookingDateTime: Timestamp; // Tanggal dan waktu booking
   estimatedDuration?: string;
@@ -47,15 +48,22 @@ export const CreateBookingToolOutputSchema = z.object({
 });
 export type CreateBookingToolOutput = z.infer<typeof CreateBookingToolOutputSchema>;
 
-// Referensi dari /bookings/page.tsx (untuk form manual di UI, bukan tool AI)
-export interface ManualBookingFormData {
-  customerName: string;
-  clientId?: string;
-  vehicleInfo: string;
-  serviceId: string;
-  variantId?: string;
-  bookingDate: Date;
-  bookingTime: string; // HH:MM
-  notes?: string;
-  source: 'Manual' | 'WhatsApp' | 'Online';
-}
+// GANTI BLOK LAMA DENGAN INI SEMUA
+
+// 1. Definisikan SKEMA ZOD untuk form manual di UI
+export const manualBookingFormSchema = z.object({
+  customerName: z.string().min(1, 'Nama pelanggan wajib diisi.'),
+  clientId: z.string().optional(),
+  vehicleInfo: z.string().min(1, 'Info kendaraan wajib diisi.'),
+  serviceId: z.string().min(1, 'Layanan wajib dipilih.'),
+  variantId: z.string().optional(),
+  bookingDate: z.date({
+    required_error: "Tanggal booking wajib diisi.",
+  }),
+  bookingTime: z.string().min(1, 'Jam booking wajib diisi.'),
+  notes: z.string().optional(),
+  source: z.enum(['Manual', 'WhatsApp', 'Online']),
+});
+
+// 2. Tipe sekarang dibuat OTOMATIS dari skema di atas
+export type ManualBookingFormData = z.infer<typeof manualBookingFormSchema>;

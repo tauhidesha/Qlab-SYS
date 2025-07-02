@@ -1,64 +1,24 @@
+// File: src/ai/flows/embed-text-flow.ts (Versi Baru dengan OpenAI)
 
 'use server';
-/**
- * @fileOverview A flow to generate text embeddings using Google's embedding model.
- */
 
-import { ai } from '@/ai/genkit';
-import * as z from 'zod';
-import { embed, type EmbedderArgument } from 'genkit/ai';
-
-const embedTextInputSchema = z.string();
-const embedTextOutputSchema = z.array(z.number());
+// Impor fungsi createEmbedding yang sudah kita buat sebelumnya
+import { createEmbedding } from '@/ai/actions/embeddingAction';
 
 /**
- * Generates an embedding vector for a given piece of text.
- * This is the core function, exported for internal use by other tools/flows.
- * @param text The text to embed.
- * @returns A promise that resolves to an array of numbers representing the embedding.
+ * Fungsi ini sekarang hanya menjadi 'wrapper' atau pemanggil
+ * untuk fungsi createEmbedding yang menggunakan OpenAI SDK.
+ * * Semua referensi ke Genkit dan `ai.embed` telah dihapus dari file ini.
+ * * @param text Teks yang akan di-embed.
+ * @returns Promise yang berisi embedding vector (array angka).
  */
 export async function embedText(text: string): Promise<number[]> {
-  // This is the real implementation. It requires the 'Generative Language API'
-  // to be enabled in the user's Google Cloud project.
-  if (!text || text.trim() === '') {
-    console.warn("embedText: Input text is empty. Returning empty vector.");
-    return [];
-  }
-  try {
-    const result = await ai.embed({
-      model: 'googleai/text-embedding-004',
-      content: text,
-      config: {
-        safetySettings: [
-          { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-          { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-          { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-          { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
-        ],
-      },
-    });
-
-    if (!result?.embedding) {
-      throw new Error('API returned no embedding.');
-    }
-    return result.embedding;
-  } catch (error) {
-    console.error(`Error in embedText for text: "${text.substring(0, 50)}..."`, error);
-    throw new Error(`Failed to generate text embedding. Error: ${error instanceof Error ? error.message : String(error)}`);
-  }
+  // Langsung panggil dan kembalikan hasil dari fungsi embedding OpenAI kita.
+  return await createEmbedding(text);
 }
 
-/**
- * A Genkit flow that wraps the embedText function to make it runnable and visible in the Developer UI.
- * This is useful for testing the embedding functionality independently.
- */
-export const embedTextFlow = ai.defineFlow(
-  {
-    name: 'embedTextFlow',
-    inputSchema: embedTextInputSchema,
-    outputSchema: embedTextOutputSchema,
-  },
-  async (text: string): Promise<number[]> => {
-    return await embedText(text);
-  }
-);
+
+// Catatan: Bagian `embedTextFlow` yang lama telah dihapus karena
+// fungsi ini tidak lagi dijalankan sebagai Genkit flow, melainkan
+// sebagai Server Action biasa yang memanggil OpenAI SDK. Ini lebih
+// sesuai dengan arsitektur yang kita tuju.

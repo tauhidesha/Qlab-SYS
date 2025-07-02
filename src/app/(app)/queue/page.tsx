@@ -64,6 +64,13 @@ import { format as formatDateFns, parse as parseDateFns, startOfDay, isSameDay, 
 import { id as indonesiaLocale } from 'date-fns/locale';
 import { Textarea } from '@/components/ui/textarea';
 
+function getServiceCategory(serviceName: string): 'detailing' | 'coating' | 'repaint' | 'other' {
+  const name = serviceName.toLowerCase();
+  if (name.includes('detailing') || name.includes('poles')) return 'detailing';
+  if (name.includes('coating')) return 'coating';
+  if (name.includes('repaint')) return 'repaint';
+  return 'other';
+}
 
 export interface QueueItem { 
   id: string;
@@ -712,6 +719,7 @@ interface AssignStaffDialogProps {
 }
 
 function AssignStaffDialog({ isOpen, onClose, onSubmit, staffList, isSubmitting, loadingStaff }: AssignStaffDialogProps) {
+   const { toast } = useToast(); // <-- 2. TAMBAHKAN BARIS INI
   const [selectedStaffName, setSelectedStaffName] = useState<string>('');
 
   const handleSubmit = async () => {
@@ -1100,13 +1108,14 @@ export default function QueuePage() {
       const [hour, minute] = data.bookingTime.split(':').map(Number);
       const bookingDateTime = setMinutes(setHours(data.bookingDate, hour), minute);
       const bookingTimestamp = Timestamp.fromDate(bookingDateTime);
-
+      const category = getServiceCategory(serviceNameDisplay);
       const newBookingData: Omit<BookingEntry, 'id'|'createdAt'|'updatedAt'|'queueItemId'|'estimatedDuration'> & { serviceId: string; } = {
         customerName: data.customerName,
         clientId: data.clientId === WALK_IN_CLIENT_VALUE ? undefined : data.clientId,
         vehicleInfo: data.vehicleInfo,
         serviceId: data.serviceId,
         serviceName: serviceNameDisplay,
+        category: category,
         bookingDateTime: bookingTimestamp,
         status: 'Confirmed',
         notes: data.notes,

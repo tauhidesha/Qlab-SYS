@@ -1,0 +1,447 @@
+[
+  {
+    "model": "beat",
+    "motor_db_size": "S",
+    "repaint_size": "S"
+  },
+  {
+    "model": "scoopy",
+    "motor_db_size": "S",
+    "repaint_size": "M"
+  },
+  {
+    "model": "supra",
+    "motor_db_size": "S",
+    "repaint_size": "S"
+  },
+  {
+    "model": "revo",
+    "motor_db_size": "S",
+    "repaint_size": "S"
+  },
+  {
+    "model": "blade",
+    "motor_db_size": "S",
+    "repaint_size": "S"
+  },
+  {
+    "model": "mio",
+    "motor_db_size": "S",
+    "repaint_size": "S"
+  },
+  {
+    "model": "fino",
+    "motor_db_size": "S",
+    "repaint_size": "M"
+  },
+  {
+    "model": "vega",
+    "motor_db_size": "S",
+    "repaint_size": "S"
+  },
+  {
+    "model": "nex",
+    "motor_db_size": "S",
+    "repaint_size": "S"
+  },
+  {
+    "model": "address",
+    "motor_db_size": "S",
+    "repaint_size": "S"
+  },
+  {
+    "model": "smash",
+    "motor_db_size": "S",
+    "repaint_size": "S"
+  },
+  {
+    "model": "hayate",
+    "motor_db_size": "S",
+    "repaint_size": "S"
+  },
+  {
+    "model": "shogun",
+    "motor_db_size": "S",
+    "repaint_size": "S"
+  },
+  {
+    "model": "skydrive",
+    "motor_db_size": "S",
+    "repaint_size": "S"
+  },
+  {
+    "model": "skywave",
+    "motor_db_size": "S",
+    "repaint_size": "S"
+  },
+  {
+    "model": "polytron evo",
+    "motor_db_size": "S",
+    "repaint_size": "S"
+  },
+  {
+    "model": "selis e-max",
+    "motor_db_size": "S",
+    "repaint_size": "S"
+  },
+  {
+    "model": "smoot tempur",
+    "motor_db_size": "S",
+    "repaint_size": "S"
+  },
+  {
+    "model": "jupiter z",
+    "motor_db_size": "S",
+    "repaint_size": "S"
+  },
+  {
+    "model": "jupiter mx",
+    "motor_db_size": "S",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "soul gt",
+    "motor_db_size": "S",
+    "repaint_size": "S"
+  },
+  {
+    "model": "x-ride",
+    "motor_db_size": "S",
+    "repaint_size": "S"
+  },
+  {
+    "model": "vario",
+    "motor_db_size": "M",
+    "repaint_size": "M"
+  },
+  {
+    "model": "pcx",
+    "motor_db_size": "M",
+    "repaint_size": "L"
+  },
+  {
+    "model": "supra gtr 150",
+    "motor_db_size": "M",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "adv",
+    "motor_db_size": "M",
+    "repaint_size": "L"
+  },
+  {
+    "model": "mx king",
+    "motor_db_size": "M",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "lexi",
+    "motor_db_size": "M",
+    "repaint_size": "M"
+  },
+  {
+    "model": "freego",
+    "motor_db_size": "M",
+    "repaint_size": "S"
+  },
+  {
+    "model": "spacy",
+    "motor_db_size": "S",
+    "repaint_size": "S"
+  },
+  {
+    "model": "nmax",
+    "motor_db_size": "M",
+    "repaint_size": "M"
+  },
+  {
+    "model": "aerox",
+    "motor_db_size": "M",
+    "repaint_size": "M"
+  },
+  {
+    "model": "grand filano",
+    "motor_db_size": "M",
+    "repaint_size": "M"
+  },
+  {
+    "model": "fazzio",
+    "motor_db_size": "M",
+    "repaint_size": "M"
+  },
+  {
+    "model": "satria f150",
+    "motor_db_size": "M",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "w175",
+    "motor_db_size": "M",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "viar cross x 200",
+    "motor_db_size": "M",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "viar e-cross",
+    "motor_db_size": "M",
+    "repaint_size": "L"
+  },
+  {
+    "model": "gesits",
+    "motor_db_size": "M",
+    "repaint_size": "M"
+  },
+  {
+    "model": "polytron t-rex",
+    "motor_db_size": "M",
+    "repaint_size": "L"
+  },
+  {
+    "model": "united t1800",
+    "motor_db_size": "M",
+    "repaint_size": "M"
+  },
+  {
+    "model": "alva one",
+    "motor_db_size": "M",
+    "repaint_size": "L"
+  },
+  {
+    "model": "alva cervo",
+    "motor_db_size": "L",
+    "repaint_size": "L"
+  },
+  {
+    "model": "cbr 150r",
+    "motor_db_size": "L",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "cb 150r",
+    "motor_db_size": "L",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "verza",
+    "motor_db_size": "L",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "cbr 250rr",
+    "motor_db_size": "L",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "crf 150",
+    "motor_db_size": "L",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "crf 250 rally",
+    "motor_db_size": "L",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "xmax",
+    "motor_db_size": "L",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "r15",
+    "motor_db_size": "L",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "vixion",
+    "motor_db_size": "L",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "byson",
+    "motor_db_size": "L",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "mt-15",
+    "motor_db_size": "L",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "r25",
+    "motor_db_size": "L",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "mt-25",
+    "motor_db_size": "L",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "wr 155",
+    "motor_db_size": "L",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "gsx-r150",
+    "motor_db_size": "L",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "gsx-s150",
+    "motor_db_size": "L",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "thunder 125",
+    "motor_db_size": "L",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "ninja 250 karbu",
+    "motor_db_size": "L",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "ninja 250 fi",
+    "motor_db_size": "L",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "ninja 250 sl",
+    "motor_db_size": "L",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "ninja zx-25r",
+    "motor_db_size": "L",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "klx 150",
+    "motor_db_size": "L",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "klx 250",
+    "motor_db_size": "L",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "d-tracker 150",
+    "motor_db_size": "L",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "d-tracker 250",
+    "motor_db_size": "L",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "versys 250",
+    "motor_db_size": "L",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "downtown 250i",
+    "motor_db_size": "L",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "x-town 250i",
+    "motor_db_size": "L",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "zero fx",
+    "motor_db_size": "L",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "ninja 650",
+    "motor_db_size": "XL",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "ninja 1000sx",
+    "motor_db_size": "XL",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "ninja h2",
+    "motor_db_size": "XL",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "z650",
+    "motor_db_size": "XL",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "z900",
+    "motor_db_size": "XL",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "z1000",
+    "motor_db_size": "XL",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "versys 650",
+    "motor_db_size": "XL",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "versys 1000",
+    "motor_db_size": "XL",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "kymco ak550",
+    "motor_db_size": "XL",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "harley street 500",
+    "motor_db_size": "XL",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "harley livewire",
+    "motor_db_size": "XL",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "bmw g310r",
+    "motor_db_size": "XL",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "bmw f800r",
+    "motor_db_size": "XL",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "bmw f700gs",
+    "motor_db_size": "XL",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "bmw r ninet",
+    "motor_db_size": "XL",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "zero sr/f",
+    "motor_db_size": "XL",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "energica ego",
+    "motor_db_size": "XL",
+    "repaint_size": "XL"
+  }
+]

@@ -48,20 +48,28 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import type { AttendanceRecord } from '@/types/attendance';
 
 
+// Ganti skema Anda dengan versi yang lebih eksplisit ini
 const payrollFormSchema = z.object({
   staffId: z.string().min(1, "Staf harus dipilih"),
   baseSalary: z.preprocess(
     (val) => parseFloat(String(val)),
-    z.number({ invalid_type_error: "Gaji pokok harus angka" }).nonnegative("Gaji pokok tidak boleh negatif")
+    z.number({ required_error: "Gaji pokok wajib diisi", invalid_type_error: "Gaji pokok harus angka" })
   ),
   totalHours: z.preprocess(
     (val) => val ? parseFloat(String(val)) : undefined,
-    z.number({ invalid_type_error: "Total jam harus angka" }).nonnegative("Total jam tidak boleh negatif").optional()
+    z.number().nonnegative().optional()
   ),
   manualDeductions: z.preprocess(
     (val) => val ? parseFloat(String(val)) : undefined,
-    z.number({ invalid_type_error: "Potongan harus angka" }).nonnegative("Potongan tidak boleh negatif").optional()
+    z.number().nonnegative().optional()
   ),
+
+  // Jadikan field tambahan ini eksplisit sebagai field yang wajib
+  staffName: z.string(), // z.string() sudah wajib secara default
+  period: z.string(),
+  netPay: z.number(),
+  status: z.enum(['Dibuat', 'Tertunda', 'Dibayar']),
+  totalDeductions: z.number(),
 });
 
 type PayrollFormData = z.infer<typeof payrollFormSchema>;
@@ -92,20 +100,21 @@ function CalculatedNetPayInDialog({ control }: { control: Control<PayrollFormDat
 }
 
 function CreatePayrollDialog({ isOpen, onClose, onSubmit, staffList, selectedPeriod, isSubmitting, loadingStaff }: CreatePayrollDialogProps) {
-  const form = useForm<PayrollFormData & { staffName: string; period: string; netPay: number; status: PayrollEntry['status']; totalDeductions: number }>({
-    resolver: zodResolver(payrollFormSchema),
-    defaultValues: {
-      staffId: '',
-      staffName: '',
-      period: selectedPeriod,
-      baseSalary: 0,
-      totalHours: undefined,
-      manualDeductions: undefined,
-      netPay: 0,
-      status: 'Dibuat',
-      totalDeductions: 0,
-    },
-  });
+   const { toast } = useToast();
+   const form = useForm<PayrollFormData>({
+  resolver: zodResolver(payrollFormSchema),
+  defaultValues: {
+    staffId: '',
+    staffName: '',
+    period: selectedPeriod,
+    baseSalary: 0,
+    totalHours: undefined,
+    manualDeductions: undefined,
+    netPay: 0,
+    status: 'Dibuat',
+    totalDeductions: 0,
+  },
+});
 
   const selectedStaffId = form.watch('staffId');
 
@@ -622,7 +631,7 @@ export default function PayrollPage() {
                     isTelatParah = true;
                 }
 
-                if (!isTelatParah && shopLateOpeningDays.has(dateStr) && (attendance.status !== 'Cuti' && attendance.status !== 'Absen')) {
+               if (!isTelatParah && shopLateOpeningDays.has(dateStr)) {
                     telatBukaDeductionTotalForStaff += 25000;
                     calculationDetails += `${dateStr}: Potongan Telat Buka Toko (-Rp 25.000).\n`;
                     alreadyDeductedForTelatBukaThisDay = true;

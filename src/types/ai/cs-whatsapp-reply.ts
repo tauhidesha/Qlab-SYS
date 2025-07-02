@@ -1,41 +1,38 @@
+// @file: src/types/ai/cs-whatsapp-reply.ts
 
-import { z } from 'genkit'; // atau import { z } from 'zod';
+import { z } from 'zod';
 
+/**
+ * Mendefinisikan skema untuk satu pesan dalam riwayat chat.
+ * Sesuai dengan format yang diharapkan oleh OpenAI.
+ */
 export const ChatMessageSchema = z.object({
-  role: z.enum(['user', 'model']),
+  role: z.enum(['user', 'assistant', 'system', 'tool']), 
   content: z.string(),
+  tool_calls: z.any().optional(),
+  tool_call_id: z.string().optional(),
 });
 export type ChatMessage = z.infer<typeof ChatMessageSchema>;
 
-export const WhatsAppReplyInputSchema = z.object({
-  customerMessage: z.string().describe('Pesan yang diterima dari pelanggan melalui WhatsApp, atau pertanyaan dari staf CS.'),
-  senderNumber: z.string().optional().describe('Nomor WhatsApp pengirim pesan (pelanggan). Penting untuk pengelolaan sesi Firestore.'),
-  chatHistory: z.array(ChatMessageSchema).optional().describe('Riwayat percakapan sebelumnya antara pelanggan dan AI/staf CS.'),
-  agentBehavior: z.string().optional().describe('Perilaku agen AI yang diinginkan, mis. "Ramah & Membantu".'),
-  knowledgeBase: z.string().optional().describe('Panduan tingkat tinggi untuk AI. Detail pengetahuan spesifik akan diambil melalui tools.'),
-  
-  // Field-field ini akan diisi otomatis oleh wrapper function sebelum memanggil flow utama
-  currentDate: z.string().optional().describe('Tanggal saat ini dalam format YYYY-MM-DD. Berguna untuk konteks booking.'),
-  currentTime: z.string().optional().describe('Waktu saat ini dalam format HH:MM (24 jam). Berguna untuk konteks booking.'),
-  tomorrowDate: z.string().optional().describe('Tanggal besok dalam format YYYY-MM-DD. Berguna untuk konteks booking.'),
-  dayAfterTomorrowDate: z.string().optional().describe('Tanggal lusa (besoknya besok) dalam format YYYY-MM-DD. Berguna untuk konteks booking.'),
-  
-  mainPromptString: z.string().optional().describe('String prompt utama yang diambil dari pengaturan.'),
-  
-  // Input dari UI untuk override/seed sesi. Sesi Firestore akan jadi sumber utama jika ada.
-  knownMotorcycleInfo: z.object({
-    name: z.string(),
-    size: z.string().optional(),
-  }).optional().describe("Informasi motor pelanggan jika sudah diketahui dari UI."),
-  activeSpecificServiceInquiry: z.string().optional().describe("Layanan spesifik yang sedang aktif ditanyakan dari UI."),
-});
-export type ZoyaChatInput = z.infer<typeof WhatsAppReplyInputSchema>; // Menggunakan alias ZoyaChatInput
 
+/**
+ * Mendefinisikan skema untuk input utama yang diterima oleh flow AI kita.
+ * Ini adalah "formulir" yang diisi oleh bot WA (run.js) setiap kali ada pesan masuk.
+ */
+export const ZoyaChatInputSchema = z.object({
+  customerMessage: z.string().describe('Pesan yang diterima dari pelanggan.'),
+  senderNumber: z.string().optional().describe('Nomor WhatsApp pengirim (sudah diformat dengan @c.us).'),
+  senderName: z.string().optional().describe('Nama dari pengirim WhatsApp.'),
+  chatHistory: z.array(ChatMessageSchema).optional().describe('Riwayat percakapan sebelumnya.'),
+});
+export type ZoyaChatInput = z.infer<typeof ZoyaChatInputSchema>;
+
+
+/**
+ * Mendefinisikan skema untuk output yang dihasilkan oleh flow AI.
+ * Ini adalah "jawaban" yang dikirim kembali ke bot WA (run.js).
+ */
 export const WhatsAppReplyOutputSchema = z.object({
-  suggestedReply: z.string().describe('Saran balasan yang dihasilkan AI untuk dikirim ke pelanggan.'),
-  // Output ini untuk UI tahu apa yang baru saja di-set/update di session Firestore
-  sessionActiveSpecificServiceInquiry: z.string().optional(),
-  sessionDetectedMotorcycleInfo: z.object({ name: z.string(), size: z.string().optional() }).optional(),
-  sessionLastAiInteractionType: z.string().optional(),
+  suggestedReply: z.string().nullable().describe('Saran balasan yang dihasilkan AI. Bisa null jika AI memutuskan untuk diam (mode snooze).'),
 });
 export type WhatsAppReplyOutput = z.infer<typeof WhatsAppReplyOutputSchema>;

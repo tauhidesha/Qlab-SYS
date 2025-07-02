@@ -238,14 +238,14 @@ export default function DashboardPage() {
 
       } catch (error) {
         console.error("Error on queue snapshot update: ", error);
-        toast({ title: "Error Update Antrian", description: "Gagal mendapatkan update antrian real-time.", variant: "warning" });
+        toast({ title: "Error Update Antrian", description: "Gagal mendapatkan update antrian real-time.", variant: "destructive" });
       } finally {
         setLoadingQueueDetailed(false);
         if (loadingSummary && !summaryData.todaysRevenue) setLoadingSummary(false);
       }
     }, (error) => {
       console.error("Queue listener error: ", error);
-      toast({ title: "Error Listener Antrian", description: "Gagal koneksi ke update antrian.", variant: "warning" });
+      toast({ title: "Error Listener Antrian", description: "Gagal koneksi ke update antrian.", variant: "destructive" });
       setLoadingQueueDetailed(false);
       setLoadingSummary(false);
     });

@@ -110,15 +110,22 @@ export default function EditCashDepositPage() {
     setIsSubmitting(true);
     try {
       const expenseDocRef = doc(db, 'expenses', depositId);
-      const updateData: Partial<ExpenseFormData> & { updatedAt?: any, description?: string, bankDestination?: string } = {
-        date: Timestamp.fromDate(data.date),
-        amount: Number(data.amount),
-        bankDestination: data.bankDestination,
-        description: `Setoran tunai ke ${data.bankDestination}`, // Update description based on bank
-        notes: data.notes,
-        category: "Setoran Tunai ke Bank", // Ensure category remains
-        updatedAt: serverTimestamp(),
-      };
+      const updateData: { [key: string]: any } = {
+    // Properti yang diambil dari form 'Setoran Tunai'
+    date: Timestamp.fromDate(data.date),
+    amount: Number(data.amount),
+    bankDestination: data.bankDestination,
+    notes: data.notes,
+    
+    // Properti yang kita tambahkan secara manual sesuai konteks halaman
+    category: "Setoran Tunai ke Bank", 
+    paymentSource: "Kas Tunai",
+    description: `Setoran tunai ke ${data.bankDestination}`,
+    
+    // Timestamp untuk pembaruan
+    updatedAt: serverTimestamp(),
+};
+
 
       await updateDoc(expenseDocRef, updateData);
       toast({

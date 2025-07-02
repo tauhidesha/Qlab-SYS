@@ -1,3 +1,23 @@
+# Berkas Konfigurasi Sensitif & Environment
+# Jangan pernah commit file-file ini!
 .env
-node_modules
 .env.local
+.env.development.local
+.env.production.local
+service-account.json
+
+# Berkas Log & Debug
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Direktori Dependensi
+# Ini bisa di-install ulang dengan `npm install` atau `yarn install`
+node_modules/
+
+# Direktori Build Next.js
+.next/
+
+# File Sistem Operasi
+.DS_Store

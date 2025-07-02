@@ -110,7 +110,12 @@ export default function EditClientPage() {
       const updateData: Partial<Omit<Client, 'id'>> & { updatedAt?: any } = {
         name: data.name,
         phone: data.phone,
-        motorcycles: data.motorcycles.filter(mc => mc.name && mc.licensePlate),
+        motorcycles: data.motorcycles
+        .filter(mc => mc.name && mc.licensePlate) // 1. Langkah filter tetap sama
+        .map(mc => ({ // 2. Langkah map untuk membuat objek baru yang tipenya pasti benar
+            name: mc.name!,
+            licensePlate: mc.licensePlate!
+        })),
         loyaltyPoints: data.loyaltyPoints || 0,
         // lastVisit is typically updated by transactions, not manually here unless specified
         // lastVisit: data.lastVisit, 
