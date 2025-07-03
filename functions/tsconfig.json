@@ -1,26 +1,17 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
+    "module": "NodeNext",
+    "esModuleInterop": true,
+    "moduleResolution": "nodenext",
     "noImplicitReturns": true,
     "noUnusedLocals": true,
     "outDir": "lib",
     "sourceMap": true,
     "strict": true,
-    "target": "es2020",
-    "esModuleInterop": true,
-    "resolveJsonModule": true,
-    "skipLibCheck": true,
-    "baseUrl": "./src", // Jika source file Cloud Function ada di dalam functions/src/
-    "paths": {
-      "@/*": ["../../src/*"] // Mencoba mengarahkan @/* ke src utama aplikasi jika di-import dari functions/src
-    }
+    "target": "es2017"
   },
   "compileOnSave": true,
   "include": [
-    "src/**/*.ts" // Asumsi source file TypeScript untuk Cloud Functions ada di dalam folder functions/src/
-  ],
-  "exclude": [
-    "node_modules",
-    "lib"
+    "src"
   ]
 }

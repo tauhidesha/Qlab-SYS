@@ -28,8 +28,17 @@ function formatPhoneNumber(number: string): string {
 
 
 export async function sendWhatsAppMessage(number: string, message: string): Promise<SendMessageResponse> {
-  // Pastikan URL server bot WA lo bener, bisa juga ditaruh di .env
-  const whatsappServerUrl = 'http://localhost:4000';
+   // --- GANTI BAGIAN INI ---
+  const whatsappServerUrl = process.env.WHATSAPP_SERVER_URL;
+
+  // Tambahkan pengecekan untuk memastikan variabel ada
+  if (!whatsappServerUrl) {
+    const errorMsg = "Konfigurasi error: WHATSAPP_SERVER_URL tidak diatur di environment variables.";
+    console.error(`WhatsappService: ${errorMsg}`);
+    return { success: false, error: errorMsg };
+  }
+  // --- AKHIR PERUBAHAN ---
+  
   
   console.log(`WhatsappService: Menerima nomor asli: "${number}"`);
   const formattedNumber = formatPhoneNumber(number);

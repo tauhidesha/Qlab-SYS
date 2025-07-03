@@ -42,17 +42,6 @@
     "price": 150000
   },
   {
-    "name": "Cuci Reguler",
-    "category": "cuci",
-    "price": 0,
-    "estimatedDuration": "30",
-    "variants": [
-      { "name": "S", "price": 20000 },
-      { "name": "M", "price": 25000 },
-      { "name": "L", "price": 30000 }
-    ]
-  },
-  {
     "name": "Cuci Premium",
     "category": "cuci",
     "price": 0,

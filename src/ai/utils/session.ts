@@ -22,10 +22,18 @@ export interface ServiceInquiry {
     bookingState?: BookingState;
 }
 export interface SessionData {
-     flow: 'general' | 'booking' | 'awaiting_booking_form';
+    // --- FIELD ANDA YANG SUDAH ADA (TETAP AMAN) ---
+    flow: 'general' | 'booking' | 'awaiting_booking_form';
     inquiry: ServiceInquiry;
     snoozeUntil?: number;
     lastInteraction: Timestamp;
+
+    // --- TAMBAHAN UNTUK FITUR FOLLOW-UP ---
+    followUpState?: {
+        level: number;      // Tingkatan follow-up (1-7)
+        flaggedAt: number;  // Timestamp kapan ditandai (pakai Date.now())
+        context: string;    // Topik terakhir, misal: "Coating Motor Glossy"
+    } | null; // Kita buat bisa null agar mudah dihapus
 }
 // ---------------------------------------------
 

@@ -2,20 +2,23 @@
 
 import type { OpenAI } from 'openai';
 import { openai } from '@/lib/openai';
-import type { ZoyaChatInput, WhatsAppReplyOutput, ChatMessage } from '@/types/ai/cs-whatsapp-reply';
-import { getSession, updateSession, type SessionData, type ServiceCategory } from '@/ai/utils/session'; 
-
-// Import semua tools
+import type { ZoyaChatInput, WhatsAppReplyOutput } from '@/types/ai/cs-whatsapp-reply';
+import { getSession, updateSession } from '@/ai/utils/session'; 
 import { listServicesByCategory } from '@/ai/tools/listServicesByCategoryTool';
 import { getSpecificServicePrice } from '@/ai/tools/getSpecificServicePriceTool';
 import { getServiceDescription } from '@/ai/tools/getServiceDescriptionTool';
 import { searchKnowledgeBase } from '@/ai/tools/searchKnowledgeBaseTool';
 import { getMotorSizeDetails } from '@/ai/tools/getMotorSizeDetailsTool';
+import { findNextAvailableSlotImplementation } from '@/ai/tools/findNextAvailableSlotTool';
+import { getPromoBundleDetails } from '@/ai/tools/getPromoBundleDetailsTool';
 import { notifyBosMamat, setSnoozeMode } from '@/ai/utils/humanHandoverTool';
 import { createBookingImplementation } from '@/ai/tools/createBookingTool'; 
 import { checkBookingAvailabilityImplementation } from '@/ai/tools/checkBookingAvailabilityTool';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { parseDateTime } from '@/ai/utils/dateTimeParser';
+import type { ServiceCategory } from '@/ai/utils/session';
+import { Timestamp } from 'firebase/firestore';
 
 
 // --- Semua Fungsi Helper Internal (Satu Sumber Kebenaran) ---
@@ -24,6 +27,13 @@ function detectHumanHandoverRequest(message: string): boolean {
     const lowerCaseMessage = message.toLowerCase();
     const keywords = ['ngobrol sama orang', 'sama manusia', 'cs asli', 'admin', 'bos mamat', 'sama lo', 'telepon'];
     return keywords.some(keyword => lowerCaseMessage.includes(keyword));
+}
+
+function detectGreeting(message: string): boolean {
+    const msg = message.toLowerCase().trim(); // Gunakan trim untuk menghapus spasi
+    const greetingKeywords = ['p', 'tes', 'test', 'halo', 'hallo', 'min', 'gan', 'sis', 'bro', 'hi', 'woi', 'mas bro', 'mas bre'];
+    // Fungsi ini akan true jika pesannya HANYA salah satu dari keyword di atas
+    return greetingKeywords.includes(msg);
 }
 
 function extractInfoForPriceCheck(message: string): { service: string, motor: string } | null {
@@ -71,13 +81,17 @@ function extractMotorSizeIntent(message: string): string | null {
     const foundMotor = motorKeywords.find(m => msg.includes(m));
     return foundMotor || null;
 }
-
 function detectBookingIntent(message: string): boolean {
     const msg = message.toLowerCase();
-    const keywords = ["booking", "jadwalin", "daftar", "gas", "deal", "oke fix", "lanjut", "gaskeun", "sabi", "yowes", "yoi", "catet", "aman", "setuju"];
-    return keywords.some(kw => msg.includes(kw));
+    // Tambahkan kata kunci lain yang sering digunakan pelanggan Anda
+    const keywords = ["booking", "jadwalin", "gas", "deal", "oke fix", "lanjut", "gaskeun", "sabi", "yowes", "yoi", "catet", "setuju", "boleh"];
+    
+    // Cek jika pesan singkat dan mengandung keyword (menghindari false positive)
+    if (msg.length < 20 && keywords.some(kw => msg.includes(kw))) {
+        return true;
+    }
+    return false;
 }
-
 function detectGenericPriceIntent(message: string): boolean {
     const msg = message.toLowerCase();
     const priceIntent = /harga|biaya|price|list|pricelist|listnya|pricelish/i.test(msg);
@@ -119,35 +133,6 @@ function parseBookingForm(text: string): { [key: string]: string } | null {
     return null;
 }
 
-async function parseDateTime(text: string): Promise<{ date?: string, time?: string }> {
-    try {
-        const response = await openai.chat.completions.create({
-            model: 'gpt-3.5-turbo',
-            messages: [
-                {
-                    role: 'system',
-                    content: `You are a date and time parsing expert. Today is ${new Date().toISOString().split('T')[0]}. Extract the date in format YYYY-MM-DD and time in format HH:mm from the user's text. Understand relative terms like "besok", "lusa", "minggu depan", "hari rabu". If the user says "jam 2 siang", it's "14:00". If only date is found, return only date. If only time is found, return only time. If both are found, return both. If nothing is found, return an empty JSON object. Respond ONLY with a JSON object like {"date": "YYYY-MM-DD", "time": "HH:mm"}.`
-                },
-                {
-                    role: 'user',
-                    content: text
-                }
-            ]
-        });
-        const result = response.choices[0].message.content;
-        if (result) {
-            try {
-                return JSON.parse(result);
-            } catch {
-                return {};
-            }
-        }
-        return {};
-    } catch (error) {
-        console.error("Error parsing date/time:", error);
-        return {};
-    }
-}
 
 async function getServiceIdByName(serviceName: string): Promise<string | null> {
     try {
@@ -168,13 +153,19 @@ const zoyaTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     { type: 'function', function: { name: 'getSpecificServicePrice', description: "Gunakan untuk mendapatkan harga final jika layanan spesifik DAN motor sudah diketahui. Jika user menyebut nama warna yang mengandung kata spesial seperti 'candy', 'bunglon', 'lembayung', 'hologram', atau 'xyrallic', set 'is_special_paint' ke true. Contoh: 'red candy', 'lembayung biru', 'black xyralic'.",  parameters: { type: 'object', properties: { service_name: { type: 'string' }, motor_query: { type: 'string' } }, required: ['service_name', 'motor_query'] } } },
     { type: 'function', function: { name: 'getServiceDescription', description: "Gunakan saat pelanggan bertanya detail tentang satu layanan spesifik.", parameters: { type: 'object', properties: { service_name: { type: 'string' } }, required: ['service_name'] } } },
     { type: 'function', function: { name: 'getMotorSizeDetails', description: "Gunakan saat pelanggan bertanya ukuran atau kategori ukuran motornya (misal: 'vario 160 masuk size apa?').", parameters: { type: 'object', properties: { motor_query: { type: 'string' } }, required: ['motor_query'] } } },
-    
+    { type: 'function', function: { name: 'findNextAvailableSlot', description: "Gunakan untuk mencari jadwal kosong. Jika user menyebut preferensi hari (misal: 'besok', 'hari sabtu', 'minggu depan'), teruskan ke parameter `preferred_date`.",parameters: { type: 'object', properties: {preferred_date: {type: 'string', description: "Tanggal atau hari yang diinginkan user, contoh: 'besok', 'lusa', '5 Juli 2025'." }}, } } },
+    { type: 'function', function: { name: 'getPromoBundleDetails', description: "Gunakan untuk mendapatkan detail dan harga promo bundling Repaint + Detailing berdasarkan model motor.",parameters: { type: 'object', properties: { motor_query: { type: 'string' } },required: ['motor_query']}}},
 ];
 
 // --- PROMPT UTAMA ---
 const masterPrompt = `## 🧠 PERAN & TUJUAN ZOYA (VERSI SALES)
 Lo adalah Zoya, "Sales Advisor" andalan dari Bosmat Detailing Studio. Lo bukan cuma CS, tapi partner ngobrol yang ngerti banget gimana caranya bikin motor jadi keren maksimal.
 Tujuan utama lo cuma satu: **MEYAKINKAN PELANGGAN UNTUK BOOKING LAYANAN**. Setiap interaksi harus diarahkan untuk mencapai tujuan ini.
+
+## 🧊 ICE BREAKER & SAPAAN AWAL
+- Jika user mengirim pesan yang sangat singkat dan tidak jelas tujuannya (misal: "punten", "permisi", "bang"), JANGAN BINGUNG atau diam.
+- Tugas lo adalah AMBIL INISIATIF. Balas dengan sapaan pembuka yang ramah dan proaktif. Langsung tanyakan apa yang bisa dibantu.
+- Contoh balasan: "Siap, bro! Dengan Zoya di sini. Ada yang perlu dibantu soal motornya? Mau tanya harga atau cek jadwal kosong?"
 
 ## 🎯 FOKUS UTAMA (VERSI SALES)
 - **BUKAN HANYA MEMBERI HARGA, TAPI JUAL NILAINYA.** Jelaskan kenapa harga tersebut sepadan. Contoh: "Harganya memang segitu, tapi hasilnya cat bakal deep look dan tahan lama bro, karena kita pakai pernis premium."
@@ -191,6 +182,12 @@ Tujuan utama lo cuma satu: **MEYAKINKAN PELANGGAN UNTUK BOOKING LAYANAN**. Setia
   - Daripada: "Ada lagi yang bisa dibantu?"
   - Gunakan: "Gimana, bro? Mau sekalian Zoya cek jadwal kosong paling cepat?"
 
+  ## 🎁 STRATEGI PROMO & BUNDLING (BARU)
+- **JADILAH PENAWAR PROAKTIF:** Jika user bertanya harga layanan "Repaint Bodi Halus" atau "Full Detailing", **JANGAN HANYA KASIH HARGA NORMAL.**
+- **WAJIB TAWARKAN BUNDLING:** Setelah memberikan harga normal, **selalu tawarkan Promo Bundling** sebagai pilihan yang lebih hemat dan menguntungkan. Gunakan tool \`getPromoBundleDetails\` untuk mendapatkan detailnya.
+- **TEKANKAN KEUNTUNGAN:** Selalu sebutkan jumlah hematnya. Contoh: "Kalau ambil paket bundling ini, lo bisa hemat sampai 300rb lho, bro!"
+- **JAWAB PERTANYAAN PROMO:** Jika user langsung bertanya "ada promo apa?", langsung gunakan tool \`getPromoBundleDetails\` untuk menjelaskannya.
+
 ## 🤺 PENANGANAN KEBERATAN (OBJECTION HANDLING)
 - **Jika pelanggan bilang "Harganya mahal":** JANGAN minta maaf. Justru validasi dan tekankan kembali NILAI-nya. Gunakan balasan seperti: "Betul bro, harga kami memang premium karena kami pakai bahan terbaik (sebutkan contoh: pernis Sikkens/Blinken) dan ada garansi 6 bulan. Kualitasnya dijamin beda."
 - **Jika pelanggan bilang "Saya pikir-pikir dulu":** Jangan langsung pasrah. Tanyakan baik-baik apa yang jadi pertimbangannya. Contoh: "Siap, bro. Boleh tahu kira-kira apa yang jadi pertimbangannya? Mungkin soal jadwal atau ada info lain yang Zoya bisa bantu jelaskan?"
@@ -202,10 +199,20 @@ Tujuan utama lo cuma satu: **MEYAKINKAN PELANGGAN UNTUK BOOKING LAYANAN**. Setia
 - Gunakan \`checkBookingAvailability\` sebagai alat closing untuk mengamankan jadwal.
 `;
 
-// GANTI SELURUH FUNGSI generateWhatsAppReply yang lama dengan yang ini.
 export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<WhatsAppReplyOutput | null> {
     const senderNumber = input.senderNumber || 'playground_user';
     let session = await getSession(senderNumber);
+
+    // --- MODIFIKASI DIMULAI: PEMBATALAN FOLLOW-UP OTOMATIS ---
+    // Jika pelanggan merespons, jadwal follow-up yang ada harus batal.
+    if (session?.followUpState) {
+        console.log(`[Follow-up] Dibatalkan untuk ${senderNumber} karena ada pesan baru.`);
+        // Update sesi untuk menghapus state follow-up
+        await updateSession(senderNumber, { ...session, followUpState: null });
+        // Update juga object sesi lokal agar sisa kode tidak bingung
+        if(session) session.followUpState = null;
+    }
+    // --- MODIFIKASI SELESAI ---
     
     console.log(`\n\n================ Zoya New Turn for ${senderNumber} ================`);
     console.log(`[PESAN MASUK]: "${input.customerMessage}"`);
@@ -216,11 +223,19 @@ export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<Whats
         return null;
     }
     
-    if (!session || !session.flow) {
-        const newInquiry = { flow: 'general' as const, inquiry: {} };
-        await updateSession(senderNumber, newInquiry);
-        session = await getSession(senderNumber);
-    }
+    // --- MODIFIKASI: Inisialisasi Sesi Baru dengan Field Lengkap ---
+   // BENAR
+if (!session || !session.flow) {
+    const newSessionData = { 
+        flow: 'general' as const, 
+        inquiry: {}, 
+        lastInteraction: Timestamp.now(), // <-- Ganti menjadi ini
+        followUpState: null 
+    };
+    await updateSession(senderNumber, newSessionData);
+    session = await getSession(senderNumber);
+}
+    // --- MODIFIKASI SELESAI ---
 
     const HANDOVER_MESSAGE = "Aduh Zoya bingung, bentar Zoya panggilin Bos Mamat ya.";
     const CUSTOMER_REQUEST_HANDOVER_MESSAGE = "Oke siap, bentar Zoya panggilin Bos Mamat ya, ditunggu bro!";
@@ -231,6 +246,12 @@ export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<Whats
         await notifyBosMamat(senderNumber, input.customerMessage);
         await setSnoozeMode(senderNumber);
         return { suggestedReply: CUSTOMER_REQUEST_HANDOVER_MESSAGE };
+    }
+    // JALUR 1.5 (BARU): Menangani sapaan singkat
+    if (detectGreeting(input.customerMessage)) {
+        console.log(`[LOG ACTION] JALUR 1.5: Deteksi sapaan singkat.`);
+        const greetingReply = "Halo bro, dengan Zoya di sini! 😎 Ada yang bisa Zoya bantu? Mau tanya-tanya soal detailing, repaint, atau mau langsung booking biar motornya makin ganteng?";
+        return { suggestedReply: greetingReply };
     }
 
     // JALUR 2: Memproses Form Booking yang Diisi User
@@ -248,7 +269,7 @@ export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<Whats
         // Validasi hasil parsing
         if (!parsedDateTime.date || !parsedDateTime.time) {
             console.error("[DateTime Parser] Gagal mem-parsing tanggal atau waktu.", parsedDateTime);
-            await updateSession(senderNumber, { flow: 'general' });
+            await updateSession(senderNumber, { ...session, flow: 'general' });
             return { suggestedReply: "Waduh bro, Zoya bingung sama format tanggal atau jamnya. Boleh tolong isi formnya lagi dengan format yang lebih jelas? (Contoh: TANGGAL: 4 Juli 2025, JAM: 14:00)" };
         }
 
@@ -259,14 +280,14 @@ export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<Whats
         });
         
         const availabilityResult = await checkBookingAvailabilityImplementation({
-            bookingDate: parsedDateTime.date, // UBAH: Kirim tanggal standar
-            bookingTime: parsedDateTime.time, // UBAH: Kirim waktu standar
+            bookingDate: parsedDateTime.date, 
+            bookingTime: parsedDateTime.time, 
             serviceName: formDetails.serviceName,
             estimatedDurationMinutes: 300 
         });
         
             if (!availabilityResult.isAvailable) {
-                await updateSession(senderNumber, { flow: 'general', inquiry: { ...session.inquiry } });
+                await updateSession(senderNumber, { ...session, flow: 'general' });
                 return { suggestedReply: availabilityResult.reason || "Maaf bro, jadwal di waktu itu nggak tersedia. Mau coba isi form lagi dengan jadwal lain?" };
             }
 
@@ -274,26 +295,29 @@ export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<Whats
             const serviceId = await getServiceIdByName(formDetails.serviceName);
 
             const bookingResult = await createBookingImplementation({
-    customerName: formDetails.customerName || input.senderName || 'Pelanggan WhatsApp',
-    customerPhone: senderNumber.replace('@c.us', ''),
-    vehicleInfo: formDetails.vehicleInfo,
-    serviceName: formDetails.serviceName,
-    bookingDate: parsedDateTime.date, // UBAH MENJADI INI
-    bookingTime: parsedDateTime.time, // UBAH MENJADI INI
-    serviceId: serviceId || '',
-});
-            await updateSession(senderNumber, { flow: 'general', inquiry: {} }); // Reset sesi setelah booking berhasil
+                customerName: formDetails.customerName || input.senderName || 'Pelanggan WhatsApp',
+                customerPhone: senderNumber.replace('@c.us', ''),
+                vehicleInfo: formDetails.vehicleInfo,
+                serviceName: formDetails.serviceName,
+                bookingDate: parsedDateTime.date,
+                bookingTime: parsedDateTime.time,
+                serviceId: serviceId || '',
+            });
+            
+            // --- MODIFIKASI: RESET SESI SETELAH BOOKING ---
+            // Kode ini secara otomatis juga menghapus `followUpState`, jadi sudah benar.
+            console.log(`[Follow-up] Dibatalkan untuk ${senderNumber} karena booking berhasil.`);
+           await updateSession(senderNumber, { flow: 'general', inquiry: {}, lastInteraction: Timestamp.now(), followUpState: null });
             return { suggestedReply: bookingResult.message || "Booking berhasil dibuat, bro! Makasih ya." };
 
         } else {
             console.log(`[Booking Flow] Gagal mem-parsing form. Meminta user untuk mengisi ulang.`);
-            await updateSession(senderNumber, { flow: 'general' }); // Reset flow agar tidak nyangkut
+            await updateSession(senderNumber, { ...session, flow: 'general' }); // Reset flow agar tidak nyangkut
             return { suggestedReply: "Waduh bro, sepertinya format isiannya ada yang salah. Boleh tolong copy-paste template sebelumnya dan isi lagi bagian yang kosong? Makasih ya." };
         }
     }
 
     // JALUR 3: Mengirim Template Booking
-    // Pastikan fungsi detectBookingIntent dari kode target juga kamu pakai
     if (detectBookingIntent(input.customerMessage)) {
         console.log(`[LOG ACTION] JALUR 3: Niat booking terdeteksi. Mengirim template.`);
         
@@ -312,7 +336,7 @@ JAM : (Contoh: 2 siang atau 14:00)
 LAYANAN: ${layanan}
 MOTOR: ${motor}
 `;
-        await updateSession(senderNumber, { flow: 'awaiting_booking_form', inquiry: { ...session?.inquiry } });
+        await updateSession(senderNumber, { ...session, flow: 'awaiting_booking_form' });
         return { suggestedReply: bookingTemplate };
     }
 
@@ -324,66 +348,105 @@ MOTOR: ${motor}
     }
 
     // JALUR 5 (TERAKHIR): Fallback ke AI Agent untuk obrolan umum
-    console.log('[LOG ACTION] JALUR 5: Tidak ada jalur cepat yang cocok, melempar ke AI Agent.');
+   console.log('[LOG ACTION] JALUR 5: Tidak ada jalur cepat yang cocok, melempar ke AI Agent.');
+
     const messagesForAI: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-    { role: 'system', content: masterPrompt },
-    { role: 'system', content: `Catatan sesi saat ini: ${JSON.stringify(session?.inquiry || { note: 'tidak ada catatan' })}.` },
-    ...(input.chatHistory || []) as OpenAI.Chat.Completions.ChatCompletionMessageParam[], // <-- TAMBAHKAN INI
-    { role: 'user', content: input.customerMessage }
-];
-    
+        { role: 'system', content: masterPrompt },
+        { role: 'system', content: `Catatan sesi saat ini: ${JSON.stringify(session?.inquiry || { note: 'tidak ada catatan' })}.` },
+        ...(input.chatHistory || []) as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+        { role: 'user', content: input.customerMessage }
+    ];
     try {
         const response = await openai.chat.completions.create({ model: 'gpt-4o', messages: messagesForAI, tools: zoyaTools, tool_choice: 'auto' });
         const responseMessage = response.choices[0].message;
         
         if (responseMessage.tool_calls) {
-            messagesForAI.push(responseMessage);
-            for (const toolCall of responseMessage.tool_calls) {
-                const functionName = toolCall.function.name as 'listServicesByCategory' | 'getSpecificServicePrice' | 'getServiceDescription' | 'getMotorSizeDetails';
-                const functionArgs = JSON.parse(toolCall.function.arguments);
-                 // ==========================================================
-              // ===== SISIPKAN 2 BARIS INI (WAJIB) =====
-              // "Membekali" argumen dengan pesan asli dari user
-              functionArgs.original_query = input.customerMessage;
-              // ==========================================================
-                let toolResult;
-                // ... (Switch case untuk tool calls tetap sama seperti kode target)
-                switch (functionName) {
-                    case 'listServicesByCategory':
-                        toolResult = await listServicesByCategory(functionArgs);
-                        if (!toolResult.error && toolResult.services) {
-                            const serviceNames = toolResult.services.map(s => s.name);
-                            await updateSession(senderNumber, { inquiry: { ...session?.inquiry, lastOfferedServices: serviceNames }});
-                        }
-                        break;
-                    case 'getMotorSizeDetails':
-                        toolResult = await getMotorSizeDetails(functionArgs);
-                        if (!toolResult.error && toolResult.details) {
-                            await updateSession(senderNumber, { inquiry: { ...session?.inquiry, lastMentionedMotor: toolResult.details.motor_model }});
-                        }
-                        break;
-                    case 'getSpecificServicePrice':
-                        toolResult = await getSpecificServicePrice(functionArgs);
-                        if (!toolResult.error) {
-                             await updateSession(senderNumber, { inquiry: { ...session?.inquiry, lastMentionedService: toolResult.service_name, lastMentionedMotor: toolResult.motor_model } });
-                        }
-                        break;
-                    case 'getServiceDescription':
-                        toolResult = await getServiceDescription(functionArgs);
-                        if (!toolResult.error && functionArgs.service_name) {
-                            await updateSession(senderNumber, { inquiry: { ...session?.inquiry, lastMentionedService: functionArgs.service_name } });
-                        }
-                        break;
+                messagesForAI.push(responseMessage);
+
+                for (const toolCall of responseMessage.tool_calls) {
+                    const functionName = toolCall.function.name;
+                    const functionArgs = JSON.parse(toolCall.function.arguments);
+                    let toolResult;
+
+                    console.log(`[AI Action] Memanggil tool: ${functionName} dengan argumen:`, functionArgs);
+
+                    switch (functionName) {
+                        case 'listServicesByCategory':
+                            toolResult = await listServicesByCategory(functionArgs);
+                            if (!toolResult.error && toolResult.services) {
+                                const serviceNames = toolResult.services.map((s: any) => s.name);
+                                await updateSession(senderNumber, { ...session, inquiry: { ...session?.inquiry, lastOfferedServices: serviceNames }});
+                            }
+                            break;
+                        case 'getPromoBundleDetails':
+                            toolResult = await getPromoBundleDetails(functionArgs);
+                            break;
+                        case 'getSpecificServicePrice':
+                            functionArgs.original_query = input.customerMessage; 
+                            toolResult = await getSpecificServicePrice(functionArgs);
+                            if (!toolResult.error) {
+                                await updateSession(senderNumber, { ...session, inquiry: { ...session?.inquiry, lastMentionedService: toolResult.service_name, lastMentionedMotor: toolResult.motor_model } });
+                            }
+                            break;
+                        case 'getServiceDescription':
+                            toolResult = await getServiceDescription(functionArgs);
+                            if (!toolResult.error && functionArgs.service_name) {
+                                await updateSession(senderNumber, { ...session, inquiry: { ...session?.inquiry, lastMentionedService: functionArgs.service_name } });
+                            }
+                            break;
+                        case 'getMotorSizeDetails':
+                            toolResult = await getMotorSizeDetails(functionArgs);
+                             if (!toolResult.error && toolResult.details) {
+                                await updateSession(senderNumber, { ...session, inquiry: { ...session?.inquiry, lastMentionedMotor: toolResult.details.motor_model }});
+                            }
+                            break;
+                        case 'findNextAvailableSlot':
+                            toolResult = await findNextAvailableSlotImplementation(functionArgs);
+                            break;
+                        default:
+                            console.error(`Tool dengan nama "${functionName}" tidak dikenal.`);
+                            toolResult = { error: `Tool tidak dikenal: ${functionName}` };
+                    }
+
+                    messagesForAI.push({
+                        tool_call_id: toolCall.id,
+                        role: 'tool',
+                        content: JSON.stringify(toolResult),
+                    });
                 }
-                messagesForAI.push({ tool_call_id: toolCall.id, role: 'tool', content: JSON.stringify(toolResult) });
+
+                const finalResponse = await openai.chat.completions.create({
+                    model: 'gpt-4o',
+                    messages: messagesForAI,
+                });
+
+                const finalContent = finalResponse.choices[0].message.content?.trim();
+                if (finalContent) {
+                    // --- MODIFIKASI BAGIAN C: OTOMATIS TANDAI UNTUK FOLLOW-UP ---
+                    let needsFollowUp = false;
+                    const toolNames = responseMessage.tool_calls.map(tc => tc.function.name);
+    
+                    // Tentukan tool mana yang memicu follow-up
+                    if (toolNames.includes('getSpecificServicePrice') || toolNames.includes('getServiceDescription') || toolNames.includes('getPromoBundleDetails')) {
+                        needsFollowUp = true;
+                    }
+    
+                    if (needsFollowUp && session) {
+                        const context = session.inquiry?.lastMentionedService || input.customerMessage.substring(0, 50);
+                        console.log(`[Follow-up] Menandai ${senderNumber} untuk follow-up level 1.`);
+                        
+                        const updatedSessionData = {
+                            ...session,
+                            lastInteraction: Timestamp.now(), // Selalu update lastInteraction
+                            followUpState: { level: 1, flaggedAt: Date.now(), context: context }
+                        };
+                        await updateSession(senderNumber, updatedSessionData);
+                    }
+                    // --- MODIFIKASI SELESAI ---
+
+                    return { suggestedReply: finalContent };
+                }
             }
-            const finalResponse = await openai.chat.completions.create({ model: 'gpt-4o', messages: messagesForAI });
-            const finalContent = finalResponse.choices[0].message.content?.trim();
-            if (finalContent) return { suggestedReply: finalContent };
-        } else {
-            const finalContent = responseMessage.content?.trim();
-            if (finalContent) return { suggestedReply: finalContent };
-        }
         
         await notifyBosMamat(senderNumber, input.customerMessage);
         await setSnoozeMode(senderNumber);
