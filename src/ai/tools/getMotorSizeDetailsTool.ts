@@ -1,16 +1,35 @@
 'use server';
 
 import { z } from 'zod';
-import { promises as fs } from 'fs';
-import path from 'path';
 import type { GetMotorSizeResult } from '@/types/ai/tools';
+import allMotorsData from '../../../docs/daftarUkuranMotor.json';
 
-// --- Tipe Data & Skema Internal ---
+
+// Tipe data & validasi sudah Anda buat dengan sangat baik
+type MotorSize = "S" | "M" | "L" | "XL";
+
 type Motor = {
   model: string;
-  motor_db_size: 'S' | 'M' | 'L' | 'XL';
-  repaint_size: 'S' | 'M' | 'L' | 'XL';
+  motor_db_size: MotorSize;
+  repaint_size: MotorSize;
 };
+
+const isValidSize = (size: string): size is MotorSize => {
+  return ["S", "M", "L", "XL"].includes(size);
+};
+
+// Variabel ini dibuat sekali di sini dengan validasi,
+// lalu bisa dipakai di mana saja dalam file ini.
+const allMotors: Motor[] = allMotorsData.map((m: any) => {
+  if (!isValidSize(m.motor_db_size) || !isValidSize(m.repaint_size)) {
+    throw new Error(`Invalid size in motor data: ${m.model}`);
+  }
+  return {
+    model: m.model,
+    motor_db_size: m.motor_db_size,
+    repaint_size: m.repaint_size,
+  };
+});
 
 const InputSchema = z.object({
   motor_query: z.string(),
@@ -19,30 +38,24 @@ type Input = z.infer<typeof InputSchema>;
 
 
 // --- Fungsi Utama Tool ---
-
 export async function getMotorSizeDetails(input: Input): Promise<GetMotorSizeResult> {
   try {
     const { motor_query } = InputSchema.parse(input);
 
-    const motorsJsonPath = path.join(process.cwd(), 'docs', 'daftarUkuranMotor.json');
-    const motorsFile = await fs.readFile(motorsJsonPath, 'utf-8');
-    const allMotors: Motor[] = JSON.parse(motorsFile);
+    // --- PERBAIKAN: HAPUS BARIS INI ---
+    // const allMotors: Motor[] = allMotorsData; // Baris ini tidak lagi diperlukan
 
+    // Langsung gunakan 'allMotors' yang sudah kita buat di atas
     const lowerCaseQuery = motor_query.toLowerCase();
-    
-    // Cari semua motor yang cocok dengan query
     const matches = allMotors.filter(motor => motor.model.toLowerCase().includes(lowerCaseQuery));
 
     if (matches.length === 0) {
-      // HILIGHT: Mengembalikan error dengan format baru
       return { error: 'generic_error', message: `Motor dengan nama "${motor_query}" tidak ditemukan di database kami.` };
     }
 
     if (matches.length > 1) {
-       // Cek apakah ada satu match yang sama persis (case-insensitive)
       const exactMatch = matches.find(m => m.model.toLowerCase() === lowerCaseQuery);
       if (exactMatch) {
-         // Jika ada match yang sama persis, langsung gunakan itu
          return {
             details: {
               motor_model: exactMatch.model,
@@ -51,15 +64,12 @@ export async function getMotorSizeDetails(input: Input): Promise<GetMotorSizeRes
             }
          };
       }
-
-      // Jika tidak ada yang sama persis dan ada banyak hasil, motornya ambigu
       return {
         error: 'ambiguous_motor',
         ambiguous_options: matches.map(m => m.model),
       };
     }
 
-    // Jika hanya ada satu match, kembalikan detailnya (kasus sukses)
     const motor = matches[0];
     return {
       details: {
@@ -71,7 +81,6 @@ export async function getMotorSizeDetails(input: Input): Promise<GetMotorSizeRes
 
   } catch (err: any) {
     console.error('[getMotorSizeDetails Tool] Error:', err);
-    // HILIGHT: Mengembalikan error dengan format baru
     return { error: 'generic_error', message: `Error internal di tool ukuran motor: ${err.message}` };
   }
 }

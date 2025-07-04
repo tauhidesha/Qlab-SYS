@@ -1,52 +1,48 @@
-// File: app/ai/tools/listServicesByCategoryTool.ts (atau apapun nama file tool lo)
-// Ganti seluruh isi file dengan kode di bawah ini.
+// File: app/ai/tools/listServicesByCategoryTool.ts
 
 'use server';
 
 import { z } from 'zod';
-import { promises as fs } from 'fs'; // Gunakan 'fs/promises' untuk I/O asinkron
-import path from 'path';
+// Impor data JSON secara langsung di atas
+import servicesData from '../../../docs/deskripsi_layanan.json';
 
-// Skema input sudah benar
+// Skema input untuk validasi
 const InputSchema = z.object({
   category: z.enum(['coating', 'detailing', 'cuci', 'repaint']),
 });
 type Input = z.infer<typeof InputSchema>;
 
-// Tipe data untuk output
+// Tipe data untuk output dan data internal
 type ServiceOutput = {
   name: string;
   summary: string;
 };
 
+type ServiceData = {
+  name: string;
+  category: string;
+  summary: string;
+  [key: string]: any;
+};
+
 /**
- * Mengambil daftar layanan berdasarkan kategori dari file deskripsi_layanan.json
- * @param input - Objek berisi 'category' yang sudah divalidasi Zod.
- * @returns Objek promise berisi daftar layanan atau pesan error.
+ * Mengambil daftar layanan berdasarkan kategori dari data yang sudah diimpor.
  */
 export async function listServicesByCategory(input: Input): Promise<{ services?: ServiceOutput[], error?: string }> {
   try {
     const { category } = InputSchema.parse(input);
     
-    // --- FIX UTAMA ADA DI SINI ---
-    // Nama file disesuaikan dengan file asli yang lo punya.
-    const servicesJsonPath = path.join(process.cwd(), 'docs', 'deskripsi_layanan.json');
+    // Langsung gunakan data dari import, tidak perlu membaca file lagi
+    const allServices: ServiceData[] = servicesData;
 
-    // BEST PRACTICE: Gunakan fs.promises.readFile agar non-blocking di server
-    const fileContent = await fs.readFile(servicesJsonPath, 'utf-8');
-    const servicesData = JSON.parse(fileContent);
-
-    // Logika filter dan map sudah benar.
-    // Pastikan kita mengambil 'name' dan 'summary' dengan benar.
-    const filteredServices = servicesData
-      .filter((service: any) => service.category === category && service.summary) // Filter yang punya summary
-      .map((service: any) => ({
+    const filteredServices = allServices
+      .filter((service) => service.category === category && service.summary)
+      .map((service) => ({
         name: service.name,
-        summary: service.summary, // Ambil field 'summary' dari JSON
+        summary: service.summary,
       }));
 
     if (filteredServices.length === 0) {
-      // Pesan error ini lebih deskriptif, memberitahu bahwa layanan ada tapi mungkin tidak punya 'summary'
       return { error: `Tidak ada layanan dengan deskripsi ringkas (summary) untuk kategori '${category}'.` };
     }
 
@@ -54,11 +50,6 @@ export async function listServicesByCategory(input: Input): Promise<{ services?:
     return { services: filteredServices };
 
   } catch (err: any) {
-    // Memberi detail error yang lebih baik saat development
-    if (err.code === 'ENOENT') {
-        console.error('[Tool Error] File tidak ditemukan di path:', path.join(process.cwd(), 'docs', 'deskripsi_layanan.json'));
-        return { error: 'Gagal menemukan file data layanan.' };
-    }
     console.error('[listServicesByCategory Tool] Error:', err);
     return { error: 'Terjadi kesalahan internal saat mengambil daftar layanan.' };
   }
