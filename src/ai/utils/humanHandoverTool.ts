@@ -5,10 +5,19 @@
 
 import { updateSession } from './session'; // Asumsi file session ada di folder yang sama
 
-const BOS_MAMAT_NUMBER = '628179481010';
-// PENTING: Ganti localhost dengan URL publik jika dideploy.
-const WHATSAPP_API_ENDPOINT = 'http://localhost:3000/send-message'; 
-const SNOOZE_DURATION_MS = 60 * 60 * 1000; // 1 jam
+ // --- PERBAIKAN DI SINI ---
+    // 1. Ambil URL dasar dari environment variable
+    const baseUrl = process.env.WHATSAPP_SERVER_URL;
+
+    // 2. Cek apakah variabel sudah diatur
+    if (!baseUrl) {
+        console.error('[Handover Error] Konfigurasi error: WHATSAPP_SERVER_URL tidak diatur.');
+        return; // Hentikan fungsi jika URL tidak ada
+    }
+
+    // 3. Gabungkan dengan path API dari file run.js Anda
+    const endpoint = `${baseUrl}/send-manual-message`;
+    // --- SELESAI PERBAIKAN ---
 
 /**
  * Mengirim notifikasi ke Bos Mamat bahwa ada pelanggan yang butuh bantuan.

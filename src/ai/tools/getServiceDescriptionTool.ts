@@ -1,11 +1,10 @@
 // File: app/ai/tools/getServiceDescriptionTool.ts
-// BUAT ATAU GANTI ISI FILE INI DENGAN KODE DI BAWAH
 
 'use server';
 
 import { z } from 'zod';
-import { promises as fs } from 'fs';
-import path from 'path';
+// --- PERBAIKAN 1: Impor JSON langsung di sini ---
+import allDescriptionsData from '../../../docs/deskripsi_layanan.json';
 
 const InputSchema = z.object({
   service_name: z.string(),
@@ -22,10 +21,10 @@ export async function getServiceDescription(input: Input): Promise<{ description
   try {
     const { service_name } = InputSchema.parse(input);
 
-    const descJsonPath = path.join(process.cwd(), 'docs', 'deskripsi_layanan.json');
-    const fileContent = await fs.readFile(descJsonPath, 'utf-8');
-    const allDescriptions: ServiceDescription[] = JSON.parse(fileContent);
+    // --- PERBAIKAN 2: Langsung gunakan data dari import ---
+    const allDescriptions: ServiceDescription[] = allDescriptionsData;
 
+    // Gunakan .find() untuk mencari layanan. Pencocokan toLowerCase() sudah bagus.
     const service = allDescriptions.find(s => s.name.toLowerCase().includes(service_name.toLowerCase()));
 
     if (!service) {
