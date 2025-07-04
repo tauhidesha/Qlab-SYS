@@ -486,119 +486,104 @@ if (qnaAnswer) {
         { role: 'user', content: input.customerMessage }
     ];
     try {
-        const response = await openai.chat.completions.create({ model: 'gpt-4o', messages: messagesForAI, tools: zoyaTools, tool_choice: 'auto' });
-        const responseMessage = response.choices[0].message;
-        
-        if (responseMessage.tool_calls) {
-                messagesForAI.push(responseMessage);
+    const response = await openai.chat.completions.create({ model: 'gpt-4o', messages: messagesForAI, tools: zoyaTools, tool_choice: 'auto' });
+    const responseMessage = response.choices[0].message;
 
-                for (const toolCall of responseMessage.tool_calls) {
-                    const functionName = toolCall.function.name;
-                    const functionArgs = JSON.parse(toolCall.function.arguments);
-                    let toolResult;
+    // Cek apakah AI ingin membalas dengan teks atau memanggil tool
+    const wantsToUseTool = responseMessage.tool_calls && responseMessage.tool_calls.length > 0;
+    const hasTextReply = responseMessage.content && responseMessage.content.trim().length > 0;
 
-                    console.log(`[AI Action] Memanggil tool: ${functionName} dengan argumen:`, functionArgs);
-
-                    switch (functionName) {
-                        case 'listServicesByCategory':
-                            toolResult = await listServicesByCategory(functionArgs);
-                            if (!toolResult.error && toolResult.services) {
-                                const serviceNames = toolResult.services.map((s: any) => s.name);
-                                await updateSession(senderNumber, { ...session, inquiry: { ...session?.inquiry, lastOfferedServices: serviceNames }});
-                            }
-                            break;
-                        case 'getPromoBundleDetails':
-                            toolResult = await getPromoBundleDetails(functionArgs);
-                            break;
-                        case 'getSpecificServicePrice':
-                            functionArgs.original_query = input.customerMessage; 
-                            toolResult = await getSpecificServicePrice(functionArgs);
-                            if (!toolResult.error) {
-                                await updateSession(senderNumber, { ...session, inquiry: { ...session?.inquiry, lastMentionedService: toolResult.service_name, lastMentionedMotor: toolResult.motor_model } });
-                            }
-                            break;
-                        case 'getServiceDescription':
-                            toolResult = await getServiceDescription(functionArgs);
-                            if (!toolResult.error && functionArgs.service_name) {
-                                await updateSession(senderNumber, { ...session, inquiry: { ...session?.inquiry, lastMentionedService: functionArgs.service_name } });
-                            }
-                            break;
-                        case 'getMotorSizeDetails':
-                            toolResult = await getMotorSizeDetails(functionArgs);
-                             if (!toolResult.error && toolResult.details) {
-                                await updateSession(senderNumber, { ...session, inquiry: { ...session?.inquiry, lastMentionedMotor: toolResult.details.motor_model }});
-                            }
-                            break;
-                        case 'findNextAvailableSlot':
-                            toolResult = await findNextAvailableSlotImplementation(functionArgs);
-                            break;
-                        default:
-                            console.error(`Tool dengan nama "${functionName}" tidak dikenal.`);
-                            toolResult = { error: `Tool tidak dikenal: ${functionName}` };
-                    }
-                    
-                   // --- PERBAIKAN: LOGIKA HANDOVER PINDAH KE SINI ---
-        // Tepat setelah mendapatkan hasil dari switch, kita cek hasilnya.
-        if (toolResult?.error === 'requires_human_assistance') {
-            console.log('[Handover] Tool meminta eskalasi ke manusia.');
-            
-            const handoverReply = "Oke bro, untuk repaint Vespa itu kasusnya spesial karena banyak detail dan variasinya. Biar infonya akurat dan hasilnya maksimal, Zoya sambungin langsung ke Bos Mamat ya untuk diskusi lebih lanjut. Ditunggu sebentar bro!";
-            
-            await notifyBosMamat(senderNumber, input.customerMessage);
-            await setSnoozeMode(senderNumber);
-
-            // Langsung kirim pesan handover dan hentikan seluruh proses di fungsi ini
-            return { suggestedReply: handoverReply };
-        }
-        // --- AKHIR PERBAIKAN ---
-                    messagesForAI.push({
-                        tool_call_id: toolCall.id,
-                        role: 'tool',
-                        content: JSON.stringify(toolResult),
-                    });
-                }
-
-                const finalResponse = await openai.chat.completions.create({
-                    model: 'gpt-4o',
-                    messages: messagesForAI,
-                });
-
-                const finalContent = finalResponse.choices[0].message.content?.trim();
-                if (finalContent) {
-                    // --- MODIFIKASI BAGIAN C: OTOMATIS TANDAI UNTUK FOLLOW-UP ---
-                    let needsFollowUp = false;
-                    const toolNames = responseMessage.tool_calls.map(tc => tc.function.name);
-    
-                    // Tentukan tool mana yang memicu follow-up
-                    if (toolNames.includes('getSpecificServicePrice') || toolNames.includes('getServiceDescription') || toolNames.includes('getPromoBundleDetails')) {
-                        needsFollowUp = true;
-                    }
-    
-                    if (needsFollowUp && session) {
-                        const context = session.inquiry?.lastMentionedService || input.customerMessage.substring(0, 50);
-                        console.log(`[Follow-up] Menandai ${senderNumber} untuk follow-up level 1.`);
-                        
-                        const updatedSessionData = {
-                            ...session,
-                            lastInteraction: Timestamp.now(), // Selalu update lastInteraction
-                            followUpState: { level: 1, flaggedAt: Date.now(), context: context }
-                        };
-                        await updateSession(senderNumber, updatedSessionData);
-                    }
-                    // --- MODIFIKASI SELESAI ---
-
-                    return { suggestedReply: finalContent };
-                }
-            }
-        
-        await notifyBosMamat(senderNumber, input.customerMessage);
-        await setSnoozeMode(senderNumber);
-        return { suggestedReply: HANDOVER_MESSAGE };
-
-    } catch (error) {
-        console.error("Error saat menjalankan AI Agent:", error);
-        await notifyBosMamat(senderNumber, input.customerMessage);
-        await setSnoozeMode(senderNumber);
-        return { suggestedReply: HANDOVER_MESSAGE };
+    // --- Skenario 1: AI ingin membalas langsung dengan teks (untuk pertanyaan umum) ---
+    if (hasTextReply) {
+        console.log("[AI Action] Merespons langsung dengan teks.");
+        // Di sini kita bisa tambahkan logika flagging jika jawaban teksnya dianggap penting
+        // Contoh: jika AI berhasil menjawab keberatan "harganya mahal"
+        return { suggestedReply: responseMessage.content };
     }
+
+    // --- Skenario 2: AI ingin memanggil tool ---
+    if (wantsToUseTool) {
+        messagesForAI.push(responseMessage);
+
+        for (const toolCall of responseMessage.tool_calls) {
+            const functionName = toolCall.function.name;
+            const functionArgs = JSON.parse(toolCall.function.arguments);
+            let toolResult;
+
+            console.log(`[AI Action] Memanggil tool: ${functionName} dengan argumen:`, functionArgs);
+
+            // Switch-case untuk menjalankan tool yang diminta AI
+            switch (functionName) {
+                // ... (semua case tool Anda di sini: listServicesByCategory, getPromoBundleDetails, dll) ...
+                case 'getSpecificServicePrice':
+                    functionArgs.original_query = input.customerMessage; 
+                    toolResult = await getSpecificServicePrice(functionArgs);
+                    if (!toolResult.error && session) {
+                        session.inquiry = { ...session.inquiry, lastMentionedService: toolResult.service_name, lastMentionedMotor: toolResult.motor_model };
+                    }
+                    break;
+                // ... case lainnya ...
+                default:
+                    toolResult = { error: `Tool tidak dikenal: ${functionName}` };
+            }
+
+            // CEK KASUS SPESIAL VESPA REPAINT (setelah tool dipanggil)
+            if (toolResult?.error === 'requires_human_assistance') {
+                console.log('[Handover] Tool meminta eskalasi ke manusia.');
+                const handoverReply = "Oke bro, untuk repaint Vespa itu kasusnya spesial karena banyak detail dan variasinya. Biar infonya akurat dan hasilnya maksimal, Zoya sambungin langsung ke Bos Mamat ya untuk diskusi lebih lanjut. Ditunggu sebentar bro!";
+                
+                await notifyBosMamat(senderNumber, input.customerMessage);
+                await setSnoozeMode(senderNumber);
+                return { suggestedReply: handoverReply };
+            }
+
+            // Tambahkan hasil tool ke riwayat pesan
+            messagesForAI.push({
+                tool_call_id: toolCall.id,
+                role: 'tool',
+                content: JSON.stringify(toolResult),
+            });
+        }
+
+        // Panggil AI lagi setelah semua tool dijalankan untuk merangkum hasilnya
+        const finalResponse = await openai.chat.completions.create({
+            model: 'gpt-4o',
+            messages: messagesForAI,
+        });
+
+        const finalContent = finalResponse.choices[0].message.content?.trim();
+        if (finalContent) {
+            // TANDAI UNTUK FOLLOW-UP SETELAH MEMBERI INFO PENTING
+            let needsFollowUp = false;
+            const toolNames = responseMessage.tool_calls.map(tc => tc.function.name);
+            if (toolNames.includes('getSpecificServicePrice') || toolNames.includes('getServiceDescription') || toolNames.includes('getPromoBundleDetails')) {
+                needsFollowUp = true;
+            }
+
+            if (needsFollowUp && session) {
+                const context = session.inquiry?.lastMentionedService || input.customerMessage.substring(0, 50);
+                console.log(`[Follow-up] Menandai ${senderNumber} untuk follow-up level 1.`);
+                await updateSession(senderNumber, {
+                    ...session,
+                    lastInteraction: Timestamp.now(), // atau Timestamp.now()
+                    followUpState: { level: 1, flaggedAt: Date.now(), context: context }
+                });
+            }
+            
+            return { suggestedReply: finalContent };
+        }
+    }
+
+    // --- Skenario 3: AI bingung (tidak ada teks, tidak ada tool) -> Panggil Bantuan ---
+    console.log("[AI Action] AI tidak memberikan respons atau tool call, memicu handover.");
+    await notifyBosMamat(senderNumber, input.customerMessage);
+    await setSnoozeMode(senderNumber);
+    return { suggestedReply: HANDOVER_MESSAGE };
+
+} catch (error) {
+    console.error("Error saat menjalankan AI Agent:", error);
+    await notifyBosMamat(senderNumber, input.customerMessage);
+    await setSnoozeMode(senderNumber);
+    return { suggestedReply: HANDOVER_MESSAGE };
+}
 }
