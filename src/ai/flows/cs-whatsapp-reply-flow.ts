@@ -338,7 +338,16 @@ if (!session || !session.flow) {
     await updateSession(senderNumber, newSessionData);
     session = await getSession(senderNumber);
 }
-    // --- MODIFIKASI SELESAI ---
+     // =======================================================
+    // --- PASANG FUNGSI "PENERJEMAH" ANDA DI SINI ---
+    // =======================================================
+    const detectedServiceName = mapTermToOfficialService(input.customerMessage);
+    if (detectedServiceName && session?.inquiry) {
+        console.log(`[Mapper] Istilah pelanggan terpetakan ke layanan resmi: "${detectedServiceName}"`);
+        session.inquiry.lastMentionedService = detectedServiceName;
+    }
+    // =======================================================
+
 
     const HANDOVER_MESSAGE = "Aduh Zoya bingung, bentar Zoya panggilin Bos Mamat ya.";
     const CUSTOMER_REQUEST_HANDOVER_MESSAGE = "Oke siap, bentar Zoya panggilin Bos Mamat ya, ditunggu bro!";
