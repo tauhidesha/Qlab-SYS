@@ -31,56 +31,159 @@ function detectHumanHandoverRequest(message: string): boolean {
 
 function detectGreeting(message: string): boolean {
     const msg = message.toLowerCase().trim(); // Gunakan trim untuk menghapus spasi
-    const greetingKeywords = ['p', 'tes', 'test', 'halo', 'hallo', 'min', 'gan', 'sis', 'bro', 'hi', 'woi', 'mas bro', 'mas bre'];
+    const greetingKeywords =  ['p', 'pa', 'pagi', 'siang', 'sore', 'malam',
+  'halo', 'hallo', 'haloo', 'hallo kak', 'halo min', 'halo gan',
+  'hi', 'hai', 'hay', 'hey', 'hei', 'heii',
+  'bro', 'bray', 'bre', 'mas', 'mas bro', 'mas bre',
+  'mbak', 'sis', 'kak', 'cak', 'gan', 'om',
+  'min', 'admin', 'bang', 'abang', 'bos', 'bosku',
+  'tes', 'test', 'cek', 'cek bro', 'woi', 'woy',
+  'permisi', 'punten', 'excuse me', 'yo', 'yo bro', 'yo gan',
+  'good morning', 'good night', 'good afternoon', 'selamat pagi',
+  'selamat malam', 'selamat sore', 'selamat siang',
+  'assalamualaikum', 'assalamu’alaikum', 'ass wr wb',
+  'ass', 'asw', 'wassalam', 'wassalamu’alaikum',
+  'apa kabar', 'apa kabarnya', 'kabarnya gimana', 'apa news',
+  'ada orang?', 'halo ada?', 'anyone?', 'test masuk', 'cek cek',
+  'permisi bang', 'permisi min', 'halo ada orang?', 'halo guys',
+  'min on?', 'admin on?',
+  'misi', 'misi bang', 'cek koneksi', 'halo kakak',
+  'oi', 'oii', 'oy', 'yoi', 'bang', 'bruh',
+  'haii', 'hiii', 'hallo semua', 'min bantu dong', 'halo juga',
+  'yok', 'cek om', 'bang cek', 'yo min', 'yo mas',
+  'gimana', 'bro ada?'];
     // Fungsi ini akan true jika pesannya HANYA salah satu dari keyword di atas
     return greetingKeywords.includes(msg);
 }
 
-function extractInfoForPriceCheck(message: string): { service: string, motor: string } | null {
+function mapTermToOfficialService(message: string): string | null {
     const msg = message.toLowerCase();
-    const priceIntent = /berapa|harga|price|biaya/i.test(msg);
-    if (!priceIntent) return null;
-    const serviceKeywords = [ { name: 'Repaint Bodi Halus', keywords: ['repaint bodi', 'cat bodi', 'repaint bodi alus', 'bodi halus', 'cat bodi halus'] }, { name: 'Repaint Velg', keywords: ['repaint velg', 'cat velg'] }, { name: 'Coating Motor Doff', keywords: ['coating doff', 'coating matte'] }, { name: 'Coating Motor Glossy', keywords: ['coating glossy', 'coating kilap'] }, { name: 'Full Detailing Glossy', keywords: ['full detailing'] }, { name: 'Poles Bodi Glossy', keywords: ['poles bodi', 'poles body'] }, { name: 'Cuci Premium', keywords: ['cuci premium'] }, ];
-    const motorKeywords = ['pcx', 'nmax', 'vario', 'aerox', 'scoopy', 'beat', 'xmax', 'forza', 'cbr', 'vixion', 'r15', 'klx', 'ninja', 'fazzio', 'filano'];
-    let foundService = null;
-    for (const service of serviceKeywords) { if (service.keywords.some(keyword => msg.includes(keyword))) { foundService = service.name; break; } }
-    const foundMotor = motorKeywords.find(m => msg.includes(m));
-    if (foundService && foundMotor) return { service: foundService, motor: foundMotor };
+    
+    // Ini adalah "kamus" utama kita
+    const serviceKeywordsMap = [
+        {
+        officialName: 'Coating Motor Glossy',
+        keywords: [
+          'coating glossy', 'nano coating', 'coating kilap', 'ceramic glossy',
+          'coating bening', 'coating kaca', 'coating wetlook', 'kilap daun talas',
+          'coating kinclong', 'lapis keramik glossy'
+        ]
+      },
+      {
+        officialName: 'Coating Motor Doff',
+        keywords: [
+          'coating doff', 'nano doff', 'coating matte', 'keramik doff',
+          'matte coating', 'coating warna doff', 'lapisan doff', 'proteksi cat doff',
+          'coating tidak mengkilap', 'coating tampilan doff'
+        ]
+      },
+      {
+        officialName: 'Complete Service Glossy',
+        keywords: [
+          'paket glossy lengkap', 'complete glossy', 'coating + detailing',
+          'glossy total', 'servis glossy', 'detailing coating glossy',
+          'glossy komplit', 'servis ultimate', 'glossy all in', 'paket sultan glossy'
+        ]
+      },
+      {
+        officialName: 'Complete Service Doff',
+        keywords: [
+          'paket doff lengkap', 'complete doff', 'detailing coating doff',
+          'doff komplit', 'servis doff total', 'servis ultimate doff',
+          'paket doff full', 'coating + detailing doff', 'paket sultan doff', 'doff all in'
+        ]
+      },
+      {
+        officialName: 'Repaint Bodi Halus',
+        keywords: [
+          'cat bodi', 'repaint bodi', 'cat ulang halus', 'repaint alus',
+          'cat mulus', 'repaint kinclong', 'cat ulang pabrikan', 'repaint full bodi',
+          'warna ulang bodi', 'bodi dicat ulang'
+        ]
+      },
+      {
+        officialName: 'Repaint Bodi Kasar',
+        keywords: [
+          'cat dek', 'repaint kasar', 'cat hitam doff', 'cat bagian kasar',
+          'cat ulang dek', 'cat ulang plastik kasar', 'cat ulang tekstur',
+          'dek motor kusam', 'cat ulang dek hitam', 'repaint bodi kasar'
+        ]
+      },
+      {
+        officialName: 'Repaint Velg',
+        keywords: [
+          'cat velg', 'repaint velg', 'cat ulang velg', 'warna ulang velg',
+          'cat pelek', 'velg dicat', 'ganti warna velg', 'velg baru lagi',
+          'pelek repaint', 'warna velg keren'
+        ]
+      },
+      {
+        officialName: 'Repaint Cover CVT / Arm',
+        keywords: [
+          'cat cvt', 'cat arm', 'repaint cvt', 'repaint arm',
+          'cat mesin belakang', 'cat swing arm', 'cat ulang cvt',
+          'warna ulang arm', 'cover cvt repaint', 'warna baru arm'
+        ]
+      },
+      {
+        officialName: 'Cuci Reguler',
+        keywords: [
+          'cuci motor', 'cuci biasa', 'cuci standar', 'semir ban',
+          'cuci luar aja', 'cuci harian', 'cuci kilat', 'cuci cepat',
+          'cuci murah', 'cuci kilau'
+        ]
+      },
+      {
+        officialName: 'Cuci Premium',
+        keywords: [
+          'cuci premium', 'cuci wax', 'cuci kilap', 'cuci mengkilap',
+          'cuci glow up', 'cuci mewah', 'cuci bersih banget', 'cuci plus wax',
+          'cuci detail', 'upgrade cuci'
+        ]
+      },
+      {
+        officialName: 'Detailing Mesin',
+        keywords: [
+          'cuci mesin', 'detailing mesin', 'bersihin mesin', 'kerak oli',
+          'pembersih crankcase', 'cuci ruang mesin', 'crankcase detailing',
+          'mesin bersih banget', 'cuci sela mesin', 'bersih oli bocor'
+        ]
+      },
+      {
+        officialName: 'Cuci Komplit',
+        keywords: [
+          'cuci total', 'cuci telanjang', 'cuci bongkar pasang', 'cuci bersih sampai rangka',
+          'cuci semua bagian', 'cuci dalam banget', 'cuci total motor', 'bongkar cuci',
+          'deep clean motor', 'detailing cuci'
+        ]
+      },
+      {
+        officialName: 'Poles Bodi Glossy',
+        keywords: [
+          'poles bodi', 'poles cat', 'kilapin bodi', 'poles baret halus',
+          'poles kilap', 'poles glossy', 'bodi kinclong', 'kilap ulang',
+          'poles full body', 'poles permukaan bodi'
+        ]
+      },
+      {
+        officialName: 'Full Detailing Glossy',
+        keywords: [
+          'detailing full', 'detailing total', 'detailing glossy',
+          'detailing dan poles', 'restorasi bodi', 'detailing komplit',
+          'detailing luar dalam', 'detailing ultimate', 'detailing kilap maksimal', 'detailing pamungkas'
+        ]
+      }
+    ];
+
+    for (const service of serviceKeywordsMap) {
+        if (service.keywords.some(keyword => msg.includes(keyword))) {
+            return service.officialName;
+        }
+    }
+
     return null;
 }
 
-function extractCategoryPriceIntent(message: string): { category: ServiceCategory, motor?: string } | null {
-    const msg = message.toLowerCase();
-    const priceIntent = /berapa|harga|price|biaya/i.test(msg);
-    if (!priceIntent) return null;
-    const categoryKeywords: { name: ServiceCategory, keywords: string[] }[] = [ 
-        { name: 'detailing', keywords: ['detailing', 'detail'] }, 
-        { name: 'coating', keywords: ['coating', 'ceramic', 'nano'] }, 
-        { name: 'repaint', keywords: ['repaint', 'cat ulang'] }, 
-        { name: 'cuci', keywords: ['cuci'] }, 
-    ];
-    const motorKeywords = ['pcx', 'nmax', 'vario', 'aerox', 'scoopy', 'beat', 'xmax', 'forza', 'cbr', 'vixion', 'r15', 'klx', 'ninja', 'fazzio', 'filano'];
-    
-    let foundCategory: ServiceCategory | null = null;
-    for (const cat of categoryKeywords) { 
-        if (cat.keywords.some(kw => msg.includes(kw))) { 
-            foundCategory = cat.name; 
-            break; 
-        } 
-    }
-    if (!foundCategory) return null;
-    const foundMotor = motorKeywords.find(m => msg.includes(m));
-    return { category: foundCategory, motor: foundMotor };
-}
-
-function extractMotorSizeIntent(message: string): string | null {
-    const msg = message.toLowerCase();
-    const sizeIntent = /ukuran|size|kategori|masuk apa/i.test(msg);
-    if (!sizeIntent) return null;
-    const motorKeywords = ['pcx', 'nmax', 'vario', 'aerox', 'scoopy', 'beat', 'xmax', 'forza', 'cbr', 'vixion', 'r15', 'klx', 'ninja', 'fazzio', 'filano'];
-    const foundMotor = motorKeywords.find(m => msg.includes(m));
-    return foundMotor || null;
-}
 function detectBookingIntent(message: string): boolean {
     const msg = message.toLowerCase();
     // Tambahkan kata kunci lain yang sering digunakan pelanggan Anda
@@ -340,12 +443,23 @@ MOTOR: ${motor}
         return { suggestedReply: bookingTemplate };
     }
 
-    // JALUR 4: Cek Pertanyaan Umum di Database Q&A (jika ada)
-    const qnaAnswer = await searchKnowledgeBase(input.customerMessage);
-    if (qnaAnswer) {
-        console.log(`[LOG ACTION] JALUR 4: Pertanyaan umum dijawab dari Knowledge Base.`);
-        return { suggestedReply: qnaAnswer.answer };
+   // JALUR 4: Cek Pertanyaan Umum di Database Q&A (jika ada)
+const qnaAnswer = await searchKnowledgeBase(input.customerMessage);
+if (qnaAnswer) {
+    console.log(`[LOG ACTION] JALUR 4: Ditemukan jawaban di Q&A.`);
+    
+    // --- TAMBAHAN: Jalankan Aksi dari Q&A ---
+    if (qnaAnswer.action?.update_session && session) {
+        console.log('[LOG ACTION] Menjalankan aksi update_session dari Q&A.');
+        await updateSession(senderNumber, { 
+            ...session, 
+            inquiry: { ...session.inquiry, ...qnaAnswer.action.update_session.inquiry }
+        });
     }
+    // --- SELESAI TAMBAHAN ---
+
+    return { suggestedReply: qnaAnswer.answer };
+}
 
     // JALUR 5 (TERAKHIR): Fallback ke AI Agent untuk obrolan umum
    console.log('[LOG ACTION] JALUR 5: Tidak ada jalur cepat yang cocok, melempar ke AI Agent.');

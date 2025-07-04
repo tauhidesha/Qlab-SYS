@@ -1,10 +1,11 @@
 'use server';
 
 import { z } from 'zod';
-import { promises as fs } from 'fs';
-import path from 'path';
+// Impor JSON langsung di sini, pastikan path relatifnya benar dari lokasi file ini
+import allServicesData from '../../../docs/harga_layanan.json';
+import allMotorsData from '../../../docs/daftarUkuranMotor.json';
 
-// --- Tipe Data & Skema Input (Diubah Total) ---
+// --- Tipe Data & Skema Input ---
 
 type Service = { 
   name: string; 
@@ -14,11 +15,28 @@ type Service = {
   variants?: { name: string; price: number }[]; 
 };
 
-type Motor = { 
-  model: string; 
-  motor_db_size: 'S' | 'M' | 'L' | 'XL'; 
-  repaint_size: 'S' | 'M' | 'L' | 'XL'; 
+type MotorSize = "S" | "M" | "L" | "XL";
+
+type Motor = {
+  model: string;
+  motor_db_size: MotorSize;
+  repaint_size: MotorSize;
 };
+
+const isValidSize = (size: string): size is MotorSize => {
+  return ["S", "M", "L", "XL"].includes(size);
+};
+
+const allMotors: Motor[] = allMotorsData.map((m) => {
+  if (!isValidSize(m.motor_db_size) || !isValidSize(m.repaint_size)) {
+    throw new Error(`Invalid size in motor data: ${m.model}`);
+  }
+  return {
+    model: m.model,
+    motor_db_size: m.motor_db_size,
+    repaint_size: m.repaint_size,
+  };
+});
 
 type PriceResult = { 
   motor_model?: string; 
@@ -32,19 +50,16 @@ type PriceResult = {
   note?: string; 
 };
 
-// --- SKEMA INPUT DISIMPLIFY, HANYA PERLU PESAN ASLI ---
 const InputSchema = z.object({
   service_name: z.string(),
   motor_query: z.string(),
-  // DITAMBAHKAN: Parameter untuk menerima pesan asli dari user
   original_query: z.string().optional(), 
 });
 type Input = z.infer<typeof InputSchema>;
 
 
-// --- FUNGSI HELPER (Tidak diubah) ---
+// --- FUNGSI HELPER ---
 function formatDuration(minutesStr?: string): string | undefined {
-    // ... (kode helper ini sama seperti sebelumnya, tidak perlu diubah)
     if (!minutesStr) return undefined;
     const totalMinutes = parseInt(minutesStr, 10);
     if (isNaN(totalMinutes) || totalMinutes === 0) return undefined;
@@ -63,7 +78,6 @@ function formatDuration(minutesStr?: string): string | undefined {
 }
 
 function findBestMotorMatch(query: string, allMotors: Motor[]): Motor | null {
-    // ... (kode helper ini sama seperti sebelumnya, tidak perlu diubah)
     const lowerCaseQuery = query.toLowerCase();
     const matches = allMotors.filter(motor => lowerCaseQuery.includes(motor.model.toLowerCase()));
     if (matches.length === 0) return null;
@@ -72,22 +86,13 @@ function findBestMotorMatch(query: string, allMotors: Motor[]): Motor | null {
 }
 
 
-// --- FUNGSI UTAMA TOOL (Logika Deteksi Dipindah ke Sini) ---
+// --- FUNGSI UTAMA TOOL ---
 export async function getSpecificServicePrice(input: Input): Promise<PriceResult> {
   try {
-    // --- 'original_query' sekarang diambil dari input ---
     const { service_name, motor_query, original_query } = InputSchema.parse(input);
 
-    const servicesJsonPath = path.join(process.cwd(), 'docs', 'harga_layanan.json');
-    const motorsJsonPath = path.join(process.cwd(), 'docs', 'daftarUkuranMotor.json');
-    
-    const [servicesFile, motorsFile] = await Promise.all([
-      fs.readFile(servicesJsonPath, 'utf-8'),
-      fs.readFile(motorsJsonPath, 'utf-8')
-    ]);
-
-    const allServices: Service[] = JSON.parse(servicesFile);
-    const allMotors: Motor[] = JSON.parse(motorsFile);
+    // Langsung gunakan data yang sudah di-impor
+    const allServices: Service[] = allServicesData;
 
     const serviceInfo = allServices.find(s => s.name.toLowerCase().includes(service_name.toLowerCase()));
     if (!serviceInfo) return { error: `Layanan "${service_name}" tidak ditemukan.` };
@@ -103,7 +108,7 @@ export async function getSpecificServicePrice(input: Input): Promise<PriceResult
 
     if (basePrice === undefined) return { error: `Harga untuk layanan "${serviceInfo.name}" tidak dapat ditentukan.` };
 
-    // --- LOGIKA DETEKSI WARNA SPESIAL SEKARANG 100% DI SINI ---
+    // Logika deteksi warna spesial
     let finalPrice = basePrice;
     let noteForResult: string | undefined = undefined;
     let isSpecialPaintRequest = false;
@@ -125,8 +130,7 @@ export async function getSpecificServicePrice(input: Input): Promise<PriceResult
             noteForResult = `Harga dasarnya Rp${basePrice.toLocaleString('id-ID')}, tapi karena ini warna spesial, ada tambahan biaya Rp${surcharge.toLocaleString('id-ID')}.`;
         }
     }
-    // --- SELESAI LOGIKA BARU ---
-
+    
     return {
       motor_model: motor.model,
       motor_size: motorSize,
