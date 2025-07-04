@@ -443,5 +443,50 @@
     "model": "energica ego",
     "motor_db_size": "XL",
     "repaint_size": "XL"
+  },
+  {
+    "model": "vespa lx 125",
+    "motor_db_size": "M",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "vespa primavera 150",
+    "motor_db_size": "M",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "vespa sprint 150",
+    "motor_db_size": "M",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "vespa gts 150",
+    "motor_db_size": "L",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "vespa gts super sport 150",
+     "motor_db_size": "L",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "vespa gts 300 super tech",
+    "motor_db_size": "XL",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "vespa gtv sei giorni",
+    "motor_db_size": "XL",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "vespa elettrica",
+    "motor_db_size": "M",
+    "repaint_size": "XL"
+  },
+  {
+    "model": "vespa 946 snake",
+    "motor_db_size": "M",
+    "repaint_size": "XL"
   }
 ]

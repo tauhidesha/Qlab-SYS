@@ -32,13 +32,16 @@ export interface PriceDetails {
     motor_size: string;
     price: number;
     estimated_duration?: string;
+    note?: string; // <-- TAMBAHKAN INI
 }
 
 type PriceSuccess = PriceDetails & { error?: undefined; };
 
+// Perbaikan (Lengkap)
 type PriceError =
   | { error: 'ambiguous_motor'; ambiguous_options: string[]; service_name_input: string; }
   | { error: 'price_not_available_for_size'; service_name: string; motor_size: string; }
+  | { error: 'requires_human_assistance'; message: string; } // <-- TAMBAHKAN BARIS INI
   | { error: 'generic_error'; message: string; };
 
 export type GetPriceResult = PriceSuccess | PriceError;

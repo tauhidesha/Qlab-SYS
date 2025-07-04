@@ -530,7 +530,21 @@ if (qnaAnswer) {
                             console.error(`Tool dengan nama "${functionName}" tidak dikenal.`);
                             toolResult = { error: `Tool tidak dikenal: ${functionName}` };
                     }
+                    
+                   // --- PERBAIKAN: LOGIKA HANDOVER PINDAH KE SINI ---
+        // Tepat setelah mendapatkan hasil dari switch, kita cek hasilnya.
+        if (toolResult?.error === 'requires_human_assistance') {
+            console.log('[Handover] Tool meminta eskalasi ke manusia.');
+            
+            const handoverReply = "Oke bro, untuk repaint Vespa itu kasusnya spesial karena banyak detail dan variasinya. Biar infonya akurat dan hasilnya maksimal, Zoya sambungin langsung ke Bos Mamat ya untuk diskusi lebih lanjut. Ditunggu sebentar bro!";
+            
+            await notifyBosMamat(senderNumber, input.customerMessage);
+            await setSnoozeMode(senderNumber);
 
+            // Langsung kirim pesan handover dan hentikan seluruh proses di fungsi ini
+            return { suggestedReply: handoverReply };
+        }
+        // --- AKHIR PERBAIKAN ---
                     messagesForAI.push({
                         tool_call_id: toolCall.id,
                         role: 'tool',
