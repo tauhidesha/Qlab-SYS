@@ -1,37 +1,28 @@
-// File: app/ai/utils/humanHandoverTool.ts
-// BUAT FILE BARU INI
-
+// src/ai/utils/humanHandoverTool.ts
 'use server';
 
-import { updateSession } from './session'; // Asumsi file session ada di folder yang sama
+import { updateSession } from './session';
 
- // --- PERBAIKAN DI SINI ---
-    // 1. Ambil URL dasar dari environment variable
-    const baseUrl = process.env.WHATSAPP_SERVER_URL;
+const BOS_MAMAT_NUMBER = '628179481010'; 
+const SNOOZE_DURATION_MS = 60 * 60 * 1000; // 1 jam
 
-    // 2. Cek apakah variabel sudah diatur
-    if (!baseUrl) {
-        console.error('[Handover Error] Konfigurasi error: WHATSAPP_SERVER_URL tidak diatur.');
-        return; // Hentikan fungsi jika URL tidak ada
-    }
-
-    // 3. Gabungkan dengan path API dari file run.js Anda
-    const endpoint = `${baseUrl}/send-manual-message`;
-    // --- SELESAI PERBAIKAN ---
-
-/**
- * Mengirim notifikasi ke Bos Mamat bahwa ada pelanggan yang butuh bantuan.
- * @param senderNumber - Nomor pelanggan yang butuh bantuan.
- * @param customerMessage - Pesan terakhir dari pelanggan.
- */
 export async function notifyBosMamat(senderNumber: string, customerMessage: string): Promise<void> {
     console.log(`[Handover] Memicu notifikasi ke Bos Mamat untuk nomor ${senderNumber}`);
     
+    // SEMUA LOGIKA URL HARUS BERADA DI DALAM FUNGSI INI
+    const baseUrl = process.env.WHATSAPP_SERVER_URL;
+
+    if (!baseUrl) {
+        console.error('[Handover Error] Konfigurasi error: WHATSAPP_SERVER_URL tidak diatur.');
+        return; 
+    }
+
+    const endpoint = `${baseUrl}/send-manual-message`;
+
     const messageToMamat = `⚠️ Bro, ada pelanggan (${senderNumber}) butuh bantuan lo. Pesan terakhirnya: "${customerMessage}". Cek WA sekarang!`;
 
     try {
-        // Ini adalah panggilan API ke service whatsapp-web.js lo
-        const response = await fetch(WHATSAPP_API_ENDPOINT, {
+        await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -39,24 +30,18 @@ export async function notifyBosMamat(senderNumber: string, customerMessage: stri
                 message: messageToMamat,
             }),
         });
-
-        if (!response.ok) {
-            throw new Error(`API WhatsApp merespons dengan status ${response.status}`);
-        }
         console.log('[Handover] Notifikasi ke Bos Mamat berhasil dikirim.');
-
     } catch (error) {
         console.error('[Handover Error] Gagal mengirim notifikasi ke Bos Mamat:', error);
-        // Gagal kirim notif ke lo jangan sampai menghentikan alur ke pelanggan
     }
 }
 
-/**
- * Mengaktifkan mode diam untuk Zoya selama 1 jam pada sesi pelanggan.
- * @param senderNumber - Nomor pelanggan yang sesinya akan di-snooze.
- */
 export async function setSnoozeMode(senderNumber: string): Promise<void> {
     const snoozeUntil = Date.now() + SNOOZE_DURATION_MS;
-    await updateSession(senderNumber, { snoozeUntil });
-    console.log(`[Handover] Zoya di-snooze untuk nomor ${senderNumber} sampai ${new Date(snoozeUntil).toLocaleTimeString('id-ID')}`);
+    try {
+        await updateSession(senderNumber, { snoozeUntil });
+        console.log(`[Handover] Zoya di-snooze untuk nomor ${senderNumber} sampai ${new Date(snoozeUntil).toLocaleTimeString('id-ID')}`);
+    } catch (error) {
+        console.error('[Handover Error] Gagal update sesi untuk snooze mode:', error);
+    }
 }
