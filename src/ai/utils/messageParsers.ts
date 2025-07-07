@@ -69,14 +69,18 @@ export function detectGenericPriceIntent(message: string): boolean {
 export function parseBookingForm(text: string): { [key: string]: string } | null {
     const lines = text.split('\n');
     const details: { [key: string]: string } = {};
+    // --- PERBAIKAN DI SINI ---
+    // Tambahkan 'plat nomor' ke dalam pemetaan
     const mappings: { [key: string]: string } = {
         'nama': 'customerName',
         'no hp': 'customerPhone',
         'tanggal': 'bookingDate',
         'jam': 'bookingTime',
         'layanan': 'serviceName',
-        'motor': 'vehicleInfo'
+        'motor': 'vehicleInfo',
+        'plat nomor': 'licensePlate', // <-- TAMBAHAN
     };
+    // --- AKHIR PERBAIKAN ---
 
     lines.forEach(line => {
         const parts = line.split(':');

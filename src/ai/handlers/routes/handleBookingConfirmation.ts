@@ -2,77 +2,86 @@
 
 import type { RouteHandlerFn } from './types';
 import type { SessionData } from '../../utils/session';
+import { createBookingImplementation } from '@/ai/tools/impl/createBookingImplementation';
 import { updateSession } from '../../utils/session';
-// Pastikan helper ini ada dan path-nya benar
-import { getClientName } from '../../utils/clientHelpers'; 
+import { Timestamp } from 'firebase/firestore';
+import { findOrCreateClientByPhone } from '@/ai/utils/clientHelpers';
 
 export const handleBookingConfirmation: RouteHandlerFn = async ({
   session,
   senderNumber,
+  senderName,
 }) => {
-  console.log('[Handler] Konfirmasi booking terdeteksi. Menyiapkan form pre-filled...');
-
-  // --- PERBAIKAN LOGIKA & TIPE DATA ---
-  let layanan = '';
-  let motor = '';
-  let tanggal = '';
-  let jam = '';
-
   const bookingState = session?.inquiry?.bookingState;
-  const inquiryData = session?.inquiry;
+  const pendingDate = session?.inquiry?.pendingBookingDate;
+  const pendingTime = session?.inquiry?.pendingBookingTime;
 
-  // Prioritaskan data dari bookingState jika ada
-  if (bookingState?.serviceName && bookingState.bookingDate && bookingState.bookingTime) {
-    layanan = bookingState.serviceName;
-    motor = bookingState.vehicleInfo || inquiryData?.lastMentionedMotor || 'Belum disebutkan';
-    tanggal = bookingState.bookingDate;
-    jam = bookingState.bookingTime;
-  } 
-  // Jika tidak, gunakan data dari penawaran jadwal sebelumnya
-  else if (inquiryData?.pendingBookingDate) {
-    layanan = inquiryData.lastMentionedService || '';
-    motor = inquiryData.lastMentionedMotor || 'Belum disebutkan';
-    tanggal = inquiryData.pendingBookingDate;
-    jam = inquiryData.pendingBookingTime || '';
+  let bookingDetails = null;
+
+  if (bookingState?.bookingDate && bookingState.bookingTime && bookingState.serviceName) {
+    bookingDetails = {
+      bookingDate: bookingState.bookingDate,
+      bookingTime: bookingState.bookingTime,
+      serviceName: bookingState.serviceName,
+      vehicleInfo: session.inquiry.lastMentionedMotor || 'Belum disebutkan',
+    };
+  } else if (pendingDate && pendingTime) {
+    bookingDetails = {
+      bookingDate: pendingDate,
+      bookingTime: pendingTime,
+      serviceName: session.inquiry.lastMentionedService || 'Layanan yang dibicarakan',
+      vehicleInfo: session.inquiry.lastMentionedMotor || 'Belum disebutkan',
+    };
   }
-  // --- AKHIR PERBAIKAN ---
 
-  // Validasi minimal: kita harus punya tanggal dan layanan
-  if (!tanggal || !layanan) {
+  if (!bookingDetails) {
     return {
-      reply: {
-        message: 'Waduh, sepertinya ada data yang kurang lengkap. Coba kita ulangi dari cek jadwal ya, bro.',
-      },
-      updatedSession: { ...session, lastRoute: 'booking_confirmation_failed' } as SessionData,
+      reply: { message: 'Maaf, Zoya belum punya data lengkap untuk membuat booking.' },
+      updatedSession: session,
     };
   }
   
-  // Ambil nama dari koleksi lain untuk diisi ke form
-  const clientName = await getClientName(senderNumber!);
+  const clientId = await findOrCreateClientByPhone(senderNumber!.replace('@c.us', ''), senderName || 'Pelanggan WhatsApp');
 
-  // --- BUAT TEMPLATE FORM ---
-  const bookingTemplate = `Siap, gaskeun! 🔥
-Biar datanya akurat, tolong cek dan lengkapi data di bawah ini ya, bro. Kalau sudah benar, tinggal kirim aja.
+  const createBookingInput = {
+    ...bookingDetails,
+    customerPhone: senderNumber!.replace('@c.us', ''),
+    customerName: senderName || 'Pelanggan WhatsApp',
+    serviceId: '',
+    clientId: clientId,
+    licensePlate: '', // Tambahkan fallback
+  };
 
-Nama : ${clientName || ''}
-No Hp : ${senderNumber?.replace('@c.us', '') || ''}
-TANGGAL : ${tanggal}
-JAM : ${jam}
-LAYANAN: ${layanan}
-MOTOR: ${motor}
-`;
+  const result = await createBookingImplementation(createBookingInput);
 
-  // --- UBAH FLOW SESI ---
-  // Set flow agar sistem tahu kita sedang menunggu isian form
-  const updatedSession = {
-    ...session,
-    flow: 'awaiting_booking_form',
-    lastRoute: 'booking_confirmation', // Tandai bahwa kita sudah di tahap ini
-  } as SessionData;
-  await updateSession(senderNumber!, updatedSession);
+  if (result.success === false) {
+    return {
+      reply: { message: result.message || 'Maaf, terjadi kesalahan saat membuat booking.' },
+      updatedSession: session,
+    };
+  }
+
+  // --- INI PERBAIKANNYA ---
+  const newSession: Partial<SessionData> = {
+    flow: 'general',
+    inquiry: {},
+    lastInteraction: Timestamp.now(),
+    followUpState: null,
+    lastRoute: 'booking_confirmation',
+  };
+  
+  // Hanya tambahkan senderName jika ada di sesi lama
+  if (session?.senderName) {
+    newSession.senderName = session.senderName;
+  }
+  // --- AKHIR PERBAIKAN ---
+
+  await updateSession(senderNumber!, newSession);
 
   return {
-    reply: { message: bookingTemplate },
-    updatedSession: updatedSession,
+    reply: {
+      message: `✅ Booking berhasil! Zoya udah catat:\n📅 *${bookingDetails.bookingDate}* jam *${bookingDetails.bookingTime}*\n🛠️ *${bookingDetails.serviceName}*\n🏍️ *${bookingDetails.vehicleInfo}*\n\nTinggal datang aja ya, bro!`,
+    },
+    updatedSession: newSession,
   };
 };

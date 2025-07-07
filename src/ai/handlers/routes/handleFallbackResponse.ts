@@ -95,7 +95,7 @@ export const handleFallbackResponse: RouteHandlerFn = async ({
                 const promoResult = JSON.parse(promoResultRaw || '{}');
                 console.log('[Debug] Hasil getPromoBundleDetails:', promoResult);
 
-                // Tetapkan nama layanan promo
+                // Tetapkan nama layanan inti, bukan nama promo
                 session.inquiry.lastMentionedService = 'Repaint Bodi Halus';
                 console.log('[Context] Konteks promo terdeteksi, menyimpan "Repaint Bodi Halus" ke sesi.');
 

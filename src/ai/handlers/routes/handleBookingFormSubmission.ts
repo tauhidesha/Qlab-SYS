@@ -3,13 +3,12 @@
 import type { RouteHandlerFn } from './types';
 import type { SessionData } from '../../utils/session';
 import { parseBookingForm } from '../../utils/messageParsers';
-import { parseDateTime } from '../../utils/dateTimeParser';
-import { checkBookingAvailabilityImplementation } from '../../tools/impl/checkBookingAvailabilityImplementation';
 import { createBookingImplementation } from '../../tools/impl/createBookingImplementation';
 import { updateSession } from '../../utils/session';
 import { getServiceIdByName } from '../../utils/dbHelpers';
 import { findOrCreateClientByPhone } from '../../utils/clientHelpers';
 import { getServiceCategory } from '../../utils/getServiceCategory';
+import { checkBookingAvailabilityImplementation } from '../../tools/impl/checkBookingAvailabilityImplementation';
 import { Timestamp } from 'firebase/firestore';
 
 export const handleBookingFormSubmission: RouteHandlerFn = async ({
@@ -17,28 +16,11 @@ export const handleBookingFormSubmission: RouteHandlerFn = async ({
   message,
   senderNumber,
 }) => {
-  console.log(`[Handler] Mencoba mem-parsing form booking dari user.`);
   const formDetails = parseBookingForm(message!);
 
   if (!formDetails) {
     return {
-      reply: {
-        message:
-          'Waduh bro, sepertinya format isiannya ada yang salah. Boleh tolong copy-paste template sebelumnya dan isi lagi bagian yang kosong? Makasih ya.',
-      },
-      updatedSession: { ...session, flow: 'general' } as SessionData,
-    };
-  }
-
-  const combinedDateTime = `${formDetails.bookingDate} ${formDetails.bookingTime}`;
-  const parsedDateTime = await parseDateTime(combinedDateTime);
-
-  if (!parsedDateTime.date || !parsedDateTime.time) {
-    return {
-      reply: {
-        message:
-          'Waduh bro, Zoya bingung sama format tanggal atau jamnya. Boleh tolong isi formnya lagi dengan format yang lebih jelas? (Contoh: TANGGAL: 5 Juli 2025, JAM: 14:00)',
-      },
+      reply: { message: 'Waduh bro, sepertinya format isiannya ada yang salah.' },
       updatedSession: { ...session, flow: 'general' } as SessionData,
     };
   }
@@ -46,62 +28,64 @@ export const handleBookingFormSubmission: RouteHandlerFn = async ({
   const serviceName = formDetails.serviceName;
   const category = getServiceCategory(serviceName);
 
-  // --- INI PERBAIKAN UTAMANYA ---
-  // Hanya jalankan pengecekan ketersediaan jika BUKAN repaint
   if (category !== 'repaint') {
-    console.log(`[Handler] Menjalankan pengecekan ketersediaan untuk kategori: ${category}`);
     const availabilityResult = await checkBookingAvailabilityImplementation({
-      bookingDate: parsedDateTime.date,
-      bookingTime: parsedDateTime.time,
+      bookingDate: formDetails.bookingDate,
+      bookingTime: formDetails.bookingTime,
       serviceName: serviceName,
-      estimatedDurationMinutes: 180, // Default
+      estimatedDurationMinutes: 180,
     });
 
     if (!availabilityResult.isAvailable) {
       return {
-        reply: {
-          message:
-            availabilityResult.reason ||
-            'Maaf bro, jadwal di waktu itu nggak tersedia. Mau coba isi form lagi dengan jadwal lain?',
-        },
+        reply: { message: availabilityResult.reason || 'Maaf bro, jadwal di waktu itu nggak tersedia.' },
         updatedSession: { ...session, flow: 'general' } as SessionData,
       };
     }
-  } else {
-    console.log('[Handler] Layanan adalah repaint, melewati pengecekan ketersediaan akhir.');
   }
-  // --- AKHIR PERBAIKAN ---
 
-  // Dapatkan atau buat ID klien
   const clientName = formDetails.customerName || session?.senderName || 'Pelanggan WhatsApp';
   const clientId = await findOrCreateClientByPhone(formDetails.customerPhone, clientName);
 
-  // Buat Booking
   const serviceId = await getServiceIdByName(serviceName);
   const bookingResult = await createBookingImplementation({
     customerName: clientName,
     customerPhone: formDetails.customerPhone,
     vehicleInfo: formDetails.vehicleInfo,
+    licensePlate: formDetails.licensePlate || '',
     serviceName: serviceName,
-    bookingDate: parsedDateTime.date,
-    bookingTime: parsedDateTime.time,
+    bookingDate: formDetails.bookingDate,
+    bookingTime: formDetails.bookingTime,
     serviceId: serviceId || '',
     clientId: clientId,
   });
 
-  // Reset sesi setelah booking berhasil
-  const newSession: SessionData = {
+  if (bookingResult.success === false) {
+    return {
+        reply: { message: bookingResult.message || 'Gagal membuat booking dari form.'},
+        updatedSession: session,
+    };
+  }
+
+  // --- INI PERBAIKANNYA ---
+  const newSession: Partial<SessionData> = {
     flow: 'general',
     inquiry: {},
     lastInteraction: Timestamp.now(),
     followUpState: null,
     lastRoute: 'booking_form_submission',
-    senderName: session?.senderName,
   };
+
+  // Hanya tambahkan senderName jika ada di sesi lama
+  if (session?.senderName) {
+    newSession.senderName = session.senderName;
+  }
+  // --- AKHIR PERBAIKAN ---
+
   await updateSession(senderNumber!, newSession);
 
   return {
-    reply: { message: bookingResult.message || 'Booking berhasil dibuat, bro! Makasih ya.' },
+    reply: { message: '✅ Oke, booking dari form sudah Zoya catat! Makasih ya, bro.' },
     updatedSession: newSession,
   };
 };

@@ -14,6 +14,7 @@ interface BookingInput {
   bookingDate: string;
   bookingTime: string;
   serviceId: string;
+  licensePlate: string;
   clientId: string; // <-- Tambahkan baris ini
 }
 // -------------------------

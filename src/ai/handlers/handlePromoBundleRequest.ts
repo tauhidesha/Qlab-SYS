@@ -1,41 +1,78 @@
-// File: src/ai/handlers/handlePromoBundleRequest.ts
+// File: src/ai/handlers/routes/handlePromoBundleRequest.ts
 
-import type { RouteHandlerFn } from './routes/types';
-// --- INI PERBAIKANNYA ---
-// Path diubah dari '../../utils/session' menjadi '../utils/session'
+import type { RouteHandlerFn } from './types';
 import type { SessionData } from '../utils/session';
-// -------------------------
-
 import { getPromoBundleDetails } from '@/ai/tools/getPromoBundleDetailsTool';
 import allMotorsData from '@/../docs/daftarUkuranMotor.json';
 
-// Gunakan 'input' standar yang sudah kita definisikan di types.ts
+// Fungsi helper untuk mengekstrak nama motor dari pesan
+function extractMotorFromQuery(message: string): string | null {
+    const lowerCaseMessage = message.toLowerCase();
+    // Cari model motor yang paling panjang yang cocok untuk akurasi
+    const foundMotor = (allMotorsData as any[])
+        .map(m => m.model.toLowerCase())
+        .sort((a, b) => b.length - a.length)
+        .find(model => lowerCaseMessage.includes(model));
+    
+    return foundMotor || null;
+}
+
 export const handlePromoBundleRequest: RouteHandlerFn = async ({ session, message }) => {
-  // Ambil query dari 'message' agar konsisten dengan handler lain
-  const motorQuery = message || '';
+  try {
+    const customerMessage = message || '';
 
-  // Deteksi kasar apakah user menyebut nama motor dari daftar
-  const allModels = (allMotorsData as any[]).map(m => m.model.toLowerCase());
-  const containsMotor = allModels.some(model => motorQuery.toLowerCase().includes(model));
+    const detectedMotor = extractMotorFromQuery(customerMessage);
+    console.log(`[PromoHandler] Motor terdeteksi: ${detectedMotor}`);
 
-  const result = await getPromoBundleDetails({
-    motor_query: containsMotor ? motorQuery : 'umum',
-  });
+    const result = await getPromoBundleDetails({
+      motor_query: detectedMotor || 'umum',
+    });
 
-  const combinedMessage = `${result.note}\n\n${result.summary ?? ''}`.trim();
+    // Cek dulu apakah tool berhasil menemukan promo
+    if (!result.isPromoAvailable) {
+      // Jika tidak ada promo, kembalikan catatannya sebagai balasan
+      return {
+        reply: {
+          // --- PERBAIKAN DI SINI ---
+          // Ubah 'message' menjadi 'suggestedReply' agar sesuai tipe
+          suggestedReply: result.note,
+        },
+        updatedSession: { ...session, lastRoute: 'promo_bundle' } as SessionData,
+      };
+    }
 
-  // Pastikan return value sesuai dengan RouteHandlerOutput ({ reply: { message: ... } })
-  return {
-    reply: {
-      message: combinedMessage,
-    },
-    updatedSession: {
-      ...session,
-      lastRoute: 'promo_bundle',
-      inquiry: {
-        ...session?.inquiry,
-        ...(result.motor_model && { lastMentionedMotor: result.motor_model }),
+    const combinedMessage = `${result.note}\n\n${result.summary ?? ''}`.trim();
+
+    // Jika berhasil, simpan konteks yang benar ke sesi
+    const updatedSession: SessionData = {
+        ...session,
+        lastRoute: 'promo_bundle',
+        inquiry: {
+          ...session?.inquiry,
+          // Simpan nama layanan inti, bukan nama promo
+          lastMentionedService: 'Repaint Bodi Halus', 
+          // Hanya simpan motor jika berhasil dideteksi secara spesifik
+          ...(result.motor_model && { lastMentionedMotor: result.motor_model }),
+        },
+    } as SessionData;
+
+    return {
+      reply: {
+        // --- PERBAIKAN DI SINI ---
+        // Ubah 'message' menjadi 'suggestedReply' agar sesuai tipe
+        suggestedReply: combinedMessage,
       },
-    } as SessionData,
-  };
+      updatedSession: updatedSession,
+    };
+
+  } catch (error: any) {
+    console.error('[PromoHandler] Terjadi error tak terduga:', error);
+    return {
+      reply: {
+        // --- PERBAIKAN DI SINI ---
+        suggestedReply: 'Waduh, ada sedikit kendala teknis saat Zoya cek promo. Coba lagi sebentar ya, bro.',
+      },
+      updatedSession: session,
+    };
+  }
 };
