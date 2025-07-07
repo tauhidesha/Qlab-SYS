@@ -14,6 +14,7 @@ export interface BookingState {
     bookingTime?: string;
     estimatedDurationMinutes?: number;
 }
+
 export interface ServiceInquiry {
     lastMentionedService?: string;
     pendingService?: string;
@@ -24,35 +25,34 @@ export interface ServiceInquiry {
     pendingBookingDate?: string;
     pendingBookingTime?: string;
 }
+
 export interface SessionData {
-    // --- FIELD ANDA YANG SUDAH ADA (TETAP AMAN) ---
     flow: 'general' | 'booking' | 'awaiting_booking_form';
     inquiry: ServiceInquiry;
     snoozeUntil?: number;
     lastInteraction: Timestamp;
-    
 
-    // --- TAMBAHAN UNTUK FITUR FOLLOW-UP ---
+    // Follow-up & tracking
     followUpState?: {
         level: number;
         flaggedAt: number;
         context: string;
     } | null;
-// Tambahkan senderName sebagai properti opsional
-    senderName?: string;
-    // --- INI PERBAIKANNYA ---
-    // Daftarkan 'lastRoute' sebagai properti yang valid dan opsional
-    lastRoute?: string;
-    // -------------------------
-}
-// ---------------------------------------------
 
+    senderName?: string;
+    lastRoute?: string;
+}
+
+// --- KONSTANTA ---
 const SESSIONS_COLLECTION = 'zoya_sessions';
 const SESSION_TIMEOUT_MINUTES = 60;
 
-/**
- * Mengambil sesi pengguna dari Firestore.
- */
+// --- UTILS ---
+function removeUndefined(obj: any): any {
+  return Object.fromEntries(Object.entries(obj).filter(([_, v]) => v !== undefined));
+}
+
+// --- AMBIL SESI PELANGGAN ---
 export async function getSession(senderNumber: string): Promise<SessionData | null> {
   const sessionDocRef = doc(db, SESSIONS_COLLECTION, senderNumber);
   try {
@@ -70,6 +70,7 @@ export async function getSession(senderNumber: string): Promise<SessionData | nu
       }
       return session;
     }
+
     return null;
   } catch (error) {
     console.error(`[SESSION] Gagal mengambil sesi untuk ${senderNumber}:`, error);
@@ -77,18 +78,18 @@ export async function getSession(senderNumber: string): Promise<SessionData | nu
   }
 }
 
-/**
- * Membuat atau memperbarui sesi pengguna di Firestore.
- */
+// --- SIMPAN / UPDATE SESI ---
 export async function updateSession(senderNumber: string, updates: Partial<SessionData>): Promise<void> {
   const sessionDocRef = doc(db, SESSIONS_COLLECTION, senderNumber);
   try {
-    const dataToUpdate = {
+    const sanitizedUpdates = removeUndefined({
       ...updates,
       lastInteraction: serverTimestamp(),
-    };
-    await setDoc(sessionDocRef, dataToUpdate, { merge: true });
-    console.log(`[SESSION] Sesi untuk ${senderNumber} di-update dengan:`, updates);
+    });
+
+    await setDoc(sessionDocRef, sanitizedUpdates, { merge: true });
+
+    console.log(`[SESSION] Sesi untuk ${senderNumber} di-update dengan:`, sanitizedUpdates);
   } catch (error) {
     console.error(`[SESSION] Gagal memperbarui sesi untuk ${senderNumber}:`, error);
   }
