@@ -2,86 +2,49 @@
 
 import type { RouteHandlerFn } from './types';
 import type { SessionData } from '../../utils/session';
-import { createBookingImplementation } from '@/ai/tools/impl/createBookingImplementation';
-import { updateSession } from '../../utils/session';
 import { Timestamp } from 'firebase/firestore';
-import { findOrCreateClientByPhone } from '@/ai/utils/clientHelpers';
 
 export const handleBookingConfirmation: RouteHandlerFn = async ({
   session,
   senderNumber,
   senderName,
 }) => {
-  const bookingState = session?.inquiry?.bookingState;
   const pendingDate = session?.inquiry?.pendingBookingDate;
   const pendingTime = session?.inquiry?.pendingBookingTime;
+  const serviceName = session?.inquiry?.lastMentionedService || 'layanan yang dibicarakan';
+  const vehicleInfo = session?.inquiry?.lastMentionedMotor || 'motor';
 
-  let bookingDetails = null;
-
-  if (bookingState?.bookingDate && bookingState.bookingTime && bookingState.serviceName) {
-    bookingDetails = {
-      bookingDate: bookingState.bookingDate,
-      bookingTime: bookingState.bookingTime,
-      serviceName: bookingState.serviceName,
-      vehicleInfo: session.inquiry.lastMentionedMotor || 'Belum disebutkan',
-    };
-  } else if (pendingDate && pendingTime) {
-    bookingDetails = {
-      bookingDate: pendingDate,
-      bookingTime: pendingTime,
-      serviceName: session.inquiry.lastMentionedService || 'Layanan yang dibicarakan',
-      vehicleInfo: session.inquiry.lastMentionedMotor || 'Belum disebutkan',
-    };
-  }
-
-  if (!bookingDetails) {
+  if (!pendingDate || !pendingTime) {
     return {
-      reply: { message: 'Maaf, Zoya belum punya data lengkap untuk membuat booking.' },
-      updatedSession: session,
-    };
-  }
-  
-  const clientId = await findOrCreateClientByPhone(senderNumber!.replace('@c.us', ''), senderName || 'Pelanggan WhatsApp');
-
-  const createBookingInput = {
-    ...bookingDetails,
-    customerPhone: senderNumber!.replace('@c.us', ''),
-    customerName: senderName || 'Pelanggan WhatsApp',
-    serviceId: '',
-    clientId: clientId,
-    licensePlate: '', // Tambahkan fallback
-  };
-
-  const result = await createBookingImplementation(createBookingInput);
-
-  if (result.success === false) {
-    return {
-      reply: { message: result.message || 'Maaf, terjadi kesalahan saat membuat booking.' },
+      reply: { message: 'Zoya belum punya slot yang pasti nih bro. Coba minta jadwal dulu ya.' },
       updatedSession: session,
     };
   }
 
-  // --- INI PERBAIKANNYA ---
+  const prefilledName = senderName || 'Pelanggan WhatsApp';
+  const prefilledPhone = senderNumber?.replace('@c.us', '') || '-';
+
+  const formTemplate = `Siap bro! Isi form ini ya biar Zoya bisa catat:
+
+Nama: ${prefilledName}
+No HP: ${prefilledPhone}
+Motor: ${vehicleInfo}
+Plat Nomor:
+Tanggal: ${pendingDate}
+Jam: ${pendingTime}
+Layanan: ${serviceName}
+
+Kirim balik aja setelah diisi. Nanti Zoya langsung proses bookingnya.`;
+
   const newSession: Partial<SessionData> = {
-    flow: 'general',
-    inquiry: {},
+    ...session,
+    flow: 'awaiting_booking_form',
     lastInteraction: Timestamp.now(),
-    followUpState: null,
     lastRoute: 'booking_confirmation',
   };
-  
-  // Hanya tambahkan senderName jika ada di sesi lama
-  if (session?.senderName) {
-    newSession.senderName = session.senderName;
-  }
-  // --- AKHIR PERBAIKAN ---
-
-  await updateSession(senderNumber!, newSession);
 
   return {
-    reply: {
-      message: `✅ Booking berhasil! Zoya udah catat:\n📅 *${bookingDetails.bookingDate}* jam *${bookingDetails.bookingTime}*\n🛠️ *${bookingDetails.serviceName}*\n🏍️ *${bookingDetails.vehicleInfo}*\n\nTinggal datang aja ya, bro!`,
-    },
+    reply: { message: formTemplate },
     updatedSession: newSession,
   };
 };

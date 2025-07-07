@@ -9,33 +9,31 @@ import { Timestamp } from 'firebase/firestore';
 import type { SessionData } from '@/ai/utils/session';
 
 /**
- * Ini adalah Flow Controller utama yang sudah di-refactor.
- * Tugasnya hanya sebagai "konduktor" yang mengarahkan alur, bukan lagi sebagai "pemain".
+ * Flow Controller utama Zoya.
+ * Bertugas mengarahkan alur, menyatukan logika handler, dan update sesi secara aman.
  */
 export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<WhatsAppReplyOutput | null> {
   const senderNumber = input.senderNumber || 'playground_user';
+  const senderName = input.senderName || undefined;
+
   let session = await getSession(senderNumber);
 
   console.log(`\n\n================ Zoya New Turn for ${senderNumber} ================`);
   console.log(`[PESAN MASUK]: "${input.customerMessage}"`);
   console.log(`[LOG SESI AWAL]:`, JSON.stringify(session, null, 2));
 
-  // === TAHAP 1: PRE-FLIGHT CHECKS & SESSION MANAGEMENT ===
-  // Cek mode diam (snooze)
+  // === 1. MODE DIAM & FOLLOW-UP ===
   if (session?.snoozeUntil && Date.now() < session.snoozeUntil) {
     console.log(`[FlowController] Mode diam aktif. Tidak ada balasan.`);
     return null;
   }
 
-  // Batalkan follow-up otomatis jika ada pesan baru
   if (session?.followUpState) {
     console.log(`[FlowController] Follow-up dibatalkan karena ada pesan baru.`);
     session.followUpState = null;
   }
 
-  
-
-  // Inisialisasi sesi baru jika belum ada
+  // === 2. INISIALISASI SESI BARU JIKA PERLU ===
   if (!session) {
     console.log(`[FlowController] Sesi baru dibuat untuk ${senderNumber}.`);
     session = {
@@ -44,68 +42,55 @@ export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<Whats
       lastInteraction: Timestamp.now(),
       followUpState: null,
       lastRoute: 'init',
+      senderName: senderName,
     };
-
-     if (!session) {
-    console.log(`[FlowController] Sesi baru dibuat untuk ${senderNumber}.`);
-    session = {
-      flow: 'general',
-      inquiry: {},
-      lastInteraction: Timestamp.now(),
-      followUpState: null,
-      lastRoute: 'init',
-      // Langsung simpan nama saat sesi pertama kali dibuat
-      senderName: input.senderName, 
-    };
-  }
-   // --- PERBAIKAN TAMBAHAN (OPSIONAL TAPI BAGUS) ---
-  // Update nama jika sesi sudah ada tapi belum punya nama
-  if (session && !session.senderName && input.senderName) {
-      session.senderName = input.senderName;
-      // Tidak perlu await update di sini, karena akan di-update di akhir alur
-  }
+  } else if (!session.senderName && senderName) {
+    session.senderName = senderName;
   }
 
-  // === TAHAP 2: PRE-PROCESSING PESAN ===
-  // Coba petakan istilah awam ke nama layanan resmi di awal
+  // === 3. DETEKSI LAYANAN (PRE-ROUTE) ===
   const detectedServiceName = mapTermToOfficialService(input.customerMessage);
   if (detectedServiceName && session.inquiry) {
     console.log(`[FlowController] Istilah terpetakan ke: "${detectedServiceName}"`);
     session.inquiry.lastMentionedService = detectedServiceName;
   }
 
-  // === TAHAP 3: ROUTING ===
-  // Serahkan keputusan alur sepenuhnya ke router
+  // === 4. ROUTING ===
   const routeName = await determineRoute(input.customerMessage, session);
   console.log(`[FlowController] Pesan dialihkan ke rute: "${routeName}"`);
 
-  // === TAHAP 4: HANDLING ===
-  // Ambil fungsi handler yang sesuai dari peta rute
   const handler = routeHandlers[routeName];
-
   if (!handler) {
     console.error(`[FlowController] FATAL: Tidak ada handler untuk rute "${routeName}".`);
-    // Ini adalah fallback darurat jika ada rute yang tidak terdaftar di routeHandlers
-    return { suggestedReply: "Aduh, Zoya lagi bingung nih, sistemnya ada yang aneh. Bentar ya." };
+    return {
+      suggestedReply: "Aduh, Zoya lagi bingung nih, sistemnya ada yang aneh. Bentar ya.",
+    };
   }
 
-  // Jalankan handler yang terpilih
+  // === 5. JALANKAN HANDLER ===
   const handlerResult = await handler({
-    session: session,
+    session,
     message: input.customerMessage,
     chatHistory: input.chatHistory,
-    senderNumber: senderNumber,
-    senderName: input.senderName,
+    senderNumber,
+    senderName,
   });
 
-  // === TAHAP 5: FINALISASI ===
-  // Update sesi dengan data baru dari handler
-  if (handlerResult.updatedSession) {
-    await updateSession(senderNumber, handlerResult.updatedSession);
+  // === 6. FINALISASI SESI ===
+  const finalSession = {
+    ...(session || {}),
+    ...(handlerResult.updatedSession || {}),
+  };
+
+  const hasMeaningfulUpdate = JSON.stringify(finalSession) !== JSON.stringify(session);
+  if (hasMeaningfulUpdate) {
+    await updateSession(senderNumber, finalSession);
     console.log(`[FlowController] Sesi untuk ${senderNumber} di-update.`);
   }
 
-  // Kirim balasan yang disarankan oleh handler
-const replyMessage = handlerResult.reply.message || handlerResult.reply.suggestedReply || '';
-return { suggestedReply: replyMessage };
+  // === 7. BALASAN ===
+  const replyMessage =
+    handlerResult.reply.message || handlerResult.reply.suggestedReply || '';
+
+  return { suggestedReply: replyMessage };
 }

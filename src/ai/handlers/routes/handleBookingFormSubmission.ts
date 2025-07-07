@@ -4,7 +4,6 @@ import type { RouteHandlerFn } from './types';
 import type { SessionData } from '../../utils/session';
 import { parseBookingForm } from '../../utils/messageParsers';
 import { createBookingImplementation } from '../../tools/impl/createBookingImplementation';
-import { updateSession } from '../../utils/session';
 import { getServiceIdByName } from '../../utils/dbHelpers';
 import { findOrCreateClientByPhone } from '../../utils/clientHelpers';
 import { getServiceCategory } from '../../utils/getServiceCategory';
@@ -16,19 +15,24 @@ export const handleBookingFormSubmission: RouteHandlerFn = async ({
   message,
   senderNumber,
 }) => {
+  console.log(`[Handler] Mencoba parsing form booking dari pesan pengguna.`);
   const formDetails = parseBookingForm(message!);
 
   if (!formDetails) {
     return {
-      reply: { message: 'Waduh bro, sepertinya format isiannya ada yang salah.' },
+      reply: {
+        message:
+          'Waduh bro, format isiannya ada yang kurang pas nih. Boleh tolong copy-paste template sebelumnya dan isi ulang ya?',
+      },
       updatedSession: { ...session, flow: 'general' } as SessionData,
     };
   }
-  
+
   const serviceName = formDetails.serviceName;
   const category = getServiceCategory(serviceName);
 
   if (category !== 'repaint') {
+    console.log(`[Handler] Mengecek ketersediaan slot untuk layanan non-repaint.`);
     const availabilityResult = await checkBookingAvailabilityImplementation({
       bookingDate: formDetails.bookingDate,
       bookingTime: formDetails.bookingTime,
@@ -38,19 +42,27 @@ export const handleBookingFormSubmission: RouteHandlerFn = async ({
 
     if (!availabilityResult.isAvailable) {
       return {
-        reply: { message: availabilityResult.reason || 'Maaf bro, jadwal di waktu itu nggak tersedia.' },
+        reply: {
+          message:
+            availabilityResult.reason ||
+            'Maaf bro, jadwal di waktu itu nggak tersedia. Coba pilih waktu lain ya.',
+        },
         updatedSession: { ...session, flow: 'general' } as SessionData,
       };
     }
+  } else {
+    console.log(`[Handler] Layanan repaint, slot tidak perlu dicek.`);
   }
 
   const clientName = formDetails.customerName || session?.senderName || 'Pelanggan WhatsApp';
-  const clientId = await findOrCreateClientByPhone(formDetails.customerPhone, clientName);
+  const clientPhone = formDetails.customerPhone || senderNumber!.replace('@c.us', '');
+  const clientId = await findOrCreateClientByPhone(clientPhone, clientName);
 
   const serviceId = await getServiceIdByName(serviceName);
+
   const bookingResult = await createBookingImplementation({
     customerName: clientName,
-    customerPhone: formDetails.customerPhone,
+    customerPhone: clientPhone,
     vehicleInfo: formDetails.vehicleInfo,
     licensePlate: formDetails.licensePlate || '',
     serviceName: serviceName,
@@ -62,12 +74,14 @@ export const handleBookingFormSubmission: RouteHandlerFn = async ({
 
   if (bookingResult.success === false) {
     return {
-        reply: { message: bookingResult.message || 'Gagal membuat booking dari form.'},
-        updatedSession: session,
+      reply: {
+        message: bookingResult.message || 'Gagal membuat booking dari form. Coba lagi nanti ya.',
+      },
+      updatedSession: session,
     };
   }
 
-  // --- INI PERBAIKANNYA ---
+  // Reset sesi setelah booking berhasil
   const newSession: Partial<SessionData> = {
     flow: 'general',
     inquiry: {},
@@ -76,16 +90,16 @@ export const handleBookingFormSubmission: RouteHandlerFn = async ({
     lastRoute: 'booking_form_submission',
   };
 
-  // Hanya tambahkan senderName jika ada di sesi lama
   if (session?.senderName) {
     newSession.senderName = session.senderName;
   }
-  // --- AKHIR PERBAIKAN ---
 
-  await updateSession(senderNumber!, newSession);
+  // Tidak perlu updateSession langsung — generateWhatsAppReply akan melakukannya
+
+  const confirmationMessage = `✅ Booking berhasil! Zoya udah catat detailnya:\n\n👤 *Nama:* ${clientName}\n📅 *Tanggal:* ${formDetails.bookingDate}\n⏰ *Jam:* ${formDetails.bookingTime}\n🛠️ *Layanan:* ${serviceName}\n🏍️ *Motor:* ${formDetails.vehicleInfo}\n🔢 *Plat Nomor:* ${formDetails.licensePlate || '-'}\n\nTinggal datang aja ya, bro! Kalau mau ubah atau batal, tinggal kabarin Zoya lagi 🙌`;
 
   return {
-    reply: { message: '✅ Oke, booking dari form sudah Zoya catat! Makasih ya, bro.' },
+    reply: { message: confirmationMessage },
     updatedSession: newSession,
   };
 };

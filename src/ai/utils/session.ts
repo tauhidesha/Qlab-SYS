@@ -12,6 +12,7 @@ export interface BookingState {
     vehicleInfo?: string;
     bookingDate?: string;
     bookingTime?: string;
+    estimatedDurationMinutes?: number;
 }
 export interface ServiceInquiry {
     lastMentionedService?: string;
