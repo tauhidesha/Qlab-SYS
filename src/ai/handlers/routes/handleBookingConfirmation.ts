@@ -37,12 +37,15 @@ Layanan: ${serviceName}
 Kirim balik aja setelah diisi. Nanti Zoya langsung proses bookingnya.`;
 
   const newSession: Partial<SessionData> = {
-    ...session,
-    flow: 'awaiting_booking_form',
-    lastInteraction: Timestamp.now(),
-    lastRoute: 'booking_confirmation',
-  };
+  flow: 'general',
+  inquiry: {},
+  lastInteraction: Timestamp.now(),
+  followUpState: null,
+  lastRoute: 'booking_confirmation',
+  senderName: session?.senderName || senderName || 'Pelanggan WhatsApp',
+};
 
+  
   return {
     reply: { message: formTemplate },
     updatedSession: newSession,

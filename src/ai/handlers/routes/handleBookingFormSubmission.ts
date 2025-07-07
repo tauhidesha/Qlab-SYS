@@ -14,6 +14,7 @@ export const handleBookingFormSubmission: RouteHandlerFn = async ({
   session,
   message,
   senderNumber,
+  senderName,
 }) => {
   console.log(`[Handler] Mencoba parsing form booking dari pesan pengguna.`);
   const formDetails = parseBookingForm(message!);
@@ -83,12 +84,13 @@ export const handleBookingFormSubmission: RouteHandlerFn = async ({
 
   // Reset sesi setelah booking berhasil
   const newSession: Partial<SessionData> = {
-    flow: 'general',
-    inquiry: {},
-    lastInteraction: Timestamp.now(),
-    followUpState: null,
-    lastRoute: 'booking_form_submission',
-  };
+  flow: 'general',
+  inquiry: {},
+  lastInteraction: Timestamp.now(),
+  followUpState: null,
+  lastRoute: 'booking_form_submission',
+  senderName: session?.senderName || senderName || 'Pelanggan WhatsApp',
+};
 
   if (session?.senderName) {
     newSession.senderName = session.senderName;
