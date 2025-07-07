@@ -1,0 +1,87 @@
+// File: src/ai/utils/clientHelpers.ts
+
+import { db } from '@/lib/firebase';
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  addDoc,
+  limit,
+  Timestamp,
+  doc,
+  getDoc,
+} from 'firebase/firestore';
+
+/**
+ * Mencari klien berdasarkan nomor telepon. Jika tidak ada,
+ * membuat klien baru dan mengembalikan ID-nya.
+ * @param phone Nomor telepon pelanggan (format tanpa + atau spasi).
+ * @param name Nama pelanggan untuk pembuatan klien baru.
+ * @returns ID dokumen dari koleksi 'clients'.
+ */
+export async function findOrCreateClientByPhone(
+  phone: string,
+  name: string,
+): Promise<string> {
+  const clientsRef = collection(db, 'clients');
+  // 1. Cari klien yang sudah ada berdasarkan nomor telepon
+  const q = query(clientsRef, where('phone', '==', phone), limit(1));
+
+  try {
+    const querySnapshot = await getDocs(q);
+
+    // 2. Jika klien ditemukan, kembalikan ID-nya
+    if (!querySnapshot.empty) {
+      const clientId = querySnapshot.docs[0].id;
+      console.log(`[ClientHelper] Klien ditemukan dengan nomor ${phone}, ID: ${clientId}`);
+      return clientId;
+    }
+
+    // 3. Jika tidak ditemukan, buat klien baru
+    console.log(`[ClientHelper] Klien tidak ditemukan. Membuat klien baru untuk ${name} (${phone}).`);
+    const newClientData = {
+      name: name,
+      phone: phone,
+      createdAt: Timestamp.now(),
+      lastVisit: new Date().toISOString().split('T')[0], // Format YYYY-MM-DD
+      loyaltyPoints: 0,
+      // Sub-koleksi 'motorcycles' bisa ditambahkan nanti secara terpisah
+    };
+
+    const docRef = await addDoc(clientsRef, newClientData);
+    console.log(`[ClientHelper] Klien baru berhasil dibuat dengan ID: ${docRef.id}`);
+    return docRef.id;
+
+  } catch (error) {
+    console.error('[ClientHelper] Error saat mencari atau membuat klien:', error);
+    // Fallback darurat jika terjadi error, bisa diganti dengan penanganan lain
+    return 'client_error';
+  }
+} // <-- PERBAIKAN: Kurung kurawal penutup seharusnya di sini.
+
+/**
+ * Mengambil nama pelanggan dari koleksi directMessages.
+ * @param senderNumber Nomor telepon lengkap dengan @c.us
+ * @returns Nama pelanggan atau null jika tidak ditemukan.
+ */
+export async function getClientName(
+  senderNumber: string,
+): Promise<string | null> {
+  // Pastikan senderNumber bersih dari @c.us sebelum jadi ID dokumen
+  const docId = senderNumber.replace('@c.us', '');
+  const metaRef = doc(db, 'directMessages', docId, 'meta', 'info');
+
+  try {
+    const docSnap = await getDoc(metaRef);
+    if (docSnap.exists() && docSnap.data().name) {
+      console.log(`[ClientHelper] Nama ditemukan untuk ${docId}: ${docSnap.data().name}`);
+      return docSnap.data().name;
+    }
+    console.log(`[ClientHelper] Tidak ada data nama di meta untuk ${docId}.`);
+    return null;
+  } catch (error) {
+    console.error(`[ClientHelper] Gagal mengambil nama untuk ${docId}:`, error);
+    return null;
+  }
+}

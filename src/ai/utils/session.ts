@@ -1,10 +1,10 @@
+// File: src/ai/utils/session.ts
 'use server';
 
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 
 // --- TIPE DATA RESMI (SUMBER KEBENARAN) ---
-// FIX: Definisikan tipe kategori yang spesifik dan ekspor
 export type ServiceCategory = 'coating' | 'detailing' | 'cuci' | 'repaint';
 
 export interface BookingState {
@@ -16,10 +16,12 @@ export interface BookingState {
 export interface ServiceInquiry {
     lastMentionedService?: string;
     pendingService?: string;
-    pendingCategory?: ServiceCategory; // FIX: Gunakan tipe yang spesifik
+    pendingCategory?: ServiceCategory;
     lastMentionedMotor?: string;
     lastOfferedServices?: string[];
     bookingState?: BookingState;
+    pendingBookingDate?: string;
+    pendingBookingTime?: string;
 }
 export interface SessionData {
     // --- FIELD ANDA YANG SUDAH ADA (TETAP AMAN) ---
@@ -27,13 +29,20 @@ export interface SessionData {
     inquiry: ServiceInquiry;
     snoozeUntil?: number;
     lastInteraction: Timestamp;
+    
 
     // --- TAMBAHAN UNTUK FITUR FOLLOW-UP ---
     followUpState?: {
-        level: number;      // Tingkatan follow-up (1-7)
-        flaggedAt: number;  // Timestamp kapan ditandai (pakai Date.now())
-        context: string;    // Topik terakhir, misal: "Coating Motor Glossy"
-    } | null; // Kita buat bisa null agar mudah dihapus
+        level: number;
+        flaggedAt: number;
+        context: string;
+    } | null;
+// Tambahkan senderName sebagai properti opsional
+    senderName?: string;
+    // --- INI PERBAIKANNYA ---
+    // Daftarkan 'lastRoute' sebagai properti yang valid dan opsional
+    lastRoute?: string;
+    // -------------------------
 }
 // ---------------------------------------------
 

@@ -36,7 +36,7 @@ export async function POST(request: Request) {
             const state = session.followUpState;
              // --- INI PERBAIKANNYA ---
             // Ubah Firestore Timestamp (jika ada) menjadi angka milidetik agar bisa dibandingkan
-            const flaggedAtMs = (state.flaggedAt as any).toMillis ? (state.flaggedAt as any).toMillis() : state.flaggedAt;
+            const flaggedAtMs = state.flaggedAt;
             // 
             let messageToSend = '';
             let nextState: SessionData['followUpState'] = { ...state, level: state.level + 1, flaggedAt: now };

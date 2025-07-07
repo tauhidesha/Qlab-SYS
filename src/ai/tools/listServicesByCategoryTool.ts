@@ -3,16 +3,15 @@
 'use server';
 
 import { z } from 'zod';
-// Impor data JSON secara langsung di atas
 import servicesData from '../../../docs/deskripsi_layanan.json';
 
-// Skema input untuk validasi
+// Skema input
 const InputSchema = z.object({
   category: z.enum(['coating', 'detailing', 'cuci', 'repaint']),
 });
 type Input = z.infer<typeof InputSchema>;
 
-// Tipe data untuk output dan data internal
+// Tipe internal & output
 type ServiceOutput = {
   name: string;
   summary: string;
@@ -25,14 +24,16 @@ type ServiceData = {
   [key: string]: any;
 };
 
-/**
- * Mengambil daftar layanan berdasarkan kategori dari data yang sudah diimpor.
- */
-export async function listServicesByCategory(input: Input): Promise<{ services?: ServiceOutput[], error?: string }> {
+type Result = {
+  success: boolean;
+  services?: ServiceOutput[];
+  summary?: string;
+  error?: string;
+};
+
+export async function listServicesByCategory(input: Input): Promise<Result> {
   try {
     const { category } = InputSchema.parse(input);
-    
-    // Langsung gunakan data dari import, tidak perlu membaca file lagi
     const allServices: ServiceData[] = servicesData;
 
     const filteredServices = allServices
@@ -43,14 +44,28 @@ export async function listServicesByCategory(input: Input): Promise<{ services?:
       }));
 
     if (filteredServices.length === 0) {
-      return { error: `Tidak ada layanan dengan deskripsi ringkas (summary) untuk kategori '${category}'.` };
+      return {
+        success: false,
+        error: `Tidak ada layanan dengan deskripsi ringkas (summary) untuk kategori '${category}'.`
+      };
     }
 
+    const summaryText = `Berikut daftar layanan untuk kategori *${category}*:\n` +
+      filteredServices.map(s => `- ${s.name}`).join('\n');
+
     console.log(`[Tool] Menemukan ${filteredServices.length} layanan untuk kategori '${category}'.`);
-    return { services: filteredServices };
+
+    return {
+      success: true,
+      services: filteredServices,
+      summary: summaryText
+    };
 
   } catch (err: any) {
     console.error('[listServicesByCategory Tool] Error:', err);
-    return { error: 'Terjadi kesalahan internal saat mengambil daftar layanan.' };
+    return {
+      success: false,
+      error: 'Terjadi kesalahan internal saat mengambil daftar layanan.'
+    };
   }
 }

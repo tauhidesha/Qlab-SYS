@@ -7,6 +7,7 @@ import allMotorsData from '../../../docs/daftarUkuranMotor.json';
 
 // --- Tipe Data & Skema ---
 
+
 type Service = { 
   name: string; 
   category: string; 
@@ -79,66 +80,72 @@ export async function getSpecificServicePrice(input: Input): Promise<GetPriceRes
     const { service_name, motor_query, original_query } = InputSchema.parse(input);
 
     const serviceInfo = (allServicesData as Service[]).find(s => s.name.toLowerCase().includes(service_name.toLowerCase()));
-   if (!serviceInfo) {
-  return { error: 'generic_error', message: `Layanan "${service_name}" tidak ditemukan.` };
-}
+    if (!serviceInfo) {
+      return { success: false, error: 'generic_error', message: `Layanan "${service_name}" tidak ditemukan.` };
+    }
     
     const motor = findBestMotorMatch(motor_query, allMotors);
-   if (!motor) {
-  return { error: 'generic_error', message: `Motor yang cocok dengan "${motor_query}" tidak ditemukan.` };
-}
+    if (!motor) {
+      return { success: false, error: 'generic_error', message: `Motor yang cocok dengan "${motor_query}" tidak ditemukan.` };
+    }
     
-    // --- LOGIKA PENGECUALIAN UNTUK VESPA REPAINT ---
     const isVespa = motor.model.toLowerCase().includes('vespa');
     const isRepaint = serviceInfo.category === 'repaint';
 
     if (isVespa && isRepaint) {
-        console.log(`[Tool Logic] Kasus spesial terdeteksi: Repaint Vespa. Eskalasi ke manusia.`);
-        return { error: 'requires_human_assistance', message: `Kasus repaint Vespa butuh penanganan khusus.` };
+      console.log(`[Tool Logic] Kasus spesial terdeteksi: Repaint Vespa. Eskalasi ke manusia.`);
+      return { success: false, error: 'requires_human_assistance', message: `Kasus repaint Vespa butuh penanganan khusus.` };
     }
-    // --- AKHIR LOGIKA PENGECUALIAN ---
-    
-    const motorSize = serviceInfo.category === 'repaint' ? motor.repaint_size : motor.motor_db_size;
 
-    let basePrice: number | undefined;
+    const motorSize = serviceInfo.category === 'repaint' ? motor.repaint_size : motor.motor_db_size;
     const variant = serviceInfo.variants?.find(v => v.name === motorSize);
-    basePrice = variant ? variant.price : serviceInfo.price;
+    const basePrice = variant ? variant.price : serviceInfo.price;
 
     if (basePrice === undefined) {
-  return { 
-    error: 'price_not_available_for_size', 
-    service_name: serviceInfo.name,
-    motor_size: motorSize // Kita sudah punya variabel motorSize dari baris sebelumnya
-  };
-}
+      return {
+        success: false,
+        error: 'price_not_available_for_size',
+        message: `Harga belum tersedia untuk motor ukuran ${motorSize}.`,
+        service_name: serviceInfo.name,
+        motor_size: motorSize,
+      };
+    }
 
-    // Logika deteksi warna spesial
     let finalPrice = basePrice;
     let noteForResult: string | undefined = undefined;
     if (serviceInfo.name.toLowerCase().includes('repaint bodi halus') && original_query) {
-        const lowerCaseQuery = original_query.toLowerCase();
-        const specialPaintKeywords = ['candy', 'lembayung', 'xyralic', 'xyrallic', 'bunglon', 'hologram', 'warna efek'];
-        if (specialPaintKeywords.some(keyword => lowerCaseQuery.includes(keyword))) {
-            const specialPaintSurcharges = { 'S': 150000, 'M': 250000, 'L': 350000, 'XL': 400000 };
-            const surcharge = specialPaintSurcharges[motorSize as keyof typeof specialPaintSurcharges];
-            if (surcharge) {
-                finalPrice += surcharge;
-                noteForResult = `Harga dasarnya Rp${basePrice.toLocaleString('id-ID')}, tapi karena ini warna spesial, ada tambahan biaya Rp${surcharge.toLocaleString('id-ID')}.`;
-            }
+      const lowerCaseQuery = original_query.toLowerCase();
+      const specialPaintKeywords = ['candy', 'lembayung', 'xyralic', 'xyrallic', 'bunglon', 'hologram', 'warna efek'];
+      if (specialPaintKeywords.some(keyword => lowerCaseQuery.includes(keyword))) {
+        const specialPaintSurcharges = { 'S': 150000, 'M': 250000, 'L': 350000, 'XL': 400000 };
+        const surcharge = specialPaintSurcharges[motorSize as keyof typeof specialPaintSurcharges];
+        if (surcharge) {
+          finalPrice += surcharge;
+          noteForResult = `Harga dasarnya Rp${basePrice.toLocaleString('id-ID')}, tapi karena ini warna spesial, ada tambahan Rp${surcharge.toLocaleString('id-ID')}.`;
         }
+      }
     }
-    
+
+    // ✅ Tambahkan summary yang bisa dibaca GPT
+    const summaryText = `Harga untuk layanan *${serviceInfo.name}* pada motor ${motor.model} (size ${motorSize}) adalah Rp${finalPrice.toLocaleString('id-ID')}.${noteForResult ? `\n\nCatatan: ${noteForResult}` : ''}`;
+
     return {
+      success: true,
       motor_model: motor.model,
       motor_size: motorSize,
       service_name: serviceInfo.name,
       price: finalPrice,
       estimated_duration: formatDuration(serviceInfo.estimatedDuration),
       note: noteForResult,
+      summary: summaryText
     };
 
   } catch (err: any) {
-  console.error('[getSpecificServicePrice Tool] Error:', err);
-  return { error: 'generic_error', message: `Error internal di tool harga: ${err.message}` };
-}
+    console.error('[getSpecificServicePrice Tool] Error:', err);
+    return {
+      success: false,
+      error: 'generic_error',
+      message: `Error internal di tool harga: ${err.message}`
+    };
+  }
 }

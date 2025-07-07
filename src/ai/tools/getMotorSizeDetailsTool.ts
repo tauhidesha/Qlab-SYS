@@ -1,86 +1,88 @@
+// File: src/ai/tools/getMotorSizeDetailsTool.ts
 'use server';
 
 import { z } from 'zod';
+// Path impor sudah benar menggunakan alias '@/'
 import type { GetMotorSizeResult } from '@/types/ai/tools';
-import allMotorsData from '../../../docs/daftarUkuranMotor.json';
-
-
-// Tipe data & validasi sudah Anda buat dengan sangat baik
-type MotorSize = "S" | "M" | "L" | "XL";
-
-type Motor = {
-  model: string;
-  motor_db_size: MotorSize;
-  repaint_size: MotorSize;
-};
-
-const isValidSize = (size: string): size is MotorSize => {
-  return ["S", "M", "L", "XL"].includes(size);
-};
-
-// Variabel ini dibuat sekali di sini dengan validasi,
-// lalu bisa dipakai di mana saja dalam file ini.
-const allMotors: Motor[] = allMotorsData.map((m: any) => {
-  if (!isValidSize(m.motor_db_size) || !isValidSize(m.repaint_size)) {
-    throw new Error(`Invalid size in motor data: ${m.model}`);
-  }
-  return {
-    model: m.model,
-    motor_db_size: m.motor_db_size,
-    repaint_size: m.repaint_size,
-  };
-});
+import allMotorsData from '@/../docs/daftarUkuranMotor.json';
 
 const InputSchema = z.object({
   motor_query: z.string(),
 });
+
 type Input = z.infer<typeof InputSchema>;
 
+// Asumsi struktur data dari JSON Anda
+interface MotorData {
+  model: string;
+  aliases?: string[]; // Dibuat opsional untuk mencegah error
+  motor_db_size: string;
+  repaint_size: string;
+}
 
-// --- Fungsi Utama Tool ---
-export async function getMotorSizeDetails(input: Input): Promise<GetMotorSizeResult> {
+export async function getMotorSizeDetails(
+  input: Input,
+): Promise<GetMotorSizeResult> {
   try {
     const { motor_query } = InputSchema.parse(input);
-
-    // --- PERBAIKAN: HAPUS BARIS INI ---
-    // const allMotors: Motor[] = allMotorsData; // Baris ini tidak lagi diperlukan
-
-    // Langsung gunakan 'allMotors' yang sudah kita buat di atas
     const lowerCaseQuery = motor_query.toLowerCase();
-    const matches = allMotors.filter(motor => motor.model.toLowerCase().includes(lowerCaseQuery));
+
+    const matches: MotorData[] = (allMotorsData as MotorData[]).filter(
+      (motor) =>
+        motor.model.toLowerCase() === lowerCaseQuery ||
+        // Perbaikan: Cek dulu apakah 'motor.aliases' ada sebelum menjalankan .some()
+        (motor.aliases && motor.aliases.some((alias) => lowerCaseQuery.includes(alias.toLowerCase())))
+    );
 
     if (matches.length === 0) {
-      return { error: 'generic_error', message: `Motor dengan nama "${motor_query}" tidak ditemukan di database kami.` };
+      return {
+        success: false,
+        error: 'generic_error',
+        message: `Motor dengan nama "${motor_query}" tidak ditemukan di database kami.`,
+      };
     }
 
     if (matches.length > 1) {
+      // Jika ada beberapa hasil, coba cari yang namanya sama persis
       const exactMatch = matches.find(m => m.model.toLowerCase() === lowerCaseQuery);
       if (exactMatch) {
-         return {
-            details: {
-              motor_model: exactMatch.model,
-              general_size: exactMatch.motor_db_size,
-              repaint_size: exactMatch.repaint_size,
-            }
-         };
+        return {
+          success: true,
+          details: {
+            motor_model: exactMatch.model,
+            general_size: exactMatch.motor_db_size,
+            repaint_size: exactMatch.repaint_size,
+          },
+          summary: `Motor ${exactMatch.model} tergolong size ${exactMatch.motor_db_size} (umum) dan ${exactMatch.repaint_size} untuk repaint.`,
+        };
       }
+      
+      // Jika tidak ada yang sama persis, kembalikan error ambigu
       return {
+        success: false,
         error: 'ambiguous_motor',
-        ambiguous_options: matches.map(m => m.model),
+        message: `Nama motor terlalu umum, bisa jadi: ${matches.map((m) => m.model).join(', ')}`,
+        ambiguous_options: matches.map((m) => m.model),
       };
     }
 
     const motor = matches[0];
     return {
+      success: true,
       details: {
         motor_model: motor.model,
         general_size: motor.motor_db_size,
         repaint_size: motor.repaint_size,
-      }
+      },
+      summary: `Motor ${motor.model} tergolong size ${motor.motor_db_size} (umum) dan ${motor.repaint_size} untuk repaint.`,
     };
 
-  } catch (err: any) {
-    console.error('[getMotorSizeDetails Tool] Error:', err);
-    return { error: 'generic_error', message: `Error internal di tool ukuran motor: ${err.message}` };
+  } catch (error: any) {
+    console.error('[getMotorSizeDetailsTool] Error:', error);
+    return {
+      success: false,
+      error: 'generic_error',
+      message: `Terjadi kesalahan internal: ${error.message}`,
+    };
   }
 }
