@@ -15,11 +15,12 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: false, error: 'customerMessage dan senderNumber wajib diisi.' }, { status: 400 });
     }
     
-    const input: ZoyaChatInput = {
-        senderNumber: senderNumber,
-        customerMessage: customerMessage,
-        chatHistory: body.chatHistory || [],
-    };
+   const input: ZoyaChatInput = {
+    senderNumber: senderNumber,
+    customerMessage: customerMessage,
+    chatHistory: body.chatHistory || [],
+    senderName: body.senderName, // ✅ Tambahkan ini
+};
     
     const aiResponse = await generateWhatsAppReply(input);
 

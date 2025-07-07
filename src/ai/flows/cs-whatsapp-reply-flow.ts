@@ -7,6 +7,7 @@ import { routeHandlers } from '@/ai/handlers/routeHandlers';
 import { mapTermToOfficialService } from '@/ai/utils/messageParsers';
 import { Timestamp } from 'firebase/firestore';
 import type { SessionData } from '@/ai/utils/session';
+import { mergeSession } from '@/ai/utils/mergeSession';
 
 /**
  * Flow Controller utama Zoya.
@@ -77,16 +78,15 @@ export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<Whats
   });
 
   // === 6. FINALISASI SESI ===
-  const finalSession = {
-    ...(session || {}),
-    ...(handlerResult.updatedSession || {}),
-  };
+const finalSession = mergeSession(session, {
+  ...handlerResult.updatedSession,
+  senderName: handlerResult.updatedSession?.senderName ?? senderName,
+  lastInteraction: Timestamp.now(),
+});
 
-  const hasMeaningfulUpdate = JSON.stringify(finalSession) !== JSON.stringify(session);
-  if (hasMeaningfulUpdate) {
-    await updateSession(senderNumber, finalSession);
-    console.log(`[FlowController] Sesi untuk ${senderNumber} di-update.`);
-  }
+await updateSession(senderNumber, finalSession);
+console.log(`[FlowController] Sesi untuk ${senderNumber} di-update.`);
+
 
   // === 7. BALASAN ===
   const replyMessage =
