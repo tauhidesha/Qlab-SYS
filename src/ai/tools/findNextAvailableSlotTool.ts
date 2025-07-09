@@ -1,55 +1,44 @@
 // File: src/ai/tools/findNextAvailableSlotTool.ts
 
 import { z } from 'zod';
+// Pastikan path DB/helper sudah benar di proyek kamu
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
-import type { FindSlotResult } from '@/types/ai/tools';
 import { parseDateTime } from '@/ai/utils/dateTimeParser';
 import { getServiceCategory } from '@/ai/utils/getServiceCategory';
 
+// --- Input Schema for Type Checking Only ---
 const InputSchema = z.object({
-  preferred_date: z.string().optional(),
-  service_name: z.string().optional(),
+  preferred_date: z.string().optional().describe('Tanggal atau hari preferensi user (misal: "besok", "minggu depan")'),
+  service_name: z.string().optional().describe('Nama layanan yang diinginkan'),
 });
-type Input = z.infer<typeof InputSchema>;
+export type Input = z.infer<typeof InputSchema>;
 
-type Booking = {
-  bookingDateTime: Timestamp;
-  estimatedDuration: string;
-  category: string;
+// --- Output Type ---
+type Slot = { date: string; time: string; day: string; };
+type Output = {
+  success: boolean;
+  requestedDate?: string | null;
+  availableSlots?: Slot[];
+  reason?: string;
 };
 
-function formatDate(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function parseDurationToMinutes(duration: string | undefined): number {
-    if (!duration) return 180;
-    const minutes = parseInt(duration, 10);
-    return isNaN(minutes) ? 180 : minutes;
-}
-
-const dayNames = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-
-export async function findNextAvailableSlotTool(input: Input): Promise<FindSlotResult> {
+// --- Implementation ---
+async function implementation(input: Input): Promise<Output> {
   try {
     const { preferred_date, service_name } = InputSchema.parse(input);
     const category = service_name ? getServiceCategory(service_name) : null;
-    
     let requestedDate: string | null = null;
+
     if (preferred_date) {
-        const parsed = await parseDateTime(preferred_date);
-        if (parsed.date) {
-            requestedDate = parsed.date;
-        }
+      const parsed = await parseDateTime(preferred_date);
+      if (parsed.date) {
+        requestedDate = parsed.date;
+      }
     }
 
-    // --- LOGIKA 1: PENGECEKAN KUOTA REPAINT ---
+    // Logika khusus kategori repaint (antrian mingguan)
     if (category === 'repaint') {
-      console.log('[findNextAvailableSlotTool] Menjalankan logika pengecekan kuota REPAINT.');
       const bookingsRef = collection(db, 'bookings');
       const q = query(
         bookingsRef,
@@ -57,52 +46,41 @@ export async function findNextAvailableSlotTool(input: Input): Promise<FindSlotR
         where('status', 'in', ['Confirmed', 'In Queue', 'In Progress'])
       );
       const snapshot = await getDocs(q);
-
       if (snapshot.size >= 2) {
-        // Jika penuh, hitung kapan slot paling cepat akan tersedia
         const finishTimes = snapshot.docs.map(doc => {
-          const data = doc.data() as Partial<Booking>;
+          const data = doc.data() as any;
           const startDate = data.bookingDateTime!.toDate();
-          // Asumsikan durasi repaint minimal 7 hari jika tidak ada data
           const durationDays = data.estimatedDuration ? parseInt(data.estimatedDuration, 10) / (24 * 60) : 7;
           const endDate = new Date(startDate);
           endDate.setDate(startDate.getDate() + Math.ceil(durationDays));
           return endDate;
         });
-
         const earliestFinishDate = new Date(Math.min(...finishTimes.map(time => time.getTime())));
-        
-        // Kembalikan ini sebagai slot alternatif
         const nextAvailableSlot = {
-            date: formatDate(earliestFinishDate),
-            time: '09:00', // Waktu default untuk penawaran
-            day: dayNames[earliestFinishDate.getDay()],
+          date: earliestFinishDate.toISOString().split('T')[0],
+          time: '09:00',
+          day: ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][earliestFinishDate.getDay()],
         };
-        
-        return {
-          success: true, // Sukses karena berhasil menemukan alternatif
-          requestedDate: requestedDate,
-          availableSlots: [nextAvailableSlot],
-        };
-
-      } else {
-        // Jika tidak penuh, tawarkan antrian
         return {
           success: true,
-          requestedDate: requestedDate,
+          requestedDate,
+          availableSlots: [nextAvailableSlot],
+        };
+      } else {
+        return {
+          success: true,
+          requestedDate,
           availableSlots: [{ date: 'Tersedia', time: 'Antrian', day: 'Repaint' }],
         };
       }
     }
 
-    // --- LOGIKA 2: PENGECEKAN SLOT HARIAN ---
-    console.log('[findNextAvailableSlotTool] Menjalankan logika pengecekan SLOT HARIAN.');
+    // Pengecekan slot harian untuk kategori selain repaint
     let searchStartDate = new Date();
     if (requestedDate) {
-        const [y, m, d] = requestedDate.split('-').map(Number);
-        searchStartDate = new Date(y, m - 1, d, 9, 0, 0);
+      const [y, m, d] = requestedDate.split('-').map(Number);
+      searchStartDate = new Date(y, m - 1, d, 9, 0, 0);
     }
-    
     const searchLimitDate = new Date(searchStartDate);
     searchLimitDate.setDate(searchStartDate.getDate() + 30);
 
@@ -116,9 +94,9 @@ export async function findNextAvailableSlotTool(input: Input): Promise<FindSlotR
     const querySnapshot = await getDocs(q);
 
     const existingBookings = querySnapshot.docs.map(doc => {
-      const data = doc.data() as Partial<Booking>;
+      const data = doc.data() as any;
       const startDate = data.bookingDateTime!.toDate();
-      const durationInMinutes = parseDurationToMinutes(data.estimatedDuration);
+      const durationInMinutes = parseInt(data.estimatedDuration || '180', 10);
       const endDate = new Date(startDate.getTime() + durationInMinutes * 60000);
       return { start: startDate, end: endDate };
     });
@@ -159,7 +137,7 @@ export async function findNextAvailableSlotTool(input: Input): Promise<FindSlotR
     if (foundSlots.length === 0) {
       return {
         success: false,
-        requestedDate: requestedDate,
+        requestedDate,
         reason: `Maaf bro, sepertinya jadwal untuk ${requestedDate || 'waktu dekat'} sangat padat.`,
       };
     }
@@ -167,17 +145,16 @@ export async function findNextAvailableSlotTool(input: Input): Promise<FindSlotR
     const formattedSlots = foundSlots.map(date => ({
       date: date.toISOString().split('T')[0],
       time: date.toTimeString().substring(0, 5),
-      day: dayNames[date.getDay()],
+      day: ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][date.getDay()],
     }));
 
     return {
       success: true,
-      requestedDate: requestedDate,
+      requestedDate,
       availableSlots: formattedSlots,
     };
 
   } catch (error: any) {
-    console.error("Error in findNextAvailableSlot:", error);
     return {
       success: false,
       requestedDate: null,
@@ -185,3 +162,23 @@ export async function findNextAvailableSlotTool(input: Input): Promise<FindSlotR
     };
   }
 }
+
+// --- Export untuk AI Agent (function calling compatible) ---
+export const findNextAvailableSlotTool = {
+  toolDefinition: {
+    type: 'function' as const,
+    function: {
+      name: 'findNextAvailableSlot',
+      description: 'Cari slot jadwal kosong terdekat untuk booking.',
+      parameters: {
+        type: 'object',
+        properties: {
+          preferred_date: { type: 'string', description: 'Tanggal/hari pilihan user (opsional).' },
+          service_name: { type: 'string', description: 'Nama layanan (opsional, untuk filtering kategori).' },
+        },
+        required: [],
+      },
+    },
+  },
+  implementation,
+};

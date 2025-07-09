@@ -1,4 +1,3 @@
-'use server';
 
 import { z } from 'zod';
 import allServicesData from '../../../docs/harga_layanan.json';

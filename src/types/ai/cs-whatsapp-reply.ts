@@ -2,10 +2,7 @@
 
 import { z } from 'zod';
 
-/**
- * Mendefinisikan skema untuk satu pesan dalam riwayat chat.
- * Sesuai dengan format yang diharapkan oleh OpenAI.
- */
+// ... (skema ChatMessageSchema dan ZoyaChatInputSchema Anda sudah benar)
 export const ChatMessageSchema = z.object({
   role: z.enum(['user', 'assistant', 'system', 'tool']), 
   content: z.string(),
@@ -14,11 +11,6 @@ export const ChatMessageSchema = z.object({
 });
 export type ChatMessage = z.infer<typeof ChatMessageSchema>;
 
-
-/**
- * Mendefinisikan skema untuk input utama yang diterima oleh flow AI kita.
- * Ini adalah "formulir" yang diisi oleh bot WA (run.js) setiap kali ada pesan masuk.
- */
 export const ZoyaChatInputSchema = z.object({
   customerMessage: z.string().describe('Pesan yang diterima dari pelanggan.'),
   senderNumber: z.string().optional().describe('Nomor WhatsApp pengirim (sudah diformat dengan @c.us).'),
@@ -30,9 +22,18 @@ export type ZoyaChatInput = z.infer<typeof ZoyaChatInputSchema>;
 
 /**
  * Mendefinisikan skema untuk output yang dihasilkan oleh flow AI.
- * Ini adalah "jawaban" yang dikirim kembali ke bot WA (run.js).
  */
 export const WhatsAppReplyOutputSchema = z.object({
-  suggestedReply: z.string().nullable().describe('Saran balasan yang dihasilkan AI. Bisa null jika AI memutuskan untuk diam (mode snooze).'),
+  suggestedReply: z.string().describe('Saran balasan yang dihasilkan AI.'),
+  toolCalls: z
+    .array(z.object({
+      toolName: z.string(),
+      arguments: z.any(),
+    }))
+    .default([])
+    .describe('Daftar tool yang dipanggil oleh AI, jika ada.'),
+  // ✅ INI BAGIAN KUNCI: Pastikan properti `route` ada di sini.
+  route: z.string().describe('Rute yang dieksekusi oleh AI untuk menghasilkan balasan.'),
+  metadata: z.record(z.any()).optional().describe('Metadata tambahan opsional untuk debug atau logging.'),
 });
 export type WhatsAppReplyOutput = z.infer<typeof WhatsAppReplyOutputSchema>;

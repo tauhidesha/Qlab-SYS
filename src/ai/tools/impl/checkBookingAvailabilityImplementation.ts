@@ -1,5 +1,4 @@
 // File: src/ai/tools/impl/checkBookingAvailabilityImplementation.ts
-// File ini HANYA berisi logika, tanpa definisi tool dan tanpa 'use server'.
 
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -61,20 +60,28 @@ export async function checkBookingAvailabilityImplementation(input: Input): Prom
 
   // --- Kapasitas Aktif Repaint ---
   if (category === 'repaint') {
-    const q = query(
-      bookingsRef,
-      where('category', '==', 'repaint'),
-      where('status', 'in', ['Confirmed', 'In Queue', 'In Progress'])
-    );
+  const now = new Date(`${bookingDate}T${bookingTime}:00`);
+  const fiveDaysAgo = new Date(now);
+  fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
 
-    const snapshot = await getDocs(q);
-    if (snapshot.size >= 2) {
-      return {
-        isAvailable: false,
-        reason: 'Maaf, slot Repaint sedang penuh (maksimal 2 motor aktif bersamaan).'
-      };
-    }
+  const q = query(
+    bookingsRef,
+    where('category', '==', 'repaint'),
+    where('bookingDateTime', '>=', Timestamp.fromDate(fiveDaysAgo)),
+    where('bookingDateTime', '<=', Timestamp.fromDate(now)),
+    where('status', 'in', ['Confirmed', 'In Queue', 'In Progress'])
+  );
+
+  const snapshot = await getDocs(q);
+
+  if (snapshot.size >= 2) {
+    return {
+      isAvailable: false,
+      reason: `Slot Repaint sedang penuh. Maksimal 2 motor dalam periode aktif (5 hari terakhir).`
+    };
   }
+}
+
 
   // --- Estimasi waktu menginap jika lewat jam 17.00 ---
   const bookingStartTime = new Date(`${bookingDate}T${bookingTime}:00`);

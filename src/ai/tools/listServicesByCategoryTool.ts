@@ -1,29 +1,14 @@
-// File: app/ai/tools/listServicesByCategoryTool.ts
-
-'use server';
+// File: src/ai/tools/listServicesByCategoryTool.ts
 
 import { z } from 'zod';
 import servicesData from '../../../docs/deskripsi_layanan.json';
 
-// Skema input
 const InputSchema = z.object({
-  category: z.enum(['coating', 'detailing', 'cuci', 'repaint']),
+  category: z.enum(['coating', 'detailing', 'cuci', 'repaint']).describe('Kategori layanan (coating, detailing, cuci, repaint)'),
 });
 type Input = z.infer<typeof InputSchema>;
 
-// Tipe internal & output
-type ServiceOutput = {
-  name: string;
-  summary: string;
-};
-
-type ServiceData = {
-  name: string;
-  category: string;
-  summary: string;
-  [key: string]: any;
-};
-
+type ServiceOutput = { name: string; summary: string; };
 type Result = {
   success: boolean;
   services?: ServiceOutput[];
@@ -31,11 +16,10 @@ type Result = {
   error?: string;
 };
 
-export async function listServicesByCategory(input: Input): Promise<Result> {
+async function implementation(input: Input): Promise<Result> {
   try {
     const { category } = InputSchema.parse(input);
-    const allServices: ServiceData[] = servicesData;
-
+    const allServices: any[] = servicesData;
     const filteredServices = allServices
       .filter((service) => service.category === category && service.summary)
       .map((service) => ({
@@ -49,23 +33,39 @@ export async function listServicesByCategory(input: Input): Promise<Result> {
         error: `Tidak ada layanan dengan deskripsi ringkas (summary) untuk kategori '${category}'.`
       };
     }
-
     const summaryText = `Berikut daftar layanan untuk kategori *${category}*:\n` +
       filteredServices.map(s => `- ${s.name}`).join('\n');
-
-    console.log(`[Tool] Menemukan ${filteredServices.length} layanan untuk kategori '${category}'.`);
-
     return {
       success: true,
       services: filteredServices,
       summary: summaryText
     };
-
   } catch (err: any) {
-    console.error('[listServicesByCategory Tool] Error:', err);
     return {
       success: false,
       error: 'Terjadi kesalahan internal saat mengambil daftar layanan.'
     };
   }
 }
+
+export const listServicesByCategoryTool = {
+  toolDefinition: {
+    type: 'function' as const,
+    function: {
+      name: "listServicesByCategory",
+      description: "Tampilkan daftar layanan berdasarkan kategori (coating, detailing, cuci, repaint).",
+      parameters: {
+        type: "object",
+        properties: {
+          category: {
+            type: "string",
+            enum: ["coating", "detailing", "cuci", "repaint"],
+            description: "Kategori layanan yang ingin ditampilkan.",
+          },
+        },
+        required: ["category"],
+      },
+    },
+  },
+  implementation,
+};

@@ -2,18 +2,17 @@
 
 import type { ZoyaChatInput, WhatsAppReplyOutput } from '@/types/ai/cs-whatsapp-reply';
 import { getSession, updateSession } from '@/ai/utils/session';
-import { determineRoute } from '@/ai/handlers/routeRouter';
-import { routeHandlers } from '@/ai/handlers/routeHandlers';
-import { mapTermToOfficialService } from '@/ai/utils/messageParsers';
+import { mapTermToOfficialService } from '../handlers/routes/lib/classifiers/mapTermToOfficialService';
 import { Timestamp } from 'firebase/firestore';
 import type { SessionData } from '@/ai/utils/session';
 import { mergeSession } from '@/ai/utils/mergeSession';
+import { runZoyaAIAgent } from '@/ai/agent/runZoyaAIAgent';
+import { handleToolResult } from '../handlers/tool/handleToolResult';
+import { notifyBosMamat, setSnoozeMode } from '@/ai/utils/humanHandoverTool';
 
-/**
- * Flow Controller utama Zoya.
- * Bertugas mengarahkan alur, menyatukan logika handler, dan update sesi secara aman.
- */
-export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<WhatsAppReplyOutput | null> {
+export async function generateWhatsAppReply(
+  input: ZoyaChatInput
+): Promise<WhatsAppReplyOutput | null> {
   const senderNumber = input.senderNumber || 'playground_user';
   const senderName = input.senderName || undefined;
 
@@ -23,18 +22,18 @@ export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<Whats
   console.log(`[PESAN MASUK]: "${input.customerMessage}"`);
   console.log(`[LOG SESI AWAL]:`, JSON.stringify(session, null, 2));
 
-  // === 1. MODE DIAM & FOLLOW-UP ===
+  // Cegah balasan jika sedang dalam mode snooze
   if (session?.snoozeUntil && Date.now() < session.snoozeUntil) {
     console.log(`[FlowController] Mode diam aktif. Tidak ada balasan.`);
-    return null;
+    return {
+      suggestedReply: '',
+      toolCalls: [],
+      route: 'snoozed',
+      metadata: { snoozeUntil: session.snoozeUntil },
+    };
   }
 
-  if (session?.followUpState) {
-    console.log(`[FlowController] Follow-up dibatalkan karena ada pesan baru.`);
-    session.followUpState = null;
-  }
-
-  // === 2. INISIALISASI SESI BARU JIKA PERLU ===
+  // Inisialisasi sesi baru jika belum ada
   if (!session) {
     console.log(`[FlowController] Sesi baru dibuat untuk ${senderNumber}.`);
     session = {
@@ -43,33 +42,67 @@ export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<Whats
       lastInteraction: Timestamp.now(),
       followUpState: null,
       lastRoute: 'init',
-      senderName: senderName,
+      senderName,
     };
-  } else if (!session.senderName && senderName) {
-    session.senderName = senderName;
+  } else {
+    // Tambal data yang belum ada
+    if (!session.senderName && senderName) {
+      session.senderName = senderName;
+    }
+    if (session.followUpState) {
+      console.log(`[FlowController] Follow-up dibatalkan karena ada pesan baru.`);
+      session.followUpState = null;
+    }
   }
 
-  // === 3. DETEKSI LAYANAN (PRE-ROUTE) ===
-  const detectedServiceName = mapTermToOfficialService(input.customerMessage);
-  if (detectedServiceName && session.inquiry) {
-    console.log(`[FlowController] Istilah terpetakan ke: "${detectedServiceName}"`);
-    session.inquiry.lastMentionedService = detectedServiceName;
+  // 🔍 Deteksi layanan dari pesan
+  const mappedServiceResult = mapTermToOfficialService(input.customerMessage);
+  if (mappedServiceResult?.serviceName) {
+    session.inquiry ??= {};
+    session.inquiry.lastMentionedService = {
+      serviceName: mappedServiceResult.serviceName,
+      isAmbiguous: mappedServiceResult.isAmbiguous ?? false,
+    };
   }
 
-  // === 4. ROUTING ===
-  const routeName = await determineRoute(input.customerMessage, session);
-  console.log(`[FlowController] Pesan dialihkan ke rute: "${routeName}"`);
+  // 🔍 Deteksi motor dari keyword umum
+  const knownMotors = ['nmax', 'pcx', 'vario', 'beat', 'cbr', 'supra', 'vespa', 'yamaha', 'honda'];
+  function detectMotorModel(message: string): string | null {
+    const msg = message.toLowerCase();
+    for (const motor of knownMotors) {
+      if (msg.includes(motor)) return motor;
+    }
+    return null;
+  }
 
-  const handler = routeHandlers[routeName];
-  if (!handler) {
-    console.error(`[FlowController] FATAL: Tidak ada handler untuk rute "${routeName}".`);
+  const detectedMotor = detectMotorModel(input.customerMessage);
+  if (detectedMotor) {
+    session.inquiry ??= {};
+    session.inquiry.lastMentionedMotor = detectedMotor;
+  }
+
+  // 🤖 Deteksi permintaan handover ke manusia
+  const msg = input.customerMessage.toLowerCase();
+  const mintaBosMamat =
+    ['bos mamat', 'admin', 'cs', 'customer service', 'orang', 'manusia', 'langsung'].some((keyword) =>
+      msg.includes(keyword),
+    ) &&
+    ['mau', 'panggil', 'bicara', 'ngomong', 'hubungi', 'ketemu'].some((trigger) => msg.includes(trigger));
+
+  if (mintaBosMamat) {
+    await setSnoozeMode(senderNumber);
+    await notifyBosMamat(senderNumber, input.customerMessage);
+
     return {
-      suggestedReply: "Aduh, Zoya lagi bingung nih, sistemnya ada yang aneh. Bentar ya.",
+      suggestedReply: 'Oke bro, Zoya panggilin Bos Mamat dulu ya. Tunggu sebentar 🙏',
+      toolCalls: [],
+      route: 'handover_request',
+      metadata: { snoozeUntil: Date.now() + 60 * 60 * 1000 },
     };
   }
 
-  // === 5. JALANKAN HANDLER ===
-  const handlerResult = await handler({
+  // 🔮 Jalankan AI Agent
+  const agentResult = await runZoyaAIAgent({
     session,
     message: input.customerMessage,
     chatHistory: input.chatHistory,
@@ -77,20 +110,68 @@ export async function generateWhatsAppReply(input: ZoyaChatInput): Promise<Whats
     senderName,
   });
 
-  // === 6. FINALISASI SESI ===
-const finalSession = mergeSession(session, {
-  ...handlerResult.updatedSession,
-  senderName: handlerResult.updatedSession?.senderName ?? senderName,
-  lastInteraction: Timestamp.now(),
-});
+  let replyMessage = agentResult.suggestedReply || '';
 
-await updateSession(senderNumber, finalSession);
-console.log(`[FlowController] Sesi untuk ${senderNumber} di-update.`);
+  // ⚙️ Jalankan Tool jika diperlukan
+  if (agentResult.toolCalls?.length > 0) {
+    console.log(`[DEBUG][AI HANDLER][TOOLCALL]`, agentResult.toolCalls);
 
+    const result = await handleToolResult({
+      toolCalls: agentResult.toolCalls,
+      input,
+      session,
+    });
 
-  // === 7. BALASAN ===
-  const replyMessage =
-    handlerResult.reply.message || handlerResult.reply.suggestedReply || '';
+    replyMessage = result.replyMessage;
+    session = mergeSession(session, result.updatedSession);
+  }
 
-  return { suggestedReply: replyMessage };
+  // 🧯 Fallback jika GPT kosong & tidak ada tool
+  if (
+    (!replyMessage || replyMessage.trim() === '' || replyMessage.startsWith('[AI] Tidak ada jawaban')) &&
+    (!agentResult.toolCalls || agentResult.toolCalls.length === 0)
+  ) {
+    replyMessage = 'Aduh, Zoya bingung nih. Bentar ya, Zoya panggilin Bos Mamat. 🙏';
+    await setSnoozeMode(senderNumber);
+    await notifyBosMamat(senderNumber, input.customerMessage);
+  }
+
+  // 💾 Update session terakhir
+  const finalSession = mergeSession(session, {
+    ...agentResult.updatedSession,
+    lastInteraction: Timestamp.now(),
+    lastRoute: agentResult.route || 'ai_agent',
+  });
+
+  if (!finalSession.senderName) finalSession.senderName = senderName;
+
+  await updateSession(senderNumber, finalSession);
+  console.log(`[FlowController] Sesi untuk ${senderNumber} di-update.`);
+
+  const sessionForClient = {
+    ...finalSession,
+    lastInteraction: finalSession.lastInteraction
+      ? {
+          seconds: finalSession.lastInteraction.seconds,
+          nanoseconds: finalSession.lastInteraction.nanoseconds,
+        }
+      : null,
+  };
+
+  console.log(`🤖 Zoya AI Reply: "${replyMessage}"`);
+  if (agentResult.toolCalls?.length) {
+    console.log(`🧰 Tool Calls:`);
+    for (const tool of agentResult.toolCalls) {
+      console.log(`  - ${tool.toolName}: ${JSON.stringify(tool.arguments)}`);
+    }
+  }
+
+  return {
+    suggestedReply: replyMessage,
+    toolCalls: agentResult.toolCalls || [],
+    route: agentResult.route || 'ai_agent',
+    metadata: {
+      sessionDebug: sessionForClient,
+    },
+  };
 }

@@ -1,73 +1,146 @@
-// File: app/ai/lib/classifiers/mapTermToOfficialService.ts
+export interface MappedServiceResult {
+  serviceName: string;
+  isAmbiguous: boolean; // REVISI: Dibuat wajib menjadi boolean
+}
 
-/**
- * Mengubah istilah bebas dari user menjadi nama layanan resmi.
- */
-export function mapTermToOfficialService(message: string): string | null {
+export function mapTermToOfficialService(message: string): MappedServiceResult | null {
   const msg = message.toLowerCase();
 
-  const serviceKeywordsMap = [
+  const serviceKeywordsMap: {
+    serviceName: string;
+    keywords: string[];
+    isAmbiguousOnKeyword?: string;  // penanda keyword default yang ambigu
+  }[] = [
     {
-      officialName: 'Coating Motor Glossy',
-      keywords: ['coating glossy', 'nano coating', 'coating kilap', 'ceramic glossy', 'wetlook', 'kilap daun talas']
+      serviceName: 'Coating Motor Glossy',
+      keywords: [
+        'coating glossy', 'nano coating', 'coating kilap', 'ceramic glossy',
+        'wetlook', 'kilap daun talas', 'coating', 'coating bening',
+        'coating kaca', 'coating wetlook', 'coating kinclong',
+        'lapis keramik glossy'
+      ],
+      isAmbiguousOnKeyword: 'coating', // Hanya keyword 'coating' yang dianggap ambigu
     },
     {
-      officialName: 'Coating Motor Doff',
-      keywords: ['coating doff', 'nano doff', 'coating matte', 'matte coating', 'keramik doff']
+      serviceName: 'Coating Motor Doff',
+      keywords: [
+        'coating doff', 'nano doff', 'coating matte', 'matte coating',
+        'keramik doff', 'coating warna doff', 'lapisan doff',
+        'proteksi cat doff', 'coating tidak mengkilap', 'coating tampilan doff'
+      ],
     },
     {
-      officialName: 'Complete Service Glossy',
-      keywords: ['complete glossy', 'paket glossy', 'coating + detailing', 'glossy total']
+      serviceName: 'Complete Service Glossy',
+      keywords: [
+        'complete glossy', 'paket glossy', 'coating + detailing', 'glossy total',
+        'paket glossy lengkap', 'servis glossy', 'detailing coating glossy',
+        'glossy komplit', 'servis ultimate', 'glossy all in', 'paket sultan glossy'
+      ],
     },
     {
-      officialName: 'Complete Service Doff',
-      keywords: ['complete doff', 'paket doff', 'detailing doff', 'coating doff full']
+      serviceName: 'Complete Service Doff',
+      keywords: [
+        'complete doff', 'paket doff', 'detailing doff', 'coating doff full',
+        'paket doff lengkap', 'detailing coating doff', 'doff komplit',
+        'servis doff total', 'servis ultimate doff', 'paket doff full',
+        'coating + detailing doff', 'paket sultan doff', 'doff all in'
+      ],
     },
     {
-      officialName: 'Repaint Bodi Halus',
-      keywords: ['cat bodi', 'repaint halus', 'cat ulang halus', 'warna ulang']
+      serviceName: 'Repaint Bodi Halus',
+      keywords: [
+        'cat bodi', 'repaint halus', 'cat ulang halus', 'warna ulang',
+        'repaint bodi', 'repaint alus', 'cat mulus', 'repaint kinclong',
+        'cat ulang pabrikan', 'repaint full bodi', 'warna ulang bodi', 'bodi dicat ulang'
+      ],
     },
     {
-      officialName: 'Repaint Bodi Kasar',
-      keywords: ['cat dek', 'repaint kasar', 'cat hitam doff', 'cat ulang kasar']
+      serviceName: 'Repaint Bodi Kasar',
+      keywords: [
+        'cat dek', 'repaint kasar', 'cat hitam doff', 'cat ulang kasar',
+        'cat bagian kasar', 'cat ulang dek', 'cat ulang plastik kasar',
+        'cat ulang tekstur', 'dek motor kusam', 'cat ulang dek hitam', 'repaint bodi kasar'
+      ],
     },
     {
-      officialName: 'Repaint Velg',
-      keywords: ['cat velg', 'repaint velg', 'cat ulang velg', 'warna ulang velg']
+      serviceName: 'Repaint Velg',
+      keywords: [
+        'cat velg', 'repaint velg', 'cat ulang velg', 'warna ulang velg',
+        'cat pelek', 'velg dicat', 'ganti warna velg', 'velg baru lagi',
+        'pelek repaint', 'warna velg keren'
+      ],
     },
     {
-      officialName: 'Repaint Cover CVT / Arm',
-      keywords: ['cat cvt', 'repaint arm', 'cat ulang arm', 'cat ulang mesin']
+      serviceName: 'Repaint Cover CVT / Arm',
+      keywords: [
+        'cat cvt', 'repaint arm', 'cat ulang arm', 'cat ulang mesin',
+        'cat arm', 'repaint cvt', 'cat mesin belakang', 'cat swing arm',
+        'cat ulang cvt', 'warna ulang arm', 'cover cvt repaint', 'warna baru arm'
+      ],
     },
     {
-      officialName: 'Cuci Reguler',
-      keywords: ['cuci motor', 'cuci biasa', 'cuci standar', 'semir ban']
+      serviceName: 'Cuci Reguler',
+      keywords: [
+        'cuci motor', 'cuci biasa', 'cuci standar', 'semir ban',
+        'cuci luar aja', 'cuci harian', 'cuci kilat', 'cuci cepat',
+        'cuci murah', 'cuci kilau'
+      ],
     },
     {
-      officialName: 'Cuci Premium',
-      keywords: ['cuci premium', 'cuci wax', 'cuci kilap', 'cuci mewah']
+      serviceName: 'Cuci Premium',
+      keywords: [
+        'cuci premium', 'cuci wax', 'cuci kilap', 'cuci mewah',
+        'cuci mengkilap', 'cuci glow up', 'cuci bersih banget', 'cuci plus wax',
+        'cuci detail', 'upgrade cuci'
+      ],
     },
     {
-      officialName: 'Detailing Mesin',
-      keywords: ['cuci mesin', 'detailing mesin', 'bersihin mesin', 'kerak oli']
+      serviceName: 'Detailing Mesin',
+      keywords: [
+        'cuci mesin', 'detailing mesin', 'bersihin mesin', 'kerak oli',
+        'pembersih crankcase', 'cuci ruang mesin', 'crankcase detailing',
+        'mesin bersih banget', 'cuci sela mesin', 'bersih oli bocor'
+      ],
     },
     {
-      officialName: 'Cuci Komplit',
-      keywords: ['cuci total', 'cuci bongkar', 'deep clean motor', 'cuci telanjang']
+      serviceName: 'Cuci Komplit',
+      keywords: [
+        'cuci total', 'cuci bongkar', 'deep clean motor', 'cuci telanjang',
+        'cuci bongkar pasang', 'cuci bersih sampai rangka', 'cuci semua bagian',
+        'cuci dalam banget', 'cuci total motor', 'bongkar cuci', 'detailing cuci'
+      ],
     },
     {
-      officialName: 'Poles Bodi Glossy',
-      keywords: ['poles bodi', 'poles cat', 'kilapin bodi', 'poles baret']
+      serviceName: 'Poles Bodi Glossy',
+      keywords: [
+        'poles bodi', 'poles cat', 'kilapin bodi', 'poles baret',
+        'poles baret halus', 'poles kilap', 'poles glossy', 'bodi kinclong',
+        'kilap ulang', 'poles full body', 'poles permukaan bodi'
+      ],
     },
     {
-      officialName: 'Full Detailing Glossy',
-      keywords: ['detailing full', 'detailing total', 'detailing kilap', 'detailing ultimate']
+      serviceName: 'Full Detailing Glossy',
+      keywords: [
+        'detailing full', 'detailing total', 'detailing kilap', 'detailing ultimate',
+        'detailing glossy', 'detailing dan poles', 'restorasi bodi',
+        'detailing komplit', 'detailing luar dalam', 'detailing kilap maksimal',
+        'detailing pamungkas'
+      ],
     }
   ];
 
   for (const service of serviceKeywordsMap) {
-    if (service.keywords.some(keyword => msg.includes(keyword))) {
-      return service.officialName;
+    const match = service.keywords.find(keyword => msg.includes(keyword));
+    if (match) {
+      // ✅ REVISI: Logika diubah untuk memastikan nilai boolean yang jelas.
+      // Jika ada penanda 'isAmbiguousOnKeyword' dan keyword yang cocok adalah itu, maka isAmbiguous = true.
+      // Jika tidak, maka isAmbiguous = false.
+      const isAmbiguous = service.isAmbiguousOnKeyword === match;
+      
+      return {
+        serviceName: service.serviceName,
+        isAmbiguous: isAmbiguous,
+      };
     }
   }
 

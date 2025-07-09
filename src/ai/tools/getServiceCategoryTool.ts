@@ -1,4 +1,3 @@
-'use server';
 
 import allServicesData from '@/../docs/harga_layanan.json';
 import levenshtein from 'js-levenshtein'; // ⬅️ pastikan package ini sudah di-install

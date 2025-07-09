@@ -1,46 +1,47 @@
-// File: src/ai/utils/session.ts
+// @file: src/ai/utils/session.ts
 'use server';
 
 import { db } from '@/lib/firebase';
 import { doc, getDoc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import type { MappedServiceResult } from '../handlers/routes/lib/classifiers/mapTermToOfficialService';
 
 // --- TIPE DATA RESMI (SUMBER KEBENARAN) ---
 export type ServiceCategory = 'coating' | 'detailing' | 'cuci' | 'repaint';
 
 export interface BookingState {
-    serviceName?: string;
-    vehicleInfo?: string;
-    bookingDate?: string;
-    bookingTime?: string;
-    estimatedDurationMinutes?: number;
+  serviceName?: string;
+  vehicleInfo?: string;
+  bookingDate?: string;
+  bookingTime?: string;
+  estimatedDurationMinutes?: number;
 }
 
 export interface ServiceInquiry {
-    lastMentionedService?: string;
-    pendingService?: string;
-    pendingCategory?: ServiceCategory;
-    lastMentionedMotor?: string;
-    lastOfferedServices?: string[];
-    bookingState?: BookingState;
-    pendingBookingDate?: string;
-    pendingBookingTime?: string;
+  lastMentionedService?: MappedServiceResult; // ✅ ubah dari string ke MappedServiceResult
+  pendingService?: string;
+  pendingCategory?: ServiceCategory;
+  lastMentionedMotor?: string;
+  lastOfferedServices?: string[];
+  bookingState?: BookingState;
+  pendingBookingDate?: string;
+  pendingBookingTime?: string;
 }
 
 export interface SessionData {
-    flow: 'general' | 'booking' | 'awaiting_booking_form';
-    inquiry: ServiceInquiry;
-    snoozeUntil?: number;
-    lastInteraction: Timestamp;
+  flow: 'general' | 'booking' | 'awaiting_booking_form';
+  inquiry: ServiceInquiry;
+  snoozeUntil?: number;
+  lastInteraction: Timestamp;
 
-    // Follow-up & tracking
-    followUpState?: {
-        level: number;
-        flaggedAt: number;
-        context: string;
-    } | null;
+  // Follow-up & tracking
+  followUpState?: {
+    level: number;
+    flaggedAt: number;
+    context: string;
+  } | null;
 
-    senderName?: string;
-    lastRoute?: string;
+  senderName?: string;
+  lastRoute?: string;
 }
 
 // --- KONSTANTA ---
@@ -60,6 +61,14 @@ export async function getSession(senderNumber: string): Promise<SessionData | nu
 
     if (docSnap.exists()) {
       const session = docSnap.data() as SessionData;
+
+      // ⛑️ PATCH: jika session lama masih simpan string di lastMentionedService, ubah ke objek
+      const rawService = session?.inquiry?.lastMentionedService;
+      if (typeof rawService === 'string') {
+        // ✅ REVISI: Menambahkan properti `isAmbiguous` yang wajib ada dengan nilai default `false`.
+        session.inquiry.lastMentionedService = { serviceName: rawService, isAmbiguous: false };
+      }
+
       const now = Timestamp.now();
       const lastInteraction = session.lastInteraction || now;
       const diffMinutes = (now.seconds - lastInteraction.seconds) / 60;
@@ -68,6 +77,7 @@ export async function getSession(senderNumber: string): Promise<SessionData | nu
         console.log(`[SESSION] Sesi untuk ${senderNumber} sudah kadaluwarsa. Membuat sesi baru.`);
         return null;
       }
+
       return session;
     }
 
