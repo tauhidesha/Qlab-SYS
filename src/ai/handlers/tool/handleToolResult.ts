@@ -71,8 +71,7 @@ export async function handleToolResult({
         ? JSON.parse(toolCall.arguments)
         : toolCall.arguments;
 
-      // ===== 🛠 MOTOR INFO HANDLING =====
-
+      // 🛠️ MOTOR DETEKSI
       if (toolCall.toolName === 'getMotorSizeDetails') {
         const details = toolResult?.data?.details;
         if (details) {
@@ -88,7 +87,7 @@ export async function handleToolResult({
         }
       }
 
-      // Fallback: extractBookingDetailsTool → motorQuery
+      // Fallback motor dari extractBookingDetailsTool
       if (
         toolCall.toolName === 'extractBookingDetailsTool' &&
         toolResult?.data?.motorQuery &&
@@ -97,13 +96,11 @@ export async function handleToolResult({
         updatedSession.inquiry!.lastMentionedMotor = toolResult.data.motorQuery;
       }
 
-      // Fallback: args.motor_query
       if (args.motor_query && !updatedSession.inquiry?.lastMentionedMotor) {
         updatedSession.inquiry!.lastMentionedMotor = args.motor_query;
       }
 
-      // ===== 📦 SERVICE DETECTION =====
-
+      // 📦 DETEKSI LAYANAN
       const serviceName = args.serviceName || args.service_name;
       if (serviceName) {
         updatedSession.inquiry!.lastMentionedService = {
@@ -112,11 +109,23 @@ export async function handleToolResult({
         };
       }
 
-      // 🔧 Hardcoded: promo → repaint default
+      // Hardcoded untuk promo
       if (toolCall.toolName === 'getPromoBundleDetails') {
         updatedSession.inquiry!.lastMentionedService = {
           serviceName: 'Repaint Bodi Halus',
           isAmbiguous: false,
+        };
+      }
+
+      // ✅ [NEW] AUTO FOLLOW-UP TRIGGER
+      if (
+        toolCall.toolName === 'getSpecificServicePrice' &&
+        !session.inquiry.bookingState?.bookingDate
+      ) {
+        updatedSession.followUpState = {
+          level: 1,
+          flaggedAt: Date.now(),
+          context: serviceName || 'unknown_service',
         };
       }
 

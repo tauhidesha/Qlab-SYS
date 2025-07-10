@@ -28,7 +28,7 @@ export type GetMotorSizeResult = MotorSizeSuccess | MotorSizeError;
 // --- Tipe untuk getSpecificServicePrice ---
 export interface PriceDetails {
   service_name: string;
-  motor_model: string;
+  motor_model?: string;
   motor_size: string;
   price: number;
   estimated_duration?: string;

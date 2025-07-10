@@ -1,145 +1,133 @@
-// File: src/app/api/ai/daily-follow-up/route.ts
-
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { type SessionData, updateSession } from '@/ai/utils/session';
-import { getEducationalSnippet, getDownsellOption } from '@/ai/utils/followUpContent';
 import { sendWhatsAppMessage } from '@/services/whatsappService';
+import { OpenAI } from 'openai';
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
-// --- (BARU) FUNGSI UNTUK KONFIRMASI KEDATANGAN H-1 ---
+// --- (1) KONFIRMASI BOOKING H-1 ---
 async function sendH1Confirmations(): Promise<number> {
-    console.log('--- Memulai Tugas Konfirmasi H-1 ---');
-    let confirmationCount = 0;
+  console.log('--- Memulai Tugas Konfirmasi H-1 ---');
+  let confirmationCount = 0;
 
-    // Hitung tanggal "besok" dalam format YYYY-MM-DD
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const year = tomorrow.getFullYear();
-    const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
-    const day = String(tomorrow.getDate()).padStart(2, '0');
-    const tomorrowDateString = `${year}-${month}-${day}`;
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const yyyy = tomorrow.getFullYear();
+  const mm = String(tomorrow.getMonth() + 1).padStart(2, '0');
+  const dd = String(tomorrow.getDate()).padStart(2, '0');
+  const tomorrowDate = `${yyyy}-${mm}-${dd}`;
 
-    console.log(`[H-1 Conf] Mencari booking untuk tanggal: ${tomorrowDateString}`);
+  try {
+    const bookingsRef = collection(db, 'bookings');
+    const q = query(bookingsRef, 
+      where('bookingDate', '==', tomorrowDate),
+      where('status', '==', 'Confirmed')
+    );
+    const snapshot = await getDocs(q);
 
-    try {
-        const bookingsRef = collection(db, 'bookings');
-        const q = query(
-            bookingsRef, 
-            where('bookingDate', '==', tomorrowDateString),
-            where('status', '==', 'Confirmed')
-        );
+    for (const doc of snapshot.docs) {
+      const booking = doc.data();
+      if (typeof booking.customerPhone === 'string' && booking.customerPhone) {
+        const msg = `Halo bro ${booking.customerName || ''}, Zoya cuma mau konfirmasi bookingan besok ya:\n\n📅 *Tanggal:* ${booking.bookingDate}\n⏰ *Jam:* ${booking.bookingTime}\n🛠️ *Layanan:* ${booking.serviceName}\n\nKalau semua sudah oke, ditunggu kedatangannya ya. Kalau mau batal atau reschedule, tinggal balas pesan ini aja. Makasih bro! 🙏`;
 
-        const snapshot = await getDocs(q);
-
-        if (snapshot.empty) {
-            console.log('[H-1 Conf] Tidak ada booking untuk besok.');
-            return 0;
-        }
-
-        console.log(`[H-1 Conf] Ditemukan ${snapshot.size} booking untuk dikonfirmasi.`);
-
-        for (const doc of snapshot.docs) {
-            const booking = doc.data();
-            // Pastikan nomor telepon adalah string dan tidak kosong
-            if (typeof booking.customerPhone === 'string' && booking.customerPhone) {
-                const confirmationMessage = `Halo bro ${booking.customerName || ''}, Zoya cuma mau konfirmasi bookingan besok ya:\n\n📅 *Tanggal:* ${booking.bookingDate}\n⏰ *Jam:* ${booking.bookingTime}\n🛠️ *Layanan:* ${booking.serviceName}\n\nKalau semua sudah oke, ditunggu kedatangannya ya. Kalau mau batal atau reschedule, tinggal balas pesan ini aja. Makasih bro! 🙏`;
-                
-                // Asumsi sendWhatsAppMessage bisa menangani nomor HP format '08...'
-                await sendWhatsAppMessage(booking.customerPhone, confirmationMessage);
-                console.log(` -> Pesan konfirmasi H-1 berhasil dikirim ke ${booking.customerName} (${booking.customerPhone})`);
-                confirmationCount++;
-            }
-        }
-    } catch (error) {
-        console.error('[H-1 Conf] Terjadi error saat mengirim konfirmasi:', error);
+        await sendWhatsAppMessage(booking.customerPhone, msg);
+        console.log(`✅ Konfirmasi dikirim ke ${booking.customerPhone}`);
+        confirmationCount++;
+      }
     }
-    
-    return confirmationCount;
+  } catch (err) {
+    console.error('[H-1 Conf] Error:', err);
+  }
+
+  return confirmationCount;
 }
 
-// --- (BARU) FUNGSI UNTUK FOLLOW-UP (DIPISAHKAN AGAR LEBIH RAPI) ---
+// --- (2) FOLLOW-UP DENGAN GPT ---
 async function sendFollowUps(): Promise<number> {
-    console.log('--- Memulai Tugas Follow-up ---');
-    let followUpCount = 0;
-    
-    try {
-        const sessionsRef = collection(db, 'zoya_sessions');
-        const q = query(sessionsRef, where("followUpState", "!=", null));
-        const snapshot = await getDocs(q);
-        const now = Date.now();
+  console.log('--- Memulai Tugas Follow-up GPT-integrated ---');
+  let followUpCount = 0;
 
-        for (const doc of snapshot.docs) {
-            const senderNumber = doc.id;
-            const session = doc.data() as SessionData;
-            
-            if (!session.followUpState) continue;
+  try {
+    const sessionsRef = collection(db, 'zoya_sessions');
+    const q = query(sessionsRef, where('followUpState', '!=', null));
+    const snapshot = await getDocs(q);
+    const now = Date.now();
 
-            const state = session.followUpState;
-            const flaggedAtMs = state.flaggedAt;
-            let messageToSend = '';
-            let nextState: SessionData['followUpState'] = { ...state, level: state.level + 1, flaggedAt: now };
-            let shouldSend = false;
+    for (const doc of snapshot.docs) {
+      const senderNumber = doc.id;
+      const session = doc.data() as SessionData;
+      const state = session.followUpState;
+      if (!state) continue;
 
-            // Logika berjenjang Anda tidak berubah
-            switch (state.level) {
-                case 1:
-                    if (now > flaggedAtMs + DAY_IN_MS) {
-                        shouldSend = true;
-                        const snippet = getEducationalSnippet(state.context) || 'info menarik';
-                        messageToSend = `Pagi bro! Zoya di sini. Kemarin kita ngobrolin soal *${state.context}*. Sekadar info, salah satu keunggulannya itu bisa *${snippet}*. Keren kan? Gimana, udah siap kita atur jadwalnya?`;
-                    }
-                    break;
-                // ... (case lainnya tidak berubah) ...
-            }
+      const timePassed = now - state.flaggedAt;
+      if (timePassed < DAY_IN_MS) continue;
 
-            if (shouldSend) {
-                console.log(`Mengirim follow-up level ${state.level} ke ${senderNumber}`);
-                await sendWhatsAppMessage(senderNumber, messageToSend);
-                followUpCount++;
-                await updateSession(senderNumber, { ...session, followUpState: nextState });
-            }
-        }
-    } catch (error) {
-        console.error('[Follow-up] Terjadi error saat menjalankan follow-up:', error);
+      const prompt = `
+Kamu adalah Zoya, asisten WhatsApp untuk jasa detailing & repaint motor. Kemarin kamu bantu pelanggan ini untuk topik: "${state.context}".
+
+Tugasmu sekarang: kirim pesan follow-up santai (pakai kata "bro") untuk ngajak dia nanya lagi atau booking. Gaya bahasa tetap informal & ramah.
+
+Hanya kirim isi pesan WA-nya aja, tidak perlu penjelasan tambahan.
+`;
+
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [{ role: 'system', content: prompt }],
+      });
+
+      const reply = completion.choices?.[0]?.message?.content?.trim();
+      if (!reply) continue;
+
+      await sendWhatsAppMessage(senderNumber, reply);
+      console.log(`✅ Follow-up terkirim ke ${senderNumber}: ${reply}`);
+      followUpCount++;
+
+      await updateSession(senderNumber, {
+        ...session,
+        followUpState: {
+          ...state,
+          level: state.level + 1,
+          flaggedAt: now,
+        },
+      });
     }
-    
-    return followUpCount;
+
+  } catch (err) {
+    console.error('[GPT Follow-up] Error:', err);
+  }
+
+  return followUpCount;
 }
 
-
-// --- FUNGSI UTAMA CRON JOB (POST HANDLER) ---
+// --- (3) POST HANDLER CRON JOB ---
 export async function POST(request: Request) {
-    // 1. Keamanan
-    const { searchParams } = new URL(request.url);
-    if (searchParams.get('secret') !== process.env.CRON_SECRET) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  const { searchParams } = new URL(request.url);
+  if (searchParams.get('secret') !== process.env.CRON_SECRET) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
-    console.log(`[CRON JOB] Tugas Harian Dimulai: ${new Date().toISOString()}`);
+  console.log(`[CRON JOB] Tugas Harian Dimulai: ${new Date().toISOString()}`);
 
-    try {
-        // 2. Jalankan kedua tugas secara berurutan
-        const followUpCount = await sendFollowUps();
-        const confirmationCount = await sendH1Confirmations();
+  try {
+    const followUpCount = await sendFollowUps();
+    const confirmationCount = await sendH1Confirmations();
 
-        const summary = `Tugas Harian Selesai. Follow-up terkirim: ${followUpCount}. Konfirmasi H-1 terkirim: ${confirmationCount}.`;
-        console.log(`[CRON JOB] ${summary}`);
-        
-        // 3. Kembalikan hasil gabungan
-        return NextResponse.json({ 
-            success: true, 
-            summary,
-            processed: {
-                followUps: followUpCount,
-                confirmations: confirmationCount
-            }
-        });
+    const summary = `Selesai ✅ Follow-up: ${followUpCount}, Konfirmasi H-1: ${confirmationCount}`;
+    console.log(`[CRON JOB] ${summary}`);
 
-    } catch (error) {
-        console.error('[CRON JOB] Terjadi error fatal saat menjalankan tugas harian:', error);
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
-    }
+    return NextResponse.json({
+      success: true,
+      summary,
+      processed: {
+        followUps: followUpCount,
+        confirmations: confirmationCount,
+      },
+    });
+  } catch (err) {
+    console.error('[CRON JOB] Fatal error:', err);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
 }
