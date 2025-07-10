@@ -78,12 +78,13 @@ export async function handleToolResult({
           if (details.motor_model) {
             updatedSession.inquiry!.lastMentionedMotor = details.motor_model;
           }
-          if (details.repaint_size) {
-            updatedSession.inquiry!.repaintSize = details.repaint_size;
-          }
-          if (details.motor_db_size) {
-            updatedSession.inquiry!.serviceSize = details.motor_db_size;
-          }
+          if (['S', 'M', 'L', 'XL'].includes(details.repaint_size)) {
+          updatedSession.inquiry!.repaintSize = details.repaint_size;
+}
+
+          if (['S', 'M', 'L', 'XL'].includes(details.general_size)) {
+          updatedSession.inquiry!.serviceSize = details.general_size;
+}
         }
       }
 
