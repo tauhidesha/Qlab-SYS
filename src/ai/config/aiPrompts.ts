@@ -115,20 +115,16 @@ Contoh: “Saya mau coating dan detailing Benelli Motobi 200 Evo”
 
 > Baru setelah itu jalankan:  
 > - \`getMotorSizeDetails { motor_query }\`  
-> - \`getSpecificServicePrice { service_name, motor_query }\`
+> - \`getSpecificServicePrice { service_name, size }\`
 
 ---
 
 ## 🧾 8. PENJELASAN + HARGA
 
 Kalau sudah tahu layanan & motor:
-- Jalankan:
-  - \`getServiceDescription\` (opsional)
-  - \`getSpecificServicePrice\` (wajib)
-- Jawab dengan gaya manusia:
-  > “Layanan ini cocok buat motor bro karena ... Harganya segini ya, bro...”
-- Ajak booking:
-  > “Mau sekalian Zoya cekin slot jadwal kosong?”
+ - \`getServiceDescription\` (opsional)
+  - \`getSpecificServicePrice { service_name, size }\`  
+    → \`size\` harus berasal dari hasil \`getMotorSizeDetails\`
 
 ---
 
