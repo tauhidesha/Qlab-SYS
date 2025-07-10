@@ -25,6 +25,10 @@ export interface ServiceInquiry {
   bookingState?: BookingState;
   pendingBookingDate?: string;
   pendingBookingTime?: string;
+
+  repaintSize: 'S' | 'M' | 'L' | 'XL';      // ← khusus untuk kebutuhan harga repaint
+  serviceSize: 'S' | 'M' | 'L' | 'XL';      // ← untuk coating, cuci, detailing
+
 }
 
 export interface SessionData {
@@ -65,7 +69,6 @@ export async function getSession(senderNumber: string): Promise<SessionData | nu
       // ⛑️ PATCH: jika session lama masih simpan string di lastMentionedService, ubah ke objek
       const rawService = session?.inquiry?.lastMentionedService;
       if (typeof rawService === 'string') {
-        // ✅ REVISI: Menambahkan properti `isAmbiguous` yang wajib ada dengan nilai default `false`.
         session.inquiry.lastMentionedService = { serviceName: rawService, isAmbiguous: false };
       }
 
