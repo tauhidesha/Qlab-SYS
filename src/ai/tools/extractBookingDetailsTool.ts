@@ -1,7 +1,6 @@
-
 import { z } from 'zod';
 import allServicesData from '../../../docs/harga_layanan.json';
-import { parse } from 'chrono-node'; // kalau mau parsing tanggal lokal
+import { parse } from 'chrono-node';
 
 // --- Input schema ---
 const InputSchema = z.object({
@@ -17,11 +16,24 @@ type Result =
       bookingTime: string;
       serviceName: string;
       estimatedDurationMinutes: number;
+      motorQuery: string | null;
     }
   | {
       success: false;
       message: string;
     };
+
+// --- Helper: Cari kemungkinan model motor ---
+function extractMotorModel(text: string): string | null {
+  const motorRegex = /\b(honda|yamaha|suzuki|kawasaki|vespa|piaggio|benelli|kymco|triumph|ducati|harley|royal enfield)?\s?(motobi|vario|nmax|aerox|beat|scoopy|klx|crf|revo|genio|vespa|lx|gts|sprint|primavera|kdx|z900|mt07|zx25r|r25|r15|satria|gsx|cb150|cbr250|monkey|mt15|benelli|motobi)?\s?([\w\d\-]{0,10})?\b/gi;
+  const matches = [...text.matchAll(motorRegex)]
+    .map(match => match[0])
+    .filter(Boolean)
+    .map(m => m.trim())
+    .filter(m => m.length >= 4); // minimal panjang
+
+  return matches.length > 0 ? matches[0] : null;
+}
 
 // --- Implementasi Tool ---
 export async function extractBookingDetailsTool(input: Input): Promise<Result> {
@@ -54,7 +66,10 @@ export async function extractBookingDetailsTool(input: Input): Promise<Result> {
     const estimatedDuration = matchedService.estimatedDuration;
     const estimatedMinutes = estimatedDuration
       ? parseInt(estimatedDuration) * 60
-      : 120; // default 2 jam kalau nggak ada estimasi
+      : 120;
+
+    // --- Ekstrak model motor ---
+    const motorQuery = extractMotorModel(user_query);
 
     return {
       success: true,
@@ -62,6 +77,7 @@ export async function extractBookingDetailsTool(input: Input): Promise<Result> {
       bookingTime,
       serviceName: matchedService.name,
       estimatedDurationMinutes: estimatedMinutes,
+      motorQuery,
     };
   } catch (err) {
     console.error('[extractBookingDetailsTool] Gagal:', err);

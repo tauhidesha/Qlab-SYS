@@ -1,5 +1,3 @@
-// File: src/ai/handlers/tool/handleToolResult.ts
-
 import type { ZoyaChatInput } from '@/types/ai/cs-whatsapp-reply';
 import type { SessionData } from '@/ai/utils/session';
 import { runToolCalls, createToolCallMessage } from '@/ai/utils/runToolCalls';
@@ -54,12 +52,14 @@ export async function handleToolResult({
 
   let replyMessage = followUp.choices[0]?.message?.content?.trim();
 
+  // Fallback to tool summary if AI doesn't reply with content
   if (!replyMessage || replyMessage.startsWith('[AI]')) {
     const toolName = normalizedCalls[0]?.toolName;
     const toolResult = toolResponses[0];
     replyMessage = generateToolSummary(toolName, toolResult);
   }
 
+  // Start with a shallow clone of the current session
   const updatedSession: Partial<SessionData> = {
     inquiry: { ...session.inquiry },
   };
@@ -73,18 +73,28 @@ export async function handleToolResult({
         ? JSON.parse(toolCall.arguments)
         : toolCall.arguments;
 
-      // Update motor dari tool result (bukan cuma dari args)
+      // ===== 🛠 MOTOR DETECTION =====
+
+      // 1. From getMotorSizeDetails result
       if (toolCall.toolName === 'getMotorSizeDetails' && toolResult?.data?.details?.motor_model) {
         updatedSession.inquiry!.lastMentionedMotor = toolResult.data.details.motor_model;
+
+      // 2. From extractBookingDetailsTool result
+      } else if (
+        toolCall.toolName === 'extractBookingDetailsTool' &&
+        toolResult?.data?.motorQuery &&
+        !updatedSession.inquiry?.lastMentionedMotor
+      ) {
+        updatedSession.inquiry!.lastMentionedMotor = toolResult.data.motorQuery;
+
+      // 3. Fallback from args.motor_query
       } else if (args.motor_query && !updatedSession.inquiry?.lastMentionedMotor) {
-        // fallback dari args (jika belum di-set dari result)
         updatedSession.inquiry!.lastMentionedMotor = args.motor_query;
       }
 
-      // Update serviceName dari tool args
-      const serviceName =
-        args.serviceName || args.service_name;
+      // ===== 📦 SERVICE DETECTION =====
 
+      const serviceName = args.serviceName || args.service_name;
       if (serviceName) {
         updatedSession.inquiry!.lastMentionedService = {
           serviceName,
@@ -92,7 +102,7 @@ export async function handleToolResult({
         };
       }
 
-      // Khusus untuk promo bundle (hardcode mapping ke satu layanan default)
+      // Hardcode khusus untuk promo bundle → map ke satu layanan default
       if (toolCall.toolName === 'getPromoBundleDetails') {
         updatedSession.inquiry!.lastMentionedService = {
           serviceName: 'Repaint Bodi Halus',
