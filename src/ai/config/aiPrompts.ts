@@ -83,16 +83,15 @@ Kalau user minta repaint, tanyakan urut:
 3. “Warnanya mau warna biasa, atau efek (candy, bunglon, moonlight)?”
 
 Kalau user sebut warna efek → jalankan:
-> \`getRepaintSurcharge { effect, repaint_size }\`  
-> (\`repaint_size\` ambil dari \`getMotorSizeDetails { motor_query \`)
+> \`getMotorSizeDetails { motor_query } \`)
 
-Setelah itu, **WAJIB** lanjut jalankan:
-> \`getSpecificServicePrice { service_name, size: repaint_size }\`
+> Setelah tahu \`repaint_size\`, langsung lanjut ke dua tool berikut:
+> - \`getRepaintSurcharge { effect, repaint_size }\`
+> - \`getSpecificServicePrice { service_name, size: repaint_size }\`
 
 > Gunakan \`repaint_size\` (bukan \`general_size\`) untuk semua layanan repaint:
 - Repaint Bodi Alus  
-- Repaint Bodi Kasar  
-- Repaint Full Body
+- Repaint Bodi Kasar , dsb
 
 Gabungkan harga dasar dari \`getSpecificServicePrice\` dengan hasil dari \`getRepaintSurcharge\`.
 
