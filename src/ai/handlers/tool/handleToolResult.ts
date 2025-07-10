@@ -64,37 +64,44 @@ export async function handleToolResult({
     inquiry: { ...session.inquiry },
   };
 
-  for (const toolCall of normalizedCalls) {
-    const args = toolCall.arguments;
-    if (!args) continue;
+  for (let i = 0; i < normalizedCalls.length; i++) {
+    const toolCall = normalizedCalls[i];
+    const toolResult = toolResponses[i];
 
     try {
-      const parsedArgs = typeof args === 'string' ? JSON.parse(args) : args;
+      const args = typeof toolCall.arguments === 'string'
+        ? JSON.parse(toolCall.arguments)
+        : toolCall.arguments;
 
-      if (parsedArgs.motor_query) {
-        updatedSession.inquiry!.lastMentionedMotor = parsedArgs.motor_query;
+      // Update motor dari tool result (bukan cuma dari args)
+      if (toolCall.toolName === 'getMotorSizeDetails' && toolResult?.data?.details?.motor_model) {
+        updatedSession.inquiry!.lastMentionedMotor = toolResult.data.details.motor_model;
+      } else if (args.motor_query && !updatedSession.inquiry?.lastMentionedMotor) {
+        // fallback dari args (jika belum di-set dari result)
+        updatedSession.inquiry!.lastMentionedMotor = args.motor_query;
       }
 
-      if (parsedArgs.serviceName) {
+      // Update serviceName dari tool args
+      const serviceName =
+        args.serviceName || args.service_name;
+
+      if (serviceName) {
         updatedSession.inquiry!.lastMentionedService = {
-          serviceName: parsedArgs.serviceName,
-          isAmbiguous: false,
-        };
-      } else if (parsedArgs.service_name) {
-        updatedSession.inquiry!.lastMentionedService = {
-          serviceName: parsedArgs.service_name,
+          serviceName,
           isAmbiguous: false,
         };
       }
 
+      // Khusus untuk promo bundle (hardcode mapping ke satu layanan default)
       if (toolCall.toolName === 'getPromoBundleDetails') {
         updatedSession.inquiry!.lastMentionedService = {
           serviceName: 'Repaint Bodi Halus',
           isAmbiguous: false,
         };
       }
+
     } catch (err) {
-      console.warn('[handleToolResult] Gagal parse tool arguments:', err);
+      console.warn('[handleToolResult] Gagal parse atau proses toolCall:', err);
     }
   }
 

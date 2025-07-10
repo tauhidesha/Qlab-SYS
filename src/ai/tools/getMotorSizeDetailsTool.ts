@@ -27,47 +27,58 @@ type Output = {
 async function implementation(input: Input): Promise<Output> {
   try {
     const { motor_query } = InputSchema.parse(input);
-    const lowerCaseQuery = motor_query.toLowerCase();
-    const matches = (allMotorsData as any[]).filter(
-      (motor) =>
-        motor.model.toLowerCase() === lowerCaseQuery ||
-        (motor.aliases && motor.aliases.some((alias: string) => lowerCaseQuery.includes(alias.toLowerCase())))
+    const query = motor_query.toLowerCase().trim();
+
+    const allMotors = allMotorsData as any[];
+
+    const exactMatch = allMotors.find(
+      (motor) => motor.model.toLowerCase() === query
     );
 
-    if (matches.length === 0) {
-      return { success: false, error: 'generic_error', message: `Motor "${motor_query}" tidak ditemukan.` };
-    }
-
-    if (matches.length > 1) {
-      const exactMatch = matches.find(m => m.model.toLowerCase() === lowerCaseQuery);
-      if (exactMatch) {
-        return {
-          success: true,
-          details: {
-            motor_model: exactMatch.model,
-            general_size: exactMatch.motor_db_size,
-            repaint_size: exactMatch.repaint_size,
-          },
-          summary: `Motor ${exactMatch.model} tergolong size ${exactMatch.motor_db_size} (umum) dan ${exactMatch.repaint_size} untuk repaint.`,
-        };
-      }
+    if (exactMatch) {
       return {
-        success: false,
-        error: 'ambiguous_motor',
-        message: `Nama motor terlalu umum, bisa jadi: ${matches.map((m) => m.model).join(', ')}`,
-        ambiguous_options: matches.map((m) => m.model),
+        success: true,
+        details: {
+          motor_model: exactMatch.model,
+          general_size: exactMatch.motor_db_size,
+          repaint_size: exactMatch.repaint_size,
+        },
+        summary: `Motor ${exactMatch.model} tergolong size ${exactMatch.motor_db_size} (umum) dan ${exactMatch.repaint_size} untuk repaint.`,
       };
     }
 
-    const motor = matches[0];
+    // Cari berdasarkan alias
+    const aliasMatches = allMotors.filter((motor) => {
+      const aliases = (motor.aliases || []) as string[];
+      return aliases.some((alias) => query.includes(alias.toLowerCase()));
+    });
+
+    if (aliasMatches.length === 1) {
+      const motor = aliasMatches[0];
+      return {
+        success: true,
+        details: {
+          motor_model: motor.model,
+          general_size: motor.motor_db_size,
+          repaint_size: motor.repaint_size,
+        },
+        summary: `Motor ${motor.model} tergolong size ${motor.motor_db_size} (umum) dan ${motor.repaint_size} untuk repaint.`,
+      };
+    }
+
+    if (aliasMatches.length > 1) {
+      return {
+        success: false,
+        error: 'ambiguous_motor',
+        message: `Nama motor terlalu umum, bisa jadi: ${aliasMatches.map((m) => m.model).join(', ')}`,
+        ambiguous_options: aliasMatches.map((m) => m.model),
+      };
+    }
+
     return {
-      success: true,
-      details: {
-        motor_model: motor.model,
-        general_size: motor.motor_db_size,
-        repaint_size: motor.repaint_size,
-      },
-      summary: `Motor ${motor.model} tergolong size ${motor.motor_db_size} (umum) dan ${motor.repaint_size} untuk repaint.`,
+      success: false,
+      error: 'motor_not_found',
+      message: `Zoya belum menemukan motor "${motor_query}" di database ukuran kami.`,
     };
 
   } catch (error: any) {
