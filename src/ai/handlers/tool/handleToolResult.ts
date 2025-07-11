@@ -44,6 +44,34 @@ export async function handleToolResult({
   const toolResponses = await runToolCalls(normalizedCalls);
 
   // --- Generate response dari GPT berdasarkan hasil tool ---
+const toolNames = normalizedCalls.map(c => c.toolName);
+const hasPrice = toolNames.includes('getSpecificServicePrice');
+const hasSurcharge = toolNames.includes('getRepaintSurcharge');
+
+let replyMessage: string | undefined;
+
+// Kalau dua tool ini terpanggil, gabungkan manual
+if (hasPrice && hasSurcharge) {
+  const priceCall = normalizedCalls.find(c => c.toolName === 'getSpecificServicePrice');
+  const surchargeCall = normalizedCalls.find(c => c.toolName === 'getRepaintSurcharge');
+  const priceResult = toolResponses[normalizedCalls.findIndex(c => c.toolName === 'getSpecificServicePrice')]?.result;
+  const surchargeResult = toolResponses[normalizedCalls.findIndex(c => c.toolName === 'getRepaintSurcharge')]?.result;
+
+  const basePrice = priceResult?.price;
+  const effect = surchargeCall?.arguments?.effect;
+  const surcharge = surchargeResult?.surcharge;
+
+  if (typeof basePrice === 'number' && typeof surcharge === 'number') {
+    replyMessage = generateToolSummary('__combo_price_with_surcharge', {
+      basePrice,
+      effect,
+      surcharge
+    });
+  }
+}
+
+// Fallback ke GPT kalau belum digabung
+if (!replyMessage) {
   const followUp = await openai.chat.completions.create({
     model: 'gpt-4o',
     messages: [
@@ -55,14 +83,15 @@ export async function handleToolResult({
     ],
   });
 
-  let replyMessage = followUp.choices[0]?.message?.content?.trim();
+  replyMessage = followUp.choices[0]?.message?.content?.trim();
+}
 
-  if (!replyMessage || replyMessage.startsWith('[AI]')) {
-    // Fallback ke summary generator jika GPT nggak kasih balasan
-    const toolName = normalizedCalls[0]?.toolName;
-    const toolResult = toolResponses[0];
-    replyMessage = generateToolSummary(toolName, toolResult);
-  }
+// Fallback terakhir: pakai summary tool manual
+if (!replyMessage || replyMessage.startsWith('[AI]')) {
+  const toolName = normalizedCalls[0]?.toolName;
+  const toolResult = toolResponses[0];
+  replyMessage = generateToolSummary(toolName, toolResult);
+}
 
   // --- Update session berdasarkan hasil tool ---
   const updatedSession: Partial<SessionData> = {

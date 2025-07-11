@@ -3,6 +3,7 @@
 import { z } from 'zod';
 import type { GetPriceResult } from '@/types/ai/tools';
 import allServicesData from '../../../docs/harga_layanan.json';
+import type { SessionData } from '@/ai/utils/session';
 
 // --- Input Schema ---
 const InputSchema = z.object({
@@ -35,9 +36,20 @@ function formatDuration(minutesStr?: string): string | undefined {
 }
 
 // --- Implementation ---
-async function implementation(input: Input): Promise<GetPriceResult> {
+async function implementation(input: Input, session?: SessionData): Promise<GetPriceResult> {
   try {
-    const { service_name, size } = InputSchema.parse(input);
+    let { service_name, size } = InputSchema.parse(input);
+
+    // Gunakan repaintSize kalau ini layanan repaint
+    if (session?.inquiry?.lastMentionedService?.serviceName?.toLowerCase()?.includes('repaint')) {
+      size = session.inquiry.repaintSize || size;
+    }
+
+    // ✅ Logging
+    console.log(`[getSpecificServicePriceTool] Request:`, {
+      service_name,
+      size,
+    });
 
     const allServices = allServicesData as Service[];
     const service = allServices.find(
@@ -69,13 +81,13 @@ async function implementation(input: Input): Promise<GetPriceResult> {
       (service.estimatedDuration ? ` Estimasi pengerjaan: ${formatDuration(service.estimatedDuration)}.` : '');
 
     return {
-  success: true,
-  service_name: service.name,
-  motor_size: size,
-  price: basePrice,
-  estimated_duration: formatDuration(service.estimatedDuration),
-  summary,
-};
+      success: true,
+      service_name: service.name,
+      motor_size: size,
+      price: basePrice,
+      estimated_duration: formatDuration(service.estimatedDuration),
+      summary,
+    };
 
   } catch (err: any) {
     console.error('[getSpecificServicePriceTool] Error:', err);
