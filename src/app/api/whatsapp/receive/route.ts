@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { generateWhatsAppReply } from '@/ai/flows/cs-whatsapp-reply-flow';
 import type { ZoyaChatInput } from '@/types/ai/cs-whatsapp-reply';
-import { handleHumanReplyForwarding } from '@/ai/utils/humanHandoff/handleHumanReplyForwarding';
+import { handleHumanReplyForwarding } from '@/ai/utils/handsoff/handleHumanReplyForwarding';
 
 export async function POST(request: Request) {
   try {
