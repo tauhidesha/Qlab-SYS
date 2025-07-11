@@ -1,11 +1,11 @@
-// File: src/ai/utils/runToolCalls.ts
+// src/ai/utils/runToolCalls.ts
 import { toolFunctionMap } from '../config/aiConfig';
 
 export async function runToolCalls(toolCalls: {
   toolName: string;
   arguments: any;
   id: string;
-}[]) {
+}[], extraContext: { input?: any; session?: any } = {}) {
   const results = [];
 
   for (const call of toolCalls) {
@@ -18,7 +18,12 @@ export async function runToolCalls(toolCalls: {
     }
 
     try {
-      const toolResult = await toolObj.implementation(args);
+      const toolResult = await toolObj.implementation({
+        arguments: args,
+        toolCall: call,
+        input: extraContext.input || {},
+        session: extraContext.session || {},
+      });
 
       results.push({
         role: 'tool',
