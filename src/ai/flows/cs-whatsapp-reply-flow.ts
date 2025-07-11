@@ -11,10 +11,14 @@ import { handleToolResult } from '../handlers/tool/handleToolResult';
 import { notifyBosMamat, setSnoozeMode } from '@/ai/utils/humanHandoverTool';
 import { setPendingHumanReply } from '../utils/sessions/setPendingHumanReply';
 
+function normalizeSenderNumber(raw: string): string {
+  return raw?.replace(/@c\.us$/, '') || '';
+}
+
 export async function generateWhatsAppReply(
   input: ZoyaChatInput
 ): Promise<WhatsAppReplyOutput | null> {
-  const senderNumber = input.senderNumber || 'playground_user';
+  const senderNumber = normalizeSenderNumber(input.senderNumber || 'playground_user');
   const senderName = input.senderName || undefined;
 
   let session = await getSession(senderNumber);
@@ -23,7 +27,6 @@ export async function generateWhatsAppReply(
   console.log(`[PESAN MASUK]: "${input.customerMessage}"`);
   console.log(`[LOG SESI AWAL]:`, JSON.stringify(session, null, 2));
 
-  // Cegah balasan jika sedang dalam mode snooze
   if (session?.snoozeUntil && Date.now() < session.snoozeUntil) {
     console.log(`[FlowController] Mode diam aktif. Tidak ada balasan.`);
     return {
@@ -34,7 +37,6 @@ export async function generateWhatsAppReply(
     };
   }
 
-  // Inisialisasi sesi baru jika belum ada
   if (!session) {
     console.log(`[FlowController] Sesi baru dibuat untuk ${senderNumber}.`);
     session = {
@@ -46,7 +48,6 @@ export async function generateWhatsAppReply(
       senderName,
     };
   } else {
-    // Tambal data yang belum ada
     if (!session.senderName && senderName) {
       session.senderName = senderName;
     }
@@ -56,7 +57,6 @@ export async function generateWhatsAppReply(
     }
   }
 
-  // 🔍 Deteksi layanan dari pesan
   const mappedServiceResult = mapTermToOfficialService(input.customerMessage);
   if (mappedServiceResult?.serviceName) {
     session.inquiry ??= {};
@@ -66,7 +66,6 @@ export async function generateWhatsAppReply(
     };
   }
 
-  // 🔍 Deteksi motor dari keyword umum
   const knownMotors = ['nmax', 'pcx', 'vario', 'beat', 'cbr', 'supra', 'vespa', 'yamaha', 'honda'];
   function detectMotorModel(message: string): string | null {
     const msg = message.toLowerCase();
@@ -82,7 +81,6 @@ export async function generateWhatsAppReply(
     session.inquiry.lastMentionedMotor = detectedMotor;
   }
 
-  // 🤖 Deteksi permintaan eksplisit ke manusia
   const msg = input.customerMessage.toLowerCase();
   const mintaBosMamat =
     ['bos mamat', 'admin', 'cs', 'customer service', 'orang', 'manusia', 'langsung'].some((keyword) =>
@@ -101,7 +99,6 @@ export async function generateWhatsAppReply(
     };
   }
 
-  // 🔮 Jalankan AI Agent
   const agentResult = await runZoyaAIAgent({
     session,
     message: input.customerMessage,
@@ -112,20 +109,21 @@ export async function generateWhatsAppReply(
 
   let replyMessage = agentResult.suggestedReply || '';
 
-  // ⚙️ Jalankan Tool jika diperlukan
   if (agentResult.toolCalls?.length > 0) {
     console.log(`[DEBUG][AI HANDLER][TOOLCALL]`, agentResult.toolCalls);
 
     const result = await handleToolResult({
       toolCalls: agentResult.toolCalls,
-      input,
+      input: {
+        ...input,
+        senderNumber,
+        senderName,
+      },
       session,
     });
 
-    // ✅ PATCH: Jika toolResult minta bantuan manusia
     if (result.needsHumanHelp) {
       replyMessage = result.replyMessage;
-
       await notifyBosMamat(senderNumber, result.customerQuestion || input.customerMessage);
       await setSnoozeMode(senderNumber);
 
@@ -141,7 +139,6 @@ export async function generateWhatsAppReply(
     session = mergeSession(session, result.updatedSession);
   }
 
-  // 🧯 Fallback jika GPT kosong & tidak ada tool
   if (
     (!replyMessage || replyMessage.trim() === '' || replyMessage.startsWith('[AI] Tidak ada jawaban')) &&
     (!agentResult.toolCalls || agentResult.toolCalls.length === 0)
@@ -151,7 +148,6 @@ export async function generateWhatsAppReply(
     await notifyBosMamat(senderNumber, input.customerMessage);
   }
 
-  // 💾 Update session terakhir
   const finalSession = mergeSession(session, {
     ...agentResult.updatedSession,
     lastInteraction: Timestamp.now(),
