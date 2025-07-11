@@ -4,6 +4,7 @@ import { runToolCalls, createToolCallMessage } from '@/ai/utils/runToolCalls';
 import { masterPrompt } from '@/ai/config/aiPrompts';
 import { OpenAI } from 'openai';
 import { generateToolSummary } from './generateToolSummary';
+import { setPendingHumanReply } from '@/ai/utils/sessions/setPendingHumanReply';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
@@ -34,7 +35,6 @@ export async function handleToolResult({
   humanHelpReason?: string;
   customerQuestion?: string;
 }> {
-  // --- Normalisasi panggilan tool ---
   const normalizedCalls: NormalizedToolCall[] = toolCalls.map((call) => ({
     toolName: call.toolName || call.function?.name,
     arguments: typeof call.arguments === 'string'
@@ -43,26 +43,21 @@ export async function handleToolResult({
     id: call.id || call.tool_call_id || 'no_id',
   }));
 
-  // --- Jalankan semua tools ---
-const toolResponses = await runToolCalls(normalizedCalls, {
-  input,
-  session,
-});
+  const toolResponses = await runToolCalls(normalizedCalls, {
+    input,
+    session,
+  });
 
-
-  // --- Generate response dari GPT berdasarkan hasil tool ---
   const toolNames = normalizedCalls.map(c => c.toolName);
   const hasPrice = toolNames.includes('getSpecificServicePrice');
   const hasSurcharge = toolNames.includes('getRepaintSurcharge');
 
   let replyMessage: string | undefined;
 
-  // Kalau dua tool ini terpanggil, gabungkan manual
   if (hasPrice && hasSurcharge) {
-    const priceCall = normalizedCalls.find(c => c.toolName === 'getSpecificServicePrice');
-    const surchargeCall = normalizedCalls.find(c => c.toolName === 'getRepaintSurcharge');
     const priceResult = toolResponses[normalizedCalls.findIndex(c => c.toolName === 'getSpecificServicePrice')]?.result;
     const surchargeResult = toolResponses[normalizedCalls.findIndex(c => c.toolName === 'getRepaintSurcharge')]?.result;
+    const surchargeCall = normalizedCalls.find(c => c.toolName === 'getRepaintSurcharge');
 
     const basePrice = priceResult?.price;
     const effect = surchargeCall?.arguments?.effect;
@@ -77,7 +72,6 @@ const toolResponses = await runToolCalls(normalizedCalls, {
     }
   }
 
-  // Fallback ke GPT kalau belum digabung
   if (!replyMessage) {
     const followUp = await openai.chat.completions.create({
       model: 'gpt-4o',
@@ -93,14 +87,24 @@ const toolResponses = await runToolCalls(normalizedCalls, {
     replyMessage = followUp.choices[0]?.message?.content?.trim();
   }
 
-  // Fallback terakhir: pakai summary tool manual
   if (!replyMessage || replyMessage.startsWith('[AI]')) {
     const toolName = normalizedCalls[0]?.toolName;
     const toolResult = toolResponses[0];
     replyMessage = generateToolSummary(toolName, toolResult);
 
-    // Kalau masih gak jelas, minta bantuan manusia
-    if (!replyMessage || replyMessage.startsWith('[AI]') || replyMessage.includes('maaf') || replyMessage.length < 15) {
+    const fallbackTrigger =
+      !replyMessage ||
+      replyMessage.startsWith('[AI]') ||
+      replyMessage.includes('maaf') ||
+      replyMessage.length < 15;
+
+    if (fallbackTrigger) {
+      // ✅ Tambahkan pemanggilan setPendingHumanReply
+      await setPendingHumanReply({
+        customerNumber: input.senderNumber,
+        question: input.customerMessage,
+      });
+
       return {
         replyMessage: "Hmm, aku belum yakin jawabannya. Aku tanya dulu ke Bos Mamat ya 🙏",
         updatedSession: {},
@@ -111,7 +115,6 @@ const toolResponses = await runToolCalls(normalizedCalls, {
     }
   }
 
-  // --- Update session berdasarkan hasil tool ---
   const updatedSession: Partial<SessionData> = {
     inquiry: { ...session.inquiry },
   };
