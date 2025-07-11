@@ -44,7 +44,11 @@ export async function handleToolResult({
   }));
 
   // --- Jalankan semua tools ---
-  const toolResponses = await runToolCalls(normalizedCalls);
+const toolResponses = await runToolCalls(normalizedCalls, {
+  input,
+  session,
+});
+
 
   // --- Generate response dari GPT berdasarkan hasil tool ---
   const toolNames = normalizedCalls.map(c => c.toolName);
