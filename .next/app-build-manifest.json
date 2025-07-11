@@ -21,20 +21,10 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
-    "/(app)/pos/page": [
+    "/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(app)/pos/page.js"
-    ],
-    "/(app)/pos/loading": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/(app)/pos/loading.js"
-    ],
-    "/(app)/bookings/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/(app)/bookings/page.js"
+      "static/chunks/app/page.js"
     ]
   }
 }

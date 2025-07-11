@@ -4,22 +4,66 @@ import Slider from 'react-slick'
 import Image from 'next/image'
 import * as fpixel from '@/lib/fpixel'
 
+type BundlingItem = {
+  label: string;
+  desc: string;
+  before: string;
+  after: string;
+  hemat: string;
+  populer?: boolean;
+  note?: string;
+};
+
+const promoBundling: BundlingItem[] = [
+  {
+    label: 'S',
+    desc: 'beat, supra, revo, mio, vega, jupiter z',
+    before: '1.450.000',
+    after: '1.200.000',
+    hemat: '250rb'
+  },
+  {
+    label: 'M',
+    desc: 'vario, lexi, scoopy, fino, aerox, fazzio, nmax',
+    before: '1.800.000',
+    after: '1.499.000',
+    hemat: '301rb',
+    populer: true
+  },
+  {
+    label: 'L',
+    desc: 'pcx, adv, alva one, satria 120r, astrea grand, c70',
+    before: '1.950.000',
+    after: '1.650.000',
+    hemat: '300rb'
+  },
+  {
+    label: 'XL',
+    desc: 'cb 150r, r15, cbr 150r, ninja 250 fi, xmax, mx king',
+    before: '2.550.000',
+    after: '2.200.000',
+    hemat: '350rb',
+    note: '⚠️ Detailing hanya tersedia sampai ukuran L. XL khusus untuk matic besar dan sport 250cc, bukan moge 400cc ke atas.'
+  }
+];
+
 export default function Home() {
   const handleWhatsAppClick = () => {
-  console.log('Meta Pixel Event: Contact Triggered');
+    console.log('Meta Pixel Event: Contact Triggered');
 
-  // 1. Kirim event ke Meta Pixel (ini sudah benar)
-  fpixel.event('Contact', {
-    content_name: 'Chat via WhatsApp',
-    content_category: 'Landing Page CTA',
-  });
+    fpixel.event('Contact', {
+      content_name: 'Chat via WhatsApp',
+      content_category: 'Landing Page CTA',
+    });
 
-  // 2. Buka WhatsApp di tab baru SETELAH event terkirim
-  window.open('https://wa.me/62895401527556', '_blank');
-};
+    const message = encodeURIComponent(
+      'Halo Kak Zoya, Tertarik promo bundling repaint. Motornya .... (isi dengan motor mu)'
+    );
+    window.open(`https://wa.me/62895401527556?text=${message}`, '_blank');
+  };
+
   return (
     <main className="max-w-screen-sm bg-white rounded-xl shadow-lg mx-auto px-5 py-6 mt-6 text-gray-900 leading-relaxed text-sm">
-
       {/* Logo */}
       <div className="w-[100px] mx-auto mb-4">
         <Image src="/images/logo-bosmat.webp" alt="Logo Bosmat" width={500} height={500} className="w-full h-auto" />
@@ -31,11 +75,11 @@ export default function Home() {
         <p className="text-base font-semibold mt-1">Bosmat Bikin Kinclong Lagi Tanpa Ribet!</p>
         <p className="text-sm mt-1">Full repaint + detailing luar dalam, hasil ganteng maksimal. Bebas pilih warna, garansi puas.</p>
         <button
-  onClick={handleWhatsAppClick}
-  className="inline-block bg-green-600 text-white px-6 py-2 rounded-full mt-3 font-bold"
->
-  Chat Bosmat Sekarang
-</button>
+          onClick={handleWhatsAppClick}
+          className="inline-block bg-green-600 text-white px-6 py-2 rounded-full mt-3 font-bold"
+        >
+          Chat Bosmat Sekarang
+        </button>
       </section>
 
       {/* Review Pelanggan */}
@@ -84,14 +128,8 @@ export default function Home() {
           slidesToShow={2}
           slidesToScroll={2}
           responsive={[
-            {
-              breakpoint: 768,
-              settings: { slidesToShow: 1, slidesToScroll: 1 },
-            },
-            {
-              breakpoint: 1024,
-              settings: { slidesToShow: 3, slidesToScroll: 3 },
-            },
+            { breakpoint: 768, settings: { slidesToShow: 1, slidesToScroll: 1 } },
+            { breakpoint: 1024, settings: { slidesToShow: 3, slidesToScroll: 3 } },
           ]}
         >
           {Array.from({ length: 45 }).map((_, i) => (
@@ -111,11 +149,11 @@ export default function Home() {
         <div className="text-center mt-4">
           <p className="text-sm">➡️ Dari motor kusam jadi ganteng paripurna bro. Baret? Hilang. Kusam? Kinclong lagi!</p>
           <button
-  onClick={handleWhatsAppClick}
-  className="inline-block bg-green-600 text-white px-6 py-2 rounded-full mt-3 font-bold"
->
-  Chat Bosmat Sekarang
-</button>
+            onClick={handleWhatsAppClick}
+            className="inline-block bg-green-600 text-white px-6 py-2 rounded-full mt-3 font-bold"
+          >
+            Chat Bosmat Sekarang
+          </button>
         </div>
       </section>
 
@@ -141,50 +179,6 @@ export default function Home() {
           <li>Booking jadwal & bawa motor</li>
           <li>Tunggu kabar motor lo jadi ganteng lagi</li>
         </ol>
-      </section>
-
-      {/* Harga */}
-      <section className="mb-10">
-        <h3 className="text-base font-semibold mb-3 text-center">💥 Harga Bundling Promo</h3>
-        <div className="space-y-4">
-          {[
-            { label: 'S', desc: 'Beat, Supra, Mio, Revo, Vega, dll', before: '1.450.000', after: '1.200.000', hemat: '250rb' },
-            { label: 'M', desc: 'Vario, Lexi, Scoopy, Fino, Aerox, Grand Filano', before: '1.800.000', after: '1.499.000', hemat: '301rb', populer: true },
-            { label: 'L', desc: 'PCX, ADV, X-Ride besar, motor listrik besar, trail 200cc', before: '1.950.000', after: '1.650.000', hemat: '300rb' },
-            { label: 'XL', desc: 'NMAX, XMAX, R15, CBR, Ninja 250, CB150, dsb', before: '2.550.000', after: '2.200.000', hemat: '350rb', note: '⚠️ Detailing hanya tersedia sampai ukuran L. XL khusus untuk matic besar dan sport 250cc, bukan moge 400cc ke atas.' },
-          ].map(({ label, desc, before, after, hemat, populer, note }) => (
-            <div 
-              key={label}
-              className={`p-4 rounded-lg shadow-md border relative overflow-hidden ${
-                populer ? 'bg-green-50 border-green-500' : 'bg-gray-50 border-gray-200'
-              }`}
-            >
-              {populer && (
-                <div className="absolute top-0 right-0 bg-green-500 text-white text-xs font-bold px-4 py-1 rounded-bl-lg">
-                  Paling Populer
-                </div>
-              )}
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="font-bold text-lg">{label}</p>
-                  <p className="text-xs text-gray-600 max-w-[180px]">{desc}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-green-600">Rp {after}</p>
-                  <p className="text-sm text-gray-500">
-                    <s>Rp {before}</s>
-                  </p>
-                </div>
-              </div>
-              <div className="mt-3 pt-3 border-t border-dashed">
-                <span className="bg-yellow-200 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                  ✨ Hemat Rp {hemat}
-                </span>
-                {note && <p className="text-xs mt-2 text-gray-500">{note}</p>}
-              </div>
-            </div>
-          ))}
-        </div>
       </section>
 
       {/* Urgency */}
@@ -215,11 +209,11 @@ export default function Home() {
       <section className="text-center mt-10 space-y-3">
         <p className="text-base font-semibold">🚀 SIAPIN MOTOR LO BUAT TAMPIL GANTENG?</p>
         <button
-  onClick={handleWhatsAppClick}
-  className="inline-block bg-green-600 text-white px-6 py-2 rounded-full mt-3 font-bold"
->
-  Chat Bosmat Sekarang
-</button>
+          onClick={handleWhatsAppClick}
+          className="inline-block bg-green-600 text-white px-6 py-2 rounded-full mt-3 font-bold"
+        >
+          Chat Bosmat Sekarang
+        </button>
       </section>
 
       {/* Footer */}
@@ -227,5 +221,5 @@ export default function Home() {
         © 2025 Bosmat Detailing & Repainting Studio | Cimanggis, Depok | Jam buka: 09.00–17.00 (by booking only)
       </footer>
     </main>
-  )
+  );
 }
