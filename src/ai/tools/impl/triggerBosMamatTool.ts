@@ -26,29 +26,34 @@ export const triggerBosMamatTool: ToolFunction & {
     required: ['reason', 'customerQuestion'],
   },
 
+  // ✅ Implementasi tool yang aman dan robust
   implementation: async ({ arguments: args = {}, session, input }) => {
-  const { reason, customerQuestion } = args;
+    const { reason, customerQuestion } = args;
 
-  if (!reason || !customerQuestion) {
-    throw new Error(
-      '[triggerBosMamatTool] Tool dipanggil tanpa reason atau customerQuestion.'
-    );
-  }
+    if (!reason || !customerQuestion) {
+      throw new Error(
+        '[triggerBosMamatTool] Tool dipanggil tanpa reason atau customerQuestion.'
+      );
+    }
 
-  const senderNumber = input?.senderNumber || 'unknown';
+    const senderNumber = input?.senderNumber || 'unknown';
 
-  await setSnoozeMode(senderNumber);
-  await notifyBosMamat(senderNumber, customerQuestion, reason);
+    console.log('[triggerBosMamatTool] Mengirim ke Bos Mamat:', {
+      senderNumber,
+      reason,
+      customerQuestion,
+    });
 
-  return {
-    result: 'success',
-    message: 'Zoya sudah hubungi Bos Mamat, tinggal tunggu jawabannya.',
-  };
-},
+    await setSnoozeMode(senderNumber);
+    await notifyBosMamat(senderNumber, customerQuestion, reason);
 
+    return {
+      result: 'success',
+      message: 'Zoya sudah hubungi Bos Mamat, tinggal tunggu jawabannya.',
+    };
+  },
 
-
-  // ✅ definisi tool untuk OpenAI
+  // ✅ Definisi tool untuk OpenAI agar bisa dipanggil via GPT
   toolDefinition: {
     type: 'function',
     function: {
