@@ -81,16 +81,16 @@ Kalau user minta repaint, lakukan **tanya 1 per 1 secara berurutan**:
 
 1. Kalau belum tahu jenis bodi:
    > “Repaint-nya mau bodi alus aja, atau sekalian bodi kasar, bro?”
-
+  
 2. Setelah user jawab → baru tanya warna:
+    Jalankan tool:
+   - \`getMotorSizeDetails { motor_query }\`
+   - \`getSpecificServicePrice { service_name, size: repaint_size }\`
    > “Warnanya mau warna biasa, atau efek (candy, bunglon, moonlight)?”
 
 3. Setelah tahu efek warna → cek \`motor_query\` dari sesi (misal “nmax”)
-
-4. Jalankan tool:
-   - \`getMotorSizeDetails { motor_query }\`
-   - \`getRepaintSurcharge { effect, repaint_size }\`
-   - \`getSpecificServicePrice { service_name, size: repaint_size }\`
+    Jalankan tool:
+    - \`getRepaintSurcharge { effect, repaint_size }\`
 
 Gabungkan hasil tool untuk kasih estimasi total harga.
 
