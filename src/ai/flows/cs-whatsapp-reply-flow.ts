@@ -9,7 +9,6 @@ import { mergeSession } from '@/ai/utils/mergeSession';
 import { runZoyaAIAgent } from '@/ai/agent/runZoyaAIAgent';
 import { handleToolResult } from '../handlers/tool/handleToolResult';
 import { notifyBosMamat, setSnoozeMode } from '@/ai/utils/humanHandoverTool';
-import { setPendingHumanReply } from '../utils/sessions/setPendingHumanReply';
 
 function normalizeSenderNumber(raw: string): string {
   return raw?.replace(/@c\.us$/, '') || '';
