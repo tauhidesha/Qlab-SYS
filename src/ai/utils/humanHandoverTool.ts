@@ -3,45 +3,61 @@
 
 import { updateSession } from './session';
 
-const BOS_MAMAT_NUMBER = '628179481010'; 
+const BOS_MAMAT_NUMBER = '628179481010';
 const SNOOZE_DURATION_MS = 60 * 60 * 1000; // 1 jam
 
-export async function notifyBosMamat(senderNumber: string, customerMessage: string): Promise<void> {
-    console.log(`[Handover] Memicu notifikasi ke Bos Mamat untuk nomor ${senderNumber}`);
-    
-    // SEMUA LOGIKA URL HARUS BERADA DI DALAM FUNGSI INI
-    const baseUrl = process.env.WHATSAPP_SERVER_URL;
+export async function notifyBosMamat(
+  senderNumber: string,
+  customerMessage: string,
+  reason?: string
+): Promise<void> {
+  console.log(`[Handover] Memicu notifikasi ke Bos Mamat untuk nomor ${senderNumber}`);
 
-    if (!baseUrl) {
-        console.error('[Handover Error] Konfigurasi error: WHATSAPP_SERVER_URL tidak diatur.');
-        return; 
-    }
+  const baseUrl = process.env.WHATSAPP_SERVER_URL;
 
-    const endpoint = `${baseUrl}/send-manual-message`;
+  if (!baseUrl) {
+    console.error('[Handover Error] Konfigurasi error: WHATSAPP_SERVER_URL tidak diatur.');
+    return;
+  }
 
-    const messageToMamat = `⚠️ Bro, ada pelanggan (${senderNumber}) butuh bantuan lo. Pesan terakhirnya: "${customerMessage}". Cek WA sekarang!`;
+  const endpoint = `${baseUrl}/send-manual-message`;
 
-    try {
-        await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                number: BOS_MAMAT_NUMBER,
-                message: messageToMamat,
-            }),
-        });
-        console.log('[Handover] Notifikasi ke Bos Mamat berhasil dikirim.');
-    } catch (error) {
-        console.error('[Handover Error] Gagal mengirim notifikasi ke Bos Mamat:', error);
-    }
+  const messageToMamat = `
+📩 *Zoya Butuh Bantuan Bos Mamat*
+
+Pelanggan *${senderNumber}* nanya:
+"${customerMessage}"
+
+Zoya belum yakin jawabannya${reason ? `, karena:\n_${reason}_` : ''}
+
+Kalau udah siap jawaban, balas aja langsung di sini ya. Nanti Zoya terusin ke pelanggan. 🙏
+  `.trim();
+
+  try {
+    await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        number: BOS_MAMAT_NUMBER,
+        message: messageToMamat,
+      }),
+    });
+    console.log('[Handover] Notifikasi ke Bos Mamat berhasil dikirim.');
+  } catch (error) {
+    console.error('[Handover Error] Gagal mengirim notifikasi ke Bos Mamat:', error);
+  }
 }
 
 export async function setSnoozeMode(senderNumber: string): Promise<void> {
-    const snoozeUntil = Date.now() + SNOOZE_DURATION_MS;
-    try {
-        await updateSession(senderNumber, { snoozeUntil });
-        console.log(`[Handover] Zoya di-snooze untuk nomor ${senderNumber} sampai ${new Date(snoozeUntil).toLocaleTimeString('id-ID')}`);
-    } catch (error) {
-        console.error('[Handover Error] Gagal update sesi untuk snooze mode:', error);
-    }
+  const snoozeUntil = Date.now() + SNOOZE_DURATION_MS;
+  try {
+    await updateSession(senderNumber, { snoozeUntil });
+    console.log(
+      `[Handover] Zoya di-snooze untuk nomor ${senderNumber} sampai ${new Date(
+        snoozeUntil
+      ).toLocaleTimeString('id-ID')}`
+    );
+  } catch (error) {
+    console.error('[Handover Error] Gagal update sesi untuk snooze mode:', error);
+  }
 }

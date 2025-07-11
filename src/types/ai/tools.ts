@@ -24,6 +24,9 @@ type MotorSizeError =
 
 export type GetMotorSizeResult = MotorSizeSuccess | MotorSizeError;
 
+export type TriggerBosMamatResult =
+  | { success: true; message: string }
+  | { success: false; message: string };
 
 // --- Tipe untuk getSpecificServicePrice ---
 export interface PriceDetails {

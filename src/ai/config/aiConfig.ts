@@ -1,4 +1,3 @@
-// File: src/ai/config/aiConfig.ts
 import type { OpenAI } from 'openai';
 
 import { listServicesByCategoryTool } from '../tools/listServicesByCategoryTool';
@@ -11,24 +10,24 @@ import { checkBookingAvailabilityTool } from '../tools/checkBookingAvailabilityT
 import { matchServiceFromDescriptionTool } from '../tools/impl/matchServiceFromDescriptionTool';
 import { createBookingTool } from '../tools/createBookingTool';
 import { getRepaintSurchargeTool } from '../tools/getRepaintSurchargeTool';
-import { masterPrompt } from './aiPrompts'; // ✅ Import dari sini
+import { triggerBosMamatTool } from '../tools/impl/triggerBosMamatTool'; // ✅ perbaikan path
+import { masterPrompt } from './aiPrompts';
 
-
-// ✅ List tools yang akan digunakan GPT-4o
 export const zoyaTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   listServicesByCategoryTool.toolDefinition,
   getSpecificServicePriceTool.toolDefinition,
   getServiceDescriptionTool.toolDefinition,
   getMotorSizeDetailsTool.toolDefinition,
+  triggerBosMamatTool.toolDefinition, // ✅ PAKAI .toolDefinition
   findNextAvailableSlotTool.toolDefinition,
   getPromoBundleDetailsTool.toolDefinition,
   checkBookingAvailabilityTool.toolDefinition,
   matchServiceFromDescriptionTool.toolDefinition,
   createBookingTool.toolDefinition,
-  getRepaintSurchargeTool.toolDefinition, // ✅ Pastikan sudah terdefinisi
+  getRepaintSurchargeTool.toolDefinition,
 ];
 
-// ✅ Peta nama tool → implementasi function
+
 export const toolFunctionMap = {
   listServicesByCategory: listServicesByCategoryTool,
   getSpecificServicePrice: getSpecificServicePriceTool,
@@ -40,4 +39,6 @@ export const toolFunctionMap = {
   matchServiceFromDescription: matchServiceFromDescriptionTool,
   createBooking: createBookingTool,
   getRepaintSurcharge: getRepaintSurchargeTool,
+  triggerBosMamatTool, // ✅ TANPA .toolDefinition karena ini object function + def
 };
+
