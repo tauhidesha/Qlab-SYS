@@ -26,13 +26,11 @@ export const triggerBosMamatTool: ToolFunction & {
     required: ['reason', 'customerQuestion'],
   },
 
-  // ✅ IMPLEMENTASI FINAL (format toolCall Zoya custom)
   implementation: async ({ toolCall, input }) => {
-    const args = toolCall?.arguments || {};
-    const { reason, customerQuestion } = args;
+    const { reason, customerQuestion } = toolCall?.arguments || {};
 
     if (!reason || !customerQuestion) {
-      console.error('[triggerBosMamatTool] Argumen tidak lengkap:', args);
+      console.error('[triggerBosMamatTool] Argumen tidak lengkap:', toolCall?.arguments);
       throw new Error('[triggerBosMamatTool] Tool dipanggil tanpa reason atau customerQuestion.');
     }
 
@@ -53,7 +51,6 @@ export const triggerBosMamatTool: ToolFunction & {
     };
   },
 
-  // ✅ Definisi tool OpenAI
   toolDefinition: {
     type: 'function',
     function: {
