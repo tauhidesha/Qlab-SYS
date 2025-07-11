@@ -122,6 +122,21 @@ export async function generateWhatsAppReply(
       session,
     });
 
+    // ✅ PATCH: Jika toolResult minta bantuan manusia
+    if (result.needsHumanHelp) {
+      replyMessage = result.replyMessage;
+
+      await notifyBosMamat(senderNumber, result.customerQuestion || input.customerMessage);
+      await setSnoozeMode(senderNumber);
+
+      return {
+        suggestedReply: replyMessage,
+        toolCalls: [],
+        route: 'ai_agent_need_human',
+        metadata: { snoozeUntil: Date.now() + 60 * 60 * 1000 },
+      };
+    }
+
     replyMessage = result.replyMessage;
     session = mergeSession(session, result.updatedSession);
   }
