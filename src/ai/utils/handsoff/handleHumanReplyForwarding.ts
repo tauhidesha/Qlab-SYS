@@ -1,12 +1,15 @@
-import { db } from '@/lib/firebase';
+import { db, app } from '@/lib/firebase';
 import { getDoc, updateDoc, deleteField, doc } from 'firebase/firestore';
 import { sendWhatsAppMessage } from '@/services/whatsappService';
+
+
 
 const BOS_MAMAT_NUMBER = process.env.BOS_MAMAT_NUMBER;
 
 if (!BOS_MAMAT_NUMBER) {
   console.error('[handleHumanReplyForwarding] BOS_MAMAT_NUMBER belum diset di .env');
 }
+console.log(`[handleHumanReplyForwarding] Menggunakan Firebase project: ${app.options.projectId}`);
 
 function normalizeSenderNumber(raw: string): string {
   return raw?.replace(/@c\.us$/, '') || '';

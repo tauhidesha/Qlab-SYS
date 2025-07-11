@@ -2,6 +2,7 @@
 import { initializeApp, getApp, getApps, type FirebaseApp } from "firebase/app";
 import { getFirestore, type Firestore } from "firebase/firestore";
 
+
 // Minimal logging
 console.log("[firebase.ts] Initializing Firebase client...");
 
