@@ -29,7 +29,14 @@ export interface ServiceInquiry {
   repaintSize?: 'S' | 'M' | 'L' | 'XL';      // ← khusus untuk kebutuhan harga repaint
   serviceSize?: 'S' | 'M' | 'L' | 'XL';      // ← untuk coating, cuci, detailing
   repaintSurcharge?: {effect: string;surcharge: number;};
-
+  lastBooking?: {
+  customerPhone: string;
+  serviceName: string;
+  bookingDate: string;
+  bookingTime: string;
+  vehicleInfo: string;
+  createdAt: number;
+};
 
 }
 

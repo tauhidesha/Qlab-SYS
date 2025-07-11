@@ -22,17 +22,47 @@ type Service = {
   variants?: ServiceVariant[];
 };
 
-// --- Utility ---
+// --- Fuzzy Match Utility ---
+function levenshtein(a: string, b: string): number {
+  const dp = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
+  for (let i = 0; i <= a.length; i++) dp[i][0] = i;
+  for (let j = 0; j <= b.length; j++) dp[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]) + 1;
+    }
+  }
+  return dp[a.length][b.length];
+}
+
+function stringSimilarity(a: string, b: string): number {
+  const distance = levenshtein(a.toLowerCase(), b.toLowerCase());
+  const maxLen = Math.max(a.length, b.length);
+  return maxLen === 0 ? 1 : 1 - distance / maxLen;
+}
+
+function getBestMatchServiceName(inputName: string): string | null {
+  let bestMatch: { name: string; score: number } | null = null;
+
+  for (const service of allServicesData as Service[]) {
+    const score = stringSimilarity(inputName, service.name);
+    if (!bestMatch || score > bestMatch.score) {
+      bestMatch = { name: service.name, score };
+    }
+  }
+
+  return bestMatch && bestMatch.score >= 0.75 ? bestMatch.name : null;
+}
+
 function formatDuration(minutesStr?: string): string | undefined {
   if (!minutesStr) return undefined;
-  const totalMinutes = parseInt(minutesStr, 10);
-  if (isNaN(totalMinutes) || totalMinutes === 0) return undefined;
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  return [
-    hours > 0 ? `${hours} jam` : '',
-    minutes > 0 ? `${minutes} menit` : ''
-  ].filter(Boolean).join(' ');
+  const minutes = parseInt(minutesStr, 10);
+  if (isNaN(minutes) || minutes === 0) return undefined;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return [hours > 0 ? `${hours} jam` : '', mins > 0 ? `${mins} menit` : ''].filter(Boolean).join(' ');
 }
 
 // --- Implementation ---
@@ -40,27 +70,27 @@ async function implementation(input: Input, session?: SessionData): Promise<GetP
   try {
     let { service_name, size } = InputSchema.parse(input);
 
-    // Gunakan repaintSize kalau ini layanan repaint
-    if (session?.inquiry?.lastMentionedService?.serviceName?.toLowerCase()?.includes('repaint')) {
+    // Kalau ini repaint, dan repaintSize tersedia, override size
+    if (session?.inquiry?.lastMentionedService?.serviceName?.toLowerCase().includes('repaint')) {
       size = session.inquiry.repaintSize || size;
     }
 
-    // ✅ Logging
-    console.log(`[getSpecificServicePriceTool] Request:`, {
-      service_name,
-      size,
-    });
+    // Cari layanan dengan fuzzy match
+    const matchedServiceName = getBestMatchServiceName(service_name);
+    if (!matchedServiceName) {
+      return {
+        success: false,
+        error: 'generic_error',
+        message: `Layanan "${service_name}" tidak ditemukan atau terlalu berbeda.`,
+      };
+    }
 
-    const allServices = allServicesData as Service[];
-    const service = allServices.find(
-      s => s.name.toLowerCase() === service_name.toLowerCase()
-    );
-
+    const service = (allServicesData as Service[]).find(s => s.name === matchedServiceName);
     if (!service) {
       return {
         success: false,
         error: 'generic_error',
-        message: `Layanan "${service_name}" tidak ditemukan di database.`,
+        message: `Data layanan "${matchedServiceName}" tidak tersedia di database.`,
       };
     }
 
@@ -77,7 +107,8 @@ async function implementation(input: Input, session?: SessionData): Promise<GetP
       };
     }
 
-    const summary = `Harga untuk layanan *${service.name}* untuk motor ukuran ${size} adalah Rp${basePrice.toLocaleString('id-ID')}.` +
+    const summary =
+      `Harga untuk layanan *${service.name}* untuk motor ukuran ${size} adalah Rp${basePrice.toLocaleString('id-ID')}.` +
       (service.estimatedDuration ? ` Estimasi pengerjaan: ${formatDuration(service.estimatedDuration)}.` : '');
 
     return {
@@ -99,7 +130,7 @@ async function implementation(input: Input, session?: SessionData): Promise<GetP
   }
 }
 
-// --- Export untuk AI Agent (function calling compatible) ---
+// --- Export ---
 export const getSpecificServicePriceTool = {
   toolDefinition: {
     type: 'function' as const,

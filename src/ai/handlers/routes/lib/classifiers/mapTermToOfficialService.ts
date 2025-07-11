@@ -52,7 +52,7 @@ export function mapTermToOfficialService(message: string): MappedServiceResult |
     'cat bodi', 'repaint halus', 'cat ulang halus', 'warna ulang',
     'repaint bodi', 'repaint alus', 'cat mulus', 'repaint kinclong',
     'cat ulang pabrikan', 'repaint full bodi', 'warna ulang bodi', 'bodi dicat ulang',
-    'bodi alus', 'full bodi alus', 'bodi halus', 'repaint full bodi alus'
+    'bodi alus', 'full bodi alus', 'bodi halus', 'repaint full bodi alus', 'repaint bodi alus'
   ],
 },
     {
