@@ -9,6 +9,7 @@ import { mergeSession } from '@/ai/utils/mergeSession';
 import { runZoyaAIAgent } from '@/ai/agent/runZoyaAIAgent';
 import { handleToolResult } from '../handlers/tool/handleToolResult';
 import { notifyBosMamat, setSnoozeMode } from '@/ai/utils/humanHandoverTool';
+import { setPendingHumanReply } from '../utils/sessions/setPendingHumanReply';
 
 export async function generateWhatsAppReply(
   input: ZoyaChatInput
@@ -81,7 +82,7 @@ export async function generateWhatsAppReply(
     session.inquiry.lastMentionedMotor = detectedMotor;
   }
 
-  // 🤖 Deteksi permintaan handover ke manusia
+  // 🤖 Deteksi permintaan eksplisit ke manusia
   const msg = input.customerMessage.toLowerCase();
   const mintaBosMamat =
     ['bos mamat', 'admin', 'cs', 'customer service', 'orang', 'manusia', 'langsung'].some((keyword) =>
@@ -92,7 +93,6 @@ export async function generateWhatsAppReply(
   if (mintaBosMamat) {
     await setSnoozeMode(senderNumber);
     await notifyBosMamat(senderNumber, input.customerMessage);
-
     return {
       suggestedReply: 'Oke bro, Zoya panggilin Bos Mamat dulu ya. Tunggu sebentar 🙏',
       toolCalls: [],
@@ -139,6 +139,23 @@ export async function generateWhatsAppReply(
 
     replyMessage = result.replyMessage;
     session = mergeSession(session, result.updatedSession);
+  }
+
+  // ✅ PATCH: Deteksi jika GPT memutuskan untuk tanya ke Bos Mamat
+  const msgLower = replyMessage.toLowerCase();
+  if (msgLower.includes('zoya bantu tanyain dulu ke bos mamat')) {
+    console.log(`[HandoverTrigger] Zoya minta bantu Bos Mamat.`);
+
+    await notifyBosMamat(senderNumber, input.customerMessage);
+    await setPendingHumanReply({ customerNumber: senderNumber, question: input.customerMessage });
+    await setSnoozeMode(senderNumber);
+
+    return {
+      suggestedReply: replyMessage,
+      toolCalls: [],
+      route: 'handover_consult',
+      metadata: { snoozeUntil: Date.now() + 60 * 60 * 1000 },
+    };
   }
 
   // 🧯 Fallback jika GPT kosong & tidak ada tool
