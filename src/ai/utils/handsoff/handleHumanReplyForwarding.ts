@@ -2,11 +2,14 @@ import { db } from '@/lib/firebase';
 import { getDoc, updateDoc, deleteField, doc } from 'firebase/firestore';
 import { sendWhatsAppMessage } from '@/services/whatsappService';
 
-const BOS_MAMAT_NUMBER = '62xxxxxxxxxx'; // Ganti ke nomor lo (tanpa +)
+const BOS_MAMAT_NUMBER = process.env.BOS_MAMAT_NUMBER;
 
-// Format: #balas 628xxx\nisi pesan...
+if (!BOS_MAMAT_NUMBER) {
+  console.error('[handleHumanReplyForwarding] BOS_MAMAT_NUMBER belum diset di .env');
+}
+
 export async function handleHumanReplyForwarding(senderNumber: string, messageBody: string): Promise<boolean> {
-  if (!senderNumber.startsWith(BOS_MAMAT_NUMBER)) return false;
+  if (!BOS_MAMAT_NUMBER || !senderNumber.startsWith(BOS_MAMAT_NUMBER)) return false;
 
   console.log(`[HumanForwarding] Deteksi balasan dari Bos Mamat: "${messageBody}"`);
 
