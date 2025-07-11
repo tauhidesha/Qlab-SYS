@@ -26,8 +26,15 @@ export const triggerBosMamatTool: ToolFunction & {
     required: ['reason', 'customerQuestion'],
   },
 
-  implementation: async ({ arguments: args, session, input }) => {
+  implementation: async ({ arguments: args = {}, session, input }) => {
   const { reason, customerQuestion } = args;
+
+  if (!reason || !customerQuestion) {
+    throw new Error(
+      '[triggerBosMamatTool] Tool dipanggil tanpa reason atau customerQuestion.'
+    );
+  }
+
   const senderNumber = input?.senderNumber || 'unknown';
 
   await setSnoozeMode(senderNumber);
@@ -38,6 +45,7 @@ export const triggerBosMamatTool: ToolFunction & {
     message: 'Zoya sudah hubungi Bos Mamat, tinggal tunggu jawabannya.',
   };
 },
+
 
 
   // ✅ definisi tool untuk OpenAI
