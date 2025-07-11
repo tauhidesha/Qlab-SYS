@@ -26,28 +26,19 @@ export const triggerBosMamatTool: ToolFunction & {
     required: ['reason', 'customerQuestion'],
   },
 
-  // ✅ Implementasi tool: parsing args manual dari toolCall OpenAI
+  // ✅ IMPLEMENTASI FINAL (format toolCall Zoya custom)
   implementation: async ({ toolCall, input }) => {
-    let reason = '';
-    let customerQuestion = '';
-
-    try {
-      const args = JSON.parse(toolCall.function.arguments || '{}');
-      reason = args.reason;
-      customerQuestion = args.customerQuestion;
-    } catch (err) {
-      console.error('[triggerBosMamatTool] Gagal parsing arguments:', err);
-    }
+    const args = toolCall?.arguments || {};
+    const { reason, customerQuestion } = args;
 
     if (!reason || !customerQuestion) {
-      throw new Error(
-        '[triggerBosMamatTool] Tool dipanggil tanpa reason atau customerQuestion.'
-      );
+      console.error('[triggerBosMamatTool] Argumen tidak lengkap:', args);
+      throw new Error('[triggerBosMamatTool] Tool dipanggil tanpa reason atau customerQuestion.');
     }
 
     const senderNumber = input?.senderNumber || 'unknown';
 
-    console.log('[triggerBosMamatTool] Mengirim ke Bos Mamat:', {
+    console.log('[triggerBosMamatTool] Kirim ke Bos Mamat:', {
       senderNumber,
       reason,
       customerQuestion,
@@ -62,7 +53,7 @@ export const triggerBosMamatTool: ToolFunction & {
     };
   },
 
-  // ✅ Definisi untuk tool calling OpenAI
+  // ✅ Definisi tool OpenAI
   toolDefinition: {
     type: 'function',
     function: {
