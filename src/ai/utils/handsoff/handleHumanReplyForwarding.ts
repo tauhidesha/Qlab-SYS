@@ -8,6 +8,10 @@ if (!BOS_MAMAT_NUMBER) {
   console.error('[handleHumanReplyForwarding] BOS_MAMAT_NUMBER belum diset di .env');
 }
 
+function normalizeSenderNumber(raw: string): string {
+  return raw?.replace(/@c\.us$/, '') || '';
+}
+
 export async function handleHumanReplyForwarding(senderNumber: string, messageBody: string): Promise<boolean> {
   if (!BOS_MAMAT_NUMBER || !senderNumber.startsWith(BOS_MAMAT_NUMBER)) return false;
 
@@ -17,9 +21,10 @@ export async function handleHumanReplyForwarding(senderNumber: string, messageBo
   const match = messageBody.match(/^#balas\s+(\d+)\s*\n([\s\S]+)/i);
 
   if (match) {
-    const targetNumber = match[1];
+    const rawNumber = match[1];
     const replyText = match[2];
 
+    const targetNumber = normalizeSenderNumber(rawNumber);
     const sessionRef = doc(db, 'sessions', targetNumber);
     const sessionSnap = await getDoc(sessionRef);
 
