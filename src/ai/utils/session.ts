@@ -28,6 +28,8 @@ export interface ServiceInquiry {
 
   repaintSize?: 'S' | 'M' | 'L' | 'XL';      // ← khusus untuk kebutuhan harga repaint
   serviceSize?: 'S' | 'M' | 'L' | 'XL';      // ← untuk coating, cuci, detailing
+  repaintSurcharge?: {effect: string;surcharge: number;};
+
 
 }
 

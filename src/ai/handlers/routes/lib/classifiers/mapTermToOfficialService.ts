@@ -46,14 +46,15 @@ export function mapTermToOfficialService(message: string): MappedServiceResult |
         'coating + detailing doff', 'paket sultan doff', 'doff all in'
       ],
     },
-    {
-      serviceName: 'Repaint Bodi Halus',
-      keywords: [
-        'cat bodi', 'repaint halus', 'cat ulang halus', 'warna ulang',
-        'repaint bodi', 'repaint alus', 'cat mulus', 'repaint kinclong',
-        'cat ulang pabrikan', 'repaint full bodi', 'warna ulang bodi', 'bodi dicat ulang'
-      ],
-    },
+      {
+  serviceName: 'Repaint Bodi Halus',
+  keywords: [
+    'cat bodi', 'repaint halus', 'cat ulang halus', 'warna ulang',
+    'repaint bodi', 'repaint alus', 'cat mulus', 'repaint kinclong',
+    'cat ulang pabrikan', 'repaint full bodi', 'warna ulang bodi', 'bodi dicat ulang',
+    'bodi alus', 'full bodi alus', 'bodi halus'
+  ],
+},
     {
       serviceName: 'Repaint Bodi Kasar',
       keywords: [
