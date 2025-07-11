@@ -26,11 +26,13 @@ export const triggerBosMamatTool: ToolFunction & {
     required: ['reason', 'customerQuestion'],
   },
 
-  implementation: async ({ toolCall, input }) => {
-    const { reason, customerQuestion } = toolCall?.arguments || {};
+  implementation: async ({ arguments: args = {}, toolCall, input }) => {
+    // Fallback: coba dari args atau toolCall.arguments (jaga-jaga)
+    const rawArgs = args || toolCall?.arguments || {};
+    const { reason, customerQuestion } = rawArgs;
 
     if (!reason || !customerQuestion) {
-      console.error('[triggerBosMamatTool] Argumen tidak lengkap:', toolCall?.arguments);
+      console.error('[triggerBosMamatTool] Argumen tidak lengkap:', rawArgs);
       throw new Error('[triggerBosMamatTool] Tool dipanggil tanpa reason atau customerQuestion.');
     }
 
