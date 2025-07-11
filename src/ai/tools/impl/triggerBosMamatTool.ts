@@ -26,9 +26,18 @@ export const triggerBosMamatTool: ToolFunction & {
     required: ['reason', 'customerQuestion'],
   },
 
-  // ✅ Implementasi tool yang aman dan robust
-  implementation: async ({ arguments: args = {}, session, input }) => {
-    const { reason, customerQuestion } = args;
+  // ✅ Implementasi tool: parsing args manual dari toolCall OpenAI
+  implementation: async ({ toolCall, input }) => {
+    let reason = '';
+    let customerQuestion = '';
+
+    try {
+      const args = JSON.parse(toolCall.function.arguments || '{}');
+      reason = args.reason;
+      customerQuestion = args.customerQuestion;
+    } catch (err) {
+      console.error('[triggerBosMamatTool] Gagal parsing arguments:', err);
+    }
 
     if (!reason || !customerQuestion) {
       throw new Error(
@@ -53,7 +62,7 @@ export const triggerBosMamatTool: ToolFunction & {
     };
   },
 
-  // ✅ Definisi tool untuk OpenAI agar bisa dipanggil via GPT
+  // ✅ Definisi untuk tool calling OpenAI
   toolDefinition: {
     type: 'function',
     function: {
