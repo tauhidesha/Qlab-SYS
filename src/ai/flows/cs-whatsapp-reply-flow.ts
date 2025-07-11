@@ -141,23 +141,6 @@ export async function generateWhatsAppReply(
     session = mergeSession(session, result.updatedSession);
   }
 
-  // ✅ PATCH: Deteksi jika GPT memutuskan untuk tanya ke Bos Mamat
-  const msgLower = replyMessage.toLowerCase();
-  if (msgLower.includes('zoya bantu tanyain dulu ke bos mamat')) {
-    console.log(`[HandoverTrigger] Zoya minta bantu Bos Mamat.`);
-
-    await notifyBosMamat(senderNumber, input.customerMessage);
-    await setPendingHumanReply({ customerNumber: senderNumber, question: input.customerMessage });
-    await setSnoozeMode(senderNumber);
-
-    return {
-      suggestedReply: replyMessage,
-      toolCalls: [],
-      route: 'handover_consult',
-      metadata: { snoozeUntil: Date.now() + 60 * 60 * 1000 },
-    };
-  }
-
   // 🧯 Fallback jika GPT kosong & tidak ada tool
   if (
     (!replyMessage || replyMessage.trim() === '' || replyMessage.startsWith('[AI] Tidak ada jawaban')) &&
