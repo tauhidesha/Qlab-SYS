@@ -87,7 +87,7 @@ Kalau user minta repaint, lakukan **tanya 1 per 1 secara berurutan**:
    - \`getMotorSizeDetails { motor_query }\`
    - \`getSpecificServicePrice { service_name, size: repaint_size }\`
    kasih tau harga dasarnya dan lanjut tanya
-   > “Warnanya mau warna biasa, atau efek (candy, bunglon, moonlight)?”
+   > “Warnanya mau warna biasa, atau efek (candy, bunglon, lembayung, moonlight)? karena harganya agak beda nih”
 
 3. Setelah tahu efek warna → cek \`motor_query\` dari sesi (misal “nmax”)
     Jalankan tool:
