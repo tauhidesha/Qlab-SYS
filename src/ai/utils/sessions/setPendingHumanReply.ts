@@ -10,7 +10,7 @@ export async function setPendingHumanReply({
   customerNumber: string;
   question: string;
 }) {
-  const sessionRef = doc(db, 'sessions', customerNumber);
+  const sessionRef = doc(db, 'zoya_sessions', customerNumber);
   await setDoc(
     sessionRef,
     {
@@ -23,7 +23,7 @@ export async function setPendingHumanReply({
   );
 
   // ✅ Simpan siapa customer yang nunggu jawaban
-  const humanHelpRef = doc(db, 'sessions', 'human_forwarding_state');
+  const humanHelpRef = doc(db, 'zoya_sessions', 'human_forwarding_state');
   await setDoc(humanHelpRef, {
     lastCustomerNumber: customerNumber,
     updatedAt: Date.now(),

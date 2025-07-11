@@ -1,18 +1,11 @@
-import { db, app } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import { getDoc, updateDoc, deleteField, doc } from 'firebase/firestore';
 import { sendWhatsAppMessage } from '@/services/whatsappService';
-
-
 
 const BOS_MAMAT_NUMBER = process.env.BOS_MAMAT_NUMBER;
 
 if (!BOS_MAMAT_NUMBER) {
   console.error('[handleHumanReplyForwarding] BOS_MAMAT_NUMBER belum diset di .env');
-}
-console.log(`[handleHumanReplyForwarding] Menggunakan Firebase project: ${app.options.projectId}`);
-
-function normalizeSenderNumber(raw: string): string {
-  return raw?.replace(/@c\.us$/, '') || '';
 }
 
 export async function handleHumanReplyForwarding(senderNumber: string, messageBody: string): Promise<boolean> {
@@ -24,11 +17,12 @@ export async function handleHumanReplyForwarding(senderNumber: string, messageBo
   const match = messageBody.match(/^#balas\s+(\d+)\s*\n([\s\S]+)/i);
 
   if (match) {
-    const rawNumber = match[1];
-    const replyText = match[2];
+    const targetNumber = match[1].trim(); // 🔧 fix penting
+    const replyText = match[2].trim();
 
-    const targetNumber = normalizeSenderNumber(rawNumber);
-    const sessionRef = doc(db, 'sessions', targetNumber);
+    console.log(`[ManualReply] Mencoba cari sesi dengan ID: '${targetNumber}'`);
+
+    const sessionRef = doc(db, 'zoya_sessions', targetNumber); // 🔁 koleksi diperbaiki
     const sessionSnap = await getDoc(sessionRef);
 
     if (!sessionSnap.exists()) {
@@ -47,7 +41,7 @@ export async function handleHumanReplyForwarding(senderNumber: string, messageBo
   }
 
   // === 2. Kalau gak pakai format, fallback ke pointer ===
-  const forwardingRef = doc(db, 'sessions', 'human_forwarding_state');
+  const forwardingRef = doc(db, 'zoya_sessions', 'human_forwarding_state'); // 🔁 juga ganti
   const forwardingSnap = await getDoc(forwardingRef);
   const forwardingData = forwardingSnap.data();
 
@@ -57,7 +51,7 @@ export async function handleHumanReplyForwarding(senderNumber: string, messageBo
     return false;
   }
 
-  const sessionRef = doc(db, 'sessions', customerNumber);
+  const sessionRef = doc(db, 'zoya_sessions', customerNumber);
   const sessionSnap = await getDoc(sessionRef);
   const sessionData = sessionSnap.data();
 
@@ -74,7 +68,6 @@ export async function handleHumanReplyForwarding(senderNumber: string, messageBo
 
   console.log(`[HumanForwarding] Balasan diteruskan ke ${customerNumber} via pointer.`);
 
-  // Hapus pointer langsung (karena gak pakai grace period)
   await updateDoc(forwardingRef, {
     lastCustomerNumber: deleteField(),
   });
