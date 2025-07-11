@@ -26,16 +26,19 @@ export const triggerBosMamatTool: ToolFunction & {
     required: ['reason', 'customerQuestion'],
   },
 
-  // ✅ implementasi tool
-  implementation: async ({ reason, customerQuestion }, context) => {
-    await setSnoozeMode(context.senderNumber);
-    await notifyBosMamat(context.senderNumber, customerQuestion, reason); // ✅ 3 argumen sesuai definisi terbaru
+  implementation: async ({ arguments: args, session, input }) => {
+  const { reason, customerQuestion } = args;
+  const senderNumber = input?.senderNumber || 'unknown';
 
-    return {
-      result: 'success',
-      message: 'Zoya sudah hubungi Bos Mamat, tinggal tunggu jawabannya.',
-    };
-  },
+  await setSnoozeMode(senderNumber);
+  await notifyBosMamat(senderNumber, customerQuestion, reason);
+
+  return {
+    result: 'success',
+    message: 'Zoya sudah hubungi Bos Mamat, tinggal tunggu jawabannya.',
+  };
+},
+
 
   // ✅ definisi tool untuk OpenAI
   toolDefinition: {
