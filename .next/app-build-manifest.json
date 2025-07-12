@@ -1,14 +1,9 @@
 {
   "pages": {
-    "/(app)/ai-cs-assistant/page": [
+    "/(app)/clients/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(app)/ai-cs-assistant/page.js"
-    ],
-    "/(app)/ai-cs-assistant/layout": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/(app)/ai-cs-assistant/layout.js"
+      "static/chunks/app/(app)/clients/page.js"
     ],
     "/(app)/layout": [
       "static/chunks/webpack.js",
