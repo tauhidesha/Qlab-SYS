@@ -39,10 +39,24 @@ export interface PriceDetails {
 }
 
 // PERBAIKAN DI SINI
+
 type PriceSuccess = PriceDetails & {
   success: true;
-  summary?: string; // <-- TAMBAHKAN PROPERTI INI
+  summary?: string;
   error?: undefined;
+};
+
+type PriceMultiSuccess = {
+  success: true;
+  multiple_candidates: true;
+  candidates: Array<{
+    service_name: string;
+    motor_size: string;
+    price: number;
+    estimated_duration?: string;
+    similarity: number;
+  }>;
+  message: string;
 };
 
 type PriceError =
@@ -51,7 +65,7 @@ type PriceError =
   | { success: false; error: 'requires_human_assistance'; message: string; }
   | { success: false; error: 'generic_error'; message: string; };
 
-export type GetPriceResult = PriceSuccess | PriceError;
+export type GetPriceResult = PriceSuccess | PriceMultiSuccess | PriceError;
 
 
 // --- Tipe untuk findNextAvailableSlot ---
