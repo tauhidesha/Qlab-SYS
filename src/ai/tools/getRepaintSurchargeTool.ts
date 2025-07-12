@@ -26,12 +26,13 @@ async function implementation(input: Input): Promise<Result> {
   try {
     const { repaint_size, effect } = InputSchema.parse(input);
 
-    const surcharge = surchargeTable[effect][repaint_size];
+    const fullSurchargeValue = surchargeTable[effect][repaint_size];
+    const surchargeForSystem = fullSurchargeValue / 1000; // PATCH: Konversi ke format ribuan sesuai kontrak
 
     return {
       success: true,
-      surcharge,
-      summary: `Tambahan biaya untuk warna ${effect} pada motor repaint_size ${repaint_size}: Rp${surcharge.toLocaleString('id-ID')}`,
+      surcharge: surchargeForSystem, // PATCH: Mengirim nilai yang sudah dikonversi
+      summary: `Tambahan biaya untuk warna ${effect} pada motor repaint_size ${repaint_size}: Rp${fullSurchargeValue.toLocaleString('id-ID')}`,
       detail: `Surcharge berlaku khusus untuk efek warna ${effect} karena proses, material & pigmen cat lebih mahal dari warna solid/metalik biasa.`,
     };
   } catch (err: any) {
