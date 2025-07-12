@@ -1,31 +1,36 @@
-// src/ai/tools/getMotorSizeDetailsTool.ts
+// @file: src/ai/tools/getMotorSizeDetailsTool.ts
 
-import { defineTool } from '../types';
-import allMotorData from '../../../docs/motor_db_size.json';
-import { distance } from 'fastest-levenshtein';
+import motorDb from '../../../docs/daftarUkuranMotor.json';
+import levenshtein from 'js-levenshtein';
 
-const SIMILARITY_THRESHOLD = 0.75; // semakin tinggi semakin ketat
+const SIMILARITY_THRESHOLD = 0.75;
 
 function getSimilarity(a: string, b: string): number {
-  const dist = distance(a.toLowerCase(), b.toLowerCase());
+  const dist = levenshtein(a.toLowerCase(), b.toLowerCase());
   const maxLen = Math.max(a.length, b.length);
   return 1 - dist / maxLen;
 }
 
-export const getMotorSizeDetailsTool = defineTool({
-  name: 'getMotorSizeDetails',
-  description: 'Mendeteksi ukuran motor berdasarkan nama/jenis motor yang disebut user.',
-  parameters: {
-    type: 'object',
-    properties: {
-      motor_query: {
-        type: 'string',
-        description: 'Nama motor dari user, misalnya "vario", "nmax", "vespa", dll.',
+export const getMotorSizeDetailsTool = {
+  toolDefinition: {
+    type: 'function' as const, // ✅ FIX INI
+    function: {
+      name: 'getMotorSizeDetails',
+      description: 'Mendeteksi ukuran motor berdasarkan nama/jenis motor yang disebut user.',
+      parameters: {
+        type: 'object',
+        properties: {
+          motor_query: {
+            type: 'string',
+            description: 'Nama motor dari user, misalnya "vario", "nmax", "vespa", dll.',
+          },
+        },
+        required: ['motor_query'],
       },
     },
-    required: ['motor_query'],
   },
-  execute: async ({ motor_query }) => {
+
+  async execute({ motor_query }) {
     const query = motor_query.trim().toLowerCase();
 
     let bestMatch = null;
@@ -34,7 +39,6 @@ export const getMotorSizeDetailsTool = defineTool({
     for (const entry of motorDb) {
       const model = entry.model?.toLowerCase() || '';
       const aliases = (entry.aliases || []).map((a) => a.toLowerCase());
-
       const candidates = [model, ...aliases];
 
       for (const candidate of candidates) {
@@ -63,4 +67,4 @@ export const getMotorSizeDetailsTool = defineTool({
       similarity: bestScore,
     };
   },
-});
+};

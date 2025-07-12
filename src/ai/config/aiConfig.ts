@@ -17,7 +17,7 @@ export const zoyaTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   listServicesByCategoryTool.toolDefinition,
   getSpecificServicePriceTool.toolDefinition,
   getServiceDescriptionTool.toolDefinition,
-  getMotorSizeDetailsTool.toolDefinition,
+  getMotorSizeDetailsTool.toolDefinition, // ✅ YES
   triggerBosMamatTool.toolDefinition, // ✅ PAKAI .toolDefinition
   findNextAvailableSlotTool.toolDefinition,
   getPromoBundleDetailsTool.toolDefinition,

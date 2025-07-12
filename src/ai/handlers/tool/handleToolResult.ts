@@ -54,6 +54,7 @@ export async function handleToolResult({
 
   let replyMessage: string | undefined;
 
+  // 🔧 Tangani hasil gabungan harga dasar + surcharge
   if (hasPrice && hasSurcharge) {
     const priceResult = toolResponses[normalizedCalls.findIndex(c => c.toolName === 'getSpecificServicePrice')]?.result;
     const surchargeResult = toolResponses[normalizedCalls.findIndex(c => c.toolName === 'getRepaintSurcharge')]?.result;
@@ -72,6 +73,23 @@ export async function handleToolResult({
     }
   }
 
+  // ✅ Tangani hasil getMotorSizeDetailsTool dengan gaya manusia
+  if (!replyMessage) {
+    const motorSizeIndex = normalizedCalls.findIndex(c => c.toolName === 'getMotorSizeDetails');
+    const motorSizeResult = toolResponses[motorSizeIndex]?.result;
+
+    if (motorSizeResult?.success) {
+      const model = motorSizeResult.matched_model || motorSizeResult.motor_query;
+      const motorSize = motorSizeResult.motor_size;
+      const repaintSize = motorSizeResult.repaint_size;
+
+      if (model && motorSize && repaintSize) {
+        replyMessage = `Noted, motor *${model}* Zoya deteksi sebagai ukuran **${motorSize}**, kategori repaint **${repaintSize}**. Mau lanjut cek estimasi harganya? 😊`;
+      }
+    }
+  }
+
+  // 🧠 Jika belum ada balasan, pakai GPT untuk generate
   if (!replyMessage) {
     const followUp = await openai.chat.completions.create({
       model: 'gpt-4o',
@@ -87,6 +105,7 @@ export async function handleToolResult({
     replyMessage = followUp.choices[0]?.message?.content?.trim();
   }
 
+  // 🧯 Fallback manual jika GPT gagal juga
   if (!replyMessage || replyMessage.startsWith('[AI]')) {
     const toolName = normalizedCalls[0]?.toolName;
     const toolResult = toolResponses[0];
@@ -99,7 +118,6 @@ export async function handleToolResult({
       replyMessage.length < 15;
 
     if (fallbackTrigger) {
-      // ✅ Tambahkan pemanggilan setPendingHumanReply
       await setPendingHumanReply({
         customerNumber: input.senderNumber,
         question: input.customerMessage,
@@ -115,6 +133,7 @@ export async function handleToolResult({
     }
   }
 
+  // 🔄 Update session state
   const updatedSession: Partial<SessionData> = {
     inquiry: { ...session.inquiry },
   };
