@@ -56,6 +56,7 @@ async function implementation(input: Input): Promise<Output> {
   let bestMatch = null;
   let bestScore = 0;
 
+  // Debug log: tampilkan similarity setiap kandidat
   for (const entry of motorDb) {
     const model = entry.model?.toLowerCase() || '';
     const aliases = (entry.aliases || []).map((a) => a.toLowerCase());
@@ -63,6 +64,7 @@ async function implementation(input: Input): Promise<Output> {
 
     for (const candidate of candidates) {
       const score = getSimilarity(motor_query, candidate);
+      console.log(`[getMotorSizeDetailsTool][DEBUG] Cek kandidat: "${candidate}" vs "${motor_query}" => similarity: ${score}`);
       if (score > bestScore) {
         bestScore = score;
         bestMatch = entry;
