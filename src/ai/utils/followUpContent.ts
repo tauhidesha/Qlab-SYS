@@ -1,4 +1,4 @@
-import servicesData from '../../../docs/deskripsi_layanan.json';
+import deskripsiLayanan from "@/data/deskripsiLayanan";
 
 // Tipe untuk objek layanan kita
 interface Service {
@@ -8,7 +8,7 @@ interface Service {
     description: string;
 }
 
-const services: Service[] = servicesData;
+const services: Service[] = deskripsiLayanan;
 
 // Fungsi untuk mengambil cuplikan edukasi
 export function getEducationalSnippet(serviceName: string): string | null {
