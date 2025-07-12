@@ -1,7 +1,7 @@
 // File: src/ai/tools/impl/matchServiceFromDescriptionTool.ts
 
 import { z } from 'zod';
-import allServicesData from '@/../docs/deskripsi_layanan.json';
+import deskripsiLayanan from '@/data/deskripsiLayanan';
 
 const InputSchema = z.object({
   message: z.string().describe('Deskripsi bebas tentang layanan yang diinginkan user (misal: "coating bening", "cuci kilap", "pengen motor mengkilap lama")'),
@@ -51,7 +51,7 @@ async function implementation(input: Input): Promise<Output> {
   try {
     const { message } = InputSchema.parse(input);
 
-    const allServices: Service[] = allServicesData as Service[];
+    const allServices: Service[] = deskripsiLayanan as Service[];
 
     const scored = allServices.map(service => ({
       ...service,
