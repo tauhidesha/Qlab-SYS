@@ -13,10 +13,20 @@ export async function runToolCalls(
   const results = [];
 
   for (const call of toolCalls) {
-    const { toolName, arguments: args, id } = call;
+    const { toolName, id } = call;
+
+    let parsedArgs: any;
+    try {
+      parsedArgs = typeof call.arguments === 'string'
+        ? JSON.parse(call.arguments)
+        : call.arguments;
+    } catch (err) {
+      console.warn(`[runToolCalls] Gagal parse arguments untuk tool '${toolName}':`, err);
+      parsedArgs = {};
+    }
 
     const toolObj = toolFunctionMap[toolName];
-    if (!toolObj || typeof toolObj.execute !== 'function') { // ✅ GANTI KE .execute
+    if (!toolObj || typeof toolObj.implementation !== 'function') {
       console.warn(`[runToolCalls] Tool '${toolName}' not found or invalid.`);
       continue;
     }
@@ -35,7 +45,12 @@ export async function runToolCalls(
     console.log(`[runToolCalls] Menjalankan tool '${toolName}' untuk`, senderNumber);
 
     try {
-      const toolResult = await toolObj.execute(args); // ✅ LANGSUNG PANGGIL .execute
+      const toolResult = await toolObj.implementation({
+        arguments: parsedArgs,
+        toolCall: call,
+        input,
+        session: extraContext.session || {},
+      });
 
       results.push({
         role: 'tool',

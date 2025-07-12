@@ -1,69 +1,95 @@
-// File: src/ai/tools/listServicesByCategoryTool.ts
+// @file: src/ai/tools/listServicesByCategoryTool.ts
 
-import { z } from 'zod';
-import servicesData from '../../../docs/deskripsi_layanan.json';
+import type { SessionData } from '@/ai/utils/session';
+import allServicesData from '../../../docs/harga_layanan.json';
 
-const InputSchema = z.object({
-  category: z.enum(['coating', 'detailing', 'cuci', 'repaint']).describe('Kategori layanan (coating, detailing, cuci, repaint)'),
-});
-type Input = z.infer<typeof InputSchema>;
-
-type ServiceOutput = { name: string; summary: string; };
-type Result = {
-  success: boolean;
-  services?: ServiceOutput[];
-  summary?: string;
-  error?: string;
+type Service = {
+  name: string;
+  category: string;
+  price?: number;
+  estimatedDuration?: string;
+  variants?: { name: string; price: number }[];
 };
 
-async function implementation(input: Input): Promise<Result> {
-  try {
-    const { category } = InputSchema.parse(input);
-    const allServices: any[] = servicesData;
-    const filteredServices = allServices
-      .filter((service) => service.category === category && service.summary)
-      .map((service) => ({
-        name: service.name,
-        summary: service.summary,
-      }));
+type Input = {
+  category: string;
+};
 
-    if (filteredServices.length === 0) {
-      return {
-        success: false,
-        error: `Tidak ada layanan dengan deskripsi ringkas (summary) untuk kategori '${category}'.`
-      };
+type Output =
+  | {
+      success: true;
+      category: string;
+      services: {
+        name: string;
+        variants: string[];
+        estimatedDuration?: string;
+      }[];
+      message: string;
     }
-    const summaryText = `Berikut daftar layanan untuk kategori *${category}*:\n` +
-      filteredServices.map(s => `- ${s.name}`).join('\n');
-    return {
-      success: true,
-      services: filteredServices,
-      summary: summaryText
+  | {
+      success: false;
+      message: string;
     };
-  } catch (err: any) {
+
+async function implementation(
+  rawInput: any,
+  session?: SessionData
+): Promise<Output> {
+  const categoryQuery = rawInput.category?.trim().toLowerCase();
+
+  if (!categoryQuery) {
     return {
       success: false,
-      error: 'Terjadi kesalahan internal saat mengambil daftar layanan.'
+      message: 'Kategori layanan tidak boleh kosong.',
     };
   }
+
+  const matchedServices = (allServicesData as Service[]).filter(
+    (s) => s.category.toLowerCase() === categoryQuery
+  );
+
+  if (matchedServices.length === 0) {
+    return {
+      success: false,
+      message: `Tidak ditemukan layanan dengan kategori "${categoryQuery}".`,
+    };
+  }
+
+  const summaries = matchedServices.map((s) => ({
+    name: s.name,
+    variants: s.variants?.map(
+      (v) => `${v.name}: Rp${v.price.toLocaleString('id-ID')}`
+    ) ?? [],
+    estimatedDuration: s.estimatedDuration
+      ? `${parseInt(s.estimatedDuration, 10) / 60} menit`
+      : undefined,
+  }));
+
+  return {
+    success: true,
+    category: categoryQuery,
+    services: summaries,
+    message: `Ditemukan ${summaries.length} layanan untuk kategori "${categoryQuery}".`,
+  };
 }
 
 export const listServicesByCategoryTool = {
   toolDefinition: {
     type: 'function' as const,
     function: {
-      name: "listServicesByCategory",
-      description: "Tampilkan daftar layanan berdasarkan kategori (coating, detailing, cuci, repaint).",
+      name: 'listServicesByCategory',
+      description:
+        'Menampilkan daftar layanan berdasarkan kategori seperti coating, detailing, atau repaint.',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
           category: {
-            type: "string",
-            enum: ["coating", "detailing", "cuci", "repaint"],
-            description: "Kategori layanan yang ingin ditampilkan.",
+            type: 'string',
+            description:
+              'Kategori layanan: "coating", "detailing", "repaint", atau "cuci".',
           },
         },
-        required: ["category"],
+        required: ['category'],
       },
     },
   },

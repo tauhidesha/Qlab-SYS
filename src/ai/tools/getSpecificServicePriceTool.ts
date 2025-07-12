@@ -1,4 +1,4 @@
-// File: src/ai/tools/getSpecificServicePriceTool.ts
+// @file: src/ai/tools/getSpecificServicePriceTool.ts
 
 import { z } from 'zod';
 import type { GetPriceResult } from '@/types/ai/tools';
@@ -66,16 +66,28 @@ function formatDuration(minutesStr?: string): string | undefined {
 }
 
 // --- Implementation ---
-async function implementation(input: Input, session?: SessionData): Promise<GetPriceResult> {
+async function implementation(rawInput: any, session?: SessionData): Promise<GetPriceResult> {
   try {
-    let { service_name, size } = InputSchema.parse(input);
+    const normalizedInput = {
+      service_name: rawInput.service_name || rawInput.serviceName,
+      size: rawInput.size,
+    };
 
-    // Kalau ini repaint, dan repaintSize tersedia, override size
+    const parsed = InputSchema.safeParse(normalizedInput);
+    if (!parsed.success) {
+      return {
+        success: false,
+        error: 'generic_error',
+        message: parsed.error.issues.map(i => i.message).join(', '),
+      };
+    }
+
+    let { service_name, size } = parsed.data;
+
     if (session?.inquiry?.lastMentionedService?.serviceName?.toLowerCase().includes('repaint')) {
       size = session.inquiry.repaintSize || size;
     }
 
-    // Cari layanan dengan fuzzy match
     const matchedServiceName = getBestMatchServiceName(service_name);
     if (!matchedServiceName) {
       return {

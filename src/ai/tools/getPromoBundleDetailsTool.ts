@@ -4,9 +4,9 @@ import { z } from 'zod';
 import promoData from '../../../docs/promo_bundling.json';
 import allMotorsData from '../../../docs/daftarUkuranMotor.json';
 
-// --- Input Schema (untuk validasi dan typing di backend, bukan function-calling) ---
+// --- Input Schema ---
 const InputSchema = z.object({
-  motor_query: z.string().optional().describe('Model motor (jika spesifik, misal "PCX" atau "Vario")'),
+  motor_query: z.string().optional().describe('Model motor (misal "PCX", "Vario", dll)'),
 });
 export type Input = z.infer<typeof InputSchema>;
 
@@ -24,6 +24,7 @@ async function implementation(input: Input): Promise<Output> {
   try {
     const { motor_query } = InputSchema.parse(input);
 
+    // Jika motor umum (tidak spesifik)
     if (!motor_query || motor_query === 'N/A' || motor_query.toLowerCase().trim() === 'umum') {
       return {
         isPromoAvailable: true,
@@ -38,7 +39,10 @@ async function implementation(input: Input): Promise<Output> {
     const matches = allMotors.filter(motor => motor.model.toLowerCase().includes(lowerCaseQuery));
 
     if (matches.length === 0) {
-      return { isPromoAvailable: false, note: `Motor "${motor_query}" tidak ditemukan.` };
+      return {
+        isPromoAvailable: false,
+        note: `Motor "${motor_query}" tidak ditemukan.`,
+      };
     }
 
     matches.sort((a, b) => b.model.length - a.model.length);
@@ -49,7 +53,7 @@ async function implementation(input: Input): Promise<Output> {
     if (!specificPromo) {
       return {
         isPromoAvailable: false,
-        note: `Maaf, untuk motor ${motor.model} (size ${repaintSize}) saat ini belum ada promo bundling.`
+        note: `Maaf, untuk motor ${motor.model} (size ${repaintSize}) saat ini belum ada promo bundling.`,
       };
     }
 
@@ -58,9 +62,15 @@ async function implementation(input: Input): Promise<Output> {
       motor_model: motor.model,
       promoDetails: specificPromo,
       note: `Untuk motor ${motor.model} (size ${repaintSize}), ada promo bundling!`,
-      summary: `Ada promo bundling keren buat ${motor.model} (size ${repaintSize}) nih, bro!\n\n👉 Normal price: Rp${specificPromo.normalPrice.toLocaleString('id-ID')}\n👉 Harga promo: Rp${specificPromo.promoPrice.toLocaleString('id-ID')}\n💰 Hemat: Rp${specificPromo.savings.toLocaleString('id-ID')}\n\nUdah termasuk:\n✅ Repaint Bodi Halus\n✅ Full Detailing Glossy\n\nLangsung gaskeun sebelum slot penuh ya!`
+      summary:
+        `🔥 Promo bundling buat ${motor.model} (size ${repaintSize}):\n\n` +
+        `• Harga normal: Rp${specificPromo.normalPrice.toLocaleString('id-ID')}\n` +
+        `• Harga promo: *Rp${specificPromo.promoPrice.toLocaleString('id-ID')}*\n` +
+        `• Hemat: *Rp${specificPromo.savings.toLocaleString('id-ID')}*\n\n` +
+        `Termasuk:\n✅ Repaint Bodi Halus\n✅ Full Detailing Glossy\n\nGas sebelum kehabisan slot, bro!`,
     };
   } catch (err: any) {
+    console.error('[getPromoBundleDetailsTool] Error:', err);
     return {
       isPromoAvailable: false,
       note: 'Terjadi kesalahan saat mencari promo.',
@@ -68,17 +78,20 @@ async function implementation(input: Input): Promise<Output> {
   }
 }
 
-// --- Export for AI Agent (function-calling compatible) ---
+// --- Export (Function Calling) ---
 export const getPromoBundleDetailsTool = {
   toolDefinition: {
     type: 'function' as const,
     function: {
       name: 'getPromoBundleDetails',
-      description: 'Ambil detail promo bundling berdasarkan model/size motor.',
+      description: 'Cek apakah ada promo bundling untuk motor tertentu.',
       parameters: {
         type: 'object',
         properties: {
-          motor_query: { type: 'string', description: 'Nama/tipe motor user (opsional).' },
+          motor_query: {
+            type: 'string',
+            description: 'Model motor (opsional, misalnya "Nmax", "Vario", "PCX")',
+          },
         },
         required: [],
       },

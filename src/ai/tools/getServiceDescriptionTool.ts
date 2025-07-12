@@ -1,15 +1,15 @@
-// File: src/ai/tools/getServiceDescriptionTool.ts
+// @file: src/ai/tools/getServiceDescriptionTool.ts
 
 import { z } from 'zod';
 import allServicesData from '../../../docs/deskripsi_layanan.json';
 
-// --- Input Schema ---
+// --- Skema Input (tidak perlu diubah) ---
 const InputSchema = z.object({
   service_name: z.string().describe('Nama layanan spesifik yang ingin dijelaskan atau dijual ke pelanggan'),
 });
-export type Input = z.infer<typeof InputSchema>;
+type Input = z.infer<typeof InputSchema>;
 
-// --- Output Type ---
+// --- Tipe Output (tidak perlu diubah) ---
 type Output = {
   success: boolean;
   description?: string;
@@ -18,37 +18,7 @@ type Output = {
   message?: string;
 };
 
-async function implementation(input: Input): Promise<Output> {
-  try {
-    const { service_name } = InputSchema.parse(input);
-
-    // Cari layanan dengan pencocokan case-insensitive, boleh pakai contains (agar fleksibel)
-    const service = (allServicesData as any[]).find(
-      (s) => s.name.toLowerCase().includes(service_name.toLowerCase())
-    );
-    if (!service) {
-      return {
-        success: false,
-        error: `not_found`,
-        message: `Layanan "${service_name}" tidak ditemukan di database.`,
-      };
-    }
-    // Bisa return summary kalau tersedia
-    return {
-      success: true,
-      description: service.description || '',
-      summary: service.summary || '',
-    };
-  } catch (err: any) {
-    return {
-      success: false,
-      error: 'internal_error',
-      message: err?.message || 'Terjadi error saat mengambil deskripsi layanan.',
-    };
-  }
-}
-
-// --- Function-calling export (PASTIKAN type: 'function' as const) ---
+// --- Tool Export untuk AI Agent (Di sinilah perbaikannya) ---
 export const getServiceDescriptionTool = {
   toolDefinition: {
     type: 'function' as const,
@@ -58,11 +28,54 @@ export const getServiceDescriptionTool = {
       parameters: {
         type: 'object',
         properties: {
-          service_name: { type: 'string', description: 'Nama layanan spesifik yang ingin dijelaskan.' },
+          service_name: {
+            type: 'string',
+            description: 'Nama layanan spesifik yang ingin dijelaskan.',
+          },
         },
         required: ['service_name'],
       },
     },
   },
-  implementation,
+
+  // ✅ PERBAIKAN: Implementasi dibuat inline dan menerima 'bungkusan' objek
+  // Ia akan membongkar properti 'arguments' dan menamainya 'input'
+  implementation: async ({ arguments: input }: { arguments: Input }): Promise<Output> => {
+    try {
+      // Sekarang kita bisa mem-parse `input` karena isinya sudah benar `{ service_name: '...' }`
+      const { service_name } = InputSchema.parse(input);
+
+      const normalized = service_name.toLowerCase().trim();
+
+      // Cari dengan contains match (lebih fleksibel)
+      const service = (allServicesData as any[]).find(
+        (s) => s.name.toLowerCase().includes(normalized)
+      );
+
+      if (!service) {
+        return {
+          success: false,
+          error: 'not_found',
+          message: `Layanan "${service_name}" tidak ditemukan di database deskripsi.`,
+        };
+      }
+
+      return {
+        success: true,
+        description: service.description || '',
+        summary: service.summary || '',
+      };
+    } catch (err: any) {
+      if (err instanceof z.ZodError) {
+        console.error('[getServiceDescriptionTool] ZodError:', err.issues);
+      } else {
+        console.error('[getServiceDescriptionTool] Error:', err);
+      }
+      return {
+        success: false,
+        error: 'internal_error',
+        message: err?.message || 'Terjadi error saat mengambil deskripsi layanan.',
+      };
+    }
+  },
 };

@@ -1,3 +1,5 @@
+// @file: src/ai/tools/extractBookingDetailsTool.ts
+
 import { z } from 'zod';
 import allServicesData from '../../../docs/harga_layanan.json';
 import { parse } from 'chrono-node';
@@ -35,8 +37,8 @@ function extractMotorModel(text: string): string | null {
   return matches.length > 0 ? matches[0] : null;
 }
 
-// --- Implementasi Tool ---
-export async function extractBookingDetailsTool(input: Input): Promise<Result> {
+// --- Implementation utama ---
+async function implementation(input: Input): Promise<Result> {
   const { user_query } = InputSchema.parse(input);
 
   try {
@@ -84,3 +86,25 @@ export async function extractBookingDetailsTool(input: Input): Promise<Result> {
     return { success: false, message: 'Terjadi kesalahan saat mengekstrak informasi booking.' };
   }
 }
+
+// --- Tool wrapper untuk GPT ---
+export const extractBookingDetailsTool = {
+  toolDefinition: {
+    type: 'function' as const,
+    function: {
+      name: 'extractBookingDetailsTool',
+      description: 'Mengekstrak informasi booking dari pesan pelanggan (tanggal, jam, layanan, motor)',
+      parameters: {
+        type: 'object',
+        properties: {
+          user_query: {
+            type: 'string',
+            description: 'Isi pesan pelanggan, misalnya "Saya mau coating hari Minggu jam 2 untuk Nmax"'
+          }
+        },
+        required: ['user_query'],
+      },
+    },
+  },
+  implementation,
+};

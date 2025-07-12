@@ -1,10 +1,12 @@
+// File: src/ai/tools/handleToolResult.ts
+
 import type { ZoyaChatInput } from '@/types/ai/cs-whatsapp-reply';
 import type { SessionData } from '@/ai/utils/session';
 import { runToolCalls, createToolCallMessage } from '@/ai/utils/runToolCalls';
 import { masterPrompt } from '@/ai/config/aiPrompts';
 import { OpenAI } from 'openai';
-import { generateToolSummary } from './generateToolSummary';
 import { setPendingHumanReply } from '@/ai/utils/sessions/setPendingHumanReply';
+import { generateToolSummary } from './generateToolSummary';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
@@ -43,81 +45,36 @@ export async function handleToolResult({
     id: call.id || call.tool_call_id || 'no_id',
   }));
 
-  const toolResponses = await runToolCalls(normalizedCalls, {
-    input,
-    session,
+  const toolResponses = await runToolCalls(normalizedCalls, { input, session });
+
+  // 🧠 GPT digunakan untuk semua hasil tool
+  const followUp = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [
+      { role: 'system', content: masterPrompt },
+      ...input.chatHistory,
+      { role: 'user', content: input.customerMessage },
+      createToolCallMessage(normalizedCalls),
+      ...toolResponses,
+    ],
   });
 
-  const toolNames = normalizedCalls.map(c => c.toolName);
-  const hasPrice = toolNames.includes('getSpecificServicePrice');
-  const hasSurcharge = toolNames.includes('getRepaintSurcharge');
+  let replyMessage = followUp.choices?.[0]?.message?.content?.trim();
 
-  let replyMessage: string | undefined;
+  // 🔥 Fallback ke generateToolSummary jika GPT gagal
+  const toolName = normalizedCalls[0]?.toolName;
+  const fallbackTrigger =
+    !replyMessage ||
+    replyMessage.startsWith('[AI]') ||
+    replyMessage.length < 15;
 
-  // 🔧 Tangani hasil gabungan harga dasar + surcharge
-  if (hasPrice && hasSurcharge) {
-    const priceResult = toolResponses[normalizedCalls.findIndex(c => c.toolName === 'getSpecificServicePrice')]?.result;
-    const surchargeResult = toolResponses[normalizedCalls.findIndex(c => c.toolName === 'getRepaintSurcharge')]?.result;
-    const surchargeCall = normalizedCalls.find(c => c.toolName === 'getRepaintSurcharge');
-
-    const basePrice = priceResult?.price;
-    const effect = surchargeCall?.arguments?.effect;
-    const surcharge = surchargeResult?.surcharge;
-
-    if (typeof basePrice === 'number' && typeof surcharge === 'number') {
-      replyMessage = generateToolSummary('__combo_price_with_surcharge', {
-        basePrice,
-        effect,
-        surcharge
-      });
-    }
-  }
-
-  // ✅ Tangani hasil getMotorSizeDetailsTool dengan gaya manusia
-  if (!replyMessage) {
-    const motorSizeIndex = normalizedCalls.findIndex(c => c.toolName === 'getMotorSizeDetails');
-    const motorSizeResult = toolResponses[motorSizeIndex]?.result;
-
-    if (motorSizeResult?.success) {
-      const model = motorSizeResult.matched_model || motorSizeResult.motor_query;
-      const motorSize = motorSizeResult.motor_size;
-      const repaintSize = motorSizeResult.repaint_size;
-
-      if (model && motorSize && repaintSize) {
-        replyMessage = `Noted, motor *${model}* Zoya deteksi sebagai ukuran **${motorSize}**, kategori repaint **${repaintSize}**. Mau lanjut cek estimasi harganya? 😊`;
-      }
-    }
-  }
-
-  // 🧠 Jika belum ada balasan, pakai GPT untuk generate
-  if (!replyMessage) {
-    const followUp = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        { role: 'system', content: masterPrompt },
-        ...input.chatHistory,
-        { role: 'user', content: input.customerMessage },
-        createToolCallMessage(normalizedCalls),
-        ...toolResponses,
-      ],
-    });
-
-    replyMessage = followUp.choices[0]?.message?.content?.trim();
-  }
-
-  // 🧯 Fallback manual jika GPT gagal juga
-  if (!replyMessage || replyMessage.startsWith('[AI]')) {
-    const toolName = normalizedCalls[0]?.toolName;
+  if (fallbackTrigger) {
     const toolResult = toolResponses[0];
-    replyMessage = generateToolSummary(toolName, toolResult);
+    const fallback = generateToolSummary(toolName, toolResult);
 
-    const fallbackTrigger =
-      !replyMessage ||
-      replyMessage.startsWith('[AI]') ||
-      replyMessage.includes('maaf') ||
-      replyMessage.length < 15;
-
-    if (fallbackTrigger) {
+    if (fallback && fallback.length >= 15) {
+      replyMessage = fallback;
+    } else {
       await setPendingHumanReply({
         customerNumber: input.senderNumber,
         question: input.customerMessage,
@@ -127,13 +84,13 @@ export async function handleToolResult({
         replyMessage: "Hmm, aku belum yakin jawabannya. Aku tanya dulu ke Bos Mamat ya 🙏",
         updatedSession: {},
         needsHumanHelp: true,
-        humanHelpReason: `Hasil tool "${toolName}" belum cukup jelas atau GPT gak bisa kasih jawaban pasti.`,
+        humanHelpReason: `Hasil tool "${toolName}" belum cukup jelas atau GPT & fallback gagal.`,
         customerQuestion: input.customerMessage,
       };
     }
   }
 
-  // 🔄 Update session state
+  // 🔄 Update sesi
   const updatedSession: Partial<SessionData> = {
     inquiry: { ...session.inquiry },
   };
@@ -146,32 +103,18 @@ export async function handleToolResult({
     try {
       switch (toolCall.toolName) {
         case 'getMotorSizeDetails': {
-          const details = toolResult?.data?.details;
-          if (details) {
-            if (details.motor_model) {
-              updatedSession.inquiry!.lastMentionedMotor = details.motor_model;
-            }
-            if (['S', 'M', 'L', 'XL'].includes(details.repaint_size)) {
-              updatedSession.inquiry!.repaintSize = details.repaint_size;
-            }
-            if (['S', 'M', 'L', 'XL'].includes(details.general_size)) {
-              updatedSession.inquiry!.serviceSize = details.general_size;
-            }
-          }
-          break;
-        }
+          const model = toolResult?.result?.matched_model || toolResult?.result?.motor_query;
+          const general = toolResult?.result?.motor_size || toolResult?.result?.general_size;
+          const repaint = toolResult?.result?.repaint_size;
 
-        case 'extractBookingDetailsTool': {
-          const motorQuery = toolResult?.data?.motorQuery;
-          if (motorQuery && !updatedSession.inquiry?.lastMentionedMotor) {
-            updatedSession.inquiry!.lastMentionedMotor = motorQuery;
-          }
+          if (model) updatedSession.inquiry!.lastMentionedMotor = model;
+          if (['S', 'M', 'L', 'XL'].includes(general)) updatedSession.inquiry!.serviceSize = general;
+          if (['S', 'M', 'L', 'XL'].includes(repaint)) updatedSession.inquiry!.repaintSize = repaint;
           break;
         }
 
         case 'createBooking': {
           const { customerPhone, serviceName, bookingDate, bookingTime, vehicleInfo } = args;
-
           updatedSession.inquiry!.lastBooking = {
             customerPhone,
             serviceName,
@@ -180,7 +123,6 @@ export async function handleToolResult({
             vehicleInfo,
             createdAt: Date.now(),
           };
-
           if (serviceName) {
             updatedSession.inquiry!.lastMentionedService = {
               serviceName,
@@ -206,9 +148,7 @@ export async function handleToolResult({
               isAmbiguous: false,
             };
           }
-
           const hasBookingInfo = session.inquiry?.bookingState?.bookingDate !== undefined;
-
           if (!hasBookingInfo) {
             updatedSession.followUpState = {
               level: 1,
@@ -221,13 +161,9 @@ export async function handleToolResult({
 
         case 'getRepaintSurcharge': {
           const effect = args.effect;
-          const surcharge = toolResult?.data?.surcharge;
-
+          const surcharge = toolResult?.result?.surcharge;
           if (effect && typeof surcharge === 'number') {
-            updatedSession.inquiry!.repaintSurcharge = {
-              effect,
-              surcharge,
-            };
+            updatedSession.inquiry!.repaintSurcharge = { effect, surcharge };
           }
           break;
         }
@@ -240,12 +176,10 @@ export async function handleToolResult({
               isAmbiguous: false,
             };
           }
-
           const motorQuery = args.motor_query;
           if (motorQuery && !updatedSession.inquiry?.lastMentionedMotor) {
             updatedSession.inquiry!.lastMentionedMotor = motorQuery;
           }
-
           break;
         }
       }

@@ -1,19 +1,46 @@
+// @file: src/ai/tools/searchKnowledgeBaseTool.ts
 
+import { z } from 'zod';
 import { db } from '@/lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import { embedText } from '@/ai/flows/embed-text-flow';
 import { cosineSimilarity } from '@/lib/math';
 
-export async function searchKnowledgeBase(query: string) {
+// --- Input Schema (untuk AI + validasi) ---
+const InputSchema = z.object({
+  query: z.string().describe('Pertanyaan atau kalimat yang ingin dicari di knowledge base.'),
+});
+export type Input = z.infer<typeof InputSchema>;
+
+// --- Output Type ---
+type Output = {
+  success: boolean;
+  answer?: string;
+  question?: string;
+  similarityScore?: number;
+  message?: string;
+};
+
+// --- Implementation ---
+async function implementation(rawInput: any): Promise<Output> {
+  const parsed = InputSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return {
+      success: false,
+      message: parsed.error.issues.map((i) => i.message).join(', '),
+    };
+  }
+
+  const { query } = parsed.data;
   const MINIMUM_THRESHOLD = 0.82;
 
   try {
     const userEmbedding = await embedText(query);
     if (!userEmbedding) {
-      if (process.env.NODE_ENV !== 'test') {
-        console.error('[searchKnowledgeBase] Gagal membuat embedding untuk query.');
-      }
-      return null;
+      return {
+        success: false,
+        message: 'Gagal membuat embedding untuk query.',
+      };
     }
 
     const entriesRef = collection(db, 'knowledge_base_entries');
@@ -24,15 +51,12 @@ export async function searchKnowledgeBase(query: string) {
 
     snapshot.forEach((doc) => {
       const data = doc.data();
-      if (!data.embedding || !Array.isArray(data.embedding) || data.embedding.length === 0) {
-        return;
-      }
+      if (!Array.isArray(data.embedding) || data.embedding.length === 0) return;
 
       const score = cosineSimilarity(userEmbedding, data.embedding);
       if (score > highestScore) {
         highestScore = score;
         bestMatch = {
-          id: doc.id,
           question: data.question,
           answer: data.answer,
           score,
@@ -41,21 +65,46 @@ export async function searchKnowledgeBase(query: string) {
     });
 
     if (bestMatch && highestScore >= MINIMUM_THRESHOLD) {
-      if (process.env.NODE_ENV !== 'test') {
-        console.log(`[searchKnowledgeBase] Jawaban terbaik ditemukan dengan skor ${highestScore}`);
-      }
-      return bestMatch;
+      return {
+        success: true,
+        question: bestMatch.question,
+        answer: bestMatch.answer,
+        similarityScore: highestScore,
+      };
     }
 
-    if (process.env.NODE_ENV !== 'test') {
-      console.log(`[searchKnowledgeBase] Tidak ada jawaban yang memenuhi threshold. Skor tertinggi: ${highestScore}`);
-    }
-    return null;
+    return {
+      success: false,
+      message: `Tidak ditemukan jawaban yang cocok untuk pertanyaan ini.`,
+    };
 
-  } catch (err) {
-    if (process.env.NODE_ENV !== 'test') {
-      console.error(`[searchKnowledgeBase] Error saat memproses query "${query}":`, err);
-    }
-    return null;
+  } catch (err: any) {
+    console.error('[searchKnowledgeBaseTool] Error:', err);
+    return {
+      success: false,
+      message: `Terjadi error saat mencari jawaban: ${err.message}`,
+    };
   }
 }
+
+// --- Export untuk AI Agent ---
+export const searchKnowledgeBaseTool = {
+  toolDefinition: {
+    type: 'function' as const,
+    function: {
+      name: 'searchKnowledgeBase',
+      description: 'Mencari jawaban dari pertanyaan umum pelanggan berdasarkan knowledge base.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: {
+            type: 'string',
+            description: 'Pertanyaan dari pelanggan, seperti "garansi coating berapa lama?"',
+          },
+        },
+        required: ['query'],
+      },
+    },
+  },
+  implementation,
+};
