@@ -47,7 +47,10 @@ export async function handleToolResult({
 
   const toolResponses = await runToolCalls(normalizedCalls, { input, session });
 
-  // 🧠 GPT digunakan untuk semua hasil tool
+  // =================================================================
+  // [INVESTIGASI] Tambahkan log ini untuk melihat apa isi toolResponses
+  console.log('🕵️ [INVESTIGATION LOG] Raw tool responses:', JSON.stringify(toolResponses, null, 2));
+  // ==
   const followUp = await openai.chat.completions.create({
     model: 'gpt-4o',
     messages: [
@@ -61,7 +64,6 @@ export async function handleToolResult({
 
   let replyMessage = followUp.choices?.[0]?.message?.content?.trim();
 
-  // 🔥 Fallback ke generateToolSummary jika GPT gagal
   const toolName = normalizedCalls[0]?.toolName;
   const fallbackTrigger =
     !replyMessage ||
@@ -90,9 +92,8 @@ export async function handleToolResult({
     }
   }
 
-  // 🔄 Update sesi
   const updatedSession: Partial<SessionData> = {
-    inquiry: { ...session.inquiry },
+    inquiry: session.inquiry ? { ...session.inquiry } : {},
   };
 
   for (let i = 0; i < normalizedCalls.length; i++) {
@@ -101,86 +102,90 @@ export async function handleToolResult({
     const args = toolCall.arguments;
 
     try {
-      switch (toolCall.toolName) {
-        case 'getMotorSizeDetails': {
-          const model = toolResult?.result?.matched_model || toolResult?.result?.motor_query;
-          const general = toolResult?.result?.motor_size || toolResult?.result?.general_size;
-          const repaint = toolResult?.result?.repaint_size;
+      // PATCH: Menambahkan pengecekan 'if (updatedSession.inquiry)' 
+      // untuk memastikan objek ada sebelum diisi.
+      if (updatedSession.inquiry) {
+        switch (toolCall.toolName) {
+          case 'getMotorSizeDetails': {
+            const model = toolResult?.result?.matched_model || toolResult?.result?.motor_query;
+            const general = toolResult?.result?.motor_size || toolResult?.result?.general_size;
+            const repaint = toolResult?.result?.repaint_size;
 
-          if (model) updatedSession.inquiry!.lastMentionedMotor = model;
-          if (['S', 'M', 'L', 'XL'].includes(general)) updatedSession.inquiry!.serviceSize = general;
-          if (['S', 'M', 'L', 'XL'].includes(repaint)) updatedSession.inquiry!.repaintSize = repaint;
-          break;
-        }
+            if (model) updatedSession.inquiry.lastMentionedMotor = model;
+            if (['S', 'M', 'L', 'XL'].includes(general)) updatedSession.inquiry.serviceSize = general;
+            if (['S', 'M', 'L', 'XL'].includes(repaint)) updatedSession.inquiry.repaintSize = repaint;
+            break;
+          }
 
-        case 'createBooking': {
-          const { customerPhone, serviceName, bookingDate, bookingTime, vehicleInfo } = args;
-          updatedSession.inquiry!.lastBooking = {
-            customerPhone,
-            serviceName,
-            bookingDate,
-            bookingTime,
-            vehicleInfo,
-            createdAt: Date.now(),
-          };
-          if (serviceName) {
-            updatedSession.inquiry!.lastMentionedService = {
+          case 'createBooking': {
+            const { customerPhone, serviceName, bookingDate, bookingTime, vehicleInfo } = args;
+            updatedSession.inquiry.lastBooking = {
+              customerPhone,
               serviceName,
+              bookingDate,
+              bookingTime,
+              vehicleInfo,
+              createdAt: Date.now(),
+            };
+            if (serviceName) {
+              updatedSession.inquiry.lastMentionedService = {
+                serviceName,
+                isAmbiguous: false,
+              };
+            }
+            break;
+          }
+
+          case 'getPromoBundleDetails': {
+            updatedSession.inquiry.lastMentionedService = {
+              serviceName: 'Repaint Bodi Halus',
               isAmbiguous: false,
             };
+            break;
           }
-          break;
-        }
 
-        case 'getPromoBundleDetails': {
-          updatedSession.inquiry!.lastMentionedService = {
-            serviceName: 'Repaint Bodi Halus',
-            isAmbiguous: false,
-          };
-          break;
-        }
+          case 'getSpecificServicePrice': {
+            const serviceName = args.serviceName || args.service_name;
+            if (serviceName) {
+              updatedSession.inquiry.lastMentionedService = {
+                serviceName,
+                isAmbiguous: false,
+              };
+            }
+            const hasBookingInfo = session.inquiry?.bookingState?.bookingDate !== undefined;
+            if (!hasBookingInfo) {
+              updatedSession.followUpState = {
+                level: 1,
+                flaggedAt: Date.now(),
+                context: serviceName || 'unknown_service',
+              };
+            }
+            break;
+          }
 
-        case 'getSpecificServicePrice': {
-          const serviceName = args.serviceName || args.service_name;
-          if (serviceName) {
-            updatedSession.inquiry!.lastMentionedService = {
-              serviceName,
-              isAmbiguous: false,
-            };
+          case 'getRepaintSurcharge': {
+            const effect = args.effect;
+            const surcharge = toolResult?.result?.surcharge;
+            if (effect && typeof surcharge === 'number') {
+              updatedSession.inquiry.repaintSurcharge = { effect, surcharge };
+            }
+            break;
           }
-          const hasBookingInfo = session.inquiry?.bookingState?.bookingDate !== undefined;
-          if (!hasBookingInfo) {
-            updatedSession.followUpState = {
-              level: 1,
-              flaggedAt: Date.now(),
-              context: serviceName || 'unknown_service',
-            };
-          }
-          break;
-        }
 
-        case 'getRepaintSurcharge': {
-          const effect = args.effect;
-          const surcharge = toolResult?.result?.surcharge;
-          if (effect && typeof surcharge === 'number') {
-            updatedSession.inquiry!.repaintSurcharge = { effect, surcharge };
+          default: {
+            const serviceName = args.serviceName || args.service_name;
+            if (serviceName) {
+              updatedSession.inquiry.lastMentionedService = {
+                serviceName,
+                isAmbiguous: false,
+              };
+            }
+            const motorQuery = args.motor_query;
+            if (motorQuery && !updatedSession.inquiry.lastMentionedMotor) {
+              updatedSession.inquiry.lastMentionedMotor = motorQuery;
+            }
+            break;
           }
-          break;
-        }
-
-        default: {
-          const serviceName = args.serviceName || args.service_name;
-          if (serviceName) {
-            updatedSession.inquiry!.lastMentionedService = {
-              serviceName,
-              isAmbiguous: false,
-            };
-          }
-          const motorQuery = args.motor_query;
-          if (motorQuery && !updatedSession.inquiry?.lastMentionedMotor) {
-            updatedSession.inquiry!.lastMentionedMotor = motorQuery;
-          }
-          break;
         }
       }
     } catch (err) {

@@ -29,6 +29,9 @@ async function implementation(input: Input): Promise<Result> {
     const fullSurchargeValue = surchargeTable[effect][repaint_size];
     const surchargeForSystem = fullSurchargeValue / 1000; // PATCH: Konversi ke format ribuan sesuai kontrak
 
+    // ===> [DEBUG] TAMBAHKAN BARIS INI UNTUK MELIHAT OUTPUT DI LOG SERVER <===
+    console.log(`[TOOL DEBUG] getRepaintSurcharge is returning:`, { success: true, surcharge: surchargeForSystem });
+
     return {
       success: true,
       surcharge: surchargeForSystem, // PATCH: Mengirim nilai yang sudah dikonversi

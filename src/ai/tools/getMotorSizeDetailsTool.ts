@@ -1,9 +1,10 @@
-// @file: src/ai/tools/getMotorSizeDetailsTool.ts
+// File: src/ai/tools/getMotorSizeDetailsTool.ts
 
 // 💡 PERHATIAN: Pastikan path ini benar-benar valid saat aplikasi di-build/dijalankan di server.
 // Masalah 'kesalahan teknis' seringkali berasal dari path file yang salah setelah kompilasi.
 import daftarUkuranMotor from '@/data/daftarUkuranMotor';
 import levenshtein from 'js-levenshtein';
+import { normalizeToolInput } from '../utils/normalizeToolInput';
 
 const SIMILARITY_THRESHOLD = 0.75;
 
@@ -45,12 +46,10 @@ async function implementation(input: Input): Promise<Output> {
       message: 'Kesalahan internal: Database ukuran motor tidak dapat diakses.',
     };
   }
-
-  // Ambil motor_query dengan helper universal agar AI agent/function calling selalu konsisten
-  // (lihat src/ai/utils/runToolCalls.ts)
-  // @ts-ignore
-  const { normalizeToolInput } = await import('@/ai/utils/runToolCalls');
+  
+  // REVISI: Hapus dynamic import yang lama dan panggil fungsi secara langsung
   const motor_query = normalizeToolInput(input, 'motor_query')?.trim().toLowerCase();
+  
   console.log('[getMotorSizeDetailsTool][DEBUG] Query:', motor_query);
   if (!motor_query) {
     return {
@@ -70,7 +69,8 @@ async function implementation(input: Input): Promise<Output> {
 
     for (const candidate of candidates) {
       const score = getSimilarity(motor_query, candidate);
-      console.log(`[getMotorSizeDetailsTool][DEBUG] Cek kandidat: "${candidate}" vs "${motor_query}" => similarity: ${score}`);
+      // OPSI: Matikan log ini jika sudah tidak diperlukan untuk mengurangi noise
+      // console.log(`[getMotorSizeDetailsTool][DEBUG] Cek kandidat: "${candidate}" vs "${motor_query}" => similarity: ${score}`);
       if (score > bestScore) {
         bestScore = score;
         bestMatch = entry;

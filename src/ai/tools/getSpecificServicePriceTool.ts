@@ -9,6 +9,8 @@ import type { SessionData } from '@/ai/utils/session';
 const InputSchema = z.object({
   service_name: z.string().describe('Nama layanan yang ingin dicek harga detailnya'),
   size: z.enum(['S', 'M', 'L', 'XL']).describe('Ukuran motor untuk layanan ini (S/M/L/XL)'),
+  // REVISI: Kita juga bisa menerima session langsung di dalam input Zod jika diperlukan
+  session: z.any().optional(),
 });
 export type Input = z.infer<typeof InputSchema>;
 
@@ -66,15 +68,11 @@ function formatDuration(minutesStr?: string): string | undefined {
 }
 
 // --- Implementation ---
-async function implementation(rawInput: any, session?: SessionData): Promise<GetPriceResult> {
+async function implementation(input: any): Promise<GetPriceResult> {
   try {
-    // Ambil parameter dengan helper universal agar AI agent/function calling selalu konsisten
-    // @ts-ignore
-    const { normalizeToolInput } = await import('@/ai/utils/runToolCalls');
-    const service_name = normalizeToolInput(rawInput, 'service_name');
-    const size = normalizeToolInput(rawInput, 'size');
-
-    const parsed = InputSchema.safeParse({ service_name, size });
+    // REVISI: Hapus dynamic import dan panggilan ke normalizeToolInput.
+    // REVISI: Gunakan Zod untuk mem-parse objek input secara langsung.
+    const parsed = InputSchema.safeParse(input);
     if (!parsed.success) {
       return {
         success: false,
@@ -84,6 +82,7 @@ async function implementation(rawInput: any, session?: SessionData): Promise<Get
     }
 
     let { service_name: parsedServiceName, size: parsedSize } = parsed.data;
+    const session: SessionData | undefined = parsed.data.session;
 
     if (session?.inquiry?.lastMentionedService?.serviceName?.toLowerCase().includes('repaint')) {
       parsedSize = session.inquiry.repaintSize || parsedSize;
@@ -95,11 +94,11 @@ async function implementation(rawInput: any, session?: SessionData): Promise<Get
       const results = (hargaLayanan as Service[])
         .filter(s => names.includes(s.name))
         .map(service => {
-          const variant = service.variants?.find(v => v.name === size);
+          const variant = service.variants?.find(v => v.name === parsedSize);
           const basePrice = variant?.price ?? service.price;
           return {
             service_name: service.name,
-            motor_size: size,
+            motor_size: parsedSize,
             price: basePrice,
             estimated_duration: formatDuration(service.estimatedDuration),
             similarity: 1,
@@ -132,24 +131,24 @@ async function implementation(rawInput: any, session?: SessionData): Promise<Get
 
     if (candidates.length === 1) {
       const service = candidates[0];
-      const variant = service.variants?.find(v => v.name === size);
+      const variant = service.variants?.find(v => v.name === parsedSize);
       const basePrice = variant?.price ?? service.price;
       if (basePrice === undefined) {
         return {
           success: false,
           error: 'price_not_available_for_size',
-          message: `Harga belum tersedia untuk size ${size} pada layanan "${service.name}".`,
+          message: `Harga belum tersedia untuk size ${parsedSize} pada layanan "${service.name}".`,
           service_name: service.name,
-          motor_size: size,
+          motor_size: parsedSize,
         };
       }
       const summary =
-        `Harga untuk layanan *${service.name}* untuk motor ukuran ${size} adalah Rp${basePrice.toLocaleString('id-ID')}.` +
+        `Harga untuk layanan *${service.name}* untuk motor ukuran ${parsedSize} adalah Rp${basePrice.toLocaleString('id-ID')}.` +
         (service.estimatedDuration ? ` Estimasi pengerjaan: ${formatDuration(service.estimatedDuration)}.` : '');
       return {
         success: true,
         service_name: service.name,
-        motor_size: size,
+        motor_size: parsedSize,
         price: basePrice,
         estimated_duration: formatDuration(service.estimatedDuration),
         summary,
@@ -157,11 +156,11 @@ async function implementation(rawInput: any, session?: SessionData): Promise<Get
     }
 
     const results = candidates.map(service => {
-      const variant = service.variants?.find(v => v.name === size);
+      const variant = service.variants?.find(v => v.name === parsedSize);
       const basePrice = variant?.price ?? service.price;
       return {
         service_name: service.name,
-        motor_size: size,
+        motor_size: parsedSize,
         price: basePrice,
         estimated_duration: formatDuration(service.estimatedDuration),
         similarity: service.similarity,

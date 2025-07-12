@@ -3,6 +3,7 @@
 import { z } from 'zod';
 import promoBundling from '@/data/promoBundling';
 import daftarUkuranMotor from '@/data/daftarUkuranMotor';
+import { normalizeToolInput } from '../utils/normalizeToolInput';
 
 // --- Input Schema ---
 const InputSchema = z.object({
@@ -22,9 +23,7 @@ type Output = {
 // --- Implementation ---
 async function implementation(input: Input): Promise<Output> {
   try {
-    // Ambil motor_query dengan helper universal agar AI agent/function calling selalu konsisten
-    // @ts-ignore
-    const { normalizeToolInput } = await import('@/ai/utils/runToolCalls');
+    // REVISI: Hapus blok impor lama dan panggil fungsi secara langsung.
     const motor_query = normalizeToolInput(input, 'motor_query');
 
     // Jika motor umum (tidak spesifik)

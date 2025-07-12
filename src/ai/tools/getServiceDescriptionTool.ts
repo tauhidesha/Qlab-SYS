@@ -18,7 +18,7 @@ type Output = {
   message?: string;
 };
 
-// --- Tool Export untuk AI Agent (Di sinilah perbaikannya) ---
+// --- Tool Export untuk AI Agent ---
 export const getServiceDescriptionTool = {
   toolDefinition: {
     type: 'function' as const,
@@ -38,17 +38,13 @@ export const getServiceDescriptionTool = {
     },
   },
 
-  // ✅ PERBAIKAN: Implementasi dibuat inline dan menerima 'bungkusan' objek
-  // Ia akan membongkar properti 'arguments' dan menamainya 'input'
-  implementation: async (input: any): Promise<Output> => {
+  // REVISI: Implementasi dibuat lebih bersih dan aman
+  implementation: async (input: Input): Promise<Output> => {
     try {
-      // Ambil service_name dengan helper universal agar AI agent/function calling selalu konsisten
-      // @ts-ignore
-      const { normalizeToolInput } = await import('@/ai/utils/runToolCalls');
-      const service_name = normalizeToolInput(input, 'service_name');
-      const { service_name: parsedServiceName } = InputSchema.parse({ service_name });
+      // REVISI: Validasi input langsung dengan Zod. Tidak perlu lagi normalizeToolInput.
+      const { service_name } = InputSchema.parse(input);
 
-      const normalized = parsedServiceName.toLowerCase().trim();
+      const normalized = service_name.toLowerCase().trim();
 
       // Cari dengan contains match (lebih fleksibel)
       const service = (deskripsiLayanan as any[]).find(
@@ -59,7 +55,7 @@ export const getServiceDescriptionTool = {
         return {
           success: false,
           error: 'not_found',
-          message: `Layanan "${parsedServiceName}" tidak ditemukan di database deskripsi.`,
+          message: `Layanan "${service_name}" tidak ditemukan di database deskripsi.`,
         };
       }
 

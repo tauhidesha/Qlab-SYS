@@ -1,5 +1,6 @@
 // @file: src/ai/tools/listServicesByCategoryTool.ts
 
+import { z } from 'zod'; // REVISI: Tambahkan import Zod
 import type { SessionData } from '@/ai/utils/session';
 import hargaLayanan from '@/data/hargaLayanan';
 
@@ -11,9 +12,11 @@ type Service = {
   variants?: { name: string; price: number }[];
 };
 
-type Input = {
-  category: string;
-};
+// REVISI: Tambahkan skema Zod untuk validasi input yang kuat
+const InputSchema = z.object({
+  category: z.string().describe('Kategori layanan: "coating", "detailing", "repaint", atau "cuci".'),
+});
+type Input = z.infer<typeof InputSchema>;
 
 type Output =
   | {
@@ -31,14 +34,12 @@ type Output =
       message: string;
     };
 
-async function implementation(
-  rawInput: any,
-  session?: SessionData
-): Promise<Output> {
-  // Ambil category dengan helper universal agar AI agent/function calling selalu konsisten
-  // @ts-ignore
-  const { normalizeToolInput } = await import('@/ai/utils/runToolCalls');
-  const categoryQuery = normalizeToolInput(rawInput, 'category')?.trim().toLowerCase();
+// REVISI: Ubah signature untuk menerima input yang sudah divalidasi
+async function implementation(input: Input): Promise<Output> {
+  // REVISI: Hapus impor dan panggilan lama ke normalizeToolInput
+  // Validasi sekarang ditangani oleh Zod sebelum fungsi ini dipanggil
+  const { category } = InputSchema.parse(input);
+  const categoryQuery = category.trim().toLowerCase();
 
   if (!categoryQuery) {
     return {
@@ -63,8 +64,9 @@ async function implementation(
     variants: s.variants?.map(
       (v) => `${v.name}: Rp${v.price.toLocaleString('id-ID')}`
     ) ?? [],
+    // REVISI: Perbaiki format durasi agar lebih akurat
     estimatedDuration: s.estimatedDuration
-      ? `${parseInt(s.estimatedDuration, 10) / 60} menit`
+      ? `${s.estimatedDuration} menit`
       : undefined,
   }));
 
