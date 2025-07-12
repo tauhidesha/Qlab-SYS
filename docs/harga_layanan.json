@@ -1,7 +1,4 @@
-// File: src/data/hargaLayanan.ts
-// Data ini di-convert dari docs/harga_layanan.json agar bisa di-import langsung di Next.js/Vercel
-
-const hargaLayanan = [
+[
   {
     "name": "Repaint Bodi Halus",
     "category": "repaint",
@@ -151,6 +148,4 @@ const hargaLayanan = [
       { "name": "XL", "price": 1500000 }
     ]
   }
-];
-
-export default hargaLayanan;
+]

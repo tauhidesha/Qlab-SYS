@@ -1,7 +1,4 @@
-// File: src/data/daftarUkuranMotor.ts
-// Data ini di-convert dari docs/daftarUkuranMotor.json agar bisa di-import langsung di Next.js/Vercel
-
-const daftarUkuranMotor = [
+[
   {
     "model": "beat",
     "motor_db_size": "S",
@@ -728,5 +725,4 @@ const daftarUkuranMotor = [
     "repaint_size": "XL",
     "aliases": ["vespa px", "vespa klasik", "vespa new px"]
   }
-];
-export default daftarUkuranMotor;
+]

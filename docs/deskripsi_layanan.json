@@ -1,7 +1,4 @@
-// File: src/data/deskripsiLayanan.ts
-// Data ini di-convert dari docs/deskripsi_layanan.json agar bisa di-import langsung di Next.js/Vercel
-
-const deskripsiLayanan = [
+[
   {
     "name": "Repaint Bodi Halus",
     "category": "repaint",
@@ -86,6 +83,4 @@ const deskripsiLayanan = [
     "summary": "Paket perawatan paling dewa untuk motor glossy, dari detailing sampai coating.",
     "description": "Buat apa sih? Ini paket perawatan paling dewa buat motor glossy. Tujuannya buat balikin kilau motor kamu jadi lebih dari sekadar baru keluar pabrik, plus dilindungi biar awet banget.\n\nGimana prosesnya? Bayangin aja tiga layanan jadi satu: \"Cuci Komplit\" + \"Poles Bodi\" + \"Coating Glossy\". Motor kamu kita urus total dari A sampai Z. Dibersihin, dibikin mulus, dikilapin, terus dilindungi pake coating dan wax. Ultimate!\n\nLayanan Termasuk:\n- Lepas ban belakang dan bodi motor.\n- Detailing mesin & crankcase.\n- Detailing rangka motor.\n- Cuci premium dengan sabun khusus.\n- Dekontaminasi bodi dari jamur & kerak.\n- Amplas & poles bodi (opsional, tergantung kondisi).\n- Aplikasi Glossy ceramic coating untuk proteksi dan kilap maksimal.\n- Aplikasi Sealant wax agar kilap awet dan tahan gores.\n- Dressing bodi kasar agar hitam dan terlindungi.\n- Dressing kaki-kaki & ban untuk tampilan dan perlindungan menyeluruh."
   }
-];
-
-export default deskripsiLayanan;
+]
