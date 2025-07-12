@@ -1,4 +1,5 @@
-// src/ai/utils/runToolCalls.ts
+// @file: src/ai/utils/runToolCalls.ts
+
 import { toolFunctionMap } from '../config/aiConfig';
 
 export async function runToolCalls(
@@ -15,12 +16,11 @@ export async function runToolCalls(
     const { toolName, arguments: args, id } = call;
 
     const toolObj = toolFunctionMap[toolName];
-    if (!toolObj || typeof toolObj.implementation !== 'function') {
+    if (!toolObj || typeof toolObj.execute !== 'function') { // ✅ GANTI KE .execute
       console.warn(`[runToolCalls] Tool '${toolName}' not found or invalid.`);
       continue;
     }
 
-    // 🔧 Normalisasi input context
     const senderNumber =
       extraContext.input?.senderNumber || extraContext.session?.senderNumber || null;
     const senderName =
@@ -35,12 +35,7 @@ export async function runToolCalls(
     console.log(`[runToolCalls] Menjalankan tool '${toolName}' untuk`, senderNumber);
 
     try {
-      const toolResult = await toolObj.implementation({
-        arguments: args,
-        toolCall: call,
-        input,
-        session: extraContext.session || {},
-      });
+      const toolResult = await toolObj.execute(args); // ✅ LANGSUNG PANGGIL .execute
 
       results.push({
         role: 'tool',
