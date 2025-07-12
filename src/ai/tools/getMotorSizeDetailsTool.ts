@@ -1,6 +1,6 @@
 // src/ai/tools/getMotorSizeDetailsTool.ts
 
-import { defineTool } from '@/ai/types';
+import { defineTool } from '../types';
 import allMotorData from '../../../docs/motor_db_size.json';
 import { distance } from 'fastest-levenshtein';
 
