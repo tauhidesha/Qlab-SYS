@@ -183,7 +183,7 @@
     "model": "nmax",
     "motor_db_size": "M",
     "repaint_size": "M",
-    "aliases": ["yamaha nmax", "n-max"]
+    "aliases": ["yamaha nmax", "n-max", "nmax"]
   },
   {
     "model": "aerox",

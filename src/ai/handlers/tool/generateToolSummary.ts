@@ -55,6 +55,9 @@ export function generateToolSummary(toolName: string, toolResult: any): string {
     }
 
     case 'getMotorSizeDetails': {
+      if (result.success === false) {
+        return result.message || 'Motor tidak ditemukan di database, bro.';
+      }
       const model = result.matched_model || result.motor_query;
       const size = result.motor_size || result.general_size;
       const repaint = result.repaint_size;
