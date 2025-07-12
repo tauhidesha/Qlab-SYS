@@ -1,110 +1,66 @@
-// File: src/ai/tools/getMotorSizeDetailsTool.ts
+// src/ai/tools/getMotorSizeDetailsTool.ts
 
-import { z } from 'zod';
-import allMotorsData from '../../../docs/daftarUkuranMotor.json';
+import { defineTool } from '@/ai/types';
+import motorDb from '../../../data/motor_db_size.json'; // lokasi data motor
+import { distance } from 'fastest-levenshtein';
 
-// --- Input Schema ---
-const InputSchema = z.object({
-  motor_query: z.string().describe('Nama/model motor yang ingin dicek ukurannya'),
-});
-export type Input = z.infer<typeof InputSchema>;
+const SIMILARITY_THRESHOLD = 0.75; // semakin tinggi semakin ketat
 
-// --- Output Type ---
-type Output = {
-  success: boolean;
-  details?: {
-    motor_model: string;
-    general_size: string;
-    repaint_size: string;
-  };
-  summary?: string;
-  error?: string;
-  message?: string;
-  ambiguous_options?: string[];
-};
-
-// --- Implementation ---
-async function implementation(input: Input): Promise<Output> {
-  try {
-    const { motor_query } = InputSchema.parse(input);
-    const query = motor_query.toLowerCase().trim();
-
-    const allMotors = allMotorsData as any[];
-
-    const exactMatch = allMotors.find(
-      (motor) => motor.model.toLowerCase() === query
-    );
-
-    if (exactMatch) {
-      return {
-        success: true,
-        details: {
-          motor_model: exactMatch.model,
-          general_size: exactMatch.motor_db_size,
-          repaint_size: exactMatch.repaint_size,
-        },
-        summary: `Motor ${exactMatch.model} tergolong size ${exactMatch.motor_db_size} (umum) dan ${exactMatch.repaint_size} untuk repaint.`,
-      };
-    }
-
-    // Cari berdasarkan alias
-    const aliasMatches = allMotors.filter((motor) => {
-      const aliases = (motor.aliases || []) as string[];
-      return aliases.some((alias) => query.includes(alias.toLowerCase()));
-    });
-
-    if (aliasMatches.length === 1) {
-      const motor = aliasMatches[0];
-      return {
-        success: true,
-        details: {
-          motor_model: motor.model,
-          general_size: motor.motor_db_size,
-          repaint_size: motor.repaint_size,
-        },
-        summary: `Motor ${motor.model} tergolong size ${motor.motor_db_size} (umum) dan ${motor.repaint_size} untuk repaint.`,
-      };
-    }
-
-    if (aliasMatches.length > 1) {
-      return {
-        success: false,
-        error: 'ambiguous_motor',
-        message: `Nama motor terlalu umum, bisa jadi: ${aliasMatches.map((m) => m.model).join(', ')}`,
-        ambiguous_options: aliasMatches.map((m) => m.model),
-      };
-    }
-
-    return {
-      success: false,
-      error: 'motor_not_found',
-      message: `Zoya belum menemukan motor "${motor_query}" di database ukuran kami.`,
-    };
-
-  } catch (error: any) {
-    return {
-      success: false,
-      error: 'generic_error',
-      message: `Terjadi error internal: ${error.message}`,
-    };
-  }
+function getSimilarity(a: string, b: string): number {
+  const dist = distance(a.toLowerCase(), b.toLowerCase());
+  const maxLen = Math.max(a.length, b.length);
+  return 1 - dist / maxLen;
 }
 
-// --- Export untuk AI Agent (function calling compatible) ---
-export const getMotorSizeDetailsTool = {
-  toolDefinition: {
-    type: 'function' as const,
-    function: {
-      name: 'getMotorSizeDetails',
-      description: 'Cek motor ini masuk size apa (S/M/L/XL) untuk kebutuhan layanan.',
-      parameters: {
-        type: 'object',
-        properties: {
-          motor_query: { type: 'string', description: 'Nama/tipe motor user.' },
-        },
-        required: ['motor_query'],
+export const getMotorSizeDetailsTool = defineTool({
+  name: 'getMotorSizeDetails',
+  description: 'Mendeteksi ukuran motor berdasarkan nama/jenis motor yang disebut user.',
+  parameters: {
+    type: 'object',
+    properties: {
+      motor_query: {
+        type: 'string',
+        description: 'Nama motor dari user, misalnya "vario", "nmax", "vespa", dll.',
       },
     },
+    required: ['motor_query'],
   },
-  implementation,
-};
+  execute: async ({ motor_query }) => {
+    const query = motor_query.trim().toLowerCase();
+
+    let bestMatch = null;
+    let bestScore = 0;
+
+    for (const entry of motorDb) {
+      const model = entry.model?.toLowerCase() || '';
+      const aliases = (entry.aliases || []).map((a) => a.toLowerCase());
+
+      const candidates = [model, ...aliases];
+
+      for (const candidate of candidates) {
+        const score = getSimilarity(query, candidate);
+        if (score > bestScore) {
+          bestScore = score;
+          bestMatch = entry;
+        }
+      }
+    }
+
+    if (!bestMatch || bestScore < SIMILARITY_THRESHOLD) {
+      return {
+        success: false,
+        message: `Motor "${motor_query}" tidak dikenali dalam database ukuran.`,
+        similarity: bestScore,
+      };
+    }
+
+    return {
+      success: true,
+      motor_query,
+      motor_size: bestMatch.motor_db_size,
+      repaint_size: bestMatch.repaint_size,
+      matched_model: bestMatch.model,
+      similarity: bestScore,
+    };
+  },
+});
