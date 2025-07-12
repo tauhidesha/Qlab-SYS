@@ -36,6 +36,8 @@ type Output =
 
 async function implementation(input: Input): Promise<Output> {
   // Tidak perlu baca file, motorDb sudah di-import langsung
+  console.log('[getMotorSizeDetailsTool][DEBUG] input:', input);
+  console.log('[getMotorSizeDetailsTool][DEBUG] Jumlah data motor:', Array.isArray(daftarUkuranMotor) ? daftarUkuranMotor.length : 'N/A');
   if (!daftarUkuranMotor || !Array.isArray(daftarUkuranMotor)) {
     console.error('[getMotorSizeDetailsTool] KRITIS: Gagal memuat database motor dari file TypeScript.');
     return {
@@ -44,7 +46,12 @@ async function implementation(input: Input): Promise<Output> {
     };
   }
 
-  const motor_query = input.motor_query?.trim().toLowerCase();
+  // Ambil motor_query dengan helper universal agar AI agent/function calling selalu konsisten
+  // (lihat src/ai/utils/runToolCalls.ts)
+  // @ts-ignore
+  const { normalizeToolInput } = await import('@/ai/utils/runToolCalls');
+  const motor_query = normalizeToolInput(input, 'motor_query')?.trim().toLowerCase();
+  console.log('[getMotorSizeDetailsTool][DEBUG] Query:', motor_query);
   if (!motor_query) {
     return {
       success: false,

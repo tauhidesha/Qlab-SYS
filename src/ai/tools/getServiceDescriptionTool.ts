@@ -40,12 +40,15 @@ export const getServiceDescriptionTool = {
 
   // ✅ PERBAIKAN: Implementasi dibuat inline dan menerima 'bungkusan' objek
   // Ia akan membongkar properti 'arguments' dan menamainya 'input'
-  implementation: async ({ arguments: input }: { arguments: Input }): Promise<Output> => {
+  implementation: async (input: any): Promise<Output> => {
     try {
-      // Sekarang kita bisa mem-parse `input` karena isinya sudah benar `{ service_name: '...' }`
-      const { service_name } = InputSchema.parse(input);
+      // Ambil service_name dengan helper universal agar AI agent/function calling selalu konsisten
+      // @ts-ignore
+      const { normalizeToolInput } = await import('@/ai/utils/runToolCalls');
+      const service_name = normalizeToolInput(input, 'service_name');
+      const { service_name: parsedServiceName } = InputSchema.parse({ service_name });
 
-      const normalized = service_name.toLowerCase().trim();
+      const normalized = parsedServiceName.toLowerCase().trim();
 
       // Cari dengan contains match (lebih fleksibel)
       const service = (deskripsiLayanan as any[]).find(
@@ -56,7 +59,7 @@ export const getServiceDescriptionTool = {
         return {
           success: false,
           error: 'not_found',
-          message: `Layanan "${service_name}" tidak ditemukan di database deskripsi.`,
+          message: `Layanan "${parsedServiceName}" tidak ditemukan di database deskripsi.`,
         };
       }
 

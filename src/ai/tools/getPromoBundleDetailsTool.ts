@@ -22,7 +22,10 @@ type Output = {
 // --- Implementation ---
 async function implementation(input: Input): Promise<Output> {
   try {
-    const { motor_query } = InputSchema.parse(input);
+    // Ambil motor_query dengan helper universal agar AI agent/function calling selalu konsisten
+    // @ts-ignore
+    const { normalizeToolInput } = await import('@/ai/utils/runToolCalls');
+    const motor_query = normalizeToolInput(input, 'motor_query');
 
     // Jika motor umum (tidak spesifik)
     if (!motor_query || motor_query === 'N/A' || motor_query.toLowerCase().trim() === 'umum') {

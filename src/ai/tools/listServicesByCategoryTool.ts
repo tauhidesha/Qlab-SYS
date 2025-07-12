@@ -35,7 +35,10 @@ async function implementation(
   rawInput: any,
   session?: SessionData
 ): Promise<Output> {
-  const categoryQuery = rawInput.category?.trim().toLowerCase();
+  // Ambil category dengan helper universal agar AI agent/function calling selalu konsisten
+  // @ts-ignore
+  const { normalizeToolInput } = await import('@/ai/utils/runToolCalls');
+  const categoryQuery = normalizeToolInput(rawInput, 'category')?.trim().toLowerCase();
 
   if (!categoryQuery) {
     return {
