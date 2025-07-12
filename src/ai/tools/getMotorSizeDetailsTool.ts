@@ -1,6 +1,8 @@
 // @file: src/ai/tools/getMotorSizeDetailsTool.ts
 
-import motorDb from '../../../docs/daftarUkuranMotor.json';
+// 💡 PERHATIAN: Pastikan path ini benar-benar valid saat aplikasi di-build/dijalankan di server.
+// Masalah 'kesalahan teknis' seringkali berasal dari path file yang salah setelah kompilasi.
+import motorDb from '../../../docs/daftarUkuranMotor.json'
 import levenshtein from 'js-levenshtein';
 
 const SIMILARITY_THRESHOLD = 0.75;
@@ -8,6 +10,8 @@ const SIMILARITY_THRESHOLD = 0.75;
 function getSimilarity(a: string, b: string): number {
   const dist = levenshtein(a.toLowerCase(), b.toLowerCase());
   const maxLen = Math.max(a.length, b.length);
+  // Hindari pembagian dengan nol jika string kosong
+  if (maxLen === 0) return 1;
   return 1 - dist / maxLen;
 }
 
@@ -31,6 +35,16 @@ type Output =
     };
 
 async function implementation(input: Input): Promise<Output> {
+  // ✅ PERBAIKAN: Menambahkan "Guard Clause" untuk mencegah crash
+  // Ini akan memeriksa apakah file motorDb.json berhasil diimpor atau tidak.
+  if (!motorDb || !Array.isArray(motorDb)) {
+    console.error('[getMotorSizeDetailsTool] KRITIS: Gagal memuat database motor dari file JSON. Periksa path impor.');
+    return {
+      success: false,
+      message: 'Kesalahan internal: Database ukuran motor tidak dapat diakses.',
+    };
+  }
+
   const motor_query = input.motor_query?.trim().toLowerCase();
   if (!motor_query) {
     return {
