@@ -1,6 +1,6 @@
 // File: app/ai/lib/resolvers/resolveMotorModel.ts
 
-import allMotorsData from '../../../../../../docs/daftarUkuranMotor.json'
+import daftarUkuranMotor from "@/data/daftarUkuranMotor";
 
 
 export type MotorSize = 'S' | 'M' | 'L' | 'XL';
@@ -13,7 +13,7 @@ export type Motor = {
 
 export function resolveMotorModel(query: string): Motor | null {
   const msg = query.toLowerCase();
-  const allMotors: Motor[] = allMotorsData as Motor[];
+  const allMotors: Motor[] = daftarUkuranMotor as Motor[];
 
   const matches = allMotors.filter((motor) =>
     motor.model.toLowerCase().includes(msg)
