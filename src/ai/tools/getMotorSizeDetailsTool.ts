@@ -1,7 +1,7 @@
 // src/ai/tools/getMotorSizeDetailsTool.ts
 
 import { defineTool } from '@/ai/types';
-import motorDb from '../../../data/motor_db_size.json'; // lokasi data motor
+import allMotorData from '../../../docs/motor_db_size.json';
 import { distance } from 'fastest-levenshtein';
 
 const SIMILARITY_THRESHOLD = 0.75; // semakin tinggi semakin ketat
