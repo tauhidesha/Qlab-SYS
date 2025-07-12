@@ -1,7 +1,7 @@
 // @file: src/ai/tools/getServiceDescriptionTool.ts
 
 import { z } from 'zod';
-import allServicesData from '../../../docs/deskripsi_layanan.json';
+import deskripsiLayanan from '@/data/deskripsiLayanan';
 
 // --- Skema Input (tidak perlu diubah) ---
 const InputSchema = z.object({
@@ -48,7 +48,7 @@ export const getServiceDescriptionTool = {
       const normalized = service_name.toLowerCase().trim();
 
       // Cari dengan contains match (lebih fleksibel)
-      const service = (allServicesData as any[]).find(
+      const service = (deskripsiLayanan as any[]).find(
         (s) => s.name.toLowerCase().includes(normalized)
       );
 

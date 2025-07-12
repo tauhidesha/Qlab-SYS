@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 import type { GetPriceResult } from '@/types/ai/tools';
-import allServicesData from '../../../docs/harga_layanan.json';
+import hargaLayanan from '@/data/hargaLayanan';
 import type { SessionData } from '@/ai/utils/session';
 
 // --- Input Schema ---
@@ -46,7 +46,7 @@ function stringSimilarity(a: string, b: string): number {
 function getBestMatchServiceName(inputName: string): string | null {
   let bestMatch: { name: string; score: number } | null = null;
 
-  for (const service of allServicesData as Service[]) {
+  for (const service of hargaLayanan as Service[]) {
     const score = stringSimilarity(inputName, service.name);
     if (!bestMatch || score > bestMatch.score) {
       bestMatch = { name: service.name, score };
@@ -97,7 +97,7 @@ async function implementation(rawInput: any, session?: SessionData): Promise<Get
       };
     }
 
-    const service = (allServicesData as Service[]).find(s => s.name === matchedServiceName);
+    const service = (hargaLayanan as Service[]).find(s => s.name === matchedServiceName);
     if (!service) {
       return {
         success: false,

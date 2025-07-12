@@ -2,7 +2,7 @@
 
 // 💡 PERHATIAN: Pastikan path ini benar-benar valid saat aplikasi di-build/dijalankan di server.
 // Masalah 'kesalahan teknis' seringkali berasal dari path file yang salah setelah kompilasi.
-import motorDb from '../../../docs/daftarUkuranMotor.json'
+import daftarUkuranMotor from '@/data/daftarUkuranMotor';
 import levenshtein from 'js-levenshtein';
 
 const SIMILARITY_THRESHOLD = 0.75;
@@ -35,10 +35,9 @@ type Output =
     };
 
 async function implementation(input: Input): Promise<Output> {
-  // ✅ PERBAIKAN: Menambahkan "Guard Clause" untuk mencegah crash
-  // Ini akan memeriksa apakah file motorDb.json berhasil diimpor atau tidak.
-  if (!motorDb || !Array.isArray(motorDb)) {
-    console.error('[getMotorSizeDetailsTool] KRITIS: Gagal memuat database motor dari file JSON. Periksa path impor.');
+  // Tidak perlu baca file, motorDb sudah di-import langsung
+  if (!daftarUkuranMotor || !Array.isArray(daftarUkuranMotor)) {
+    console.error('[getMotorSizeDetailsTool] KRITIS: Gagal memuat database motor dari file TypeScript.');
     return {
       success: false,
       message: 'Kesalahan internal: Database ukuran motor tidak dapat diakses.',
@@ -57,7 +56,7 @@ async function implementation(input: Input): Promise<Output> {
   let bestScore = 0;
 
   // Debug log: tampilkan similarity setiap kandidat
-  for (const entry of motorDb) {
+  for (const entry of daftarUkuranMotor) {
     const model = entry.model?.toLowerCase() || '';
     const aliases = (entry.aliases || []).map((a) => a.toLowerCase());
     const candidates = [model, ...aliases];

@@ -1,6 +1,6 @@
 // @file: src/ai/utils/getServiceCategory.ts
 
-import allServicesData from '@/../docs/harga_layanan.json';
+import hargaLayanan from '@/data/hargaLayanan';
 import levenshtein from 'js-levenshtein'; // ⬅️ pastikan package ini sudah di-install
 
 type Category = 'coating' | 'detailing' | 'repaint' | 'cuci';
@@ -13,7 +13,7 @@ export async function getServiceCategory({ service_name }: Input): Promise<Resul
   const normalizedInput = service_name.toLowerCase().trim();
 
   // 1. Exact match
-  const exactMatch = allServicesData.find(service =>
+  const exactMatch = hargaLayanan.find(service =>
     service.name.toLowerCase().trim() === normalizedInput
   );
 
@@ -22,7 +22,7 @@ export async function getServiceCategory({ service_name }: Input): Promise<Resul
   }
 
   // 2. Fuzzy match
-  const fuzzyMatch = allServicesData
+  const fuzzyMatch = hargaLayanan
   .filter(service => isValidCategory(service.category)) // filter dulu yang valid
   .find(service => levenshtein(service.name.toLowerCase().trim(), normalizedInput) <= MAX_DISTANCE);
 

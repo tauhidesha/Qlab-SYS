@@ -1,8 +1,8 @@
 // File: src/ai/tools/getPromoBundleDetailsTool.ts
 
 import { z } from 'zod';
-import promoData from '../../../docs/promo_bundling.json';
-import allMotorsData from '../../../docs/daftarUkuranMotor.json';
+import promoBundling from '@/data/promoBundling';
+import daftarUkuranMotor from '@/data/daftarUkuranMotor';
 
 // --- Input Schema ---
 const InputSchema = z.object({
@@ -28,14 +28,14 @@ async function implementation(input: Input): Promise<Output> {
     if (!motor_query || motor_query === 'N/A' || motor_query.toLowerCase().trim() === 'umum') {
       return {
         isPromoAvailable: true,
-        promoDetails: promoData,
+        promoDetails: promoBundling,
         note: `🔥 Ada promo spesial buat semua tipe motor nih bro, biar makin kinclong tanpa bikin kantong bolong!`,
         summary: `✅ *Repaint Bodi Halus* + *Full Detailing Glossy*\n💰 Hemat sampai *300rb-an*! Buruan sebelum slot-nya habis ya, bro 😎`,
       };
     }
 
     const lowerCaseQuery = motor_query.toLowerCase();
-    const allMotors = (allMotorsData as any[]).filter(m => m.model && m.repaint_size);
+    const allMotors = (daftarUkuranMotor as any[]).filter(m => m.model && m.repaint_size);
     const matches = allMotors.filter(motor => motor.model.toLowerCase().includes(lowerCaseQuery));
 
     if (matches.length === 0) {
@@ -48,7 +48,7 @@ async function implementation(input: Input): Promise<Output> {
     matches.sort((a, b) => b.model.length - a.model.length);
     const motor = matches[0];
     const repaintSize = motor.repaint_size;
-    const specificPromo = (promoData as any[]).find(p => p.repaintSize === repaintSize);
+    const specificPromo = (promoBundling as any[]).find(p => p.repaintSize === repaintSize);
 
     if (!specificPromo) {
       return {

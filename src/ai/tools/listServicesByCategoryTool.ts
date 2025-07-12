@@ -1,7 +1,7 @@
 // @file: src/ai/tools/listServicesByCategoryTool.ts
 
 import type { SessionData } from '@/ai/utils/session';
-import allServicesData from '../../../docs/harga_layanan.json';
+import hargaLayanan from '@/data/hargaLayanan';
 
 type Service = {
   name: string;
@@ -44,7 +44,7 @@ async function implementation(
     };
   }
 
-  const matchedServices = (allServicesData as Service[]).filter(
+  const matchedServices = (hargaLayanan as Service[]).filter(
     (s) => s.category.toLowerCase() === categoryQuery
   );
 

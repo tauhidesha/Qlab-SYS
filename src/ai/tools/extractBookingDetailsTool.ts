@@ -1,7 +1,7 @@
 // @file: src/ai/tools/extractBookingDetailsTool.ts
 
 import { z } from 'zod';
-import allServicesData from '../../../docs/harga_layanan.json';
+import hargaLayanan from '@/data/hargaLayanan';
 import { parse } from 'chrono-node';
 
 // --- Input schema ---
@@ -57,7 +57,7 @@ async function implementation(input: Input): Promise<Result> {
 
     // --- Cari nama layanan yang cocok ---
     const lowerMsg = user_query.toLowerCase();
-    const matchedService = allServicesData.find(service =>
+    const matchedService = hargaLayanan.find(service =>
       lowerMsg.includes(service.name.toLowerCase())
     );
 
