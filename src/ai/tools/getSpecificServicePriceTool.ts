@@ -82,8 +82,7 @@ function formatDuration(minutesStr?: string): string {
 
   return result;
 }
-
-// --- Implementation ---
+// --- Implementation (Fungsi Baru yang Sudah Diperbaiki) ---
 async function implementation(input: any): Promise<GetPriceResult> {
   try {
     const parsed = InputSchema.safeParse(input);
@@ -95,109 +94,69 @@ async function implementation(input: any): Promise<GetPriceResult> {
       };
     }
 
-    let { service_name: parsedServiceName, size: parsedSize } = parsed.data;
+    const { service_name: parsedServiceName, size: sizeFromArgs } = parsed.data;
     const session: SessionData | undefined = parsed.data.session;
 
-    if (session?.inquiry?.lastMentionedService?.serviceName?.toLowerCase().includes('repaint')) {
-      parsedSize = session.inquiry.repaintSize || parsedSize;
+    let finalSize = sizeFromArgs; 
+
+    if (session?.inquiry) {
+      const isRepaintService = parsedServiceName.toLowerCase().includes('repaint');
+      if (isRepaintService && session.inquiry.repaintSize) {
+        finalSize = session.inquiry.repaintSize;
+        console.log(`[getSpecificServicePriceTool] Layanan repaint terdeteksi. Menggunakan repaintSize dari sesi: '${finalSize}'`);
+      } else if (!isRepaintService && session.inquiry.serviceSize) {
+        finalSize = session.inquiry.serviceSize;
+        console.log(`[getSpecificServicePriceTool] Layanan non-repaint terdeteksi. Menggunakan serviceSize dari sesi: '${finalSize}'`);
+      } else {
+        console.log(`[getSpecificServicePriceTool] Tidak ada size di sesi yang cocok. Menggunakan size dari argumen: '${finalSize}'`);
+      }
     }
 
-    // Khusus untuk input "coating", hanya kembalikan dua layanan utama
     if (parsedServiceName.trim().toLowerCase() === 'coating') {
       const names = ['Coating Motor Doff', 'Coating Motor Glossy'];
       const results = (hargaLayanan as Service[])
         .filter(s => names.includes(s.name))
         .map(service => {
-          const variant = service.variants?.find(v => v.name === parsedSize);
+          const variant = service.variants?.find(v => v.name === finalSize);
           const basePrice = variant?.price ?? service.price;
-          return {
-            service_name: service.name,
-            motor_size: parsedSize,
-            price: basePrice,
-            estimated_duration: formatDuration(service.estimatedDuration),
-            similarity: 1,
-          };
+          return { service_name: service.name, motor_size: finalSize, price: basePrice, estimated_duration: formatDuration(service.estimatedDuration), similarity: 1 };
         });
-      return {
-        success: true,
-        multiple_candidates: true,
-        candidates: results,
-        message: `Ditemukan 2 layanan utama untuk "coating": Coating Motor Doff & Coating Motor Glossy.`,
-      };
+      return { success: true, multiple_candidates: true, candidates: results, message: `Ditemukan 2 layanan utama untuk "coating": Coating Motor Doff & Coating Motor Glossy.` };
     }
 
-    // Default: fuzzy match seperti sebelumnya
     const candidates = (hargaLayanan as Service[])
-      .map(s => ({
-        ...s,
-        similarity: stringSimilarity(parsedServiceName, s.name)
-      }))
+      .map(s => ({ ...s, similarity: stringSimilarity(parsedServiceName, s.name) }))
       .filter(s => s.similarity >= 0.5)
       .sort((a, b) => b.similarity - a.similarity);
 
     if (candidates.length === 0) {
-      return {
-        success: false,
-        error: 'generic_error',
-        message: `Layanan "${parsedServiceName}" tidak ditemukan atau terlalu berbeda.`,
-      };
+      return { success: false, error: 'generic_error', message: `Layanan "${parsedServiceName}" tidak ditemukan.` };
     }
 
     if (candidates.length === 1) {
       const service = candidates[0];
-      const variant = service.variants?.find(v => v.name === parsedSize);
+      const variant = service.variants?.find(v => v.name === finalSize);
       const basePrice = variant?.price ?? service.price;
       if (basePrice === undefined) {
-        return {
-          success: false,
-          error: 'price_not_available_for_size',
-          message: `Harga belum tersedia untuk size ${parsedSize} pada layanan "${service.name}".`,
-          service_name: service.name,
-          motor_size: parsedSize,
-        };
+        return { success: false, error: 'price_not_available_for_size', message: `Harga belum tersedia untuk size ${finalSize} pada layanan "${service.name}".`, service_name: service.name, motor_size: finalSize };
       }
-      const summary =
-        `Harga untuk layanan *${service.name}* untuk motor ukuran ${parsedSize} adalah Rp${basePrice.toLocaleString('id-ID')}.` +
-        (service.estimatedDuration ? ` Estimasi pengerjaan: ${formatDuration(service.estimatedDuration)}.` : '');
-      return {
-        success: true,
-        service_name: service.name,
-        motor_size: parsedSize,
-        price: basePrice,
-        estimated_duration: formatDuration(service.estimatedDuration),
-        summary,
-      };
+      const summary = `Harga untuk layanan *${service.name}* untuk motor ukuran ${finalSize} adalah Rp${basePrice.toLocaleString('id-ID')}.` + (service.estimatedDuration ? ` Estimasi pengerjaan: ${formatDuration(service.estimatedDuration)}.` : '');
+      return { success: true, service_name: service.name, motor_size: finalSize, price: basePrice, estimated_duration: formatDuration(service.estimatedDuration), summary };
     }
 
     const results = candidates.map(service => {
-      const variant = service.variants?.find(v => v.name === parsedSize);
+      const variant = service.variants?.find(v => v.name === finalSize);
       const basePrice = variant?.price ?? service.price;
-      return {
-        service_name: service.name,
-        motor_size: parsedSize,
-        price: basePrice,
-        estimated_duration: formatDuration(service.estimatedDuration),
-        similarity: service.similarity,
-      };
+      return { service_name: service.name, motor_size: finalSize, price: basePrice, estimated_duration: formatDuration(service.estimatedDuration), similarity: service.similarity };
     });
 
-    return {
-      success: true,
-      multiple_candidates: true,
-      candidates: results,
-      message: `Ditemukan ${results.length} layanan mirip dengan "${parsedServiceName}". Silakan pilih yang paling sesuai.`,
-    };
+    return { success: true, multiple_candidates: true, candidates: results, message: `Ditemukan ${results.length} layanan mirip dengan "${parsedServiceName}". Silakan pilih yang paling sesuai.` };
 
   } catch (err: any) {
     console.error('[getSpecificServicePriceTool] Error:', err);
-    return {
-      success: false,
-      error: 'generic_error',
-      message: `Terjadi error saat mengambil harga: ${err.message}`,
-    };
+    return { success: false, error: 'generic_error', message: `Terjadi error saat mengambil harga: ${err.message}` };
   }
 }
-
 // --- Export ---
 export const getSpecificServicePriceTool = {
   toolDefinition: {
