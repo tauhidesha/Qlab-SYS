@@ -7,7 +7,7 @@ import Script from 'next/script'
 import 'slick-carousel/slick/slick.css'
 import 'slick-carousel/slick/slick-theme.css'
 import { FB_PIXEL_ID } from '@/lib/fpixel' // <-- 1. IMPORT ID DARI FILE PUSAT
-import PixelEvents from '@/components/PixelEvents' // <-- 3. IMPORT KOMPONEN EVENT
+// import PixelEvents from '@/components/PixelEvents' // <-- 3. IMPORT KOMPONEN EVENT
 import { Suspense } from 'react'
 
 export const metadata: Metadata = {
@@ -61,9 +61,6 @@ export default function RootLayout({
             src={`https://www.facebook.com/tr?id=${FB_PIXEL_ID}&ev=PageView&noscript=1`}
           />
         </noscript>
-<Suspense fallback={null}>
-        <PixelEvents /> {/* <-- 3. TAMBAHKAN KOMPONEN EVENT DI SINI */}
-        </Suspense>
         {children}
         <Toaster />
       </body>

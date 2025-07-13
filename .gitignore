@@ -17,7 +17,35 @@ yarn-error.log*
 node_modules/
 
 # Direktori Build Next.js
-.next/
+.next
+
+# Direktori Build dan Output
+out/
+dist/
+
+# File Cache
+.cache/
+.vscode/
+
+# File Testing
+coverage/
+.nyc_output/
+
+# File Temporary
+tmp/
+temp/
+*.swp
+
+# File Firebase
+firebase-debug.log
+.firebaserc
+
+# File Tailwind CSS
+tailwind.config.js
+
+# File Lainnya
+*.bak
+*.pid
 
 # File Sistem Operasi
 .DS_Store
