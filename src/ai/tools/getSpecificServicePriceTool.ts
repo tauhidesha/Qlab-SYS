@@ -9,7 +9,6 @@ import type { SessionData } from '@/ai/utils/session';
 const InputSchema = z.object({
   service_name: z.string().describe('Nama layanan yang ingin dicek harga detailnya'),
   size: z.enum(['S', 'M', 'L', 'XL']).describe('Ukuran motor untuk layanan ini (S/M/L/XL)'),
-  // REVISI: Kita juga bisa menerima session langsung di dalam input Zod jika diperlukan
   session: z.any().optional(),
 });
 export type Input = z.infer<typeof InputSchema>;
@@ -20,7 +19,7 @@ type Service = {
   name: string;
   category: string;
   price?: number;
-  estimatedDuration?: string;
+  estimatedDuration?: string; // Durasi dalam menit
   variants?: ServiceVariant[];
 };
 
@@ -45,33 +44,48 @@ function stringSimilarity(a: string, b: string): number {
   return maxLen === 0 ? 1 : 1 - distance / maxLen;
 }
 
-function getBestMatchServiceName(inputName: string): string | null {
-  let bestMatch: { name: string; score: number } | null = null;
-
-  for (const service of hargaLayanan as Service[]) {
-    const score = stringSimilarity(inputName, service.name);
-    if (!bestMatch || score > bestMatch.score) {
-      bestMatch = { name: service.name, score };
-    }
+// --- REVISI: Logika format durasi diubah untuk menampilkan "hari kerja" ---
+/**
+ * Mengubah durasi dari string menit ke format hari kerja dan jam.
+ * 1 hari kerja dianggap 8 jam.
+ * @param minutesStr - Durasi dalam format string menit (misal: "2400" untuk 40 jam).
+ * @returns String yang sudah diformat (contoh: "5 hari kerja" atau "1 hari kerja 2 jam").
+ */
+function formatDuration(minutesStr?: string): string {
+  if (!minutesStr) return 'Segera';
+  
+  const durationInMinutes = parseInt(minutesStr, 10);
+  if (isNaN(durationInMinutes) || durationInMinutes <= 0) {
+    return 'Segera';
   }
 
-  return bestMatch && bestMatch.score >= 0.75 ? bestMatch.name : null;
-}
+  const WORKDAY_HOURS = 8;
+  const totalHours = Math.round(durationInMinutes / 60);
 
-function formatDuration(minutesStr?: string): string | undefined {
-  if (!minutesStr) return undefined;
-  const minutes = parseInt(minutesStr, 10);
-  if (isNaN(minutes) || minutes === 0) return undefined;
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return [hours > 0 ? `${hours} jam` : '', mins > 0 ? `${mins} menit` : ''].filter(Boolean).join(' ');
+  // Jika kurang dari 1 hari kerja, tampilkan dalam jam
+  if (totalHours < WORKDAY_HOURS) {
+    if (totalHours < 1) {
+        return `${durationInMinutes} menit`;
+    }
+    return `${totalHours} jam`;
+  }
+
+  const days = Math.floor(totalHours / WORKDAY_HOURS);
+  const remainingHours = totalHours % WORKDAY_HOURS;
+
+  let result = `${days} hari kerja`;
+
+  // Tambahkan sisa jam jika ada
+  if (remainingHours > 0) {
+    result += ` ${remainingHours} jam`;
+  }
+
+  return result;
 }
 
 // --- Implementation ---
 async function implementation(input: any): Promise<GetPriceResult> {
   try {
-    // REVISI: Hapus dynamic import dan panggilan ke normalizeToolInput.
-    // REVISI: Gunakan Zod untuk mem-parse objek input secara langsung.
     const parsed = InputSchema.safeParse(input);
     if (!parsed.success) {
       return {
