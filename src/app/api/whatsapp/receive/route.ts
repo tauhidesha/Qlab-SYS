@@ -1,26 +1,19 @@
 // File: src/app/api/whatsapp/receive/route.ts
-// Endpoint ini sekarang menjadi "penerima cepat".
 
 import { NextResponse } from 'next/server';
 import type { ZoyaChatInput } from '@/types/ai/cs-whatsapp-reply';
 import { handleHumanReplyForwarding } from '@/ai/utils/handsoff/handleHumanReplyForwarding';
 
 export async function POST(request: Request) {
-  // ... di dalam fungsi POST
-try {
-    // Baca body sebagai teks terlebih dahulu
+  try {
     const textBody = await request.text();
-
-    // Jika body kosong, anggap sebagai health check dan balas OK
     if (!textBody) {
       console.log('[API /receive] Menerima request kosong (kemungkinan health check).');
       return NextResponse.json({ status: 'ok', message: 'Endpoint is healthy.' });
     }
-
-    // Jika tidak kosong, baru parse sebagai JSON
+    
     const body = JSON.parse(textBody);
     console.log('[API /receive] Menerima request:', body);
-    // ... sisa kode
 
     const { customerMessage, senderNumber, chatHistory, senderName } = body;
 
@@ -36,11 +29,6 @@ try {
       return NextResponse.json({ status: 'forwarded_to_customer' });
     }
 
-    // =======================================================
-    // --- BAGIAN INI DIUBAH TOTAL ---
-    // =======================================================
-    
-    // 1. Siapkan payload untuk dikirim ke worker.
     const jobPayload: ZoyaChatInput = {
       senderNumber,
       customerMessage,
@@ -48,14 +36,26 @@ try {
       senderName,
     };
     
-    // 2. Dapatkan URL worker dari environment variables.
-   const baseUrl = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
-  : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    // --- BAGIAN DEBUGGING ---
+    const baseUrl = process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : process.env.NEXT_PUBLIC_BASE_URL || process.env.BASE_URL;
 
-const workerUrl = `${baseUrl}/api/whatsapp/do-work`;
+    console.log(`[RECEIVE DEBUG] VERCEL_URL: ${process.env.VERCEL_URL}`);
+    console.log(`[RECEIVE DEBUG] NEXT_PUBLIC_BASE_URL: ${process.env.NEXT_PUBLIC_BASE_URL}`);
+    console.log(`[RECEIVE DEBUG] BASE_URL: ${process.env.BASE_URL}`);
+    console.log(`[RECEIVE DEBUG] Base URL yang digunakan: ${baseUrl}`);
 
-    // 3. Tembak request ke worker dan JANGAN DITUNGGU (fire and forget).
+    if (!baseUrl) {
+      const errorMsg = "[KRITIS] Tidak ada BASE URL yang terdefinisi. Tidak bisa memicu worker.";
+      console.error(errorMsg);
+      return NextResponse.json({ error: errorMsg }, { status: 500 });
+    }
+      
+    const workerUrl = `${baseUrl}/api/whatsapp/do-work`;
+    console.log(`[RECEIVE DEBUG] Mencoba memicu worker di URL: ${workerUrl}`);
+    // --- AKHIR BAGIAN DEBUGGING ---
+
     fetch(workerUrl, {
       method: 'POST',
       headers: {
@@ -64,13 +64,11 @@ const workerUrl = `${baseUrl}/api/whatsapp/do-work`;
       },
       body: JSON.stringify(jobPayload),
     }).catch(err => {
-      // Tambahkan error handling jika trigger gagal
-      console.error('[API /receive] Gagal memicu worker:', err);
+      console.error('[RECEIVE DEBUG] FETCH GAGAL SECARA EKSPLISIT:', err);
     });
 
     console.log(`[API /receive] Job untuk ${senderNumber} telah dikirim ke worker.`);
 
-    // 4. Langsung balas ke UI/pemanggil awal bahwa request sedang diproses.
     return NextResponse.json({ 
       status: 'processing', 
       message: 'Request diterima dan sedang diproses di latar belakang.' 
