@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 const InputSchema = z.object({
   repaint_size: z.enum(['S', 'M', 'L', 'XL']).describe('Ukuran bodi untuk kebutuhan repaint (lihat field repaint_size di database motor)'),
-  effect: z.enum(['candy', 'bunglon', 'moonlight']).describe('Jenis efek warna spesial yang dipilih (candy, bunglon, moonlight)'),
+  effect: z.enum(['candy', 'bunglon', 'moonlight', 'xyrallic', 'lembayung']).describe('Jenis efek warna spesial yang dipilih (candy, bunglon, moonlight)'),
 });
 
 type Input = z.infer<typeof InputSchema>;
@@ -20,6 +20,8 @@ const surchargeTable: Record<Input['effect'], Record<Input['repaint_size'], numb
   candy:    { S: 150_000, M: 250_000, L: 300_000, XL: 400_000 },
   bunglon:  { S: 200_000, M: 300_000, L: 350_000, XL: 450_000 },
   moonlight:{ S: 200_000, M: 300_000, L: 350_000, XL: 450_000 },
+  xyrallic: { S: 200_000, M: 300_000, L: 350_000, XL: 450_000 },
+  lembayung: { S: 200_000, M: 300_000, L: 350_000, XL: 450_000 },
 };
 
 async function implementation(input: Input): Promise<Result> {
