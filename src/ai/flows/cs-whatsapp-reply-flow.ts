@@ -10,6 +10,7 @@ import type { SessionData } from '@/ai/utils/session';
 import { mergeSession } from '@/ai/utils/mergeSession';
 import { runZoyaAIAgent } from '@/ai/agent/runZoyaAIAgent';
 import { notifyBosMamat, setSnoozeMode } from '@/ai/utils/humanHandoverTool';
+import { updateSessionFromToolResults } from '@/ai/utils/updateSessionFromToolResults';
 
 import { masterPrompt } from '@/ai/config/aiPrompts';
 import { createToolCallMessage, runToolCalls } from '@/ai/utils/runToolCalls';
@@ -108,7 +109,12 @@ export async function generateWhatsAppReply(
 
       const toolResponses = await runToolCalls(agentResult.toolCalls, { input, session: currentSession });
       
-      // --- LOGIKA BARU: Ekstrak reason dan langsung short-circuit ---
+      // --- LOGIKA BARU: Update sesi DENGAN hasil tool ---
+      const updatedSessionData = updateSessionFromToolResults(currentSession, agentResult.toolCalls, toolResponses);
+      currentSession = mergeSession(currentSession, updatedSessionData);
+      // --- AKHIR LOGIKA BARU ---
+
+      // --- LOGIKA LAMA: Ekstrak reason dan langsung short-circuit ---
       let reasonFound: string | undefined;
       for (const resp of toolResponses) {
         if (resp && resp.content) {
@@ -130,7 +136,7 @@ export async function generateWhatsAppReply(
         await updateSession(senderNumber, finalSession);
         return { suggestedReply: reasonFound, toolCalls: [], route: 'tool_reason_short_circuit' };
       }
-      // --- AKHIR LOGIKA BARU ---
+      // --- AKHIR LOGIKA LAMA ---
 
       messagesForAI.push(...toolResponses);
       continue;
