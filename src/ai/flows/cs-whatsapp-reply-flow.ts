@@ -77,6 +77,7 @@ export async function generateWhatsAppReply(
     { role: 'user', content: input.customerMessage },
   ];
 
+  let lastToolReason: string | undefined = undefined;
   for (let i = 0; i < MAX_LOOPS; i++) {
     const agentResult = await runZoyaAIAgent({
       session: currentSession,
@@ -87,6 +88,14 @@ export async function generateWhatsAppReply(
     });
 
     if (agentResult.suggestedReply && (!agentResult.toolCalls || agentResult.toolCalls.length === 0)) {
+      // Jika ada lastToolReason, JADIKAN ITU JAWABAN UTAMA.
+      if (lastToolReason) {
+        console.log(`[Loop ${i + 1}] AI memberikan jawaban, TAPI KITA GANTI dengan reason dari tool.`);
+        const finalSession = mergeSession(currentSession, { lastInteraction: Timestamp.now(), lastRoute: 'ai_agent_final_reply_overridden' });
+        await updateSession(senderNumber, finalSession);
+        return { ...agentResult, suggestedReply: lastToolReason };
+      }
+
       console.log(`[Loop ${i + 1}] AI memberikan jawaban akhir. Loop berhenti.`);
       const finalSession = mergeSession(currentSession, { lastInteraction: Timestamp.now(), lastRoute: 'ai_agent_final_reply' });
       await updateSession(senderNumber, finalSession);
@@ -98,18 +107,39 @@ export async function generateWhatsAppReply(
       messagesForAI.push(createToolCallMessage(agentResult.toolCalls));
 
       const toolResponses = await runToolCalls(agentResult.toolCalls, { input, session: currentSession });
+      
+      // --- LOGIKA BARU: Ekstrak reason dan langsung short-circuit ---
+      let reasonFound: string | undefined;
+      for (const resp of toolResponses) {
+        if (resp && resp.content) {
+          try {
+            const toolResult = JSON.parse(resp.content);
+            if (toolResult && typeof toolResult.reason === 'string' && toolResult.reason.trim()) {
+              reasonFound = toolResult.reason.trim();
+              console.log(`[REASON EXTRACTED & SHORT-CIRCUIT] Ditemukan reason dari tool: "${reasonFound}". Menghentikan loop AI.`);
+              break; 
+            }
+          } catch (e) {
+            console.warn('[REASON EXTRACTION] Gagal parse JSON dari content tool:', resp.content);
+          }
+        }
+      }
+
+      if (reasonFound) {
+        const finalSession = mergeSession(currentSession, { lastInteraction: Timestamp.now(), lastRoute: 'tool_reason_short_circuit' });
+        await updateSession(senderNumber, finalSession);
+        return { suggestedReply: reasonFound, toolCalls: [], route: 'tool_reason_short_circuit' };
+      }
+      // --- AKHIR LOGIKA BARU ---
+
       messagesForAI.push(...toolResponses);
-      
-      // Di sini kita bisa update sesi sementara jika diperlukan, tapi untuk sekarang kita sederhanakan
-      // Logika update sesi akan terjadi sekali di akhir setelah jawaban final didapat.
-      
       continue;
     }
-    
-    break; 
+    break;
   }
 
   // --- TAHAP 3: FALLBACK JIKA LOOP GAGAL ---
+  // Kita tidak perlu lagi cek lastToolReason di sini karena sudah di-handle oleh short-circuit
   const fallbackReply = 'Waduh, Zoya pusing nih muter-muter terus. Langsung tanya Bos Mamat aja ya!';
   await setSnoozeMode(senderNumber);
   await notifyBosMamat(senderNumber, input.customerMessage);

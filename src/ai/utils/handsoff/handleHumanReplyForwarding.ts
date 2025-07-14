@@ -9,7 +9,7 @@ if (!BOS_MAMAT_NUMBER) {
 }
 
 export async function handleHumanReplyForwarding(senderNumber: string, messageBody: string): Promise<boolean> {
-  if (!BOS_MAMAT_NUMBER || !senderNumber.startsWith(BOS_MAMAT_NUMBER)) return false;
+  if (!BOS_MAMAT_NUMBER || !senderNumber.includes(BOS_MAMAT_NUMBER)) return false;
 
   console.log(`[HumanForwarding] Deteksi balasan dari Bos Mamat: "${messageBody}"`);
 

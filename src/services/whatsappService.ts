@@ -69,3 +69,114 @@ export async function sendWhatsAppMessage(number: string, message: string): Prom
     };
   }
 }
+
+export async function sendWhatsAppMedia(
+  to: string,
+  base64: string,
+  mimetype: string,
+  filename: string,
+  caption: string
+): Promise<SendMessageResponse> {
+  const whatsappServerUrl = process.env.WHATSAPP_SERVER_URL;
+
+  if (!whatsappServerUrl) {
+    const errorMsg = "Konfigurasi error: WHATSAPP_SERVER_URL tidak diatur di environment variables.";
+    console.error(`WhatsappService: ${errorMsg}`);
+    return { success: false, error: errorMsg };
+  }
+
+  const formattedNumber = formatPhoneNumber(to);
+  if (!formattedNumber || formattedNumber.length < 10) {
+    const errorMsg = `Nomor tujuan tidak valid: "${formattedNumber}". Tidak bisa mengirim media.`;
+    console.error(`WhatsappService: ${errorMsg}`);
+    return { success: false, error: errorMsg };
+  }
+
+  const endpoint = `${whatsappServerUrl}/send-media`;
+
+  try {
+    console.log(`WhatsappService: Mengirim media (fire-and-forget) via base64 ke ${endpoint} untuk nomor ${formattedNumber}`);
+    
+    // Fire-and-forget
+    fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        number: formattedNumber,
+        base64: base64,
+        mimetype: mimetype,
+        filename: filename,
+        caption: caption,
+      }),
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error(`WhatsappService: Gagal memanggil endpoint ${endpoint}.`, error);
+    return {
+      success: false,
+      error: `Gagal memanggil server WhatsApp: ${error?.message || 'Unknown error'}`,
+    };
+  }
+}
+
+// Fungsi sendWhatsAppMessageDirect dan forwardProofToBosMamat dihapus karena
+// alur logika telah diubah ke base64 dan ditangani oleh tool/util yang baru.
+
+const bosMamatNumber = process.env.BOS_MAMAT_NUMBER; // Ambil nomor bosMamat dari .env
+
+export async function processBosMamatConfirmation(message: string, userNumber: string): Promise<SendMessageResponse> {
+  const bookingIdMatch = message.match(/#confirm\s+(\S+)/);
+
+  if (!bookingIdMatch) {
+    const errorMsg = 'Format pesan konfirmasi tidak valid. Harus berupa "#confirm <bookingId>"';
+    console.error(`WhatsappService: ${errorMsg}`);
+    return { success: false, error: errorMsg };
+  }
+
+  const bookingId = bookingIdMatch[1];
+  console.log(`WhatsappService: bosMamat mengonfirmasi booking dengan ID: ${bookingId}`);
+
+  const whatsappServerUrl = process.env.WHATSAPP_SERVER_URL;
+
+  if (!whatsappServerUrl) {
+    const errorMsg = 'Konfigurasi error: WHATSAPP_SERVER_URL tidak diatur di environment variables.';
+    console.error(`WhatsappService: ${errorMsg}`);
+    return { success: false, error: errorMsg };
+  }
+
+  const endpoint = `${whatsappServerUrl}/send-manual-message`;
+
+  try {
+    console.log(`WhatsappService: Mengirim notifikasi ke pengguna (${userNumber}) bahwa booking telah dikonfirmasi.`);
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        number: userNumber,
+        message: `Pembayaran Anda telah diterima. Booking dengan ID ${bookingId} telah terkonfirmasi.`,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorMsg = `Gagal mengirim notifikasi ke pengguna: ${response.statusText}`;
+      console.error(`WhatsappService: ${errorMsg}`);
+      return { success: false, error: errorMsg };
+    }
+
+    console.log(`WhatsappService: Notifikasi berhasil dikirim ke pengguna (${userNumber}).`);
+    return { success: true };
+  } catch (error: any) {
+    console.error(`WhatsappService: Gagal memanggil endpoint ${endpoint}.`, error);
+    return {
+      success: false,
+      error: `Gagal memanggil server WhatsApp: ${error?.message || 'Unknown error'}`,
+    };
+  }
+}
+
+// Contoh penggunaan sendWhatsAppMessageDirect
+// sendWhatsAppMessageDirect(client, '628179481010@c.us', 'Pesan test langsung dari bot.');

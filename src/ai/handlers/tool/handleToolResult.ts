@@ -65,13 +65,18 @@ export async function handleToolResult({
   let replyMessage = followUp.choices?.[0]?.message?.content?.trim();
 
   const toolName = normalizedCalls[0]?.toolName;
+  const toolResult = toolResponses[0];
   const fallbackTrigger =
     !replyMessage ||
     replyMessage.startsWith('[AI]') ||
     replyMessage.length < 15;
 
+  // Jika toolResult.reason ada (misal: hasil findNextAvailableSlotTool), pakai reason sebagai prioritas reply
+  if (toolResult?.reason && toolResult.reason.length > 10) {
+    replyMessage = toolResult.reason;
+  }
+
   if (fallbackTrigger) {
-    const toolResult = toolResponses[0];
     const fallback = generateToolSummary(toolName, toolResult);
 
     if (fallback && fallback.length >= 15) {
@@ -86,7 +91,7 @@ export async function handleToolResult({
         replyMessage: "Hmm, aku belum yakin jawabannya. Aku tanya dulu ke Bos Mamat ya 🙏",
         updatedSession: {},
         needsHumanHelp: true,
-        humanHelpReason: `Hasil tool "${toolName}" belum cukup jelas atau GPT & fallback gagal.`,
+        humanHelpReason: `Hasil tool \"${toolName}\" belum cukup jelas atau GPT & fallback gagal.`,
         customerQuestion: input.customerMessage,
       };
     }

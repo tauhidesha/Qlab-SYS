@@ -40,8 +40,15 @@ temp/
 firebase-debug.log
 .firebaserc
 
-# File Tailwind CSS
-tailwind.config.js
+# Cache Firebase Emulator
+.firebase/
+
+# Direktori sesi WhatsApp dari run.js
+tokens/
+
+# Dependensi & Build untuk Firebase Functions
+functions/node_modules
+functions/lib
 
 # File Lainnya
 *.bak
@@ -49,3 +56,6 @@ tailwind.config.js
 
 # File Sistem Operasi
 .DS_Store
+
+# File auto-generasi Next.js
+next-env.d.ts

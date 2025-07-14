@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { parseDateTime } from '@/ai/utils/dateTimeParser';
-import { getServiceCategory } from '@/ai/utils/getServiceCategory';
+import { getOvernightWarning, getServiceCategory } from '@/ai/utils/bookingSlotUtils';
 
 // --- Input Schema for Type Checking Only ---
 const InputSchema = z.object({
@@ -40,14 +40,24 @@ async function implementation(input: Input): Promise<Output> {
     // Logika khusus kategori repaint (antrian mingguan)
     if (category === 'repaint') {
       const bookingsRef = collection(db, 'bookings');
-      const q = query(
+      
+      // Ambil SEMUA booking yang statusnya aktif
+      const allActiveBookingsQuery = query(
         bookingsRef,
-        where('category', '==', 'repaint'),
-        where('status', 'in', ['Confirmed', 'In Queue', 'In Progress'])
+        where('status', 'in', ['Confirmed', 'In Queue', 'In Progress', 'pending', 'Pending'])
       );
-      const snapshot = await getDocs(q);
-      if (snapshot.size >= 2) {
-        const finishTimes = snapshot.docs.map(doc => {
+      const allActiveBookingsSnapshot = await getDocs(allActiveBookingsQuery);
+
+      // Saring di sisi aplikasi untuk menemukan booking repaint yang sebenarnya
+      const repaintBookings = allActiveBookingsSnapshot.docs.filter(doc => {
+        const data = doc.data();
+        const hasRepaintCategory = data.category === 'repaint';
+        const hasRepaintInName = data.serviceName && typeof data.serviceName === 'string' && data.serviceName.toLowerCase().includes('repaint');
+        return hasRepaintCategory || hasRepaintInName;
+      });
+
+      if (repaintBookings.length >= 2) {
+        const finishTimes = repaintBookings.map(doc => {
           const data = doc.data() as any;
           const startDate = data.bookingDateTime!.toDate();
           const durationDays = data.estimatedDuration ? parseInt(data.estimatedDuration, 10) / (24 * 60) : 7;
@@ -56,21 +66,34 @@ async function implementation(input: Input): Promise<Output> {
           return endDate;
         });
         const earliestFinishDate = new Date(Math.min(...finishTimes.map(time => time.getTime())));
+        const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+        
+        const d = earliestFinishDate.getDate().toString().padStart(2, '0');
+        const m = (earliestFinishDate.getMonth() + 1).toString().padStart(2, '0');
+        const y = earliestFinishDate.getFullYear();
+        const formattedDate = `${d}-${m}-${y}`;
+
         const nextAvailableSlot = {
-          date: earliestFinishDate.toISOString().split('T')[0],
+          date: formattedDate,
           time: '09:00',
-          day: ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][earliestFinishDate.getDay()],
+          day: dayNames[earliestFinishDate.getDay()],
         };
+        
+        const reason = `Untuk repaint, antrian sedang penuh. Slot paling cepat tersedia untuk masuk pengerjaan mulai ${nextAvailableSlot.day}, ${nextAvailableSlot.date}.`;
+
         return {
           success: true,
           requestedDate,
           availableSlots: [nextAvailableSlot],
+          reason,
         };
       } else {
+        const reason = `Untuk repaint, antrian masih tersedia. Bisa langsung booking untuk masuk antrian pengerjaan.`;
         return {
           success: true,
           requestedDate,
           availableSlots: [{ date: 'Tersedia', time: 'Antrian', day: 'Repaint' }],
+          reason,
         };
       }
     }
@@ -142,16 +165,34 @@ async function implementation(input: Input): Promise<Output> {
       };
     }
 
-    const formattedSlots = foundSlots.map(date => ({
-      date: date.toISOString().split('T')[0],
-      time: date.toTimeString().substring(0, 5),
-      day: ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][date.getDay()],
-    }));
+    const formattedSlots = foundSlots.map(date => {
+      const isRepaint = String(category) === 'repaint';
+      const overnightWarning = getOvernightWarning(date, 180, isRepaint);
+      
+      const d = date.getDate().toString().padStart(2, '0');
+      const m = (date.getMonth() + 1).toString().padStart(2, '0');
+      const y = date.getFullYear();
+      const formattedDate = `${d}-${m}-${y}`;
+
+      return {
+        date: formattedDate,
+        time: date.toTimeString().substring(0, 5),
+        day: ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'][date.getDay()],
+        overnightWarning,
+      };
+    });
+
+    // --- Selalu tambahkan summary tanggal slot terdekat di reason jika ada ---
+    const firstSlot = formattedSlots[0];
+    const slotSummary = firstSlot
+      ? `Slot terdekat tersedia pada ${firstSlot.day}, ${firstSlot.date} jam ${firstSlot.time}.`
+      : '';
 
     return {
       success: true,
       requestedDate,
       availableSlots: formattedSlots,
+      reason: slotSummary,
     };
 
   } catch (error: any) {

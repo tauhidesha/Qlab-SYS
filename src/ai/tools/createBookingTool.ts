@@ -1,5 +1,5 @@
 import { db } from '@/lib/firebase';
-import { collection, addDoc, Timestamp, getDocs, query, where } from 'firebase/firestore';
+import { collection, addDoc, Timestamp, getDocs, query, where, updateDoc } from 'firebase/firestore';
 
 // Helper fuzzy match
 function stringSimilarity(a: string, b: string): number {
@@ -84,6 +84,7 @@ export const createBookingTool = {
       let serviceId = undefined;
       let estimatedDuration = undefined;
       let foundServiceName = serviceName;
+      let serviceCategory: 'detailing' | 'coating' | 'repaint' | 'other' | undefined = undefined;
       const servicesSnap = await getDocs(collection(db, 'services'));
       let bestScore = 0;
       servicesSnap.forEach(docSnap => {
@@ -94,10 +95,12 @@ export const createBookingTool = {
           serviceId = docSnap.id;
           foundServiceName = data.name;
           estimatedDuration = data.estimatedDuration;
+          serviceCategory = data.category; // Ambil kategori dari data service
         }
       });
 
-      const category = getServiceCategory(foundServiceName);
+      // Jika kategori tidak ada di service, coba tentukan dari nama.
+      const category = serviceCategory || getServiceCategory(foundServiceName);
 
       // Simpan booking ke Firestore
       const bookingPayload: any = {
@@ -109,7 +112,7 @@ export const createBookingTool = {
         serviceName: foundServiceName,
         category,
         bookingDateTime,
-        status: 'Confirmed',
+        status: 'Pending',
         notes: notes || '',
         source: 'AI',
         estimatedDuration: estimatedDuration || undefined,
@@ -119,7 +122,7 @@ export const createBookingTool = {
 
       const docRef = await addDoc(collection(db, 'bookings'), bookingPayload);
 
-      // Jika booking untuk hari ini, buat queueItems
+      // Jika booking untuk hari ini, buat queueItems dan update status booking
       const isToday = inputDate.toDateString() === today.toDateString();
       let queueItemId = undefined;
       if (isToday) {
@@ -137,7 +140,8 @@ export const createBookingTool = {
         };
         const queueDocRef = await addDoc(collection(db, 'queueItems'), queueItemData);
         queueItemId = queueDocRef.id;
-        await addDoc(collection(db, 'bookings'), { queueItemId, status: 'In Queue' });
+        // Update booking yang sudah ada dengan queueItemId dan status baru
+        await updateDoc(docRef, { queueItemId, status: 'In Queue' });
       }
 
       return {
