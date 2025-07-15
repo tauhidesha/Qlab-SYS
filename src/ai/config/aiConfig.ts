@@ -47,5 +47,5 @@ export const toolFunctionMap = {
   getRepaintSurcharge: getRepaintSurchargeTool,
   extractBookingDetailsTool: extractBookingDetailsTool,
   triggerBosMamatTool: triggerBosMamatTool,
-  searchKnowledgeBaseTool: searchKnowledgeBaseTool,
+  searchKnowledgeBase: searchKnowledgeBaseTool,
 };
