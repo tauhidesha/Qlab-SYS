@@ -27,10 +27,17 @@ function initializeAdminApp(): Promise<void> {
 
     console.log('[firebase-admin.ts] Attempting to initialize Firebase Admin SDK...');
     try {
-      const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT;
-      
-      if (!serviceAccountJson) {
-        throw new Error('FIREBASE_SERVICE_ACCOUNT environment variable is not set.');
+      let serviceAccountJson: string | undefined;
+      if (process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
+        // Prefer base64 (Vercel/production)
+        serviceAccountJson = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, 'base64').toString('utf-8');
+        console.log('[firebase-admin.ts] Using FIREBASE_SERVICE_ACCOUNT_BASE64');
+      } else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+        // Fallback to raw JSON (local dev)
+        serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT;
+        console.log('[firebase-admin.ts] Using FIREBASE_SERVICE_ACCOUNT');
+      } else {
+        throw new Error('FIREBASE_SERVICE_ACCOUNT_BASE64 or FIREBASE_SERVICE_ACCOUNT environment variable is not set.');
       }
 
       const serviceAccount = JSON.parse(serviceAccountJson);
