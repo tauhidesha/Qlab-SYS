@@ -17,7 +17,7 @@ export default function Home() {
       content_category: 'WhatsApp',
     });
     const message = "Halo Bosmat, saya tertarik dengan promo repaint bundling. Bisa minta info lebih lanjut?";
-    const whatsappUrl = `https://api.whatsapp.com/send?phone=628128Bosmat&text=${encodeURIComponent(message)}`;
+    const whatsappUrl = `https://api.whatsapp.com/send?phone=62895401527556&text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
   };
 
