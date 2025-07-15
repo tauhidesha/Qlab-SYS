@@ -1,8 +1,8 @@
 // @file: src/ai/utils/session.ts
 'use server';
 
-import { db } from '@/lib/firebase';
-import { doc, getDoc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase-admin';
+import admin from 'firebase-admin';
 import type { MappedServiceResult } from '../handlers/routes/lib/classifiers/mapTermToOfficialService';
 
 // --- TIPE DATA RESMI (SUMBER KEBENARAN) ---
@@ -44,7 +44,7 @@ export interface SessionData {
   flow: 'general' | 'booking' | 'awaiting_booking_form';
   inquiry: ServiceInquiry;
   snoozeUntil?: number;
-  lastInteraction: Timestamp;
+  lastInteraction: admin.firestore.Timestamp;
 
   // Follow-up & tracking
   followUpState?: {
@@ -68,11 +68,11 @@ function removeUndefined(obj: any): any {
 
 // --- AMBIL SESI PELANGGAN ---
 export async function getSession(senderNumber: string): Promise<SessionData | null> {
-  const sessionDocRef = doc(db, SESSIONS_COLLECTION, senderNumber);
+  const sessionDocRef = db.collection(SESSIONS_COLLECTION).doc(senderNumber);
   try {
-    const docSnap = await getDoc(sessionDocRef);
+    const docSnap = await sessionDocRef.get();
 
-    if (docSnap.exists()) {
+    if (docSnap.exists) {
       const session = docSnap.data() as SessionData;
 
       // ⛑️ PATCH: jika session lama masih simpan string di lastMentionedService, ubah ke objek
@@ -81,7 +81,7 @@ export async function getSession(senderNumber: string): Promise<SessionData | nu
         session.inquiry.lastMentionedService = { serviceName: rawService, isAmbiguous: false };
       }
 
-      const now = Timestamp.now();
+      const now = admin.firestore.Timestamp.now();
       const lastInteraction = session.lastInteraction || now;
       
       // Session timeout dihapus - session akan tetap ada untuk follow-up
@@ -97,14 +97,14 @@ export async function getSession(senderNumber: string): Promise<SessionData | nu
 
 // --- SIMPAN / UPDATE SESI ---
 export async function updateSession(senderNumber: string, updates: Partial<SessionData>): Promise<void> {
-  const sessionDocRef = doc(db, SESSIONS_COLLECTION, senderNumber);
+  const sessionDocRef = db.collection(SESSIONS_COLLECTION).doc(senderNumber);
   try {
     const sanitizedUpdates = removeUndefined({
       ...updates,
-      lastInteraction: serverTimestamp(),
+      lastInteraction: admin.firestore.Timestamp.now(),
     });
 
-    await setDoc(sessionDocRef, sanitizedUpdates, { merge: true });
+    await sessionDocRef.set(sanitizedUpdates, { merge: true });
 
     console.log(`[SESSION] Sesi untuk ${senderNumber} di-update dengan:`, sanitizedUpdates);
   } catch (error) {

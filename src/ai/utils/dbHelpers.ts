@@ -1,7 +1,7 @@
 // File: src/ai/utils/dbHelpers.ts
 
-import { db } from '@/lib/firebase'; // Pastikan path ke firebase config benar
-import { collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { db } from '@/lib/firebase-admin'; // Pastikan path ke firebase config benar
+import admin from 'firebase-admin';
 
 /**
  * Mengambil ID dokumen layanan dari Firestore berdasarkan nama resminya.
@@ -12,9 +12,8 @@ export async function getServiceIdByName(
   serviceName: string,
 ): Promise<string | null> {
   try {
-    const servicesRef = collection(db, 'services');
-    const q = query(servicesRef, where('name', '==', serviceName), limit(1));
-    const serviceSnapshot = await getDocs(q);
+    const servicesRef = db.collection('services');
+    const serviceSnapshot = await servicesRef.where('name', '==', serviceName).limit(1).get();
 
     if (serviceSnapshot.empty) {
       console.warn(`Service dengan nama "${serviceName}" tidak ditemukan di Firestore.`);

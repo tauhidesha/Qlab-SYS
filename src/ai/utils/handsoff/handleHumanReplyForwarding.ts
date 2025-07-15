@@ -1,5 +1,5 @@
-import { db } from '@/lib/firebase';
-import { getDoc, updateDoc, deleteField, doc } from 'firebase/firestore';
+import { db } from '@/lib/firebase-admin';
+import admin from 'firebase-admin';
 import { sendWhatsAppMessage } from '@/services/whatsappService';
 
 const BOS_MAMAT_NUMBER = process.env.BOS_MAMAT_NUMBER;
@@ -22,17 +22,17 @@ export async function handleHumanReplyForwarding(senderNumber: string, messageBo
 
     console.log(`[ManualReply] Mencoba cari sesi dengan ID: '${targetNumber}'`);
 
-    const sessionRef = doc(db, 'zoya_sessions', targetNumber); // 🔁 koleksi diperbaiki
-    const sessionSnap = await getDoc(sessionRef);
+    const sessionRef = db.collection('zoya_sessions').doc(targetNumber);
+    const sessionSnap = await sessionRef.get();
 
-    if (!sessionSnap.exists()) {
+    if (!sessionSnap.exists) {
       console.warn(`[ManualReply] Customer ${targetNumber} tidak ditemukan.`);
       return false;
     }
 
     await sendWhatsAppMessage(targetNumber, replyText);
-    await updateDoc(sessionRef, {
-      pending_human_reply: deleteField(),
+    await sessionRef.update({
+      pending_human_reply: admin.firestore.FieldValue.delete(),
       snoozeUntil: 0,
     });
 
@@ -41,8 +41,8 @@ export async function handleHumanReplyForwarding(senderNumber: string, messageBo
   }
 
   // === 2. Kalau gak pakai format, fallback ke pointer ===
-  const forwardingRef = doc(db, 'zoya_sessions', 'human_forwarding_state'); // 🔁 juga ganti
-  const forwardingSnap = await getDoc(forwardingRef);
+  const forwardingRef = db.collection('zoya_sessions').doc('human_forwarding_state');
+  const forwardingSnap = await forwardingRef.get();
   const forwardingData = forwardingSnap.data();
 
   const customerNumber = forwardingData?.lastCustomerNumber;
@@ -51,8 +51,8 @@ export async function handleHumanReplyForwarding(senderNumber: string, messageBo
     return false;
   }
 
-  const sessionRef = doc(db, 'zoya_sessions', customerNumber);
-  const sessionSnap = await getDoc(sessionRef);
+  const sessionRef = db.collection('zoya_sessions').doc(customerNumber);
+  const sessionSnap = await sessionRef.get();
   const sessionData = sessionSnap.data();
 
   if (!sessionData?.pending_human_reply) {
@@ -61,15 +61,15 @@ export async function handleHumanReplyForwarding(senderNumber: string, messageBo
   }
 
   await sendWhatsAppMessage(customerNumber, messageBody);
-  await updateDoc(sessionRef, {
-    pending_human_reply: deleteField(),
+  await sessionRef.update({
+    pending_human_reply: admin.firestore.FieldValue.delete(),
     snoozeUntil: 0,
   });
 
   console.log(`[HumanForwarding] Balasan diteruskan ke ${customerNumber} via pointer.`);
 
-  await updateDoc(forwardingRef, {
-    lastCustomerNumber: deleteField(),
+  await forwardingRef.update({
+    lastCustomerNumber: admin.firestore.FieldValue.delete(),
   });
 
   return true;

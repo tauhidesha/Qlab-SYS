@@ -3,7 +3,7 @@ import AppHeader from '@/components/layout/AppHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { BarChartBig, Users, ShoppingCart, ListOrdered, CreditCard, Star as StarIcon, Loader2, TrendingUp } from 'lucide-react';
+import { BarChartBig, Users, ShoppingCart, ListOrdered, CreditCard, Star as StarIcon, Loader2, TrendingUp, Shield } from 'lucide-react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, Timestamp, onSnapshot, orderBy, limit } from 'firebase/firestore';
@@ -14,6 +14,7 @@ import type { Transaction, TransactionItem } from '@/types/transaction';
 import type { QueueItem } from '@/app/(app)/queue/page'; 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { useAuth } from '@/contexts/AuthContext';
 
 
 interface DashboardSummary {
@@ -46,6 +47,7 @@ interface DailyIncomeChartData {
 
 export default function DashboardPage() {
   const [isClient, setIsClient] = useState(false); // State to ensure client-side rendering for charts
+  const { user } = useAuth();
 
   useEffect(() => {
     // This effect runs only on the client, after the component has mounted.
@@ -284,7 +286,29 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col h-full overflow-x-hidden">
       <AppHeader title="Dasbor" />
-      <main className="flex-1 overflow-y-auto overflow-x-hidden px-1 py-3 sm:px-4 sm:py-6 w-full">
+      
+      {/* Session Status Widget - Mobile Friendly */}
+      <div className="px-1 sm:px-4 pt-2 sm:pt-3">
+        <div className="bg-green-50 border border-green-200 rounded-lg p-2 sm:p-3 mb-3 sm:mb-4">
+          <div className="flex items-center gap-2">
+            <Shield className="h-4 w-4 text-green-600 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 text-sm">
+                <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
+                <span className="font-medium text-green-700">Login Tersimpan</span>
+                <span className="text-green-600 text-xs hidden sm:inline">
+                  • Tidak perlu login ulang di perangkat ini
+                </span>
+              </div>
+              <p className="text-xs text-green-600 mt-1 truncate">
+                Selamat datang kembali, {user?.displayName?.split(' ')[0] || 'User'}!
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <main className="flex-1 overflow-y-auto overflow-x-hidden px-1 py-0 sm:px-4 sm:py-3 w-full">
         <div className="grid gap-1 sm:gap-2 sm:gap-3 grid-cols-2 lg:grid-cols-4 mb-3 sm:mb-4 sm:mb-6 w-full min-w-0">
           {summaryCardsConfig.map((card) => (
             <Card key={card.title} className="p-1 sm:p-2 sm:p-4 min-w-0">

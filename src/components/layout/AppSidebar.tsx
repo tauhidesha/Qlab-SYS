@@ -29,7 +29,9 @@ import {
 } from "@/components/ui/tooltip";
 import Logo from "@/components/Logo";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, LogOut } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 interface AppSidebarProps {
   className?: string;
@@ -64,6 +66,8 @@ const isNavItemActive = (navItem: NavItem, currentPathname: string): boolean => 
 export function AppSidebar({ className }: AppSidebarProps) {
   const pathname = usePathname();
   const { state, open: sidebarOpen, isMobile } = useSidebar();
+  const { user, logout } = useAuth();
+  const { toast } = useToast();
   const [openSubMenus, setOpenSubMenus] = React.useState<Record<string, boolean>>(() => {
     // Initialize openSubMenus based on active routes
     const initialOpenState: Record<string, boolean> = {};
@@ -91,6 +95,23 @@ export function AppSidebar({ className }: AppSidebarProps) {
   };
 
   const showText = sidebarOpen || isMobile;
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast({
+        title: "Berhasil keluar",
+        description: "Anda telah keluar dari sistem.",
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast({
+        title: "Gagal keluar",
+        description: "Terjadi kesalahan saat keluar. Silakan coba lagi.",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Function to render a single navigation item or a group
   const renderNavItem = (item: NavItem, isSubMenuLevel: number = 0): React.ReactNode => {
@@ -235,23 +256,43 @@ export function AppSidebar({ className }: AppSidebarProps) {
             >
               <Avatar className="h-8 w-8">
                 <AvatarImage
-                  src="https://placehold.co/40x40.png"
+                  src={user?.photoURL || "https://placehold.co/40x40.png"}
                   alt="Avatar Pengguna"
                   data-ai-hint="user avatar"
                 />
-                <AvatarFallback>PD</AvatarFallback>
+                <AvatarFallback>
+                  {user?.displayName?.charAt(0) || user?.email?.charAt(0) || "U"}
+                </AvatarFallback>
               </Avatar>
               {showText && (
-                <div className="flex flex-col">
+                <div className="flex flex-col flex-1">
                   <span className="text-sm font-medium text-sidebar-foreground">
-                    Pengguna Demo
+                    {user?.displayName || "Pengguna"}
                   </span>
                   <span className="text-xs text-sidebar-foreground/70">
-                    admin@qlab.pos
+                    {user?.email}
                   </span>
+                  <div className="flex items-center gap-1 mt-1">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <span className="text-xs text-green-600 font-medium">
+                      Session Aktif
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton 
+              onClick={handleLogout}
+              className={cn(
+                "text-red-600 hover:text-red-700 hover:bg-red-50",
+                !showText && "justify-center"
+              )}
+            >
+              <LogOut className="h-4 w-4" />
+              {showText && <span>Keluar</span>}
+            </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

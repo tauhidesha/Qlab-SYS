@@ -9,6 +9,7 @@ import 'slick-carousel/slick/slick-theme.css'
 import { FB_PIXEL_ID } from '@/lib/fpixel' // <-- 1. IMPORT ID DARI FILE PUSAT
 // import PixelEvents from '@/components/PixelEvents' // <-- 3. IMPORT KOMPONEN EVENT
 import { Suspense } from 'react'
+import { AuthProvider } from '@/contexts/AuthContext'
 
 export const metadata: Metadata = {
   title: 'QLAB POS',
@@ -61,7 +62,9 @@ export default function RootLayout({
             src={`https://www.facebook.com/tr?id=${FB_PIXEL_ID}&ev=PageView&noscript=1`}
           />
         </noscript>
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
         <Toaster />
       </body>
     </html>

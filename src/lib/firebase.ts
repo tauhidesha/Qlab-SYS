@@ -1,6 +1,7 @@
 
 import { initializeApp, getApp, getApps, type FirebaseApp } from "firebase/app";
 import { getFirestore, type Firestore } from "firebase/firestore";
+import { getAuth, type Auth } from "firebase/auth";
 
 
 // Minimal logging
@@ -15,18 +16,27 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-if (!firebaseConfig.projectId || !firebaseConfig.apiKey) {
-  const errorMessage = "[firebase.ts] FATAL ERROR: Firebase projectId or apiKey is MISSING. Check .env file.";
+// Check for missing configuration
+const missingConfig = Object.entries(firebaseConfig)
+  .filter(([key, value]) => !value)
+  .map(([key]) => key);
+
+if (missingConfig.length > 0) {
+  const errorMessage = `[firebase.ts] FATAL ERROR: Missing Firebase configuration: ${missingConfig.join(', ')}. Please check your .env.local file.`;
   console.error(errorMessage);
-  // Throwing an error is better than letting the app run in a broken state,
-  // but in a server component context, this might just crash the render.
-  // So, we log it aggressively.
+  console.error('[firebase.ts] Copy .env.example to .env.local and fill in your Firebase project details.');
+  
+  // In development, you might want to throw an error to catch this early
+  if (process.env.NODE_ENV === 'development') {
+    throw new Error(`Missing Firebase configuration: ${missingConfig.join(', ')}`);
+  }
 }
 
 // Simplified and more robust initialization
 const app: FirebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const db: Firestore = getFirestore(app);
+const auth: Auth = getAuth(app);
 
 console.log(`[firebase.ts] Firebase client connected to project: ${app.options.projectId || 'UNKNOWN'}`);
 
-export { app, db };
+export { app, db, auth };

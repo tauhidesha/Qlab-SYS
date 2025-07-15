@@ -1,11 +1,12 @@
-// @file: src/ai/flows/cs-whatsapp-reply-flow.ts (VERSI FINAL)
+
 
 'use server';
+import admin from 'firebase-admin';
+// @file: src/ai/flows/cs-whatsapp-reply-flow.ts (VERSI FINAL)
 
 import type { ZoyaChatInput, WhatsAppReplyOutput } from '@/types/ai/cs-whatsapp-reply';
 import { getSession, updateSession } from '@/ai/utils/session';
 import { mapTermToOfficialService } from '../handlers/routes/lib/classifiers/mapTermToOfficialService';
-import { Timestamp } from 'firebase/firestore';
 import type { SessionData } from '@/ai/utils/session';
 import { mergeSession } from '@/ai/utils/mergeSession';
 import { runZoyaAIAgent } from '@/ai/agent/runZoyaAIAgent';
@@ -44,7 +45,7 @@ export async function generateWhatsAppReply(
   }
 
   if (!session) {
-    session = { flow: 'general', inquiry: {}, lastInteraction: Timestamp.now(), followUpState: null, lastRoute: 'init', senderName };
+    session = { flow: 'general', inquiry: {}, lastInteraction: admin.firestore.Timestamp.now(), followUpState: null, lastRoute: 'init', senderName };
   } else {
     if (!session.senderName && senderName) session.senderName = senderName;
     // followUpState dipertahankan untuk cron job, tidak di-reset atau di-handle di sini
@@ -102,7 +103,7 @@ export async function generateWhatsAppReply(
     if (agentResult.suggestedReply && (!agentResult.toolCalls || agentResult.toolCalls.length === 0)) {
 
       console.log(`[Loop ${i + 1}] AI memberikan jawaban akhir. Loop berhenti.`);
-      const finalSession = mergeSession(currentSession, { lastInteraction: Timestamp.now(), lastRoute: 'ai_agent_final_reply' });
+      const finalSession = mergeSession(currentSession, { lastInteraction: admin.firestore.Timestamp.now(), lastRoute: 'ai_agent_final_reply' });
       await updateSession(senderNumber, finalSession);
       return agentResult;
     }
@@ -136,7 +137,7 @@ export async function generateWhatsAppReply(
       }
 
       if (reasonFound) {
-        const finalSession = mergeSession(currentSession, { lastInteraction: Timestamp.now(), lastRoute: 'tool_reason_short_circuit' });
+        const finalSession = mergeSession(currentSession, { lastInteraction: admin.firestore.Timestamp.now(), lastRoute: 'tool_reason_short_circuit' });
         await updateSession(senderNumber, finalSession);
         return { suggestedReply: reasonFound, toolCalls: [], route: 'tool_reason_short_circuit' };
       }
@@ -150,7 +151,7 @@ export async function generateWhatsAppReply(
 
   // --- TAHAP 3: FALLBACK JIKA LOOP GAGAL ---
   const fallbackReply = 'Waduh, Zoya pusing nih muter-muter terus. Langsung tanya Bos Mamat aja ya!';
-  const fallbackSession = mergeSession(currentSession, { lastInteraction: Timestamp.now(), lastRoute: 'ai_agent_loop_failed' });
+  const fallbackSession = mergeSession(currentSession, { lastInteraction: admin.firestore.Timestamp.now(), lastRoute: 'ai_agent_loop_failed' });
   await updateSession(senderNumber, fallbackSession);
   await setSnoozeMode(senderNumber);
   await notifyBosMamat(senderNumber, input.customerMessage);

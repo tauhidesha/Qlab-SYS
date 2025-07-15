@@ -3,6 +3,7 @@
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { SidebarProvider, SidebarInset, SidebarRail } from '@/components/ui/sidebar'; // Impor providernya
 import React from "react";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 export default function AppLayout({
   children,
@@ -11,14 +12,16 @@ export default function AppLayout({
 }) {
   // Bungkus semua halaman di dalam (app) dengan SidebarProvider di sini
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen">
-        <AppSidebar />
-        <SidebarRail />
-        <SidebarInset className="flex flex-col">
-          {children}
-        </SidebarInset>
-      </div>
-    </SidebarProvider>
+    <ProtectedRoute>
+      <SidebarProvider>
+        <div className="flex min-h-screen">
+          <AppSidebar />
+          <SidebarRail />
+          <SidebarInset className="flex flex-col">
+            {children}
+          </SidebarInset>
+        </div>
+      </SidebarProvider>
+    </ProtectedRoute>
   );
 }

@@ -1,6 +1,6 @@
 
-import { db } from '@/lib/firebase';
-import { doc, getDoc, Timestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase-admin';
+import admin from 'firebase-admin';
 
 /**
  * Checks if a manual intervention lock is active for a given sender number.
@@ -11,12 +11,12 @@ export async function isInterventionLockActive(senderNumber: string): Promise<bo
   if (!senderNumber) return false;
 
   try {
-    const lockDocRef = doc(db, 'ai_intervention_locks', senderNumber);
-    const lockDocSnap = await getDoc(lockDocRef);
+    const lockDocRef = db.collection('ai_intervention_locks').doc(senderNumber);
+    const lockDocSnap = await lockDocRef.get();
 
-    if (lockDocSnap.exists()) {
+    if (lockDocSnap.exists) {
       const data = lockDocSnap.data();
-      const lockExpiresAt = data.lockExpiresAt as Timestamp;
+      const lockExpiresAt = data.lockExpiresAt as admin.firestore.Timestamp;
 
       if (lockExpiresAt && Date.now() < lockExpiresAt.toMillis()) {
         console.log(`[LOCK CHECK] Lock is ACTIVE for ${senderNumber} until ${lockExpiresAt.toDate().toLocaleTimeString()}`);

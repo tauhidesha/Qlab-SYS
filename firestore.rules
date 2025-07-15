@@ -1,0 +1,118 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function untuk cek apakah user sudah login
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function untuk cek apakah email user diizinkan
+    function isAuthorizedUser() {
+      return isAuthenticated() && 
+             request.auth.token.email == "tauhidesha@gmail.com";
+    }
+    
+    // Helper function untuk cek apakah request dari service account (AI agent)
+    function isServiceAccount() {
+      return isAuthenticated() && 
+             request.auth.token.email == "local-dev@detailflow-8mkmj.iam.gserviceaccount.com";
+    }
+    
+    // Helper function untuk cek apakah user authorized atau service account
+    function isAuthorizedOrServiceAccount() {
+      return isAuthorizedUser() || isServiceAccount();
+    }
+    
+    // === KOLEKSI CORE BUSINESS (User + AI Agent) ===
+    
+    match /clients/{clientId} {
+      allow read, write: if isAuthorizedOrServiceAccount();
+    }
+    
+    match /services/{serviceId} {
+      allow read, write: if isAuthorizedOrServiceAccount();
+    }
+    
+    match /bookings/{bookingId} {
+      allow read, write: if isAuthorizedOrServiceAccount();
+    }
+    
+    match /transactions/{transactionId} {
+      allow read, write: if isAuthorizedOrServiceAccount();
+    }
+    
+    // === KOLEKSI AI & WHATSAPP (User + AI Agent) ===
+    
+    match /directMessages/{messageId} {
+      allow read, write: if isAuthorizedOrServiceAccount();
+      
+      match /messages/{subMessageId} {
+        allow read, write: if isAuthorizedOrServiceAccount();
+      }
+    }
+    
+    match /knowledge_base_entries/{entryId} {
+      allow read, write: if isAuthorizedOrServiceAccount();
+    }
+    
+    match /zoya_sessions/{sessionId} {
+      allow read, write: if isAuthorizedOrServiceAccount();
+    }
+    
+    match /ai_intervention_locks/{lockId} {
+      allow read, write: if isAuthorizedOrServiceAccount();
+    }
+    
+    match /appSettings/{settingId} {
+      allow read, write: if isAuthorizedOrServiceAccount();
+    }
+    
+    // === KOLEKSI STAFF & MANAGEMENT (User + AI Agent) ===
+    
+    match /staffMembers/{staffId} {
+      allow read, write: if isAuthorizedOrServiceAccount();
+    }
+    
+    match /attendanceRecords/{attendanceId} {
+      allow read, write: if isAuthorizedOrServiceAccount();
+    }
+    
+    match /payrollData/{payrollId} {
+      allow read, write: if isAuthorizedOrServiceAccount();
+    }
+    
+    match /dailyProfitShares/{profitShareId} {
+      allow read, write: if isAuthorizedOrServiceAccount();
+    }
+    
+    match /expenses/{expenseId} {
+      allow read, write: if isAuthorizedOrServiceAccount();
+    }
+    
+    match /loyaltyRewards/{rewardId} {
+      allow read, write: if isAuthorizedOrServiceAccount();
+    }
+    
+    // === KOLEKSI SYSTEM & CONFIG ===
+    
+    // Queue items - read public untuk display, write authorized
+    match /queueItems/{queueId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthorizedOrServiceAccount();
+    }
+    
+    // Vehicle types - read public untuk reference, write authorized
+    match /vehicleTypes/{vehicleId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthorizedOrServiceAccount();
+    }
+    
+    // === DEFAULT DENY ===
+    // Block semua koleksi lain yang tidak didefinisikan
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -4,6 +4,25 @@ const nextConfig = {
   // For example:
   // reactStrictMode: true,
   
+  // Headers untuk mengatasi CORS issues
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Cross-Origin-Opener-Policy',
+            value: 'same-origin-allow-popups',
+          },
+          {
+            key: 'Cross-Origin-Embedder-Policy',
+            value: 'unsafe-none',
+          },
+        ],
+      },
+    ];
+  },
+  
   // Menambahkan konfigurasi webpack di sini untuk menyembunyikan log peringatan
   webpack: (config) => {
     // Memberitahu webpack untuk mengabaikan beberapa jenis peringatan (warnings)

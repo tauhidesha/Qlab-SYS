@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, writeBatch, orderBy, limit } from 'firebase/firestore';
+import { db } from '@/lib/firebase-admin';
+import admin from 'firebase-admin';
 import { sendWhatsAppMessage } from '@/services/whatsappService';
 
 const InputSchema = z.object({
@@ -36,16 +36,13 @@ export const confirmBookingPayment = {
       // Hapus duplikat jika ada
       phoneVariations = [...new Set(phoneVariations)];
 
-      const bookingsRef = collection(db, 'bookings');
-      const q = query(
-        bookingsRef,
-        where('customerPhone', 'in', phoneVariations),
-        where('status', '==', 'pending'), // <-- FIX: Menggunakan 'pending' (lowercase)
-        orderBy('createdAt', 'desc'),
-        limit(1)
-      );
-
-      const querySnapshot = await getDocs(q);
+      const bookingsRef = db.collection('bookings');
+      const querySnapshot = await bookingsRef
+        .where('customerPhone', 'in', phoneVariations)
+        .where('status', '==', 'pending')
+        .orderBy('createdAt', 'desc')
+        .limit(1)
+        .get();
 
       if (querySnapshot.empty) {
         return {
@@ -55,9 +52,7 @@ export const confirmBookingPayment = {
       }
 
       const bookingDoc = querySnapshot.docs[0];
-      const batch = writeBatch(db);
-      batch.update(bookingDoc.ref, { status: 'Confirmed' });
-      await batch.commit();
+      await bookingDoc.ref.update({ status: 'Confirmed' });
 
       // Kirim notifikasi konfirmasi ke pelanggan
       const confirmationMessage = "Sip, booking lo udah **Confirmed**! Sampai ketemu di bengkel ya.";

@@ -6,6 +6,7 @@ import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 import promoBundling from '../data/promoBundling';
 import { event as trackEvent } from '@/lib/fpixel';
+import Link from 'next/link';
 
 export default function Home() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
@@ -22,7 +23,15 @@ export default function Home() {
 
   return (
     <>
-      <main className="max-w-screen-sm bg-white rounded-xl shadow-lg mx-auto px-5 py-6 mt-6 text-gray-900 leading-relaxed text-sm">
+      <main className="max-w-screen-sm bg-white rounded-xl shadow-lg mx-auto px-5 py-6 mt-6 text-gray-900 leading-relaxed text-sm relative">
+        {/* Admin Link */}
+        <Link 
+          href="/login" 
+          className="absolute top-4 right-4 text-xs text-gray-500 hover:text-gray-700 transition-colors z-20"
+        >
+          Admin
+        </Link>
+        
         {/* Logo */}
         {/* ...rest of your content... */}
         <div className="w-[100px] mx-auto mb-4">

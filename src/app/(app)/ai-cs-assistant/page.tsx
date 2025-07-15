@@ -12,6 +12,7 @@ import { Loader2, MessageSquareText, Sparkles, Copy, Send, User, Search, Bot, Me
 import { useToast } from '@/hooks/use-toast';
 import { generateWhatsAppReply } from '@/ai/flows/cs-whatsapp-reply-flow';
 import type { ChatMessage, ZoyaChatInput, WhatsAppReplyOutput } from '@/types/ai/cs-whatsapp-reply';
+import { useAuth } from '@/contexts/AuthContext'; // Added auth context
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
@@ -130,46 +131,76 @@ const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
 
   try {
     const directMessagesRef = collection(db, 'directMessages');
-    const q = query(directMessagesRef, orderBy('lastMessageAt', 'desc'));
-    const querySnapshot = await getFirestoreDocs(q);
+    console.log("[fetchCustomers] Attempting to query directMessages collection...");
+    
+    // Gunakan query sederhana tanpa orderBy dulu untuk test
+    const querySnapshot = await getFirestoreDocs(directMessagesRef);
+    console.log(`[fetchCustomers] Found ${querySnapshot.docs.length} directMessages documents`);
+
+    if (querySnapshot.docs.length === 0) {
+      console.log("[fetchCustomers] No directMessages found in database");
+      return [];
+    }
 
     const customersData: Customer[] = await Promise.all(querySnapshot.docs.map(async docSnap => {
       const phone = docSnap.id;
       const parentData = docSnap.data();
+      console.log(`[fetchCustomers] Processing phone: ${phone}`, parentData);
+      
       const lastMessageAt = parentData.lastMessageAt || 'N/A';
 
-      // 🔍 Ambil metadata dari meta/info
-      const metaDocRef = doc(db, 'directMessages', phone, 'meta', 'info');
-      const metaDocSnap = await getFirestoreDoc(metaDocRef);
-      const metaData = metaDocSnap.exists() ? metaDocSnap.data() : {};
+      try {
+        // 🔍 Ambil metadata dari meta/info
+        const metaDocRef = doc(db, 'directMessages', phone, 'meta', 'info');
+        const metaDocSnap = await getFirestoreDoc(metaDocRef);
+        const metaData = metaDocSnap.exists() ? metaDocSnap.data() : {};
+        console.log(`[fetchCustomers] Meta data for ${phone}:`, metaData);
 
-      // Ambil pesan terakhir
-      const messagesRef = collection(db, 'directMessages', phone, 'messages');
-      const lastMsgQuery = query(messagesRef, orderBy('timestamp', 'desc'), limit(1));
-      const lastMsgSnap = await getFirestoreDocs(lastMsgQuery);
-      const lastMsgData = lastMsgSnap.docs[0]?.data();
+        // Ambil pesan terakhir
+        const messagesRef = collection(db, 'directMessages', phone, 'messages');
+        const lastMsgQuery = query(messagesRef, orderBy('timestamp', 'desc'), limit(1));
+        const lastMsgSnap = await getFirestoreDocs(lastMsgQuery);
+        const lastMsgData = lastMsgSnap.docs[0]?.data();
+        console.log(`[fetchCustomers] Last message for ${phone}:`, lastMsgData);
 
-      const displayName = metaData.name || lastMsgData?.waName || parentData.name || phone;
-      const lastMessage = lastMsgData?.text || 'Klik untuk melihat chat...';
+        const displayName = metaData.name || lastMsgData?.waName || parentData.name || phone;
+        const lastMessage = lastMsgData?.text || 'Klik untuk melihat chat...';
 
-      return {
-        id: phone,
-        name: displayName,
-        avatarUrl: `https://placehold.co/40x40.png?text=${displayName.charAt(0)}`,
-        lastMessageTimestamp: lastMessageAt,
-        lastMessage,
-        unreadCount: 0,
-        phone,
-      };
+        return {
+          id: phone,
+          name: displayName,
+          avatarUrl: `https://placehold.co/40x40.png?text=${displayName.charAt(0)}`,
+          lastMessageTimestamp: lastMessageAt,
+          lastMessage,
+          unreadCount: 0,
+          phone,
+        };
+      } catch (innerError) {
+        console.error(`[fetchCustomers] Error processing phone ${phone}:`, innerError);
+        // Return basic customer data if sub-queries fail
+        return {
+          id: phone,
+          name: parentData.name || phone,
+          avatarUrl: `https://placehold.co/40x40.png?text=${phone.charAt(0)}`,
+          lastMessageTimestamp: lastMessageAt,
+          lastMessage: 'Error loading messages...',
+          unreadCount: 0,
+          phone,
+        };
+      }
     }));
 
+    console.log(`[fetchCustomers] Successfully processed ${customersData.length} customers`);
     return customersData;
 
   } catch (error) {
-    console.error("Error fetching customers from Firestore: ", error);
+    console.error("[fetchCustomers] Error fetching customers from Firestore: ", error);
+    
+    // Show more specific error message
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     toast({
       title: "Error Database",
-      description: "Gagal mengambil daftar pelanggan dari database.",
+      description: `Gagal mengambil daftar pelanggan: ${errorMessage}`,
       variant: "destructive",
     });
     return [];
@@ -200,43 +231,63 @@ const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
 
     if (selectedCustomer && !isPlaygroundMode) {
       const phoneToQuery = formatPhoneNumberForMatching(selectedCustomer.phone);
+      console.log(`[Chat Listener] Processing customer ${selectedCustomer.name} with phone: ${selectedCustomer.phone} -> formatted: ${phoneToQuery}`);
 
-      // --- KODE BARU (BENAR) ---
+      if (phoneToQuery) {
+        try {
+          // FIX: Alamatnya sekarang langsung menunjuk ke dalam "laci" messages
+          const messagesRef = collection(db, 'directMessages', phoneToQuery, 'messages');
+          
+          // FIX: Query jadi lebih simpel, tidak perlu 'where' lagi
+          const q = query(messagesRef, orderBy("timestamp", "asc"));
+          
+          console.log(`[Chat Listener] Setting up real-time listener for: directMessages/${phoneToQuery}/messages`);
 
-if (phoneToQuery) {
-    // FIX: Alamatnya sekarang langsung menunjuk ke dalam "laci" messages
-    const messagesRef = collection(db, 'directMessages', phoneToQuery, 'messages');
-    
-    // FIX: Query jadi lebih simpel, tidak perlu 'where' lagi
-    const q = query(messagesRef, orderBy("timestamp", "asc"));
-    
-    console.log(`[UI] Listening for real-time chat at path: directMessages/${phoneToQuery}/messages`);
-        
-
-        unsubscribeChatRef.current = onSnapshot(q, (querySnapshot) => {
-          const history: ChatMessageUi[] = [];
-          querySnapshot.forEach((doc) => {
-            const data = doc.data() as DirectMessage;
-            history.push({
-              ...data,
-              id: doc.id,
-              timestamp: data.timestamp?.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) || 'N/A',
+          unsubscribeChatRef.current = onSnapshot(q, (querySnapshot) => {
+            console.log(`[Chat Listener] Received ${querySnapshot.docs.length} messages for ${phoneToQuery}`);
+            const history: ChatMessageUi[] = [];
+            querySnapshot.forEach((doc) => {
+              const data = doc.data() as DirectMessage;
+              history.push({
+                ...data,
+                id: doc.id,
+                timestamp: data.timestamp?.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) || 'N/A',
+              });
             });
+            setChatHistory(history);
+            console.log(`[Chat Listener] Updated chat history with ${history.length} messages`);
+          }, (error) => {
+            console.error(`[Chat Listener] Error fetching real-time chat for ${selectedCustomer.name} (phone: ${phoneToQuery}):`, error);
+            
+            // More specific error handling
+            const errorMessage = error instanceof Error ? error.message : "Unknown error";
+            toast({
+              title: "Error Real-time Chat",
+              description: `Gagal memuat chat ${selectedCustomer.name}: ${errorMessage}`,
+              variant: "destructive",
+            });
+            
+            // Set empty chat history on error
+            setChatHistory([]);
           });
-          setChatHistory(history);
-        }, (error) => {
-          console.error(`Error fetching real-time chat for ${selectedCustomer.name} (phone: ${phoneToQuery}):`, error);
+        } catch (error) {
+          console.error(`[Chat Listener] Error setting up listener for ${phoneToQuery}:`, error);
           toast({
-            title: "Error Real-time Chat",
-            description: "Gagal memuat pesan secara real-time.",
+            title: "Error Setup Chat",
+            description: `Gagal setup chat listener untuk ${selectedCustomer.name}`,
             variant: "destructive",
           });
-        });
+          setChatHistory([]);
+        }
       } else {
         setChatHistory([]);
         if (selectedCustomer.phone) {
-          console.warn(`Nomor telepon pelanggan "${selectedCustomer.name}" (${selectedCustomer.phone}) tidak valid atau tidak dapat diformat untuk query.`);
-           toast({ title: "Info Pelanggan", description: `Nomor HP ${selectedCustomer.name} (${selectedCustomer.phone}) tidak dapat diformat, riwayat chat mungkin tidak tampil.`, variant: "default"});
+          console.warn(`[Chat Listener] Nomor telepon pelanggan "${selectedCustomer.name}" (${selectedCustomer.phone}) tidak valid atau tidak dapat diformat untuk query.`);
+          toast({ 
+            title: "Info Pelanggan", 
+            description: `Nomor HP ${selectedCustomer.name} (${selectedCustomer.phone}) tidak dapat diformat, riwayat chat mungkin tidak tampil.`, 
+            variant: "default"
+          });
         }
       }
     } else {

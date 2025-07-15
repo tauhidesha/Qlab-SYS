@@ -1,6 +1,6 @@
 
 import type { LucideIcon } from 'lucide-react';
-import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, BarChartBig, Settings, Clipboard, Banknote, CalendarDays, ClipboardList, Percent, ReceiptText, Landmark, DollarSign, TrendingUp, History, ArrowRightLeft, FileText, Wallet, Palette, Bell, CreditCard as CreditCardIcon, Award, Gift, SlidersHorizontal, Settings2, Package, MessageSquareText, Zap, CalendarPlus } from 'lucide-react'; // Added Package, MessageSquareText, Zap, CalendarPlus
+import { LayoutDashboard, Users, ShoppingCart, ListOrdered, Wrench, BarChartBig, Settings, Clipboard, Banknote, CalendarDays, ClipboardList, Percent, ReceiptText, Landmark, DollarSign, TrendingUp, History, ArrowRightLeft, FileText, Wallet, Palette, Bell, CreditCard as CreditCardIcon, Award, Gift, SlidersHorizontal, Settings2, Package, MessageSquareText, Zap, CalendarPlus, Bot } from 'lucide-react'; // Added Bot
 
 export interface NavItem {
   title: string;
@@ -20,6 +20,12 @@ export const mainNavItems: NavItem[] = [
     href: '/dashboard',
     icon: LayoutDashboard,
     description: 'Gambaran umum aktivitas bengkel.',
+  },
+  {
+    title: 'AI Assistant',
+    href: '/ai-cs-assistant',
+    icon: Bot,
+    description: 'Asisten AI untuk customer service WhatsApp.',
   },
   {
     title: 'Manajemen Antrian',

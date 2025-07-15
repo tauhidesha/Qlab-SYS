@@ -100,83 +100,143 @@ export default function InventoryProductsPage() {
   return (
     <div className="flex flex-col h-full">
       <AppHeader title="Inventaris Produk" />
-      <main className="flex-1 overflow-y-auto p-6">
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         <AlertDialog open={!!productToDelete} onOpenChange={(open) => !open && setProductToDelete(null)}>
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
               <div>
                 <CardTitle className="flex items-center"><Package className="mr-2 h-6 w-6"/>Daftar Produk Inventaris</CardTitle>
                 <CardDescription>Kelola stok, harga modal, dan detail produk fisik Anda.</CardDescription>
               </div>
-               <div className="flex gap-2 items-center">
+               <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
                  <div className="relative">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
                     type="search"
                     placeholder="Cari produk..."
-                    className="pl-8 sm:w-[200px] md:w-[150px] lg:w-[250px]"
+                    className="pl-8 w-full sm:w-[200px] lg:w-[250px]"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-                <Button asChild>
+                <Button asChild className="w-full sm:w-auto">
                   <Link href="/services/new">
-                    <PlusCircle className="mr-2 h-4 w-4" /> Tambah Produk Baru
+                    <PlusCircle className="mr-2 h-4 w-4" /> 
+                    <span className="sm:inline">Tambah Produk Baru</span>
                   </Link>
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[80px]">Foto</TableHead>
-                    <TableHead>Nama Produk</TableHead>
-                    <TableHead>Kategori</TableHead>
-                    <TableHead className="text-center">Stok Dasar</TableHead>
-                    <TableHead className="text-right">Harga Modal Dasar</TableHead>
-                    <TableHead className="text-center">Varian</TableHead>
-                    <TableHead className="text-right">Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredProducts.map((product) => (
-                    <TableRow key={product.id}>
-                      <TableCell>
-                        <Avatar className="h-12 w-12 rounded-md">
-                           <AvatarImage src={product.description || `https://placehold.co/60x60.png?text=${product.name.charAt(0)}`} alt={product.name} data-ai-hint="foto produk" />
-                           <AvatarFallback><ImageIcon className="h-5 w-5 text-muted-foreground"/></AvatarFallback>
+              {/* Desktop Table View */}
+              <div className="hidden lg:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[80px]">Foto</TableHead>
+                      <TableHead>Nama Produk</TableHead>
+                      <TableHead>Kategori</TableHead>
+                      <TableHead className="text-center">Stok Dasar</TableHead>
+                      <TableHead className="text-right">Harga Modal Dasar</TableHead>
+                      <TableHead className="text-center">Varian</TableHead>
+                      <TableHead className="text-right">Aksi</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredProducts.map((product) => (
+                      <TableRow key={product.id}>
+                        <TableCell>
+                          <Avatar className="h-12 w-12 rounded-md">
+                             <AvatarImage src={product.description || `https://placehold.co/60x60.png?text=${product.name.charAt(0)}`} alt={product.name} data-ai-hint="foto produk" />
+                             <AvatarFallback><ImageIcon className="h-5 w-5 text-muted-foreground"/></AvatarFallback>
+                          </Avatar>
+                        </TableCell>
+                        <TableCell className="font-medium">{product.name}</TableCell>
+                        <TableCell>{product.category}</TableCell>
+                        <TableCell className="text-center">
+                          {product.stockQuantity !== undefined ? product.stockQuantity : '-'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {product.costPrice !== undefined ? `Rp ${product.costPrice.toLocaleString('id-ID')}` : '-'}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {product.variants && product.variants.length > 0 
+                            ? <Badge variant="outline">{product.variants.length} Varian</Badge> 
+                            : '-'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="icon" asChild className="hover:text-primary">
+                             <Link href={`/services/${product.id}/edit`}>
+                              <Edit3 className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setProductToDelete(product)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile & Tablet Card View */}
+              <div className="lg:hidden space-y-3">
+                {filteredProducts.map((product) => (
+                  <Card key={product.id} className="p-3">
+                    <div className="flex justify-between items-start">
+                      <div className="flex gap-3 flex-1 min-w-0">
+                        <Avatar className="h-12 w-12 rounded-md flex-shrink-0">
+                          <AvatarImage src={product.description || `https://placehold.co/60x60.png?text=${product.name.charAt(0)}`} alt={product.name} />
+                          <AvatarFallback><ImageIcon className="h-5 w-5 text-muted-foreground"/></AvatarFallback>
                         </Avatar>
-                      </TableCell>
-                      <TableCell className="font-medium">{product.name}</TableCell>
-                      <TableCell>{product.category}</TableCell>
-                      <TableCell className="text-center">
-                        {product.stockQuantity !== undefined ? product.stockQuantity : '-'}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {product.costPrice !== undefined ? `Rp ${product.costPrice.toLocaleString('id-ID')}` : '-'}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {product.variants && product.variants.length > 0 
-                          ? <Badge variant="outline">{product.variants.length} Varian</Badge> 
-                          : '-'}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" asChild className="hover:text-primary">
-                           <Link href={`/services/${product.id}/edit`}>
-                            <Edit3 className="h-4 w-4" />
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-base truncate">{product.name}</h3>
+                          <p className="text-sm text-muted-foreground">{product.category}</p>
+                          
+                          {/* Product Details */}
+                          <div className="mt-2 space-y-1">
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">Stok Dasar:</span>
+                              <span className="font-medium">
+                                {product.stockQuantity !== undefined ? product.stockQuantity : '-'}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">Harga Modal:</span>
+                              <span className="font-medium">
+                                {product.costPrice !== undefined ? `Rp ${product.costPrice.toLocaleString('id-ID')}` : '-'}
+                              </span>
+                            </div>
+                            {product.variants && product.variants.length > 0 && (
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-muted-foreground">Varian:</span>
+                                <Badge variant="outline" className="text-xs">
+                                  {product.variants.length} varian
+                                </Badge>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex gap-1 ml-3 flex-shrink-0">
+                        <Button variant="ghost" size="icon" asChild className="hover:text-primary h-8 w-8">
+                          <Link href={`/services/${product.id}/edit`}>
+                            <Edit3 className="h-3 w-3" />
                           </Link>
                         </Button>
                         <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setProductToDelete(product)}>
-                            <Trash2 className="h-4 w-4" />
+                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8" onClick={() => setProductToDelete(product)}>
+                            <Trash2 className="h-3 w-3" />
                           </Button>
                         </AlertDialogTrigger>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
                {filteredProducts.length === 0 && !loading && (
                 <div className="text-center py-10 text-muted-foreground">
                    {products.length > 0 ? 'Tidak ada produk yang cocok dengan pencarian Anda.' : 'Belum ada produk yang terdaftar di inventaris.'}

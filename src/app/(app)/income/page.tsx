@@ -125,29 +125,30 @@ export default function IncomePage() {
   return (
     <div className="flex flex-col h-full">
       <AppHeader title="Pemasukan Lain" />
-      <main className="flex-1 overflow-y-auto p-6">
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         <AlertDialog open={!!entryToDelete} onOpenChange={(open) => !open && setEntryToDelete(null)}>
         <Card>
-          <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
             <div>
               <CardTitle className="flex items-center"><DollarSign className="mr-2 h-6 w-6 text-green-500"/>Daftar Pemasukan Lain</CardTitle>
               <CardDescription>Kelola semua catatan pemasukan di luar penjualan POS.</CardDescription>
             </div>
-            <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+            <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
                <DatePickerWithRange date={dateRange} onDateChange={setDateRange} />
-               <div className="relative flex-grow sm:flex-grow-0">
+               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
                   placeholder="Cari pemasukan..."
-                  className="pl-8 w-full"
+                  className="pl-8 w-full sm:w-[200px] lg:w-[250px]"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
               <Button asChild className="w-full sm:w-auto">
                 <Link href="/income/new">
-                  <PlusCircle className="mr-2 h-4 w-4" /> Tambah Baru
+                  <PlusCircle className="mr-2 h-4 w-4" /> 
+                  <span className="sm:inline">Tambah Baru</span>
                 </Link>
               </Button>
             </div>
@@ -158,49 +159,102 @@ export default function IncomePage() {
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                  </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[120px]">Tanggal</TableHead>
-                    <TableHead>Kategori</TableHead>
-                    <TableHead>Deskripsi</TableHead>
-                    <TableHead className="text-right">Jumlah (Rp)</TableHead>
-                    <TableHead className="text-center">Metode Terima</TableHead>
-                    <TableHead>Catatan</TableHead>
-                    <TableHead className="text-right w-[100px]">Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+              <>
+                {/* Desktop Table View */}
+                <div className="hidden lg:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[120px]">Tanggal</TableHead>
+                        <TableHead>Kategori</TableHead>
+                        <TableHead>Deskripsi</TableHead>
+                        <TableHead className="text-right">Jumlah (Rp)</TableHead>
+                        <TableHead className="text-center">Metode Terima</TableHead>
+                        <TableHead>Catatan</TableHead>
+                        <TableHead className="text-right w-[100px]">Aksi</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredEntries.map((entry) => (
+                        <TableRow key={entry.id}>
+                          <TableCell>{formatTimestampToDateString(entry.date)}</TableCell>
+                          <TableCell>{entry.category}</TableCell>
+                          <TableCell className="font-medium max-w-[250px] truncate">{entry.description}</TableCell>
+                          <TableCell className="text-right">{entry.amount.toLocaleString('id-ID')}</TableCell>
+                           <TableCell className="text-center">
+                            {entry.paymentMethod ? (
+                              <Badge variant={entry.paymentMethod === "Tunai" ? "secondary" : "outline"} className="text-xs">
+                                <CreditCard className="mr-1 h-3 w-3"/>{entry.paymentMethod}
+                              </Badge>
+                            ) : '-'}
+                          </TableCell>
+                          <TableCell className="text-xs max-w-[150px] truncate">{entry.notes || '-'}</TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="icon" asChild className="hover:text-primary">
+                              <Link href={`/income/${entry.id}/edit`}>
+                                <Edit3 className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setEntryToDelete(entry)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Mobile & Tablet Card View */}
+                <div className="lg:hidden space-y-3">
                   {filteredEntries.map((entry) => (
-                    <TableRow key={entry.id}>
-                      <TableCell>{formatTimestampToDateString(entry.date)}</TableCell>
-                      <TableCell>{entry.category}</TableCell>
-                      <TableCell className="font-medium max-w-[250px] truncate">{entry.description}</TableCell>
-                      <TableCell className="text-right">{entry.amount.toLocaleString('id-ID')}</TableCell>
-                       <TableCell className="text-center">
-                        {entry.paymentMethod ? (
-                          <Badge variant={entry.paymentMethod === "Tunai" ? "secondary" : "outline"} className="text-xs">
-                            <CreditCard className="mr-1 h-3 w-3"/>{entry.paymentMethod}
-                          </Badge>
-                        ) : '-'}
-                      </TableCell>
-                      <TableCell className="text-xs max-w-[150px] truncate">{entry.notes || '-'}</TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" asChild className="hover:text-primary">
-                          <Link href={`/income/${entry.id}/edit`}>
-                            <Edit3 className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setEntryToDelete(entry)}>
-                            <Trash2 className="h-4 w-4" />
+                    <Card key={entry.id} className="p-3">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="text-sm text-muted-foreground">
+                              {formatTimestampToDateString(entry.date, "dd/MM/yyyy")}
+                            </div>
+                            {entry.paymentMethod && (
+                              <Badge variant={entry.paymentMethod === "Tunai" ? "secondary" : "outline"} className="text-xs">
+                                <CreditCard className="mr-1 h-3 w-3"/>{entry.paymentMethod}
+                              </Badge>
+                            )}
+                          </div>
+                          <h3 className="font-medium text-base truncate mb-1">{entry.description}</h3>
+                          <p className="text-sm text-muted-foreground mb-2">{entry.category}</p>
+                          
+                          <div className="flex items-center justify-between">
+                            <div className="text-lg font-semibold text-green-600">
+                              Rp {entry.amount.toLocaleString('id-ID')}
+                            </div>
+                          </div>
+                          
+                          {entry.notes && (
+                            <div className="mt-2 text-xs text-muted-foreground truncate">
+                              <span className="font-medium">Catatan:</span> {entry.notes}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex gap-1 ml-3 flex-shrink-0">
+                          <Button variant="ghost" size="icon" asChild className="hover:text-primary h-8 w-8">
+                            <Link href={`/income/${entry.id}/edit`}>
+                              <Edit3 className="h-3 w-3" />
+                            </Link>
                           </Button>
-                        </AlertDialogTrigger>
-                      </TableCell>
-                    </TableRow>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8" onClick={() => setEntryToDelete(entry)}>
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </AlertDialogTrigger>
+                        </div>
+                      </div>
+                    </Card>
                   ))}
-                </TableBody>
-              </Table>
+                </div>
+              </>
             )}
             {filteredEntries.length === 0 && !loading && (
               <div className="text-center py-10 text-muted-foreground">
@@ -209,7 +263,7 @@ export default function IncomePage() {
               </div>
             )}
           </CardContent>
-          <CardFooter className="flex flex-col sm:flex-row justify-between items-center">
+          <CardFooter className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
             <p className="text-sm text-muted-foreground">
               Menampilkan {filteredEntries.length} dari {incomeEntries.length} pemasukan.
             </p>

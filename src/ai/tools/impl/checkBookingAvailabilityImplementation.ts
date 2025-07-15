@@ -1,8 +1,7 @@
 // File: src/ai/tools/impl/checkBookingAvailabilityImplementation.ts
 
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { Timestamp } from 'firebase/firestore';
+import admin from 'firebase-admin';
+import { db } from '@/lib/firebase-admin';
 import { checkBookingAvailabilitySchema } from '@/ai/schema/checkBookingAvailabilitySchema';
 import { getServiceCategory } from '@/ai/utils/getServiceCategory';
 
@@ -34,7 +33,7 @@ export async function checkBookingAvailabilityImplementation(input: Input): Prom
     };
   }
 
-  const bookingsRef = collection(db, 'bookings');
+  const bookingsRef = db.collection('bookings');
   const category = getServiceCategory(serviceName);
 
   // --- Kapasitas Harian Detailing & Coating ---
@@ -42,14 +41,11 @@ export async function checkBookingAvailabilityImplementation(input: Input): Prom
     const startOfDay = new Date(`${bookingDate}T00:00:00`);
     const endOfDay = new Date(`${bookingDate}T23:59:59`);
 
-    const q = query(
-      bookingsRef,
-      where('bookingDateTime', '>=', Timestamp.fromDate(startOfDay)),
-      where('bookingDateTime', '<=', Timestamp.fromDate(endOfDay)),
-      where('category', 'in', ['detailing', 'coating'])
-    );
-
-    const snapshot = await getDocs(q);
+    const snapshot = await bookingsRef
+      .where('bookingDateTime', '>=', admin.firestore.Timestamp.fromDate(startOfDay))
+      .where('bookingDateTime', '<=', admin.firestore.Timestamp.fromDate(endOfDay))
+      .where('category', 'in', ['detailing', 'coating'])
+      .get();
     if (snapshot.size >= 2) {
       return {
         isAvailable: false,
@@ -60,27 +56,24 @@ export async function checkBookingAvailabilityImplementation(input: Input): Prom
 
   // --- Kapasitas Aktif Repaint ---
   if (category === 'repaint') {
-  const now = new Date(`${bookingDate}T${bookingTime}:00`);
-  const fiveDaysAgo = new Date(now);
-  fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+    const now = new Date(`${bookingDate}T${bookingTime}:00`);
+    const fiveDaysAgo = new Date(now);
+    fiveDaysAgo.setDate(now.getDate() - 5);
 
-  const q = query(
-    bookingsRef,
-    where('category', '==', 'repaint'),
-    where('bookingDateTime', '>=', Timestamp.fromDate(fiveDaysAgo)),
-    where('bookingDateTime', '<=', Timestamp.fromDate(now)),
-    where('status', 'in', ['Confirmed', 'In Queue', 'In Progress'])
-  );
+    const snapshot = await bookingsRef
+      .where('category', '==', 'repaint')
+      .where('bookingDateTime', '>=', admin.firestore.Timestamp.fromDate(fiveDaysAgo))
+      .where('bookingDateTime', '<=', admin.firestore.Timestamp.fromDate(now))
+      .where('status', 'in', ['Confirmed', 'In Queue', 'In Progress'])
+      .get();
 
-  const snapshot = await getDocs(q);
-
-  if (snapshot.size >= 2) {
-    return {
-      isAvailable: false,
-      reason: `Slot Repaint sedang penuh. Maksimal 2 motor dalam periode aktif (5 hari terakhir).`
-    };
+    if (snapshot.size >= 2) {
+      return {
+        isAvailable: false,
+        reason: `Slot Repaint sedang penuh. Maksimal 2 motor dalam periode aktif (5 hari terakhir).`
+      };
+    }
   }
-}
 
 
   // --- Estimasi waktu menginap jika lewat jam 17.00 ---

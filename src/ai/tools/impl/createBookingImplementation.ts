@@ -1,7 +1,7 @@
 
 
-import { db } from '@/lib/firebase';
-import { collection, addDoc, Timestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase-admin';
+import admin from 'firebase-admin';
 import { getServiceCategory } from '@/ai/utils/getServiceCategory';
 
 // --- PERBAIKAN DI SINI ---
@@ -44,7 +44,7 @@ export async function createBookingImplementation(
     const category = getServiceCategory(serviceName);
 
     const newBooking = {
-      bookingDateTime: Timestamp.fromDate(bookingDateTime),
+      bookingDateTime: admin.firestore.Timestamp.fromDate(bookingDateTime),
       clientId: clientId, // <-- Gunakan clientId yang sudah dinamis
       customerName,
       customerPhone,
@@ -53,13 +53,13 @@ export async function createBookingImplementation(
       serviceName,
       source: 'AI-Form',
       status: 'Confirmed',
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
+      createdAt: admin.firestore.Timestamp.now(),
+      updatedAt: admin.firestore.Timestamp.now(),
       vehicleInfo,
       category,
     };
 
-    const docRef = await addDoc(collection(db, 'bookings'), newBooking);
+    const docRef = await db.collection('bookings').add(newBooking);
     console.log(`[CreateBookingImpl] Booking berhasil dibuat dengan ID: ${docRef.id}`);
 
     return { success: true, message: '✅ Booking berhasil dibuat! Zoya udah catat jadwalnya.', bookingId: docRef.id };

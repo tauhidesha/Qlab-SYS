@@ -1,5 +1,5 @@
-import { db } from '@/lib/firebase';
-import { collection, addDoc, Timestamp, getDocs, query, where, updateDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase-admin';
+import admin from 'firebase-admin';
 
 // Helper fuzzy match
 function stringSimilarity(a: string, b: string): number {
@@ -65,17 +65,16 @@ export const createBookingTool = {
       const today = new Date();
       let inputDate = new Date(`${bookingDate}T${bookingTime}:00`);
       if (inputDate < today) {
-        // ⛑️ Kalau tanggal sudah lewat, auto perbaiki jadi besok
         const tomorrow = new Date(today);
         tomorrow.setDate(today.getDate() + 1);
         bookingDate = tomorrow.toISOString().slice(0, 10);
         inputDate = new Date(`${bookingDate}T${bookingTime}:00`);
       }
-      const bookingDateTime = Timestamp.fromDate(inputDate);
+      const bookingDateTime = admin.firestore.Timestamp.fromDate(inputDate);
 
       // Lookup clientId dari Firestore berdasarkan customerPhone
       let clientId = undefined;
-      let clientSnap = await getDocs(query(collection(db, 'clients'), where('phone', '==', customerPhone)));
+      const clientSnap = await db.collection('clients').where('phone', '==', customerPhone).get();
       if (!clientSnap.empty) {
         clientId = clientSnap.docs[0].id;
       }
@@ -85,7 +84,7 @@ export const createBookingTool = {
       let estimatedDuration = undefined;
       let foundServiceName = serviceName;
       let serviceCategory: 'detailing' | 'coating' | 'repaint' | 'other' | undefined = undefined;
-      const servicesSnap = await getDocs(collection(db, 'services'));
+      const servicesSnap = await db.collection('services').get();
       let bestScore = 0;
       servicesSnap.forEach(docSnap => {
         const data = docSnap.data();
@@ -116,11 +115,11 @@ export const createBookingTool = {
         notes: notes || '',
         source: 'AI',
         estimatedDuration: estimatedDuration || undefined,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
+        createdAt: admin.firestore.Timestamp.now(),
+        updatedAt: admin.firestore.Timestamp.now(),
       };
 
-      const docRef = await addDoc(collection(db, 'bookings'), bookingPayload);
+      const docRef = await db.collection('bookings').add(bookingPayload);
 
       // Jika booking untuk hari ini, buat queueItems dan update status booking
       const isToday = inputDate.toDateString() === today.toDateString();
@@ -138,10 +137,10 @@ export const createBookingTool = {
           bookingId: docRef.id,
           createdAt: bookingDateTime,
         };
-        const queueDocRef = await addDoc(collection(db, 'queueItems'), queueItemData);
+        const queueDocRef = await db.collection('queueItems').add(queueItemData);
         queueItemId = queueDocRef.id;
         // Update booking yang sudah ada dengan queueItemId dan status baru
-        await updateDoc(docRef, { queueItemId, status: 'In Queue' });
+        await docRef.update({ queueItemId, status: 'In Queue' });
       }
 
       return {

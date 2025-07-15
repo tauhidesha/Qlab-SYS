@@ -1,7 +1,7 @@
 // File: src/ai/utils/bookingSlotUtils.ts
 
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import admin from 'firebase-admin';
+import { db } from '@/lib/firebase-admin';
 
 export interface Booking {
   bookingDateTime: Date;
@@ -33,13 +33,11 @@ export function getOvernightWarning(startDate: Date, durationMinutes: number, is
 }
 
 export async function getRepaintBookingsOverlap(dates: string[]): Promise<Booking[]> {
-  const bookingsRef = collection(db, 'bookings');
-  const q = query(
-    bookingsRef,
-    where('status', 'in', ['pending', 'Confirmed', 'In Queue', 'In Progress']),
-    where('bookingDate', 'in', dates)
-  );
-  const snapshot = await getDocs(q);
+  const bookingsRef = db.collection('bookings');
+  const snapshot = await bookingsRef
+    .where('status', 'in', ['pending', 'Confirmed', 'In Queue', 'In Progress'])
+    .where('bookingDate', 'in', dates)
+    .get();
   // Filter ulang di client agar serviceName benar-benar mengandung 'repaint' (case-insensitive)
   return snapshot.docs
     .map(doc => {
@@ -56,13 +54,11 @@ export async function getRepaintBookingsOverlap(dates: string[]): Promise<Bookin
 }
 
 export async function getDailyBookings(date: string, service: string): Promise<Booking[]> {
-  const bookingsRef = collection(db, 'bookings');
-  const q = query(
-    bookingsRef,
-    where('bookingDate', '==', date),
-    where('status', 'in', ['pending', 'Confirmed', 'In Queue', 'In Progress'])
-  );
-  const snapshot = await getDocs(q);
+  const bookingsRef = db.collection('bookings');
+  const snapshot = await bookingsRef
+    .where('bookingDate', '==', date)
+    .where('status', 'in', ['pending', 'Confirmed', 'In Queue', 'In Progress'])
+    .get();
   // Filter di client agar serviceName mengandung kata kunci service (case-insensitive)
   const keyword = service.toLowerCase();
   return snapshot.docs

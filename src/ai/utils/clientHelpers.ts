@@ -1,17 +1,7 @@
 // File: src/ai/utils/clientHelpers.ts
 
-import { db } from '@/lib/firebase';
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  addDoc,
-  limit,
-  Timestamp,
-  doc,
-  getDoc,
-} from 'firebase/firestore';
+import { db } from '@/lib/firebase-admin';
+import admin from 'firebase-admin';
 
 /**
  * Mencari klien berdasarkan nomor telepon. Jika tidak ada,
@@ -24,12 +14,10 @@ export async function findOrCreateClientByPhone(
   phone: string,
   name: string,
 ): Promise<string> {
-  const clientsRef = collection(db, 'clients');
+  const clientsRef = db.collection('clients');
   // 1. Cari klien yang sudah ada berdasarkan nomor telepon
-  const q = query(clientsRef, where('phone', '==', phone), limit(1));
-
   try {
-    const querySnapshot = await getDocs(q);
+    const querySnapshot = await clientsRef.where('phone', '==', phone).limit(1).get();
 
     // 2. Jika klien ditemukan, kembalikan ID-nya
     if (!querySnapshot.empty) {
@@ -43,13 +31,13 @@ export async function findOrCreateClientByPhone(
     const newClientData = {
       name: name,
       phone: phone,
-      createdAt: Timestamp.now(),
+      createdAt: admin.firestore.Timestamp.now(),
       lastVisit: new Date().toISOString().split('T')[0], // Format YYYY-MM-DD
       loyaltyPoints: 0,
       // Sub-koleksi 'motorcycles' bisa ditambahkan nanti secara terpisah
     };
 
-    const docRef = await addDoc(clientsRef, newClientData);
+    const docRef = await clientsRef.add(newClientData);
     console.log(`[ClientHelper] Klien baru berhasil dibuat dengan ID: ${docRef.id}`);
     return docRef.id;
 
@@ -70,11 +58,11 @@ export async function getClientName(
 ): Promise<string | null> {
   // Pastikan senderNumber bersih dari @c.us sebelum jadi ID dokumen
   const docId = senderNumber.replace('@c.us', '');
-  const metaRef = doc(db, 'directMessages', docId, 'meta', 'info');
+  const metaRef = db.collection('directMessages').doc(docId).collection('meta').doc('info');
 
   try {
-    const docSnap = await getDoc(metaRef);
-    if (docSnap.exists() && docSnap.data().name) {
+    const docSnap = await metaRef.get();
+    if (docSnap.exists && docSnap.data().name) {
       console.log(`[ClientHelper] Nama ditemukan untuk ${docId}: ${docSnap.data().name}`);
       return docSnap.data().name;
     }

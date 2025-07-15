@@ -2,8 +2,8 @@
 
 import { z } from 'zod';
 // Pastikan path DB/helper sudah benar di proyek kamu
-import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase-admin';
+import admin from 'firebase-admin';
 import { parseDateTime } from '@/ai/utils/dateTimeParser';
 import { getOvernightWarning, getServiceCategory } from '@/ai/utils/bookingSlotUtils';
 
@@ -39,15 +39,11 @@ async function implementation(input: Input): Promise<Output> {
 
     // Logika khusus kategori repaint (antrian mingguan)
     if (category === 'repaint') {
-      const bookingsRef = collection(db, 'bookings');
-      
+      const bookingsRef = db.collection('bookings');
       // Ambil SEMUA booking yang statusnya aktif
-      const allActiveBookingsQuery = query(
-        bookingsRef,
-        where('status', 'in', ['Confirmed', 'In Queue', 'In Progress', 'pending', 'Pending'])
-      );
-      const allActiveBookingsSnapshot = await getDocs(allActiveBookingsQuery);
-
+      const allActiveBookingsSnapshot = await bookingsRef
+        .where('status', 'in', ['Confirmed', 'In Queue', 'In Progress', 'pending', 'Pending'])
+        .get();
       // Saring di sisi aplikasi untuk menemukan booking repaint yang sebenarnya
       const repaintBookings = allActiveBookingsSnapshot.docs.filter(doc => {
         const data = doc.data();
@@ -107,18 +103,16 @@ async function implementation(input: Input): Promise<Output> {
     const searchLimitDate = new Date(searchStartDate);
     searchLimitDate.setDate(searchStartDate.getDate() + 30);
 
-    const bookingsRef = collection(db, 'bookings');
-    const q = query(
-      bookingsRef,
-      where('bookingDateTime', '>=', searchStartDate),
-      where('bookingDateTime', '<=', searchLimitDate),
-      where('category', '!=', 'repaint')
-    );
-    const querySnapshot = await getDocs(q);
+    const bookingsRef = db.collection('bookings');
+    const querySnapshot = await bookingsRef
+      .where('bookingDateTime', '>=', admin.firestore.Timestamp.fromDate(searchStartDate))
+      .where('bookingDateTime', '<=', admin.firestore.Timestamp.fromDate(searchLimitDate))
+      .where('category', '!=', 'repaint')
+      .get();
 
     const existingBookings = querySnapshot.docs.map(doc => {
       const data = doc.data() as any;
-      const startDate = data.bookingDateTime!.toDate();
+      const startDate = data.bookingDateTime.toDate();
       const durationInMinutes = parseInt(data.estimatedDuration || '180', 10);
       const endDate = new Date(startDate.getTime() + durationInMinutes * 60000);
       return { start: startDate, end: endDate };
