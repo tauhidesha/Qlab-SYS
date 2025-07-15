@@ -45,6 +45,25 @@ export async function runToolCalls(
     console.log(`[runToolCalls] Menjalankan tool '${toolName}' untuk`, senderNumber);
 
     try {
+      // Validasi argumen wajib untuk triggerBosMamatTool
+      if (toolName === 'triggerBosMamatTool') {
+        const reason = parsedArgs?.reason || input?.reason;
+        const customerQuestion = parsedArgs?.customerQuestion || input?.customerQuestion;
+        if (!reason || !customerQuestion) {
+          const errMsg = '[runToolCalls] triggerBosMamatTool dipanggil tanpa reason atau customerQuestion.';
+          console.error(errMsg);
+          results.push({
+            role: 'tool',
+            tool_call_id: id,
+            content: JSON.stringify({
+              success: false,
+              error: 'missing_arguments',
+              message: errMsg,
+            }),
+          });
+          continue;
+        }
+      }
       // --- PATCH FINAL & BERSIH ---
       // Karena semua tool menggunakan normalizeInput, kita hanya perlu
       // menyebarkan argumen ke level atas.
