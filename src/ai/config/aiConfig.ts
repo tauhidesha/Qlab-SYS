@@ -14,6 +14,7 @@ import { createBookingTool } from '../tools/createBookingTool';
 import { getRepaintSurchargeTool } from '../tools/getRepaintSurchargeTool';
 import { triggerBosMamatTool } from '../tools/impl/triggerBosMamatTool';
 import { extractBookingDetailsTool } from '../tools/extractBookingDetailsTool'; // ✅ tambahkan ini kalau belum
+import { searchKnowledgeBaseTool } from '../tools/searchKnowledgeBaseTool';
 
 import { masterPrompt } from './aiPrompts';
 
@@ -30,6 +31,7 @@ export const zoyaTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   createBookingTool.toolDefinition,
   getRepaintSurchargeTool.toolDefinition,
   extractBookingDetailsTool.toolDefinition, // ✅ daftar ke GPT
+  searchKnowledgeBaseTool.toolDefinition,
 ];
 
 export const toolFunctionMap = {
@@ -45,4 +47,5 @@ export const toolFunctionMap = {
   getRepaintSurcharge: getRepaintSurchargeTool,
   extractBookingDetailsTool: extractBookingDetailsTool,
   triggerBosMamatTool: triggerBosMamatTool,
+  searchKnowledgeBaseTool: searchKnowledgeBaseTool,
 };

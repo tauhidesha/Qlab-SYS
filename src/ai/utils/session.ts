@@ -59,7 +59,7 @@ export interface SessionData {
 
 // --- KONSTANTA ---
 const SESSIONS_COLLECTION = 'zoya_sessions';
-const SESSION_TIMEOUT_MINUTES = 60;
+// Session timeout dihapus agar follow-up tetap bisa berjalan
 
 // --- UTILS ---
 function removeUndefined(obj: any): any {
@@ -83,13 +83,8 @@ export async function getSession(senderNumber: string): Promise<SessionData | nu
 
       const now = Timestamp.now();
       const lastInteraction = session.lastInteraction || now;
-      const diffMinutes = (now.seconds - lastInteraction.seconds) / 60;
-
-      if (diffMinutes > SESSION_TIMEOUT_MINUTES) {
-        console.log(`[SESSION] Sesi untuk ${senderNumber} sudah kadaluwarsa. Membuat sesi baru.`);
-        return null;
-      }
-
+      
+      // Session timeout dihapus - session akan tetap ada untuk follow-up
       return session;
     }
 

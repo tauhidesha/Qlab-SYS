@@ -1,3 +1,4 @@
 {
-  "/(app)/ai-cs-assistant/page": "app/(app)/ai-cs-assistant/page.js"
+  "/(app)/inventory/products/page": "app/(app)/inventory/products/page.js",
+  "/(app)/services/page": "app/(app)/services/page.js"
 }

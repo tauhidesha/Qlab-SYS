@@ -8,7 +8,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Loader2, MessageSquareText, Sparkles, Copy, Send, User, Search, Bot, MessageCircle, ThumbsUp, ThumbsDown, Edit2, ShieldAlert, Settings } from 'lucide-react'; // Removed BrainCircuit, PhoneForwarded, Info, PlusCircle, Trash2
+import { Loader2, MessageSquareText, Sparkles, Copy, Send, User, Search, Bot, MessageCircle, ThumbsUp, ThumbsDown, Edit2, ShieldAlert, Settings, ArrowLeft } from 'lucide-react'; // Removed BrainCircuit, PhoneForwarded, Info, PlusCircle, Trash2
 import { useToast } from '@/hooks/use-toast';
 import { generateWhatsAppReply } from '@/ai/flows/cs-whatsapp-reply-flow';
 import type { ChatMessage, ZoyaChatInput, WhatsAppReplyOutput } from '@/types/ai/cs-whatsapp-reply';
@@ -77,6 +77,8 @@ export default function AiCsAssistantPage() {
   const [currentPlaygroundInput, setCurrentPlaygroundInput] = useState('');
   const [playgroundChatHistory, setPlaygroundChatHistory] = useState<PlaygroundMessage[]>([]);
   const [isLoadingPlaygroundSuggestion, setIsLoadingPlaygroundSuggestion] = useState(false);
+  const [isMobileView, setIsMobileView] = useState(false);
+  const [showChatView, setShowChatView] = useState(false);
 
   const { toast } = useToast();
 
@@ -93,6 +95,18 @@ export default function AiCsAssistantPage() {
   const unsubscribeChatRef = useRef<(() => void) | null>(null);
 
   // AI Agent Settings & Knowledge Base related state and functions are MOVED to the new settings page.
+
+  // Check for mobile view
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobileView(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const scrollToBottom = (ref: React.RefObject<HTMLDivElement>) => {
     ref.current?.scrollIntoView({ behavior: "smooth" });
@@ -243,6 +257,9 @@ if (phoneToQuery) {
     setCustomerMessageInput('');
     setCurrentPlaygroundInput('');
     setPlaygroundChatHistory([]);
+    if (isMobileView) {
+      setShowChatView(true);
+    }
     if (unsubscribeChatRef.current) {
       unsubscribeChatRef.current();
       unsubscribeChatRef.current = null;
@@ -253,6 +270,15 @@ if (phoneToQuery) {
     setIsPlaygroundMode(false);
     setSelectedCustomer(customer);
     setCustomerMessageInput('');
+    if (isMobileView) {
+      setShowChatView(true);
+    }
+  };
+
+  const handleBackToList = () => {
+    setShowChatView(false);
+    setSelectedCustomer(null);
+    setIsPlaygroundMode(false);
   };
 
   const handleSendPlaygroundMessage = async () => {
@@ -494,10 +520,62 @@ if (phoneToQuery) {
   return (
     <React.Fragment>
       <div className="flex flex-col h-full bg-background">
-        <AppHeader title="Asisten CS AI untuk WhatsApp" />
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 overflow-hidden">
+        {/* Mobile: Show chat header with back button when in chat view */}
+        {isMobileView && showChatView ? (
+          <div className="flex items-center justify-between p-4 bg-card border-b border-border">
+            <div className="flex items-center space-x-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleBackToList}
+                className="mr-3"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <Avatar className="h-8 w-8">
+                <AvatarImage 
+                  src={isPlaygroundMode ? undefined : selectedCustomer?.avatarUrl} 
+                  alt={isPlaygroundMode ? "AI" : selectedCustomer?.name || "Customer"} 
+                />
+                <AvatarFallback>
+                  {isPlaygroundMode ? <Bot className="h-4 w-4" /> : selectedCustomer?.name.charAt(0) || 'C'}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <h2 className="font-semibold text-sm">
+                  {isPlaygroundMode ? 'AI Playground' : selectedCustomer?.name || 'Customer'}
+                </h2>
+                {!isPlaygroundMode && selectedCustomer?.phone && (
+                  <p className="text-xs text-muted-foreground">{selectedCustomer.phone}</p>
+                )}
+              </div>
+            </div>
+            {!isPlaygroundMode && selectedCustomer?.phone && (
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleSetManualLock}
+                disabled={isSendingWhatsApp}
+                title="Aktifkan lock AI selama 1 jam"
+              >
+                <ShieldAlert className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        ) : (
+          <AppHeader title="Asisten CS AI untuk WhatsApp" />
+        )}
 
-          <div className="col-span-1 md:col-span-1 lg:col-span-1 border-r border-border bg-card flex flex-col">
+        <div className={cn(
+          "flex-1 overflow-hidden",
+          isMobileView ? "flex flex-col" : "grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4"
+        )}>
+
+          {/* Customer List - Hidden on mobile when in chat view */}
+          <div className={cn(
+            "border-r border-border bg-card flex flex-col",
+            isMobileView ? (showChatView ? "hidden" : "flex-1") : "col-span-1 md:col-span-1 lg:col-span-1"
+          )}>
             <CardHeader className="p-4">
               <CardTitle className="text-lg flex items-center">
                 <User className="mr-2 h-5 w-5" /> Daftar Pelanggan
@@ -574,22 +652,28 @@ if (phoneToQuery) {
             </ScrollArea>
           </div>
 
-          <div className="col-span-1 md:col-span-2 lg:col-span-3 flex flex-col bg-background p-4 space-y-4 overflow-y-auto">
+          {/* Chat Area - Full screen on mobile when in chat view */}
+          <div className={cn(
+            "flex flex-col bg-background overflow-y-auto",
+            isMobileView 
+              ? (showChatView ? "flex-1" : "hidden") 
+              : "col-span-1 md:col-span-2 lg:col-span-3"
+          )}>
             {isPlaygroundMode ? (
               <>
-                <Card className="flex-shrink-0">
+                <Card className="flex-shrink-0 rounded-none border-0 shadow-none">
                   <CardHeader className="p-4 border-b">
                     <CardTitle className="text-lg flex items-center"><Bot className="mr-2 h-6 w-6 text-primary" /> AI Playground</CardTitle>
                     <CardDescription>Uji coba langsung kemampuan AI. Berikan feedback untuk membantu AI belajar.</CardDescription>
                   </CardHeader>
-                  <ScrollArea className="h-[400px] p-4 space-y-4"> 
+                  <ScrollArea className={cn("p-4 space-y-4", isMobileView ? "h-[calc(100vh-280px)]" : "h-[400px]")}>
                     {playgroundChatHistory.map((message) => (
                       <div key={message.id}>
                         <div
                           className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                         >
                           <div
-                            className={`px-4 py-2 rounded-xl shadow ${
+                            className={`px-4 py-2 rounded-xl shadow max-w-[80%] ${
                               message.sender === 'user'
                                 ? 'bg-primary text-primary-foreground'
                                 : 'bg-secondary text-secondary-foreground'
@@ -675,42 +759,45 @@ if (phoneToQuery) {
                 </Card>
               </>
             ) : !selectedCustomer ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
-                <MessageSquareText className="h-16 w-16 text-muted-foreground mb-4" />
-                <p className="text-xl text-muted-foreground">Pilih pelanggan untuk memulai percakapan</p>
-                <p className="text-sm text-muted-foreground">atau masuk ke mode Playground AI dari daftar di samping.</p>
-              </div>
+              !isMobileView && (
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
+                  <MessageSquareText className="h-16 w-16 text-muted-foreground mb-4" />
+                  <p className="text-xl text-muted-foreground">Pilih pelanggan untuk memulai percakapan</p>
+                  <p className="text-sm text-muted-foreground">atau masuk ke mode Playground AI dari daftar di samping.</p>
+                </div>
+              )
             ) : (
               <>
-                <Card className="flex-shrink-0">
-                  <CardHeader className="p-4 border-b">
-                    <div className="flex justify-between items-center">
-                        <div>
-                            <CardTitle className="text-lg flex items-center">
-                            Percakapan dengan: {selectedCustomer.name}
-                            </CardTitle>
-                            <CardDescription>{selectedCustomer.phone || "Nomor HP tidak tersedia"}</CardDescription>
-                        </div>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleSetManualLock}
-                            disabled={isSendingWhatsApp || !selectedCustomer.phone}
-                            title="Aktifkan lock AI selama 1 jam (jika Anda baru balas dari HP)"
-                        >
-                            <ShieldAlert className="mr-2 h-4 w-4" />
-                            Ambil Alih (Lock AI 1 Jam)
-                        </Button>
-                    </div>
-                  </CardHeader>
-                  <ScrollArea className="h-[400px] p-4 space-y-4">
+                <Card className="flex-shrink-0 rounded-none border-0 shadow-none">
+                  {!isMobileView && (
+                    <CardHeader className="p-4 border-b">
+                      <div className="flex justify-between items-center">
+                          <div>
+                              <CardTitle className="text-lg">
+                              {selectedCustomer.name}
+                              </CardTitle>
+                              <CardDescription>{selectedCustomer.phone || "Nomor HP tidak tersedia"}</CardDescription>
+                          </div>
+                          <Button
+                              variant="outline"
+                              size="icon"
+                              onClick={handleSetManualLock}
+                              disabled={isSendingWhatsApp || !selectedCustomer.phone}
+                              title="Aktifkan lock AI selama 1 jam"
+                          >
+                              <ShieldAlert className="h-4 w-4" />
+                          </Button>
+                      </div>
+                    </CardHeader>
+                  )}
+                  <ScrollArea className={cn("p-4 space-y-4", isMobileView ? "h-[calc(100vh-180px)]" : "h-[400px]")}>
                     {chatHistory.map((message) => (
                       <div
                         key={message.id}
                         className={`flex ${message.sender === 'customer' ? 'justify-start' : 'justify-end'}`}
                       >
                         <div
-                          className={`px-4 py-2 rounded-xl shadow ${
+                          className={`px-4 py-2 rounded-xl shadow max-w-[80%] ${
                             message.sender === 'customer'
                               ? 'bg-muted text-muted-foreground'
                               : message.sender === 'user'
@@ -736,23 +823,17 @@ if (phoneToQuery) {
                   </ScrollArea>
                   <Separator />
                   <Card className="rounded-none border-0 border-t shadow-none">
-                    <CardHeader className="p-4">
-                      <CardTitle className="text-lg flex items-center">
-                        <MessageCircle className="mr-2 h-5 w-5 text-primary" />
-                        Balas Pesan Pelanggan
-                      </CardTitle>
-                    </CardHeader>
                     <CardContent className="p-4">
-                      <div className="flex items-end space-x-2">
+                      <div className="flex items-center space-x-2">
                         <Textarea
                           id="customer-message-input"
                           placeholder="Ketik balasan Anda di sini..."
                           value={customerMessageInput}
                           onChange={(e) => setCustomerMessageInput(e.target.value)}
                           onKeyDown={handleKeyDown}
-                          rows={3}
+                          rows={1}
                           disabled={isSendingWhatsApp || !selectedCustomer?.phone}
-                          className="bg-background flex-1 resize-none"
+                          className="bg-background flex-1 resize-none min-h-[40px] max-h-[120px]"
                         />
                         <Button
                           size="icon"

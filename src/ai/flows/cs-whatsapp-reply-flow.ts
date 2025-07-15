@@ -11,6 +11,7 @@ import { mergeSession } from '@/ai/utils/mergeSession';
 import { runZoyaAIAgent } from '@/ai/agent/runZoyaAIAgent';
 import { notifyBosMamat, setSnoozeMode } from '@/ai/utils/humanHandoverTool';
 import { updateSessionFromToolResults } from '@/ai/utils/updateSessionFromToolResults';
+import { isInterventionLockActive } from '@/ai/utils/interventionLock';
 
 import { masterPrompt } from '@/ai/config/aiPrompts';
 import { createToolCallMessage, runToolCalls } from '@/ai/utils/runToolCalls';
@@ -30,6 +31,13 @@ export async function generateWhatsAppReply(
   console.log(`\n\n================ Zoya New Turn for ${senderNumber} ================`);
   console.log(`[PESAN MASUK]: "${input.customerMessage}"`);
   
+  // --- TAHAP 0: PENGECEKAN LOCK INTERVENSI MANUAL ---
+  const isLocked = await isInterventionLockActive(senderNumber);
+  if (isLocked) {
+    console.log(`[LOCK ACTIVE] AI tidak merespons karena lock intervensi manual aktif.`);
+    return null; // Berhenti total, jangan balas apa pun.
+  }
+
   // --- TAHAP 1: SETUP SESI & PENGECEKAN AWAL ---
   if (session?.snoozeUntil && Date.now() < session.snoozeUntil) {
     return { suggestedReply: '', toolCalls: [], route: 'snoozed', metadata: { snoozeUntil: session.snoozeUntil } };
@@ -39,9 +47,10 @@ export async function generateWhatsAppReply(
     session = { flow: 'general', inquiry: {}, lastInteraction: Timestamp.now(), followUpState: null, lastRoute: 'init', senderName };
   } else {
     if (!session.senderName && senderName) session.senderName = senderName;
-    if (session.followUpState) session.followUpState = null;
+    // followUpState dipertahankan untuk cron job, tidak di-reset atau di-handle di sini
   }
   
+  // --- TAHAP 1.6: DETEKSI SERVICE & MOTOR ---
   const mappedServiceResult = mapTermToOfficialService(input.customerMessage);
   if (mappedServiceResult?.serviceName) {
     session.inquiry ??= {};
@@ -72,13 +81,15 @@ export async function generateWhatsAppReply(
   const MAX_LOOPS = 5;
   let currentSession = { ...session };
 
+  // Batasi chat history ke 3 conversation terakhir untuk efisiensi token
+  const recentChatHistory = input.chatHistory.slice(-6); // 6 = 3 conversations (user + assistant pairs)
+
   let messagesForAI: any[] = [
     { role: 'system', content: masterPrompt },
-    ...input.chatHistory,
+    ...recentChatHistory,
     { role: 'user', content: input.customerMessage },
   ];
 
-  let lastToolReason: string | undefined = undefined;
   for (let i = 0; i < MAX_LOOPS; i++) {
     const agentResult = await runZoyaAIAgent({
       session: currentSession,
@@ -89,13 +100,6 @@ export async function generateWhatsAppReply(
     });
 
     if (agentResult.suggestedReply && (!agentResult.toolCalls || agentResult.toolCalls.length === 0)) {
-      // Jika ada lastToolReason, JADIKAN ITU JAWABAN UTAMA.
-      if (lastToolReason) {
-        console.log(`[Loop ${i + 1}] AI memberikan jawaban, TAPI KITA GANTI dengan reason dari tool.`);
-        const finalSession = mergeSession(currentSession, { lastInteraction: Timestamp.now(), lastRoute: 'ai_agent_final_reply_overridden' });
-        await updateSession(senderNumber, finalSession);
-        return { ...agentResult, suggestedReply: lastToolReason };
-      }
 
       console.log(`[Loop ${i + 1}] AI memberikan jawaban akhir. Loop berhenti.`);
       const finalSession = mergeSession(currentSession, { lastInteraction: Timestamp.now(), lastRoute: 'ai_agent_final_reply' });
@@ -145,8 +149,9 @@ export async function generateWhatsAppReply(
   }
 
   // --- TAHAP 3: FALLBACK JIKA LOOP GAGAL ---
-  // Kita tidak perlu lagi cek lastToolReason di sini karena sudah di-handle oleh short-circuit
   const fallbackReply = 'Waduh, Zoya pusing nih muter-muter terus. Langsung tanya Bos Mamat aja ya!';
+  const fallbackSession = mergeSession(currentSession, { lastInteraction: Timestamp.now(), lastRoute: 'ai_agent_loop_failed' });
+  await updateSession(senderNumber, fallbackSession);
   await setSnoozeMode(senderNumber);
   await notifyBosMamat(senderNumber, input.customerMessage);
   return { suggestedReply: fallbackReply, toolCalls: [], route: 'ai_agent_loop_failed' };

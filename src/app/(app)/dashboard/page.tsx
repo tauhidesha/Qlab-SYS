@@ -1,4 +1,3 @@
-
 "use client";
 import AppHeader from '@/components/layout/AppHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -255,12 +254,21 @@ export default function DashboardPage() {
     };
   }, [toast]); // Removed fetchDashboardData from here as it should only run once typically
 
+  const formatCompactCurrency = (value: number) => {
+    if (value >= 1000000) {
+      return `Rp ${(value / 1000000).toFixed(1).replace(/\.0$/, '')} Jt`;
+    }
+    if (value >= 1000) {
+      return `Rp ${Math.floor(value / 1000)} Rb`;
+    }
+    return `Rp ${value.toLocaleString('id-ID')}`;
+  };
 
   const summaryCardsConfig = [
-    { title: "Pendapatan Hari Ini", getValue: () => `Rp ${summaryData.todaysRevenue.toLocaleString('id-ID')}`, icon: ShoppingCart, dataAiHint: "grafik uang", isLoading: loadingSummary },
-    { title: "Transaksi Selesai Hari Ini", getValue: () => summaryData.transactionsToday.toString(), icon: Users, dataAiHint: "antrian orang", isLoading: loadingSummary },
-    { title: "Antrian Menunggu", getValue: () => summaryData.queueWaiting.toString(), icon: ListOrdered, dataAiHint: "daftar tunggu", isLoading: loadingSummary || loadingQueueDetailed },
-    { title: "Antrian Dalam Layanan", getValue: () => summaryData.queueInService.toString(), icon: BarChartBig, dataAiHint: "progres tugas", isLoading: loadingSummary || loadingQueueDetailed },
+    { title: "Pendapatan Hari Ini", shortTitle: "Pendapatan", getValue: () => formatCompactCurrency(summaryData.todaysRevenue), icon: ShoppingCart, dataAiHint: "grafik uang", isLoading: loadingSummary },
+    { title: "Transaksi Selesai Hari Ini", shortTitle: "Transaksi", getValue: () => summaryData.transactionsToday.toString(), icon: Users, dataAiHint: "antrian orang", isLoading: loadingSummary },
+    { title: "Antrian Menunggu", shortTitle: "Menunggu", getValue: () => summaryData.queueWaiting.toString(), icon: ListOrdered, dataAiHint: "daftar tunggu", isLoading: loadingSummary || loadingQueueDetailed },
+    { title: "Antrian Dalam Layanan", shortTitle: "Dalam Layanan", getValue: () => summaryData.queueInService.toString(), icon: BarChartBig, dataAiHint: "progres tugas", isLoading: loadingSummary || loadingQueueDetailed },
   ];
   
   const dailyIncomeChartConfig = {
@@ -274,54 +282,63 @@ export default function DashboardPage() {
 
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-x-hidden">
       <AppHeader title="Dasbor" />
-      <main className="flex-1 overflow-y-auto p-6">
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
+      <main className="flex-1 overflow-y-auto overflow-x-hidden px-1 py-3 sm:px-4 sm:py-6 w-full">
+        <div className="grid gap-1 sm:gap-2 sm:gap-3 grid-cols-2 lg:grid-cols-4 mb-3 sm:mb-4 sm:mb-6 w-full min-w-0">
           {summaryCardsConfig.map((card) => (
-            <Card key={card.title}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
-                {card.isLoading ? <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" /> : <card.icon className="h-5 w-5 text-muted-foreground" />}
+            <Card key={card.title} className="p-1 sm:p-2 sm:p-4 min-w-0">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 px-0 pt-0">
+                <CardTitle className="text-xs sm:text-sm font-medium leading-tight min-w-0 truncate pr-1">
+                  <span className="block sm:hidden">{card.shortTitle}</span>
+                  <span className="hidden sm:block">{card.title}</span>
+                </CardTitle>
+                {card.isLoading ? <Loader2 className="h-3 w-3 sm:h-5 sm:w-5 text-muted-foreground animate-spin flex-shrink-0" /> : <card.icon className="h-3 w-3 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />}
               </CardHeader>
-              <CardContent>
-                {card.isLoading ? <div className="text-2xl font-bold">-</div> : <div className="text-2xl font-bold">{card.getValue()}</div>}
+              <CardContent className="px-0 pb-0">
+                {card.isLoading ? <div className="text-sm sm:text-2xl font-bold">-</div> : <div className="text-xs sm:text-sm sm:text-2xl font-bold truncate">{card.getValue()}</div>}
               </CardContent>
             </Card>
           ))}
         </div>
 
-        <Card className="mb-6">
-            <CardHeader>
-                <CardTitle className="flex items-center">
-                    <TrendingUp className="mr-2 h-5 w-5 text-primary" />
-                    Pendapatan Harian (Bulan Ini)
+        <Card className="mb-3 sm:mb-4 sm:mb-6 w-full min-w-0 overflow-hidden">
+            <CardHeader className="pb-2 sm:pb-3 sm:pb-4">
+                <CardTitle className="flex items-center text-sm sm:text-base sm:text-lg min-w-0">
+                    <TrendingUp className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
+                    <span className="truncate">Pendapatan Harian</span>
                 </CardTitle>
-                <CardDescription>Total pendapatan dari transaksi terbayar per hari dalam bulan ini.</CardDescription>
+                <CardDescription className="text-xs sm:text-sm">Total pendapatan dari transaksi terbayar per hari dalam bulan ini.</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="min-w-0 overflow-hidden p-2 sm:p-4">
                 {loadingDailyIncome ? (
-                    <div className="flex items-center justify-center h-[350px]"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
+                    <div className="flex items-center justify-center h-[140px] sm:h-[200px] sm:h-[250px] sm:h-[350px]"><Loader2 className="h-8 w-8 sm:h-10 sm:w-10 animate-spin text-primary" /></div>
                 ) : !isClient ? (
-                    <div className="flex items-center justify-center h-[350px]"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>
+                    <div className="flex items-center justify-center h-[140px] sm:h-[200px] sm:h-[250px] sm:h-[350px]"><Loader2 className="h-8 w-8 sm:h-10 sm:w-10 animate-spin text-primary" /></div>
                 ) : dailyIncomeData.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-10 h-[350px] flex items-center justify-center">Belum ada data pendapatan untuk bulan ini.</p>
+                    <p className="text-center text-muted-foreground py-10 h-[140px] sm:h-[200px] sm:h-[250px] sm:h-[350px] flex items-center justify-center text-xs sm:text-sm">Belum ada data pendapatan untuk bulan ini.</p>
                 ) : (
-                <ChartContainer config={dailyIncomeChartConfig} className="h-[350px] w-full">
-                    <BarChart accessibilityLayer data={dailyIncomeData} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                <div className="w-full overflow-hidden">
+                <ChartContainer config={dailyIncomeChartConfig} className="h-[140px] sm:h-[200px] sm:h-[250px] sm:h-[350px] w-full min-w-0">
+                    <BarChart accessibilityLayer data={dailyIncomeData} margin={{ top: 5, right: 0, left: 0, bottom: 5 }}>
                         <CartesianGrid vertical={false} strokeDasharray="3 3" />
                         <XAxis 
                             dataKey="date" 
                             tickLine={false} 
                             axisLine={false} 
-                            tickMargin={8}
-                            tickFormatter={(value) => value} // Display day number e.g. "01", "15"
+                            tickMargin={2}
+                            fontSize={7}
+                            interval={1}
+                            minTickGap={5}
+                            tickFormatter={(value) => value}
                         />
                         <YAxis 
                             tickFormatter={formatYAxis} 
                             tickLine={false} 
                             axisLine={false} 
-                            tickMargin={8}
+                            tickMargin={1}
+                            fontSize={6}
+                            width={30}
                         />
                         <ChartTooltip 
                             cursor={false} 
@@ -331,38 +348,39 @@ export default function DashboardPage() {
                                         indicator="dot" 
                                      />} 
                         />
-                        <Bar dataKey="Pemasukan" fill="var(--color-Pemasukan)" radius={4} />
+                        <Bar dataKey="Pemasukan" fill="var(--color-Pemasukan)" radius={1} />
                     </BarChart>
                 </ChartContainer>
+                </div>
                 )}
             </CardContent>
         </Card>
 
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Transaksi Terkini</CardTitle>
-              <CardDescription>5 penjualan terakhir yang sudah dibayar.</CardDescription>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-3 sm:gap-4 sm:gap-6 w-full min-w-0">
+          <Card className="min-w-0">
+            <CardHeader className="pb-2 sm:pb-3 sm:pb-4">
+              <CardTitle className="text-sm sm:text-base sm:text-lg">Transaksi Terkini</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">5 penjualan terakhir yang sudah dibayar.</CardDescription>
             </CardHeader>
             <CardContent>
               {loadingRecentTransactions ? (
-                <div className="flex items-center justify-center py-10"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>
+                <div className="flex items-center justify-center py-8 sm:py-10"><Loader2 className="h-6 w-6 sm:h-7 sm:w-7 animate-spin text-primary" /></div>
               ) : recentTransactions.length === 0 ? (
-                <p className="text-center text-muted-foreground py-4">Tidak ada transaksi terbayar.</p>
+                <p className="text-center text-muted-foreground py-4 text-sm">Tidak ada transaksi terbayar.</p>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {recentTransactions.map((tx) => (
-                    <div key={tx.id} className="flex items-center justify-between p-3 rounded-md border">
-                      <div>
-                        <p className="font-medium">{tx.customerName}</p>
-                        <p className="text-sm text-muted-foreground">
+                    <div key={tx.id} className="flex items-center justify-between p-2 sm:p-3 rounded-md border">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm sm:text-base truncate">{tx.customerName}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground truncate">
                           {tx.items.length > 0 ? tx.items[0].name : 'Item tidak tersedia'}
                           {tx.items.length > 1 ? ` (+${tx.items.length - 1} lainnya)` : ''}
                         </p>
                         <p className="text-xs text-muted-foreground">{tx.formattedPaidAt}</p>
                       </div>
-                      <p className="font-semibold text-primary">Rp {tx.total.toLocaleString('id-ID')}</p>
+                      <p className="font-semibold text-primary text-sm sm:text-base ml-2 flex-shrink-0">Rp {tx.total.toLocaleString('id-ID')}</p>
                     </div>
                   ))}
                 </div>
@@ -371,27 +389,27 @@ export default function DashboardPage() {
           </Card>
           
           <Card>
-            <CardHeader>
-              <CardTitle>Antrian Saat Ini</CardTitle>
-              <CardDescription>Pelanggan menunggu atau sedang dilayani.</CardDescription>
+            <CardHeader className="pb-3 sm:pb-4">
+              <CardTitle className="text-sm sm:text-base sm:text-lg">Antrian Saat Ini</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Pelanggan menunggu atau sedang dilayani.</CardDescription>
             </CardHeader>
             <CardContent>
               {loadingQueueDetailed ? (
-                <div className="flex items-center justify-center py-10"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>
+                <div className="flex items-center justify-center py-8 sm:py-10"><Loader2 className="h-6 w-6 sm:h-7 sm:w-7 animate-spin text-primary" /></div>
               ) : currentQueueDetailed.length === 0 ? (
-                <p className="text-center text-muted-foreground py-4">Antrian kosong.</p>
+                <p className="text-center text-muted-foreground py-4 text-sm">Antrian kosong.</p>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {currentQueueDetailed.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between p-3 rounded-md border bg-card">
-                      <div className="flex items-center gap-3">
-                         {item.status === 'Menunggu' ? <ListOrdered className="h-5 w-5 text-yellow-500" /> : <BarChartBig className="h-5 w-5 text-blue-500" />}
-                         <div>
-                           <p className="font-medium">{item.customerName}</p>
-                           <p className="text-xs text-muted-foreground">{item.service}</p>
+                    <div key={item.id} className="flex items-center justify-between p-2 sm:p-3 rounded-md border bg-card">
+                      <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                         {item.status === 'Menunggu' ? <ListOrdered className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-500 flex-shrink-0" /> : <BarChartBig className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500 flex-shrink-0" />}
+                         <div className="min-w-0 flex-1">
+                           <p className="font-medium text-sm sm:text-base truncate">{item.customerName}</p>
+                           <p className="text-xs sm:text-sm text-muted-foreground truncate">{item.service}</p>
                          </div>
                       </div>
-                      <Badge variant={item.status === 'Menunggu' ? 'outline' : 'default'} className="capitalize">
+                      <Badge variant={item.status === 'Menunggu' ? 'outline' : 'default'} className="capitalize text-xs flex-shrink-0">
                         {item.status}
                       </Badge>
                     </div>
@@ -402,24 +420,24 @@ export default function DashboardPage() {
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <CreditCard className="h-5 w-5 mr-2 text-primary" />
+            <CardHeader className="pb-3 sm:pb-4">
+              <CardTitle className="flex items-center text-sm sm:text-base sm:text-lg">
+                <CreditCard className="h-3 w-3 sm:h-4 sm:w-4 sm:h-5 sm:w-5 mr-2 text-primary" />
                 Metode Pembayaran Populer
               </CardTitle>
-              <CardDescription>Metode pembayaran yang paling sering digunakan.</CardDescription>
+              <CardDescription className="text-xs sm:text-sm">Metode pembayaran yang paling sering digunakan.</CardDescription>
             </CardHeader>
             <CardContent>
               {loadingPaymentMethods ? (
-                <div className="flex items-center justify-center py-10"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>
+                <div className="flex items-center justify-center py-8 sm:py-10"><Loader2 className="h-6 w-6 sm:h-7 sm:w-7 animate-spin text-primary" /></div>
               ) : popularPaymentMethods.length === 0 ? (
-                <p className="text-center text-muted-foreground py-4">Belum ada data pembayaran.</p>
+                <p className="text-center text-muted-foreground py-4 text-sm">Belum ada data pembayaran.</p>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {popularPaymentMethods.map((pm) => (
                     <div key={pm.method} className="flex justify-between items-center">
-                      <span>{pm.method}</span>
-                      <Badge variant="secondary" className="text-sm">{pm.percentage} ({pm.count})</Badge>
+                      <span className="text-sm sm:text-base truncate flex-1">{pm.method}</span>
+                      <Badge variant="secondary" className="text-xs sm:text-sm ml-2 flex-shrink-0">{pm.percentage} ({pm.count})</Badge>
                     </div>
                   ))}
                 </div>
@@ -428,24 +446,24 @@ export default function DashboardPage() {
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <StarIcon className="h-5 w-5 mr-2 text-primary" />
+            <CardHeader className="pb-3 sm:pb-4">
+              <CardTitle className="flex items-center text-sm sm:text-base sm:text-lg">
+                <StarIcon className="h-3 w-3 sm:h-4 sm:w-4 sm:h-5 sm:w-5 mr-2 text-primary" />
                 Layanan & Produk Terlaris
               </CardTitle>
-              <CardDescription>Item yang paling banyak terjual.</CardDescription>
+              <CardDescription className="text-xs sm:text-sm">Item yang paling banyak terjual.</CardDescription>
             </CardHeader>
             <CardContent>
               {loadingBestsellers ? (
-                <div className="flex items-center justify-center py-10"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>
+                <div className="flex items-center justify-center py-8 sm:py-10"><Loader2 className="h-6 w-6 sm:h-7 sm:w-7 animate-spin text-primary" /></div>
               ) : bestsellingItems.length === 0 ? (
-                 <p className="text-center text-muted-foreground py-4">Belum ada item terjual.</p>
+                 <p className="text-center text-muted-foreground py-4 text-sm">Belum ada item terjual.</p>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {bestsellingItems.map((item) => (
                     <div key={item.id} className="flex items-center justify-between">
-                      <span className="truncate max-w-[70%]">{item.name}</span>
-                      <Badge variant="default" className="text-sm">{item.quantitySold}x</Badge>
+                      <span className="truncate max-w-[70%] text-sm sm:text-base">{item.name}</span>
+                      <Badge variant="default" className="text-xs sm:text-sm flex-shrink-0">{item.quantitySold}x</Badge>
                     </div>
                   ))}
                 </div>

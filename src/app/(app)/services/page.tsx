@@ -1,4 +1,3 @@
-
 "use client";
 import AppHeader from '@/components/layout/AppHeader';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -339,6 +338,43 @@ export default function ServicesPage() {
     item.type.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Helper function to get display price and label
+  const getDisplayPrice = (item: ServiceProduct) => {
+    const basePrice = item.price || 0;
+    
+    // If base price exists and > 0, use it
+    if (basePrice > 0) {
+      return {
+        price: basePrice,
+        label: "Harga Dasar",
+        isVariantPrice: false
+      };
+    }
+    
+    // If no base price, find minimum variant price
+    if (item.variants && item.variants.length > 0) {
+      const variantPrices = item.variants
+        .map(v => v.price)
+        .filter(p => p > 0);
+      
+      if (variantPrices.length > 0) {
+        const minPrice = Math.min(...variantPrices);
+        return {
+          price: minPrice,
+          label: "Mulai dari",
+          isVariantPrice: true
+        };
+      }
+    }
+    
+    // Fallback to 0
+    return {
+      price: 0,
+      label: "Harga Dasar",
+      isVariantPrice: false
+    };
+  };
+
   if (loading && !isImporting) {
     return (
       <div className="flex flex-col h-full">
@@ -354,21 +390,21 @@ export default function ServicesPage() {
   return (
     <div className="flex flex-col h-full">
       <AppHeader title="Layanan & Produk" />
-      <main className="flex-1 overflow-y-auto p-6">
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         <AlertDialog open={!!itemToDelete} onOpenChange={(open) => !open && setItemToDelete(null)}>
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
               <div>
                 <CardTitle>Katalog Layanan & Produk</CardTitle>
                 <CardDescription>Kelola penawaran Anda dan detailnya, termasuk varian produk, stok, dan harga modal.</CardDescription>
               </div>
-               <div className="flex gap-2 items-center">
+               <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
                  <div className="relative">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
                     type="search"
                     placeholder="Cari item..."
-                    className="pl-8 sm:w-[200px] md:w-[150px] lg:w-[250px]"
+                    className="pl-8 w-full sm:w-[200px] lg:w-[250px]"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
@@ -382,7 +418,7 @@ export default function ServicesPage() {
                 />
                 <Dialog open={isInfoDialogOpen} onOpenChange={setIsInfoDialogOpen}>
                   <InfoDialogTrigger asChild>
-                    <Button variant="outline" size="sm">Info Format CSV</Button>
+                    <Button variant="outline" size="sm" className="w-full sm:w-auto">Info Format CSV</Button>
                   </InfoDialogTrigger>
                   <InfoDialogContent className="sm:max-w-lg">
                     <InfoDialogHeader>
@@ -418,80 +454,172 @@ export default function ServicesPage() {
                     </InfoDialogFooter>
                   </InfoDialogContent>
                 </Dialog>
-                <Button onClick={triggerFileInput} disabled={isImporting}>
+                <Button onClick={triggerFileInput} disabled={isImporting} className="w-full sm:w-auto">
                   {isImporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
-                  Import CSV
+                  <span className="sm:inline">Import CSV</span>
                 </Button>
-                <Button asChild>
+                <Button asChild className="w-full sm:w-auto">
                   <Link href="/services/new">
-                    <PlusCircle className="mr-2 h-4 w-4" /> Tambah Item Baru
+                    <PlusCircle className="mr-2 h-4 w-4" /> 
+                    <span className="sm:inline">Tambah Item Baru</span>
                   </Link>
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nama</TableHead>
-                    <TableHead>Jenis</TableHead>
-                    <TableHead>Kategori</TableHead>
-                    <TableHead className="text-right">Harga Dasar</TableHead>
-                    <TableHead className="text-center">Poin</TableHead>
-                    <TableHead className="text-center">Stok</TableHead>
-                    <TableHead className="text-right">Hrg. Modal</TableHead>
-                    <TableHead className="text-center">Varian</TableHead>
-                    <TableHead className="text-right">Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredItems.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.name}</TableCell>
-                      <TableCell>
-                        <Badge variant={item.type === 'Layanan' ? 'default' : 'secondary'} className="capitalize">
-                          {item.type === 'Layanan' ? <Wrench className="mr-1 h-3 w-3" /> : <ShoppingBag className="mr-1 h-3 w-3" />}
-                          {item.type}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{item.category}</TableCell>
-                      <TableCell className="text-right">Rp {(item.price || 0).toLocaleString('id-ID')}</TableCell>
-                      <TableCell className="text-center">
-                        {item.pointsAwarded && item.pointsAwarded > 0 ? (
-                           <div className="flex items-center justify-center">
-                             <Gift className="mr-1 h-3 w-3 text-yellow-500" /> {item.pointsAwarded}
-                           </div>
-                        ) : (
-                          '-'
-                        )}
-                      </TableCell>
-                       <TableCell className="text-center">
-                        {item.type === 'Produk' ? (item.stockQuantity !== undefined ? item.stockQuantity : '-') : '-'}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {item.type === 'Produk' ? (item.costPrice !== undefined ? `Rp ${item.costPrice.toLocaleString('id-ID')}` : '-') : '-'}
-                      </TableCell>
-                      <TableCell className="text-center">{item.variants?.length || 0}</TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" asChild className="hover:text-primary">
-                           <Link href={`/services/${item.id}/edit`}>
-                            <Edit3 className="h-4 w-4" />
+              {/* Desktop Table View */}
+              <div className="hidden lg:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nama</TableHead>
+                      <TableHead>Jenis</TableHead>
+                      <TableHead>Kategori</TableHead>
+                      <TableHead className="text-right">Harga</TableHead>
+                      <TableHead className="text-center">Poin</TableHead>
+                      <TableHead className="text-center">Stok</TableHead>
+                      <TableHead className="text-right">Hrg. Modal</TableHead>
+                      <TableHead className="text-center">Varian</TableHead>
+                      <TableHead className="text-right">Aksi</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredItems.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-medium">{item.name}</TableCell>
+                        <TableCell>
+                          <Badge variant={item.type === 'Layanan' ? 'default' : 'secondary'} className="capitalize">
+                            {item.type === 'Layanan' ? <Wrench className="mr-1 h-3 w-3" /> : <ShoppingBag className="mr-1 h-3 w-3" />}
+                            {item.type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{item.category}</TableCell>
+                        <TableCell className="text-right">
+                          {(() => {
+                            const displayPrice = getDisplayPrice(item);
+                            return (
+                              <div className="text-right">
+                                <div>Rp {displayPrice.price.toLocaleString('id-ID')}</div>
+                                {displayPrice.isVariantPrice && (
+                                  <div className="text-xs text-muted-foreground">{displayPrice.label}</div>
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {item.pointsAwarded && item.pointsAwarded > 0 ? (
+                             <div className="flex items-center justify-center">
+                               <Gift className="mr-1 h-3 w-3 text-yellow-500" /> {item.pointsAwarded}
+                             </div>
+                          ) : (
+                            '-'
+                          )}
+                        </TableCell>
+                         <TableCell className="text-center">
+                          {item.type === 'Produk' ? (item.stockQuantity !== undefined ? item.stockQuantity : '-') : '-'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {item.type === 'Produk' ? (item.costPrice !== undefined ? `Rp ${item.costPrice.toLocaleString('id-ID')}` : '-') : '-'}
+                        </TableCell>
+                        <TableCell className="text-center">{item.variants?.length || 0}</TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="icon" asChild className="hover:text-primary">
+                             <Link href={`/services/${item.id}/edit`}>
+                              <Edit3 className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setItemToDelete(item)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Mobile & Tablet Card View */}
+              <div className="lg:hidden space-y-3">
+                {filteredItems.map((item) => (
+                  <Card key={item.id} className="p-3">
+                    <div className="flex justify-between items-center">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant={item.type === 'Layanan' ? 'default' : 'secondary'} className="text-xs">
+                            {item.type === 'Layanan' ? <Wrench className="mr-1 h-3 w-3" /> : <ShoppingBag className="mr-1 h-3 w-3" />}
+                            {item.type}
+                          </Badge>
+                          {item.variants && item.variants.length > 0 && (
+                            <Badge variant="outline" className="text-xs">
+                              {item.variants.length} varian
+                            </Badge>
+                          )}
+                        </div>
+                        <h3 className="font-medium text-base truncate">{item.name}</h3>
+                        <p className="text-sm text-muted-foreground">{item.category}</p>
+                        
+                        {/* Price Section */}
+                        <div className="mt-2">
+                          {(() => {
+                            const displayPrice = getDisplayPrice(item);
+                            return (
+                              <div className="mb-2">
+                                <span className="font-semibold text-lg">Rp {displayPrice.price.toLocaleString('id-ID')}</span>
+                                {displayPrice.isVariantPrice && (
+                                  <div className="text-xs text-muted-foreground">{displayPrice.label}</div>
+                                )}
+                              </div>
+                            );
+                          })()}
+                          
+                          {/* Icons Section */}
+                          {((item.pointsAwarded && item.pointsAwarded > 0) || (item.type === 'Produk' && item.stockQuantity !== undefined && item.stockQuantity > 0)) && (
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                              {item.pointsAwarded && item.pointsAwarded > 0 && (
+                                <div className="flex items-center">
+                                  <Gift className="mr-1 h-3 w-3 text-yellow-500" />
+                                  {item.pointsAwarded}
+                                </div>
+                              )}
+                              {item.type === 'Produk' && item.stockQuantity !== undefined && item.stockQuantity > 0 && (
+                                <div className="flex items-center">
+                                  <Package className="mr-1 h-3 w-3 text-blue-500" />
+                                  {item.stockQuantity}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex gap-1 ml-3">
+                        <Button variant="ghost" size="icon" asChild className="hover:text-primary h-8 w-8">
+                          <Link href={`/services/${item.id}/edit`}>
+                            <Edit3 className="h-3 w-3" />
                           </Link>
                         </Button>
                         <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setItemToDelete(item)}>
-                            <Trash2 className="h-4 w-4" />
+                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8" onClick={() => setItemToDelete(item)}>
+                            <Trash2 className="h-3 w-3" />
                           </Button>
                         </AlertDialogTrigger>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
                {filteredItems.length === 0 && !loading && (
                 <div className="text-center py-10 text-muted-foreground">
-                   {items.length > 0 ? 'Tidak ada item yang cocok dengan pencarian Anda.' : 'Tidak ada layanan atau produk yang ditemukan.'}
-                   {items.length === 0 && <Link href="/services/new" className="text-primary hover:underline ml-1">Tambah item baru</Link>}
+                   <p>{items.length > 0 ? 'Tidak ada item yang cocok dengan pencarian Anda.' : 'Tidak ada layanan atau produk yang ditemukan.'}</p>
+                   {items.length === 0 && (
+                     <p className="mt-2">
+                       <Link href="/services/new" className="text-primary hover:underline">
+                         Tambah item baru
+                       </Link>
+                     </p>
+                   )}
                 </div>
               )}
             </CardContent>
@@ -518,4 +646,4 @@ export default function ServicesPage() {
     </div>
   );
 }
-    
+

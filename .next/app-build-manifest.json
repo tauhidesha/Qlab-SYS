@@ -1,14 +1,9 @@
 {
   "pages": {
-    "/(app)/ai-cs-assistant/page": [
+    "/(app)/services/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(app)/ai-cs-assistant/page.js"
-    ],
-    "/(app)/ai-cs-assistant/layout": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/(app)/ai-cs-assistant/layout.js"
+      "static/chunks/app/(app)/services/page.js"
     ],
     "/(app)/layout": [
       "static/chunks/webpack.js",
@@ -20,6 +15,11 @@
       "static/chunks/main-app.js",
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
+    ],
+    "/(app)/inventory/products/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(app)/inventory/products/page.js"
     ]
   }
 }

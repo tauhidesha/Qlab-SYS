@@ -96,85 +96,135 @@ export default function ClientsPage() {
   return (
     <div className="flex flex-col h-full">
       <AppHeader title="Manajemen Klien" />
-      <main className="flex-1 overflow-y-auto p-6">
+      <main className="flex-1 overflow-y-auto p-4 sm:p-6">
         <AlertDialog open={!!clientToDelete} onOpenChange={(open) => !open && setClientToDelete(null)}>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
             <div>
               <CardTitle>Daftar Klien</CardTitle>
               <CardDescription>Kelola data klien, sepeda motor, dan poin loyalitas.</CardDescription>
             </div>
-            <div className="flex gap-2 items-center">
+            <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
                <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   type="search"
                   placeholder="Cari klien..."
-                  className="pl-8 sm:w-[300px] md:w-[200px] lg:w-[300px]"
+                  className="pl-8 w-full sm:w-[200px] lg:w-[300px]"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
-              <Button asChild>
+              <Button asChild className="w-full sm:w-auto">
                 <Link href="/clients/new">
-                  <PlusCircle className="mr-2 h-4 w-4" /> Tambah Klien Baru
+                  <PlusCircle className="mr-2 h-4 w-4" /> 
+                  <span className="sm:inline">Tambah Klien Baru</span>
                 </Link>
               </Button>
             </div>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nama</TableHead>
-                  <TableHead>Telepon</TableHead>
-                  <TableHead>Sepeda Motor</TableHead>
-                  <TableHead className="text-center">Poin Loyalitas</TableHead>
-                  <TableHead>Kunjungan Terakhir</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredClients.map((client) => (
-                  <TableRow key={client.id}>
-                    <TableCell className="font-medium">{client.name}</TableCell>
-                    <TableCell>{client.phone}</TableCell>
-                    <TableCell>
-                      <ul className="list-disc list-inside text-sm">
-                        {client.motorcycles && client.motorcycles.length > 0 ? client.motorcycles.map(mc => (
-                          <li key={mc.licensePlate}>
-                            {mc.name} ({mc.licensePlate})
-                          </li>
-                        )) : <span className="text-muted-foreground">Tidak ada sepeda motor</span>}
-                      </ul>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex items-center justify-center">
-                        <Star className="h-4 w-4 text-yellow-400 mr-1" />
-                        {client.loyaltyPoints?.toLocaleString('id-ID') || 0}
+            {/* Desktop Table View */}
+            <div className="hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nama</TableHead>
+                    <TableHead>Telepon</TableHead>
+                    <TableHead>Sepeda Motor</TableHead>
+                    <TableHead className="text-center">Poin Loyalitas</TableHead>
+                    <TableHead>Kunjungan Terakhir</TableHead>
+                    <TableHead className="text-right">Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredClients.map((client) => (
+                    <TableRow key={client.id}>
+                      <TableCell className="font-medium">{client.name}</TableCell>
+                      <TableCell>{client.phone}</TableCell>
+                      <TableCell>
+                        <ul className="list-disc list-inside text-sm">
+                          {client.motorcycles && client.motorcycles.length > 0 ? client.motorcycles.map(mc => (
+                            <li key={mc.licensePlate}>
+                              {mc.name} ({mc.licensePlate})
+                            </li>
+                          )) : <span className="text-muted-foreground">Tidak ada sepeda motor</span>}
+                        </ul>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center">
+                          <Star className="h-4 w-4 text-yellow-400 mr-1" />
+                          {client.loyaltyPoints?.toLocaleString('id-ID') || 0}
+                        </div>
+                      </TableCell>
+                      <TableCell>{client.lastVisit || 'N/A'}</TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" asChild className="hover:text-primary">
+                          <Link href={`/clients/${client.id}/edit`}>
+                            <Edit3 className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setClientToDelete(client)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-3">
+              {filteredClients.map((client) => (
+                <Card key={client.id} className="p-3">
+                  <div className="flex justify-between items-center">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-base truncate">{client.name}</h3>
+                      <p className="text-sm text-muted-foreground">{client.phone}</p>
+                      <div className="flex items-center justify-between mt-2">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          {client.motorcycles && client.motorcycles.length > 0 && (
+                            <span>{client.motorcycles.length} motor</span>
+                          )}
+                          {client.lastVisit && (
+                            <span>• {client.lastVisit}</span>
+                          )}
+                        </div>
+                        <div className="flex items-center">
+                          <Star className="h-3 w-3 text-yellow-400 mr-1" />
+                          <span className="text-sm font-medium">{client.loyaltyPoints?.toLocaleString('id-ID') || 0}</span>
+                        </div>
                       </div>
-                    </TableCell>
-                    <TableCell>{client.lastVisit || 'N/A'}</TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" asChild className="hover:text-primary">
+                    </div>
+                    <div className="flex gap-1 ml-3">
+                      <Button variant="ghost" size="icon" asChild className="hover:text-primary h-8 w-8">
                         <Link href={`/clients/${client.id}/edit`}>
-                          <Edit3 className="h-4 w-4" />
+                          <Edit3 className="h-3 w-3" />
                         </Link>
                       </Button>
                       <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setClientToDelete(client)}>
-                          <Trash2 className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8" onClick={() => setClientToDelete(client)}>
+                          <Trash2 className="h-3 w-3" />
                         </Button>
                       </AlertDialogTrigger>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
             {filteredClients.length === 0 && (
               <div className="text-center py-10 text-muted-foreground">
-                {clients.length > 0 ? 'Tidak ada klien yang cocok dengan pencarian Anda.' : 'Belum ada klien yang terdaftar.'}
-                {clients.length === 0 && <Link href="/clients/new" className="text-primary hover:underline ml-1">Tambah klien baru</Link>}
+                <p>{clients.length > 0 ? 'Tidak ada klien yang cocok dengan pencarian Anda.' : 'Belum ada klien yang terdaftar.'}</p>
+                {clients.length === 0 && (
+                  <p className="mt-2">
+                    <Link href="/clients/new" className="text-primary hover:underline">
+                      Tambah klien baru
+                    </Link>
+                  </p>
+                )}
               </div>
             )}
           </CardContent>
