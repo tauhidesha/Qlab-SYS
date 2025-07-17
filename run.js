@@ -50,7 +50,6 @@ function start(client) {
 
         if ((!messageContent && !isMedia) || msg.fromMe) return;
 
-        await client.sendSeen(senderNumber);
         console.log(`[DEBUG] Incoming message from ${senderName}: ${messageContent || `Media type: ${msg.type}`}`);
 
         await saveMessageToFirestore(senderNumber, messageContent || `[Media: ${msg.type}]`, 'user');

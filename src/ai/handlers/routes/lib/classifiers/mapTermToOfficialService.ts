@@ -52,7 +52,7 @@ interface MappingContext {
 
 // Tipe data untuk hasil output fungsi ini
 export interface MappedServiceResult {
-  serviceName: OfficialService;
+  serviceNames: OfficialService[];
   isAmbiguous: boolean;
 }
 
@@ -69,14 +69,14 @@ export async function mapTermToOfficialService(
     // ...
 
     const systemPrompt = `
-    Anda adalah AI asisten penyortir untuk sebuah bengkel detailing motor. Tugas utama Anda adalah menganalisis pesan pelanggan dan memetakannya ke SATU nama layanan resmi dari daftar yang disediakan.
+    Anda adalah AI asisten penyortir untuk sebuah bengkel detailing motor. Tugas utama Anda adalah menganalisis pesan pelanggan dan memetakannya ke SATU ATAU LEBIH nama layanan resmi dari daftar yang disediakan, jika user meminta lebih dari satu layanan.
 
     DAFTAR LAYANAN RESMI:
     ${VALID_SERVICES.join(', ')}
 
     ATURAN ANDA:
     1.  JAWAB HANYA DENGAN FORMAT JSON YANG VALID. Tidak ada teks atau penjelasan lain.
-    2.  Pilih HANYA SATU 'serviceName' dari daftar resmi di atas. Jangan pernah menciptakan nama layanan sendiri.
+    2.  Pilih SATU ATAU LEBIH 'serviceNames' (array) dari daftar resmi di atas. Jangan pernah menciptakan nama layanan sendiri.
     3.  'isAmbiguous' harus 'true' jika Anda butuh informasi lebih lanjut (misal: "mau coating" -> butuh info glossy/doff, "mau detailing" -> butuh info bongkar/tidak).
     4.  'isAmbiguous' harus 'false' jika pesannya sudah spesifik (misal: "coating glossy tanpa bongkar").
     5.  PERHATIKAN KONTEKS NEGASI! Kata seperti "nggak usah", "tanpa", "jangan" sangat penting. Contoh: "coating glossy tapi nggak usah bongkar" berarti BUKAN 'Complete Service Glossy', melainkan 'Coating Motor Glossy'.
@@ -84,16 +84,17 @@ export async function mapTermToOfficialService(
     7.  Jika user hanya menyapa ("halo", "pagi"), bertanya di luar layanan ("bengkelnya di mana?"), atau berterima kasih, gunakan 'General Inquiry'.
 
     -- ATURAN PENTING UNTUK AMBIGUITAS --
-    8.  Jika pesan user ambigu karena hanya menyebut kategori (misal: "info coating") atau gabungan layanan (misal: "detailing coating"), TUGAS ANDA adalah memetakan ke layanan default yang PALING MEWAKILI, lalu set 'isAmbiguous' ke 'true'.
+    8.  Jika pesan user ambigu karena hanya menyebut kategori (misal: "info coating", "mau tanya repaint kak") atau gabungan layanan (misal: "detailing coating"), TUGAS ANDA adalah memetakan ke layanan default yang PALING MEWAKILI, lalu set 'isAmbiguous' ke 'true'.
         - Contoh 1: Pesan "coating" -> petakan ke "Coating Motor Glossy" (default glossy), set isAmbiguous: true.
-        - Contoh 2: Pesan "detailing coating" -> petakan ke "Complete Service Glossy" (layanan gabungan paling lengkap), set isAmbiguous: true.
+        - Contoh 2: Pesan "detailing coating" -> petakan ke ["Complete Service Glossy"], set isAmbiguous: true.
+        - Contoh 3: Pesan "mau tanya repaint kak" atau "info repaint" -> petakan ke ["Repaint Bodi Halus"], set isAmbiguous: true.
         - JANGAN gunakan "Clarification Needed" kecuali pesan benar-benar tidak bisa dihubungkan ke layanan manapun (misal: "motor saya mogok").
     -- ATURAN PENTING BARU --
     9.  FOKUS PADA IDENTIFIKASI LAYANAN: Tugas utama Anda adalah memetakan NAMA LAYANAN. Jika pesan user mengandung pertanyaan tentang jadwal (contoh: "besok bisa?", "hari sabtu ready?", "bisa booking kapan?"), ABAIKAN bagian jadwal tersebut dan FOKUS HANYA pada identifikasi layanan yang diminta (misal: "detailing coating"). Penjadwalan akan diurus oleh agen selanjutnya. JANGAN memetakan ke 'Handover to Human' hanya karena ada pertanyaan jadwal.
         -- ATURAN KHUSUS CUCI --
         
     Format JSON Output yang WAJIB Anda gunakan:
-    {"serviceName": "NAMA_LAYANAN_DARI_DAFTAR", "isAmbiguous": boolean}
+    {"serviceNames": ["NAMA_LAYANAN_DARI_DAFTAR", ...], "isAmbiguous": boolean}
   `;
 
   // Gabungkan konteks dan pesan baru untuk AI
@@ -104,15 +105,13 @@ export async function mapTermToOfficialService(
 
   try {
     const completion = await openai.chat.completions.create({
-      // gpt-4o adalah model terbaik untuk reasoning dan JSON mode saat ini.
-      // gpt-3.5-turbo adalah alternatif yang lebih cepat dan murah jika diperlukan.
       model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: contentForAI },
       ],
-      temperature: 0, // 0 untuk hasil yang paling konsisten dan dapat diprediksi.
-      response_format: { type: 'json_object' }, // Memaksa output menjadi format JSON yang valid.
+      temperature: 0,
+      response_format: { type: 'json_object' },
     });
 
     const aiReply = completion.choices[0]?.message?.content;
@@ -122,7 +121,7 @@ export async function mapTermToOfficialService(
     }
 
     // Parse dan Validasi output dari AI
-    const parsed = JSON.parse(aiReply) as { serviceName: string; isAmbiguous: boolean };
+    const parsed = JSON.parse(aiReply) as { serviceNames: string[]; isAmbiguous: boolean };
 
     // --- LOGGING TO FILE ---
     try {
@@ -141,21 +140,24 @@ export async function mapTermToOfficialService(
       console.error('[AI MAPPER] Gagal menulis log mapping:', e);
     }
 
-    // Validasi PENTING: Pastikan serviceName yang dikembalikan AI ada di daftar resmi kita.
-    // Ini mencegah "halusinasi" dari AI merusak alur program kita.
-    if (parsed.serviceName && VALID_SERVICES.includes(parsed.serviceName as OfficialService)) {
+    // Validasi: Pastikan semua serviceNames yang dikembalikan AI ada di daftar resmi kita.
+    if (
+      Array.isArray(parsed.serviceNames) &&
+      parsed.serviceNames.length > 0 &&
+      parsed.serviceNames.every((sn) => VALID_SERVICES.includes(sn as OfficialService))
+    ) {
       console.log('[AI MAPPER] Sukses memetakan.', parsed);
       return {
-        serviceName: parsed.serviceName as OfficialService,
-        isAmbiguous: parsed.isAmbiguous ?? false, // Default ke false jika tidak ada
+        serviceNames: parsed.serviceNames as OfficialService[],
+        isAmbiguous: parsed.isAmbiguous ?? false,
       };
     } else {
-      console.warn('[AI MAPPER] Peringatan: AI mengembalikan serviceName yang tidak valid:', parsed.serviceName);
+      console.warn('[AI MAPPER] Peringatan: AI mengembalikan serviceNames yang tidak valid:', parsed.serviceNames);
       // Jika tidak valid, anggap sebagai pertanyaan umum.
-      return { serviceName: 'General Inquiry', isAmbiguous: false };
+      return { serviceNames: ['General Inquiry'], isAmbiguous: false };
     }
   } catch (error) {
     console.error('[AI MAPPER] Terjadi error saat memanggil OpenAI atau parsing JSON:', error);
-    return null; // Kembalikan null jika ada error fatal
+    return null;
   }
 }

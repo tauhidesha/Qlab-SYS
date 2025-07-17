@@ -42,6 +42,7 @@ export interface ServiceInquiry {
 }
 
 export interface SessionData {
+  cartServices: any;
   flow: 'general' | 'booking' | 'awaiting_booking_form';
   inquiry: ServiceInquiry;
   snoozeUntil?: number;
@@ -79,7 +80,7 @@ export async function getSession(senderNumber: string): Promise<SessionData | nu
       // ⛑️ PATCH: jika session lama masih simpan string di lastMentionedService, ubah ke objek
       const rawService = session?.inquiry?.lastMentionedService;
       if (typeof rawService === 'string') {
-        session.inquiry.lastMentionedService = { serviceName: rawService, isAmbiguous: false };
+        session.inquiry.lastMentionedService = { serviceNames: [rawService], isAmbiguous: false };
       }
 
       const now = admin.firestore.Timestamp.now();

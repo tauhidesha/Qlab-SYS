@@ -43,12 +43,18 @@ export async function runZoyaAIAgent({
     { role: 'user', content: message },
   ];
 
+  const start = Date.now();
   const completion = await openai.chat.completions.create({
     model: 'gpt-4o',
     messages,
     tools: zoyaTools,
     tool_choice: 'auto',
   });
+  const latencyMs = Date.now() - start;
+
+  // Token usage info (if available)
+  const usage = completion.usage || {};
+  // { prompt_tokens, completion_tokens, total_tokens }
 
   // console.log('[GPT RAW COMPLETION]', JSON.stringify(completion, null, 2));
 
@@ -67,5 +73,9 @@ export async function runZoyaAIAgent({
     toolCalls: extractedToolCalls,
     toolResults,
     updatedSession: session,
+    aiMeta: {
+      latencyMs,
+      usage,
+    },
   };
 }

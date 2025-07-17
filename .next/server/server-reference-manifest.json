@@ -1,5 +1,14 @@
 {
-  "node": {},
+  "node": {
+    "76279c57995813f865b3b43a03eedabe34b61b8c": {
+      "workers": {
+        "app/(app)/ai-cs-assistant/page": "(action-browser)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2FBabayasa%2FDocuments%2FQlab-SYS%2Fsrc%2Fai%2Fflows%2Fcs-whatsapp-reply-flow.ts%22%2C%5B%22generateWhatsAppReply%22%5D%5D%5D&__client_imported__=true!"
+      },
+      "layer": {
+        "app/(app)/ai-cs-assistant/page": "action-browser"
+      }
+    }
+  },
   "edge": {},
-  "encryptionKey": "S0bk7YwjwlEUksStoplptKXeUpRJkPJMMp028qkMit4="
+  "encryptionKey": "OmMKyisOk4j/QBI1AoJVw1kxkD0bX3qFcYATGjF2y4w="
 }

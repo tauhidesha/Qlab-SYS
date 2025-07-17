@@ -15,8 +15,10 @@ import { notifyBosMamat, setSnoozeMode } from '@/ai/utils/humanHandoverTool';
 import { updateSessionFromToolResults } from '@/ai/utils/updateSessionFromToolResults';
 import { isInterventionLockActive } from '@/ai/utils/interventionLock';
 
+
 import { masterPrompt } from '@/ai/config/aiPrompts';
 import { createToolCallMessage, runToolCalls } from '@/ai/utils/runToolCalls';
+import { traceAgentLoop } from '@/ai/utils/langsmith';
 
 function normalizeSenderNumber(raw: string): string {
   return raw?.replace(/@c\.us$/, '') || '';
@@ -53,7 +55,7 @@ export async function generateWhatsAppReply(
   }
 
   if (!session) {
-    session = { flow: 'general', inquiry: {}, lastInteraction: admin.firestore.Timestamp.now(), followUpState: null, lastRoute: 'init', senderName };
+    session = { flow: 'general', inquiry: {}, lastInteraction: admin.firestore.Timestamp.now(), followUpState: null, lastRoute: 'init', senderName, cartServices: [] };
   } else {
     if (!session.senderName && senderName) session.senderName = senderName;
     // followUpState dipertahankan untuk cron job, tidak di-reset atau di-handle di sini
@@ -76,69 +78,81 @@ export async function generateWhatsAppReply(
   }
 
 
-  // Deteksi motor dari pesan user
+
+
+  // --- PATCH: Deteksi motor otomatis dari pesan user, pakai daftarUkuranMotor ---
   const detectedMotor = detectMotorName(input.customerMessage);
   if (detectedMotor) {
     session.inquiry ??= {};
     session.inquiry.lastMentionedMotor = detectedMotor;
+    await updateSession(senderNumber, { inquiry: session.inquiry });
   }
+
+
+  // Always run mapping and cart logic, let AI handle all clarifications
+  const msgLower = input.customerMessage.toLowerCase();
   const mappedServiceResult = await mapTermToOfficialService(
     input.customerMessage,
     {
-      lastService: session.inquiry?.lastMentionedService?.serviceName,
-      lastIntent: session.inquiry?.lastMentionedService?.serviceName,
+      lastService: session.inquiry?.lastMentionedService?.serviceNames?.[0],
+      lastIntent: session.inquiry?.lastMentionedService?.serviceNames?.[0],
     }
   );
   console.log('[mapTermToOfficialService RESULT]', mappedServiceResult);
-  if (mappedServiceResult?.serviceName) {
+  // --- PATCH: Cart system for accumulating requested services ---
+  // Initialize cartServices if not present
+  session.cartServices = Array.isArray(session.cartServices) ? session.cartServices : [];
+
+  if (mappedServiceResult?.serviceNames && mappedServiceResult.serviceNames.length > 0) {
     session.inquiry ??= {};
-    session.inquiry.lastMentionedService = { serviceName: mappedServiceResult.serviceName, isAmbiguous: mappedServiceResult.isAmbiguous ?? false };
-    // PATCH: Klarifikasi motor jika layanan sudah jelas tapi model motor belum diketahui
-    const isServiceRelatedIntent = !['General Inquiry', 'Handover to Human', 'Clarification Needed'].includes(mappedServiceResult.serviceName);
-    if (
-      !mappedServiceResult.isAmbiguous &&
-      isServiceRelatedIntent &&
-      !session.inquiry?.lastMentionedMotor
-    ) {
-      console.log(`[CLARIFICATION] Niat layanan jelas (${mappedServiceResult.serviceName}), tapi model motor belum diketahui. Minta klarifikasi motor.`);
-      const motorClarificationMsg = `Oke, siap! Untuk layanan *${mappedServiceResult.serviceName}*, oiya om, motornya apa ya?.`;
+    // Only update lastMentionedService if the mapped service is actionable
+    const nonActionableIntents = ['General Inquiry', 'Handover to Human', 'Clarification Needed'];
+    const isServiceRelatedIntent = mappedServiceResult.serviceNames.every(s => !nonActionableIntents.includes(s));
+    if (isServiceRelatedIntent) {
+      // For lastMentionedService, use the first service in the array for context
+      session.inquiry.lastMentionedService = { serviceNames: mappedServiceResult.serviceNames, isAmbiguous: mappedServiceResult.isAmbiguous ?? false };
+    }
+
+    // If user says "sudah"/"cukup"/"lanjut booking", trigger booking for all cartServices
+    const bookingTriggers = ["sudah", "cukup", "lanjut booking", "lanjutkan booking", "booking semua", "simpan semua", "oke booking", "oke lanjut"];
+    const isBookingTrigger = bookingTriggers.some(trigger => msgLower.includes(trigger));
+
+    if (isBookingTrigger && session.cartServices.length > 0) {
+      // PATCH: Trigger booking for all services in cart
+      // Set inquiry.lastMentionedService to the first in cart for context
+      session.inquiry.lastMentionedService = { serviceNames: [session.cartServices[0]], isAmbiguous: false };
       await updateSession(senderNumber, { inquiry: session.inquiry });
       finalOutput = {
-          suggestedReply: motorClarificationMsg,
-          toolCalls: [],
-          route: 'clarification_motor',
-          metadata: {}
-      };
-    }
-    // Jika hasil mapping ambiguous, langsung klarifikasi ke user, jangan lanjut ke agent/tool call
-    if (mappedServiceResult.isAmbiguous) {
-      let klarifikasiMsg = '';
-      // Klarifikasi khusus untuk coating, detailing, atau complete service
-      if (/coating|detailing|complete service/i.test(mappedServiceResult.serviceName)) {
-        klarifikasiMsg = 'Motornya doff atau glossy om? terus rencananya sekalian detailing bongkar bodi atau biasa aja?';
-        await updateSession(senderNumber, { inquiry: session.inquiry });
-        finalOutput = { suggestedReply: klarifikasiMsg, toolCalls: [], route: 'clarification', metadata: {} };
-      } else {
-        // Fallback: coba searchKnowledgeBaseTool
-        const { searchKnowledgeBaseTool } = require('@/ai/tools/searchKnowledgeBaseTool');
-        if (searchKnowledgeBaseTool && typeof searchKnowledgeBaseTool.implementation === 'function') {
-          const kbResult = await searchKnowledgeBaseTool.implementation({ query: input.customerMessage });
-          if (kbResult && kbResult.answer && kbResult.answer.trim()) {
-            await updateSession(senderNumber, { inquiry: session.inquiry });
-            finalOutput = { suggestedReply: kbResult.answer, toolCalls: [], route: 'clarification_kb', metadata: {} };
+        suggestedReply: `Siap om, Zoya proses booking untuk layanan berikut: *${session.cartServices.join(", ")}*. Mohon tunggu sebentar ya!`,
+        toolCalls: [
+          {
+            toolName: "createBooking",
+            arguments: {
+              services: session.cartServices,
+              // ...other booking args from session if needed
+            }
           }
-        }
-        // Jika tetap tidak ada hasil, trigger Bos Mamat
-        if (!finalOutput) {
-          await setSnoozeMode(senderNumber);
-          await notifyBosMamat(senderNumber, input.customerMessage);
-          finalOutput = { suggestedReply: 'Zoya agak bingung nih om, bentar ya, Zoya panggilin Bos Mamat dulu 🙏', toolCalls: [], route: 'clarification_handover', metadata: { snoozeUntil: Date.now() + 60 * 60 * 1000 } };
+        ],
+        route: 'booking_cart',
+        metadata: { cartServices: session.cartServices }
+      };
+      // Clear cart after booking
+      session.cartServices = [];
+      await updateSession(senderNumber, { cartServices: [] });
+    } else if (!mappedServiceResult.isAmbiguous && isServiceRelatedIntent) {
+      // If services are clear and not ambiguous, add all to cart if not already present
+      let added = false;
+      for (const serviceName of mappedServiceResult.serviceNames) {
+        if (!session.cartServices.includes(serviceName)) {
+          session.cartServices.push(serviceName);
+          added = true;
         }
       }
+      // Only update if something was added
+      if (added) {
+        await updateSession(senderNumber, { cartServices: session.cartServices, inquiry: session.inquiry });
+      }
     }
-    // Jika kita sampai di sini, artinya tidak ada klarifikasi yang dibutuhkan.
-    // Kita bisa update session sekali saja.
-    if (!finalOutput) await updateSession(senderNumber, { inquiry: session.inquiry });
   }
   
 
@@ -163,31 +177,116 @@ export async function generateWhatsAppReply(
     // Inject context motor & layanan terakhir dari session ke prompt AI
     let contextNote = '';
     if (session.inquiry?.lastMentionedMotor) {
-      contextNote += `Motor customer sebelumnya: ${session.inquiry.lastMentionedMotor}. `;
+      contextNote += `Motor customer adalah: ${session.inquiry.lastMentionedMotor}. `;
     }
-    if (session.inquiry?.lastMentionedService?.serviceName) {
-      contextNote += `Layanan yang dimaksud user adalah: ${session.inquiry.lastMentionedService.serviceName}. Jangan ganti atau turunkan layanan ini. Jika sudah pasti, jangan tawarkan layanan lain, cukup jawab detail dan harga untuk layanan ini saja.`;
+    if (session.inquiry?.lastMentionedService?.serviceNames && session.inquiry.lastMentionedService.serviceNames.length > 0) {
+      const serviceList = session.inquiry.lastMentionedService.serviceNames.join(', ');
+      contextNote += `KONTEKS FINAL: Layanan yang SUDAH DIKONFIRMASI dan HARUS diproses sekarang adalah: '${serviceList}'. TUGAS ANDA HANYA MEMPROSES LAYANAN INI. Jangan menganalisis ulang pesan user atau menggantinya dengan layanan lain.`;
     }
-    let messagesForAI: any[] = [
+
+    // --- PATCH: Penggantian Pesan Bersyarat ---
+    let userMessageForAI = input.customerMessage; // Defaultnya adalah pesan asli user
+    const lastServiceInfo = session.inquiry?.lastMentionedService;
+    const confirmedServices = lastServiceInfo?.serviceNames;
+    const nonActionableIntents = ['General Inquiry', 'Handover to Human', 'Clarification Needed'];
+    if (
+      confirmedServices &&
+      confirmedServices.length > 0 &&
+      !lastServiceInfo.isAmbiguous &&
+      !nonActionableIntents.includes(confirmedServices[0])
+    ) {
+      // Jika semua syarat terpenuhi, barulah kita ganti pesan user dengan fakta
+      console.log('[MESSAGE REPLACEMENT] Mengganti pesan user dengan fakta terkonfirmasi untuk AI Utama.');
+      userMessageForAI = `(User telah mengonfirmasi layanan spesifik berikut: ${confirmedServices.join(', ')}. Tugas Anda sekarang adalah melanjutkan proses untuk layanan ini, seperti mencari harga atau detail lainnya menggunakan tools yang tersedia.)`;
+    } else {
+      // Jika tidak, pertahankan pesan asli agar AI utama tahu apa yang sebenarnya ditanyakan user.
+      console.log('[MESSAGE REPLACEMENT] Mempertahankan pesan asli user untuk AI Utama (kasus: pertanyaan umum/klarifikasi).');
+    }
+
+    // --- PATCH: AI message history handling ala LangChain ---
+    let initialMessagesForAI: any[] = [
       { role: 'system', content: masterPrompt },
       ...recentChatHistory,
       ...(contextNote ? [{ role: 'assistant', content: contextNote.trim() }] : []),
-      { role: 'user', content: input.customerMessage },
+      { role: 'user', content: userMessageForAI },
+    ];
+    // Loop berikutnya: tetap pakai system prompt
+    let subsequentMessagesForAI: any[] = [
+      { role: 'system', content: masterPrompt },
+      ...recentChatHistory,
+      ...(contextNote ? [{ role: 'assistant', content: contextNote.trim() }] : []),
+      { role: 'user', content: userMessageForAI },
     ];
 
     for (let i = 0; i < MAX_LOOPS; i++) {
       console.log(`\n[Loop ${i + 1}] Mulai loop. Session inquiry:`, JSON.stringify(currentSession.inquiry));
+      const messagesToSend = i === 0 ? initialMessagesForAI : subsequentMessagesForAI;
       const agentResult = await runZoyaAIAgent({
         session: currentSession,
         message: '',
-        chatHistory: messagesForAI,
+        chatHistory: messagesToSend,
         senderNumber: senderNumber,
         senderName: senderName,
       });
 
+      // --- DEBUG: Log aiMeta for tracing ---
+      console.log('[LangSmith META]', {
+        loop: i + 1,
+        aiMeta: agentResult?.aiMeta
+      });
+
+      // --- LangSmith tracing for each agent loop ---
+      const aiLatencyMs = agentResult?.aiMeta?.latencyMs ?? null;
+      const aiTokenUsage = agentResult?.aiMeta?.usage ?? { prompt_tokens: null, completion_tokens: null, total_tokens: null };
+      await traceAgentLoop({
+        name: `WhatsApp Agent Loop #${i + 1}`,
+        inputs: {
+          session: currentSession,
+          chatHistory: messagesToSend,
+          senderNumber,
+          senderName,
+        },
+        outputs: agentResult,
+        metadata: {
+          loop: i + 1,
+          inquiry: currentSession.inquiry,
+          aiLatencyMs,
+          aiTokenUsage,
+        },
+        tags: ["whatsapp", "agent-loop"],
+      });
+
       console.log(`[Loop ${i + 1}] agentResult.toolCalls:`, agentResult.toolCalls);
       console.log(`[Loop ${i + 1}] agentResult.suggestedReply:`, agentResult.suggestedReply);
-      const toolCalls = agentResult.toolCalls;
+      // --- PATCH: Filter toolCalls agar hanya untuk layanan hasil mapping ---
+      let toolCalls = agentResult.toolCalls;
+      // Ambil daftar layanan hasil mapping (dari session inquiry terbaru)
+      const allowedServices = Array.isArray(currentSession.inquiry?.lastMentionedService?.serviceNames)
+        ? currentSession.inquiry.lastMentionedService.serviceNames.map(s => s.toLowerCase())
+        : [];
+      if (toolCalls && toolCalls.length > 0 && allowedServices.length > 0) {
+        const filteredToolCalls = toolCalls.filter(tc => {
+          // Selalu izinkan getMotorSizeDetails
+          if (tc.toolName === 'getMotorSizeDetails') return true;
+          // Cek argumen service_name (atau services array) jika ada
+          const argName = tc.arguments?.service_name?.toLowerCase?.();
+          const argNames = Array.isArray(tc.arguments?.services)
+            ? tc.arguments.services.map((s: string) => s.toLowerCase())
+            : [];
+          // Izinkan jika service_name atau salah satu services ada di allowedServices
+          if (argName && allowedServices.includes(argName)) return true;
+          if (argNames.length > 0 && argNames.some(n => allowedServices.includes(n))) return true;
+          // Untuk tool lain (misal promo, dsb), izinkan tanpa filter
+          if (!argName && !argNames.length) return true;
+          // Jika tidak cocok, log dan skip
+          console.warn('[TOOLCALL FILTER] Tool call dibuang karena tidak relevan:', tc);
+          return false;
+        });
+        if (filteredToolCalls.length !== toolCalls.length) {
+          console.warn('[TOOLCALL FILTER] Ada tool call yang tidak dieksekusi karena tidak sesuai hasil mapping.');
+        }
+        toolCalls = filteredToolCalls;
+      }
 
       if (agentResult.suggestedReply && (!toolCalls || toolCalls.length === 0)) {
         finalOutput = {
@@ -201,17 +300,20 @@ export async function generateWhatsAppReply(
 
       if (toolCalls && toolCalls.length > 0) {
         console.log(`[Loop ${i + 1}] AI meminta untuk memanggil tool:`, toolCalls.map(t => t.toolName));
-        messagesForAI.push(createToolCallMessage(toolCalls));
+        const toolCallMessage = createToolCallMessage(toolCalls);
         const toolResponses = await runToolCalls(toolCalls, { input, session: currentSession });
         const updatedSessionData = updateSessionFromToolResults(currentSession, toolCalls, toolResponses);
         currentSession = mergeSession(currentSession, updatedSessionData);
-        for (const resp of toolResponses) {
-          messagesForAI.push({
+        // Untuk loop berikutnya, hanya tambahkan tool call dan hasilnya
+        subsequentMessagesForAI = [
+          ...messagesToSend,
+          toolCallMessage,
+          ...toolResponses.map(resp => ({
             role: 'tool',
             content: resp.content,
             tool_call_id: resp.tool_call_id || resp.id
-          });
-        }
+          }))
+        ];
         continue;
       }
       break;
