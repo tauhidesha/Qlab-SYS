@@ -61,7 +61,7 @@ export function updateSessionFromToolResults(
             };
             if (serviceName) {
               updatedSession.inquiry.lastMentionedService = {
-                serviceName,
+                serviceNames: [serviceName],
                 isAmbiguous: false,
               };
             }
@@ -70,7 +70,7 @@ export function updateSessionFromToolResults(
 
           case 'getPromoBundleDetails': {
             updatedSession.inquiry.lastMentionedService = {
-              serviceName: 'Repaint Bodi Halus',
+              serviceNames: ['Repaint Bodi Halus'],
               isAmbiguous: false,
             };
             break;
@@ -80,7 +80,7 @@ export function updateSessionFromToolResults(
             const serviceName = args.serviceName || args.service_name;
             if (serviceName) {
               updatedSession.inquiry.lastMentionedService = {
-                serviceName,
+                serviceNames: [serviceName],
                 isAmbiguous: false,
               };
             }
@@ -108,7 +108,7 @@ export function updateSessionFromToolResults(
             const serviceName = args.serviceName || args.service_name;
             if (serviceName) {
               updatedSession.inquiry.lastMentionedService = {
-                serviceName,
+                serviceNames: [serviceName],
                 isAmbiguous: false,
               };
             }
