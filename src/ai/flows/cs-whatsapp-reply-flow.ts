@@ -273,9 +273,9 @@ export async function generateWhatsAppReply(
           const argNames = Array.isArray(tc.arguments?.services)
             ? tc.arguments.services.map((s: string) => s.toLowerCase())
             : [];
-          // Izinkan jika service_name atau salah satu services ada di allowedServices
-          if (argName && allowedServices.includes(argName)) return true;
-          if (argNames.length > 0 && argNames.some(n => allowedServices.includes(n))) return true;
+          // Izinkan jika service_name atau salah satu services ada di allowedServices (partial match)
+          if (argName && allowedServices.some(allowed => argName.includes(allowed) || allowed.includes(argName))) return true;
+          if (argNames.length > 0 && argNames.some(n => allowedServices.some(allowed => n.includes(allowed) || allowed.includes(n)))) return true;
           // Untuk tool lain (misal promo, dsb), izinkan tanpa filter
           if (!argName && !argNames.length) return true;
           // Jika tidak cocok, log dan skip
