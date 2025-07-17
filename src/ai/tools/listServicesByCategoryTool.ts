@@ -2,15 +2,14 @@
 
 import { z } from 'zod'; // REVISI: Tambahkan import Zod
 import type { SessionData } from '@/ai/utils/session';
-import hargaLayanan from '@/data/hargaLayanan';
+import deskripsiLayanan from '@/data/deskripsiLayanan';
 
-type Service = {
+interface Service {
   name: string;
   category: string;
-  price?: number;
-  estimatedDuration?: string;
-  variants?: { name: string; price: number }[];
-};
+  summary: string;
+  description: string;
+}
 
 // REVISI: Tambahkan skema Zod untuk validasi input yang kuat
 const InputSchema = z.object({
@@ -18,21 +17,23 @@ const InputSchema = z.object({
 });
 type Input = z.infer<typeof InputSchema>;
 
-type Output =
-  | {
-      success: true;
-      category: string;
-      services: {
-        name: string;
-        variants: string[];
-        estimatedDuration?: string;
-      }[];
-      message: string;
-    }
-  | {
-      success: false;
-      message: string;
-    };
+interface ListServicesSuccess {
+  success: true;
+  category: string;
+  services: {
+    name: string;
+    summary: string;
+    description: string;
+  }[];
+  message: string;
+}
+
+interface ListServicesFail {
+  success: false;
+  message: string;
+}
+
+type Output = ListServicesSuccess | ListServicesFail;
 
 // REVISI: Ubah signature untuk menerima input yang sudah divalidasi
 async function implementation(input: Input): Promise<Output> {
@@ -48,7 +49,7 @@ async function implementation(input: Input): Promise<Output> {
     };
   }
 
-  const matchedServices = (hargaLayanan as Service[]).filter(
+  const matchedServices = (deskripsiLayanan as Service[]).filter(
     (s) => s.category.toLowerCase() === categoryQuery
   );
 
@@ -61,13 +62,8 @@ async function implementation(input: Input): Promise<Output> {
 
   const summaries = matchedServices.map((s) => ({
     name: s.name,
-    variants: s.variants?.map(
-      (v) => `${v.name}: Rp${v.price.toLocaleString('id-ID')}`
-    ) ?? [],
-    // REVISI: Perbaiki format durasi agar lebih akurat
-    estimatedDuration: s.estimatedDuration
-      ? `${s.estimatedDuration} menit`
-      : undefined,
+    summary: s.summary,
+    description: s.description,
   }));
 
   return {

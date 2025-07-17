@@ -85,8 +85,10 @@ function formatDuration(minutesStr?: string): string {
 // --- Implementation (Fungsi Baru yang Sudah Diperbaiki) ---
 async function implementation(input: any): Promise<GetPriceResult> {
   try {
+    console.log('[getSpecificServicePriceTool] Input:', input);
     const parsed = InputSchema.safeParse(input);
     if (!parsed.success) {
+      console.warn('[getSpecificServicePriceTool] InputSchema error:', parsed.error.issues);
       return {
         success: false,
         error: 'generic_error',
@@ -97,7 +99,8 @@ async function implementation(input: any): Promise<GetPriceResult> {
     const { service_name: parsedServiceName, size: sizeFromArgs } = parsed.data;
     const session: SessionData | undefined = parsed.data.session;
 
-    let finalSize = sizeFromArgs; 
+    let finalSize = sizeFromArgs;
+    console.log('[getSpecificServicePriceTool] Parsed service_name:', parsedServiceName, '| size:', sizeFromArgs);
 
     if (session?.inquiry) {
       const isRepaintService = parsedServiceName.toLowerCase().includes('repaint');
@@ -121,6 +124,7 @@ async function implementation(input: any): Promise<GetPriceResult> {
           const basePrice = variant?.price ?? service.price;
           return { service_name: service.name, motor_size: finalSize, price: basePrice, estimated_duration: formatDuration(service.estimatedDuration), similarity: 1 };
         });
+      console.log('[getSpecificServicePriceTool] Coating special case, results:', results);
       return { success: true, multiple_candidates: true, candidates: results, message: `Ditemukan 2 layanan utama untuk "coating": Coating Motor Doff & Coating Motor Glossy.` };
     }
 
@@ -129,8 +133,25 @@ async function implementation(input: any): Promise<GetPriceResult> {
       .filter(s => s.similarity >= 0.5)
       .sort((a, b) => b.similarity - a.similarity);
 
+    console.log('[getSpecificServicePriceTool] Candidates:', candidates.map(c => ({ name: c.name, similarity: c.similarity })));
+
     if (candidates.length === 0) {
+      console.warn(`[getSpecificServicePriceTool] Tidak ditemukan kandidat untuk "${parsedServiceName}"`);
       return { success: false, error: 'generic_error', message: `Layanan "${parsedServiceName}" tidak ditemukan.` };
+    }
+
+    // PATCH: Jika similarity tertinggi = 1 (match persis), langsung return satu hasil saja
+    if (candidates[0].similarity === 1) {
+      const service = candidates[0];
+      const variant = service.variants?.find(v => v.name === finalSize);
+      const basePrice = variant?.price ?? service.price;
+      if (basePrice === undefined) {
+        console.warn(`[getSpecificServicePriceTool] Harga tidak tersedia untuk size ${finalSize} pada layanan "${service.name}"`);
+        return { success: false, error: 'price_not_available_for_size', message: `Harga belum tersedia untuk size ${finalSize} pada layanan "${service.name}".`, service_name: service.name, motor_size: finalSize };
+      }
+      const summary = `Harga untuk layanan *${service.name}* untuk motor ukuran ${finalSize} adalah Rp${basePrice.toLocaleString('id-ID')}.` + (service.estimatedDuration ? ` Estimasi pengerjaan: ${formatDuration(service.estimatedDuration)}.` : '');
+      console.log('[getSpecificServicePriceTool] Perfect match:', service.name, '| Harga:', basePrice);
+      return { success: true, service_name: service.name, motor_size: finalSize, price: basePrice, estimated_duration: formatDuration(service.estimatedDuration), summary };
     }
 
     if (candidates.length === 1) {
@@ -138,9 +159,11 @@ async function implementation(input: any): Promise<GetPriceResult> {
       const variant = service.variants?.find(v => v.name === finalSize);
       const basePrice = variant?.price ?? service.price;
       if (basePrice === undefined) {
+        console.warn(`[getSpecificServicePriceTool] Harga tidak tersedia untuk size ${finalSize} pada layanan "${service.name}"`);
         return { success: false, error: 'price_not_available_for_size', message: `Harga belum tersedia untuk size ${finalSize} pada layanan "${service.name}".`, service_name: service.name, motor_size: finalSize };
       }
       const summary = `Harga untuk layanan *${service.name}* untuk motor ukuran ${finalSize} adalah Rp${basePrice.toLocaleString('id-ID')}.` + (service.estimatedDuration ? ` Estimasi pengerjaan: ${formatDuration(service.estimatedDuration)}.` : '');
+      console.log('[getSpecificServicePriceTool] Single candidate:', service.name, '| Harga:', basePrice);
       return { success: true, service_name: service.name, motor_size: finalSize, price: basePrice, estimated_duration: formatDuration(service.estimatedDuration), summary };
     }
 
@@ -150,6 +173,7 @@ async function implementation(input: any): Promise<GetPriceResult> {
       return { service_name: service.name, motor_size: finalSize, price: basePrice, estimated_duration: formatDuration(service.estimatedDuration), similarity: service.similarity };
     });
 
+    console.log('[getSpecificServicePriceTool] Multiple candidates:', results);
     return { success: true, multiple_candidates: true, candidates: results, message: `Ditemukan ${results.length} layanan mirip dengan "${parsedServiceName}". Silakan pilih yang paling sesuai.` };
 
   } catch (err: any) {

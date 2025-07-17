@@ -15,6 +15,7 @@ export async function runToolCalls(
   for (const call of toolCalls) {
     const { toolName, id } = call;
 
+
     let parsedArgs: any;
     try {
       parsedArgs = typeof call.arguments === 'string'
@@ -23,6 +24,37 @@ export async function runToolCalls(
     } catch (err) {
       console.warn(`[runToolCalls] Gagal parse arguments untuk tool '${toolName}':`, err);
       parsedArgs = {};
+    }
+
+
+    // PATCH: Untuk searchKnowledgeBaseTool, pastikan query selalu pertanyaan lengkap user
+    if (toolName === 'searchKnowledgeBase') {
+
+      // Cek dari input.originalQuestion, session.lastUserMessage, atau fallback ke parsedArgs.query
+      const fullQuestion =
+        extraContext.input?.originalQuestion ||
+        extraContext.session?.lastUserMessage ||
+        parsedArgs.query;
+      parsedArgs.query = fullQuestion;
+    }
+
+    // PATCH: Override hanya jika field memang ada di parameter tool
+    const toolDef = toolFunctionMap[toolName]?.toolDefinition?.function;
+    if (toolDef && toolDef.parameters && toolDef.parameters.properties) {
+      // service_name
+      if ('service_name' in toolDef.parameters.properties) {
+        const mappedService = extraContext.session?.inquiry?.lastMentionedService?.serviceName;
+        if (mappedService) {
+          parsedArgs.service_name = mappedService;
+        }
+      }
+      // size
+      if ('size' in toolDef.parameters.properties) {
+        const mappedSize = extraContext.session?.inquiry?.lastMotorSize;
+        if (mappedSize) {
+          parsedArgs.size = mappedSize;
+        }
+      }
     }
 
     const toolObj = toolFunctionMap[toolName];
@@ -64,9 +96,7 @@ export async function runToolCalls(
           continue;
         }
       }
-      // --- PATCH FINAL & BERSIH ---
-      // Karena semua tool menggunakan normalizeInput, kita hanya perlu
-      // menyebarkan argumen ke level atas.
+      // PATCH: Jika tool getServiceDescriptionTool, return hasil mentah tanpa proses summary/polishing
       const toolResult = await toolObj.implementation({
         ...parsedArgs,
         toolCall: call,
@@ -74,11 +104,20 @@ export async function runToolCalls(
         session: extraContext.session || {},
       });
 
+    if (toolName === 'getServiceDescription') {
+      // Return hasil mentah, tidak diubah
+      results.push({
+        role: 'tool',
+        tool_call_id: id,
+        content: typeof toolResult === 'string' ? toolResult : JSON.stringify(toolResult),
+      });
+    } else {
       results.push({
         role: 'tool',
         tool_call_id: id,
         content: JSON.stringify(toolResult),
       });
+    }
     } catch (err) {
       console.error(`[runToolCalls] Error executing tool '${toolName}':`, err);
       results.push({

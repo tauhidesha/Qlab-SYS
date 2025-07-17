@@ -41,10 +41,12 @@ export const getServiceDescriptionTool = {
   // REVISI: Implementasi dibuat lebih bersih dan aman
   implementation: async (input: Input): Promise<Output> => {
     try {
+      console.log('[getServiceDescriptionTool] Input:', input);
       // REVISI: Validasi input langsung dengan Zod. Tidak perlu lagi normalizeToolInput.
       const { service_name } = InputSchema.parse(input);
 
       const normalized = service_name.toLowerCase().trim();
+      console.log('[getServiceDescriptionTool] Normalized:', normalized);
 
       // Cari dengan contains match (lebih fleksibel)
       const service = (deskripsiLayanan as any[]).find(
@@ -52,6 +54,7 @@ export const getServiceDescriptionTool = {
       );
 
       if (!service) {
+        console.warn(`[getServiceDescriptionTool] Tidak ditemukan: "${service_name}"`);
         return {
           success: false,
           error: 'not_found',
@@ -59,6 +62,7 @@ export const getServiceDescriptionTool = {
         };
       }
 
+      console.log('[getServiceDescriptionTool] Found:', service.name);
       return {
         success: true,
         description: service.description || '',

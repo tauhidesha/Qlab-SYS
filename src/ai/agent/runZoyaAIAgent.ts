@@ -50,7 +50,7 @@ export async function runZoyaAIAgent({
     tool_choice: 'auto',
   });
 
-  console.log('[GPT RAW COMPLETION]', JSON.stringify(completion, null, 2));
+  // console.log('[GPT RAW COMPLETION]', JSON.stringify(completion, null, 2));
 
   const gptMessage = completion.choices[0]?.message;
 

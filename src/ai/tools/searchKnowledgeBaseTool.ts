@@ -32,7 +32,8 @@ async function implementation(rawInput: any): Promise<Output> {
   }
 
   const { query } = parsed.data;
-  const MINIMUM_THRESHOLD = 0.82;
+  // PATCH: Turunkan threshold agar entry mirip tetap lolos
+  const MINIMUM_THRESHOLD = 0.45;
 
   try {
     const userEmbedding = await embedText(query);
@@ -54,6 +55,8 @@ async function implementation(rawInput: any): Promise<Output> {
       if (!Array.isArray(data.embedding) || data.embedding.length === 0) return;
 
       const score = cosineSimilarity(userEmbedding, data.embedding);
+      // PATCH: log score untuk debug
+      console.log(`[searchKnowledgeBaseTool] Score untuk "${query}" vs "${data.question}":`, score);
       if (score > highestScore) {
         highestScore = score;
         bestMatch = {
@@ -63,6 +66,8 @@ async function implementation(rawInput: any): Promise<Output> {
         };
       }
     });
+
+    console.log('[searchKnowledgeBaseTool] Best match:', bestMatch, 'Highest score:', highestScore);
 
     if (bestMatch && highestScore >= MINIMUM_THRESHOLD) {
       return {

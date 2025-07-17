@@ -21,6 +21,7 @@ export interface ServiceInquiry {
   pendingService?: string;
   pendingCategory?: ServiceCategory;
   lastMentionedMotor?: string;
+  lastMotorSize?: string; // ← hasil ekstraksi dari getMotorSizeDetails
   lastOfferedServices?: string[];
   bookingState?: BookingState;
   pendingBookingDate?: string;
@@ -30,13 +31,13 @@ export interface ServiceInquiry {
   serviceSize?: 'S' | 'M' | 'L' | 'XL';      // ← untuk coating, cuci, detailing
   repaintSurcharge?: {effect: string;surcharge: number;};
   lastBooking?: {
-  customerPhone: string;
-  serviceName: string;
-  bookingDate: string;
-  bookingTime: string;
-  vehicleInfo: string;
-  createdAt: number;
-};
+    customerPhone: string;
+    serviceName: string;
+    bookingDate: string;
+    bookingTime: string;
+    vehicleInfo: string;
+    createdAt: number;
+  };
 
 }
 
