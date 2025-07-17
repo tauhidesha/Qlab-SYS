@@ -123,22 +123,8 @@ export async function mapTermToOfficialService(
     // Parse dan Validasi output dari AI
     const parsed = JSON.parse(aiReply) as { serviceNames: string[]; isAmbiguous: boolean };
 
-    // --- LOGGING TO FILE ---
-    try {
-      const logDir = path.resolve(process.cwd(), 'log');
-      if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
-      const logPath = path.join(logDir, 'mapTermToOfficialService.log');
-      const logEntry = {
-        timestamp: new Date().toISOString(),
-        input: message,
-        context,
-        aiReply,
-        parsed
-      };
-      fs.appendFileSync(logPath, JSON.stringify(logEntry) + '\n');
-    } catch (e) {
-      console.error('[AI MAPPER] Gagal menulis log mapping:', e);
-    }
+    // --- LOGGING TO FILE DISABLED FOR SERVERLESS ---
+    // (No-op: logging removed for production/serverless compatibility)
 
     // Validasi: Pastikan semua serviceNames yang dikembalikan AI ada di daftar resmi kita.
     if (
