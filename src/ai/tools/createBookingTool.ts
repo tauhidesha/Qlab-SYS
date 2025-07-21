@@ -1,4 +1,4 @@
-import { db } from '@/lib/firebase-admin';
+import { db } from '../../lib/firebase-admin';
 import admin from 'firebase-admin';
 
 // Helper fuzzy match
@@ -73,14 +73,14 @@ export const createBookingTool = {
       const bookingDateTime = admin.firestore.Timestamp.fromDate(inputDate);
 
       // Lookup clientId dari Firestore berdasarkan customerPhone
-      let clientId = undefined;
+      let clientId: string | undefined = undefined;
       const clientSnap = await db.collection('clients').where('phone', '==', customerPhone).get();
       if (!clientSnap.empty) {
         clientId = clientSnap.docs[0].id;
       }
 
       // Lookup serviceId dari Firestore (case-insensitive, fuzzy)
-      let serviceId = undefined;
+      let serviceId: string | undefined = undefined;
       let estimatedDuration = undefined;
       let foundServiceName = serviceName;
       let serviceCategory: 'detailing' | 'coating' | 'repaint' | 'other' | undefined = undefined;
@@ -123,7 +123,7 @@ export const createBookingTool = {
 
       // Jika booking untuk hari ini, buat queueItems dan update status booking
       const isToday = inputDate.toDateString() === today.toDateString();
-      let queueItemId = undefined;
+      let queueItemId: string | undefined = undefined;
       if (isToday) {
         const queueItemData = {
           customerName,

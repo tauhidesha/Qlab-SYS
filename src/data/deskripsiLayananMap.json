@@ -1,0 +1,127 @@
+[
+  {
+    "name": "Repaint Bodi Halus",
+    "category": "repaint",
+    "summary": "Cat ulang bodi motor pakai bahan premium (PU & HS) untuk hasil mulus seperti pabrikan.",
+    "description": "Pengecatan ulang bodi halus motor (bukan bodi kasar/dek). Harga dasar untuk warna solid/metalik. Warna khusus seperti candy, bunglon, atau moonlight akan dikenakan biaya tambahan.",
+    "keywords": ["repaint", "cat ulang", "bodi halus", "body halus"],
+    "clarification_needed": [
+      { "info": "color", "question": "Untuk repaint bodi halusnya, mau dicat warna apa ya?" }
+    ]
+  },
+  {
+    "name": "Repaint Bodi Kasar",
+    "category": "repaint",
+    "summary": "Hitamkan kembali dek dan bodi kasar motormu yang sudah kusam atau tergores.",
+    "description": "Pengecatan ulang bagian bodi kasar atau dek motor yang bertekstur kulit jeruk.",
+    "keywords": ["repaint dek", "bodi kasar", "body kasar"],
+    "clarification_needed": []
+  },
+  {
+    "name": "Repaint Velg",
+    "category": "repaint",
+    "summary": "Bikin tampilan kaki-kaki motormu jadi baru lagi dengan cat ulang velg.",
+    "description": "Pengecatan ulang untuk sepasang velg (pelek) motor.",
+    "keywords": ["repaint velg", "cat velg", "pelek"],
+    "clarification_needed": [
+      { "info": "color", "question": "Velgnya mau dicat warna apa, om?" }
+    ]
+  },
+  {
+    "name": "Repaint Cover CVT / Arm",
+    "category": "repaint",
+    "summary": "Segarkan tampilan area mesin dan arm motormu dengan pengecatan ulang.",
+    "description": "Pengecatan ulang bagian cover CVT atau swing arm motor.",
+    "keywords": ["repaint cvt", "cat arm", "cvt", "arm"],
+    "clarification_needed": [
+      { "info": "color", "question": "Untuk cover CVT / arm nya mau dicat warna apa?" }
+    ]
+  },
+  {
+    "name": "Cuci Reguler",
+    "category": "cuci",
+    "summary": "Solusi cepat bikin motor kinclong dari debu dan kotoran harian, plus semir ban.",
+    "description": "Cuci seluruh bodi dengan sabun premium dan semir ban. Cocok untuk perawatan rutin.",
+    "keywords": ["cuci", "cuci biasa", "cuci cepat", "reguler"],
+    "clarification_needed": []
+  },
+  {
+    "name": "Cuci Premium",
+    "category": "cuci",
+    "summary": "Cuci lebih dari bersih, dengan tambahan wax untuk kilau dan proteksi ekstra.",
+    "description": "Upgrade dari Cuci Reguler dengan tambahan aplikasi wax pada bodi dan dressing pada bagian plastik kasar serta kaki-kaki.",
+    "keywords": ["cuci premium", "cuci wax"],
+    "clarification_needed": []
+  },
+  {
+    "name": "Detailing Mesin",
+    "category": "detailing",
+    "summary": "Membersihkan area mesin dari kerak oli dan kotoran membandel sampai ke sela-sela.",
+    "description": "Pembersihan mendalam pada area mesin dan crankcase dari kerak oli dan kotoran, termasuk pelepasan roda belakang. Sudah termasuk paket Cuci Premium.",
+    "keywords": ["detailing mesin", "bersihin mesin", "kerak oli"],
+    "clarification_needed": []
+  },
+  {
+    "name": "Cuci Komplit",
+    "category": "detailing",
+    "summary": "Motor 'dipreteli' untuk dibersihkan total hingga ke bagian rangka terdalam.",
+    "description": "Cuci 'telanjang' di mana beberapa bagian bodi dilepas untuk membersihkan rangka dan semua sudut terdalam. Sudah termasuk paket Cuci Premium.",
+    "keywords": ["cuci komplit", "cuci telanjang", "cuci bongkar", "detailing rangka"],
+    "clarification_needed": []
+  },
+  {
+    "name": "Poles Bodi Glossy",
+    "category": "detailing",
+    "summary": "Menghilangkan baret-baret halus dan mengembalikan kilau asli cat motormu.",
+    "description": "Layanan untuk memoles bodi motor untuk menghilangkan baret halus (jaring laba-laba). Tidak termasuk bongkar bodi.",
+    "keywords": ["poles", "detailing tidak bongkar", "poles bodi", "baret halus", "swirl mark"],
+    "clarification_needed": [
+      { "info": "finish", "question": "Untuk layanan poles, motornya jenis cat glossy atau doff ya?" },
+      { "info": "risk_confirmation_doff", "question": "Kalau untuk cat doff, ada risiko jadi sedikit lebih kilap. Apakah tidak apa-apa?" }
+    ]
+  },
+  {
+    "name": "Full Detailing Glossy",
+    "category": "detailing",
+    "summary": "Paket restorasi total, gabungan cuci komplit dan poles untuk hasil kinclong maksimal.",
+    "description": "Gabungan layanan \"Cuci Komplit\" dan \"Poles Bodi Glossy\". Motor dibongkar, dibersihkan total, lalu bodinya dipoles.",
+    "keywords": ["full detailing", "detailing bongkar", "restorasi total", "paket pamungkas"],
+    "clarification_needed": [
+      { "info": "finish", "question": "Untuk layanan detailing ini, motornya jenis cat glossy atau doff ya?" },
+      { "info": "risk_confirmation_doff", "question": "Kalau untuk cat doff, ada risiko jadi sedikit lebih kilap. Apakah tidak apa-apa?" }
+    ]
+  },
+  {
+    "name": "Coating Motor Doff",
+    "category": "coating",
+    "summary": "Memberi lapisan pelindung keramik agar warna doff makin pekat dan awet.",
+    "description": "Lapisan pelindung ceramic coating khusus untuk cat doff. Melindungi tanpa membuatnya kilap. Tidak ada proses polesan.",
+    "keywords": ["coating doff", "coating matte", "ceramic doff"],
+    "clarification_needed": []
+  },
+  {
+    "name": "Coating Motor Glossy",
+    "category": "coating",
+    "summary": "Proteksi cat tingkat tinggi dengan efek daun talas dan kilap kaca (wet look).",
+    "description": "Proteksi cat glossy dengan lapisan ceramic coating setelah melalui proses cuci, dekontaminasi, dan poles.",
+    "keywords": ["coating glossy", "coating kilap", "ceramic coating", "daun talas"],
+    "clarification_needed": []
+  },
+  {
+    "name": "Complete Service Doff",
+    "category": "coating",
+    "summary": "Paket restorasi & proteksi 'sultan' untuk motor doff, bersih sampai ke dalam.",
+    "description": "Gabungan dari \"Cuci Komplit\" dan \"Coating Motor Doff\". Motor dibongkar, dibersihkan total, lalu dicoating khusus doff.",
+    "keywords": ["complete doff", "paket sultan doff", "coating bongkar doff"],
+    "clarification_needed": []
+  },
+  {
+    "name": "Complete Service Glossy",
+    "category": "coating",
+    "summary": "Paket perawatan paling dewa untuk motor glossy, dari detailing sampai coating.",
+    "description": "Gabungan dari \"Cuci Komplit\", \"Poles Bodi\", dan \"Coating Glossy\". Perawatan ultimate untuk motor glossy.",
+    "keywords": ["complete glossy", "paket dewa", "coating bongkar glossy"],
+    "clarification_needed": []
+  }
+]
+

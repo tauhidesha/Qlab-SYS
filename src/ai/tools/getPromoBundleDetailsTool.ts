@@ -1,8 +1,8 @@
 // File: src/ai/tools/getPromoBundleDetailsTool.ts
 
 import { z } from 'zod';
-import promoBundling from '@/data/promoBundling';
-import daftarUkuranMotor from '@/data/daftarUkuranMotor';
+import promoBundling from '../../data/promoBundling';
+import daftarUkuranMotor from '../../data/daftarUkuranMotor';
 import { normalizeToolInput } from '../utils/normalizeToolInput';
 
 // --- Input Schema ---

@@ -1,7 +1,7 @@
 // File: src/ai/utils/dateTimeParser.ts
 'use server';
 
-import { openai } from '@/lib/openai';
+import { openai } from '../../lib/openai';
 
 /**
  * Mem-parsing teks input untuk menemukan tanggal dan waktu menggunakan GPT.

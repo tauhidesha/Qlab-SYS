@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { sendWhatsAppMedia } from '@/services/whatsappService';
+import { sendWhatsAppMedia } from '../../services/whatsappService';
 
 const InputSchema = z.object({
   customerPhone: z.string().describe('Nomor HP pelanggan yang mengirim bukti bayar.'),

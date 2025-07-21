@@ -53,17 +53,17 @@ export const checkBookingAvailabilityTool = {
     const finishHour = finishDate.getHours();
     const finishMinute = finishDate.getMinutes();
     const finishTimeString = `${finishHour.toString().padStart(2, "0")}:${finishMinute.toString().padStart(2, "0")}`;
-    let overnightWarning = undefined;
+    let overnightWarning: string | undefined = undefined;
     if (!isRepaint && (finishHour > 17 || (finishHour === 17 && finishMinute > 0))) {
       overnightWarning = `Pengerjaan diperkirakan selesai jam ${finishTimeString}, melebihi jam operasional (17:00). Ada kemungkinan motor harus menginap.`;
     }
 
     // --- Cek ketersediaan slot ---
     let available = false;
-    let conflictReason = '';
+    let conflictReason: string = '';
     if (isRepaint) {
       // Untuk repaint, cek overlap 5 hari (termasuk hari booking)
-      const overlapDates = [];
+      const overlapDates: string[] = [];
       for (let i = 0; i < 5; i++) {
         const d = new Date(input.bookingDate);
         d.setDate(d.getDate() + i);
@@ -97,7 +97,7 @@ export const checkBookingAvailabilityTool = {
       return {
         available: true,
         summary: `Slot tersedia untuk booking layanan ${input.serviceName} pada ${input.bookingDate} jam ${input.bookingTime}` + (overnightWarning ? `\n${overnightWarning}` : ""),
-      };
+      } as Output;
     }
 
     // --- Cari slot berikutnya yang tersedia ---
@@ -107,14 +107,14 @@ export const checkBookingAvailabilityTool = {
         available: false,
         conflictReason,
         summary: `Slot tidak tersedia pada tanggal yang diminta. Slot berikutnya yang tersedia adalah pada ${nextAvailableSlot.date} jam ${nextAvailableSlot.time}` + (overnightWarning ? `\n${overnightWarning}` : ""),
-      };
+      } as Output;
     }
 
     return {
       available: false,
       conflictReason,
       summary: conflictReason || overnightWarning || `Slot tidak tersedia untuk booking layanan ${input.serviceName} pada ${input.bookingDate} jam ${input.bookingTime}`,
-    };
+    } as Output;
   },
 };
 
@@ -131,7 +131,7 @@ async function findNextAvailableSlotCustom(
     const nextDateString = nextDate.toISOString().split('T')[0];
     if (isRepaint) {
       // Cek overlap 5 hari ke depan
-      const overlapDates = [];
+      const overlapDates: string[] = [];
       for (let j = 0; j < 5; j++) {
         const d = new Date(nextDateString);
         d.setDate(d.getDate() + j);

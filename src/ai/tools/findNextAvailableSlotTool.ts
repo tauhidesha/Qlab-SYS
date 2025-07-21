@@ -2,10 +2,10 @@
 
 import { z } from 'zod';
 // Pastikan path DB/helper sudah benar di proyek kamu
-import { db } from '@/lib/firebase-admin';
+import { db } from '../../lib/firebase-admin';
 import admin from 'firebase-admin';
-import { parseDateTime } from '@/ai/utils/dateTimeParser';
-import { getOvernightWarning, getServiceCategory } from '@/ai/utils/bookingSlotUtils';
+import { parseDateTime } from '../utils/dateTimeParser';
+import { getOvernightWarning, getServiceCategory } from '../utils/bookingSlotUtils';
 
 // --- Input Schema for Type Checking Only ---
 const InputSchema = z.object({

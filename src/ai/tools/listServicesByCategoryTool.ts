@@ -1,8 +1,7 @@
 // @file: src/ai/tools/listServicesByCategoryTool.ts
 
 import { z } from 'zod'; // REVISI: Tambahkan import Zod
-import type { SessionData } from '@/ai/utils/session';
-import deskripsiLayanan from '@/data/deskripsiLayanan';
+import deskripsiLayanan from '../../data/deskripsiLayanan';
 
 interface Service {
   name: string;

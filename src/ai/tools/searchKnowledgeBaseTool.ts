@@ -1,10 +1,10 @@
 // @file: src/ai/tools/searchKnowledgeBaseTool.ts
 
 import { z } from 'zod';
-import { db } from '@/lib/firebase-admin';
+import { db } from '../../lib/firebase-admin';
 import admin from 'firebase-admin';
-import { embedText } from '@/ai/flows/embed-text-flow';
-import { cosineSimilarity } from '@/lib/math';
+import { embedText } from '../flows/embed-text-flow';
+import { cosineSimilarity } from '../../lib/math';
 
 // --- Input Schema (untuk AI + validasi) ---
 const InputSchema = z.object({
@@ -33,7 +33,7 @@ async function implementation(rawInput: any): Promise<Output> {
 
   const { query } = parsed.data;
   // PATCH: Turunkan threshold agar entry mirip tetap lolos
-  const MINIMUM_THRESHOLD = 0.45;
+  const MINIMUM_THRESHOLD = 0.4;
 
   try {
     const userEmbedding = await embedText(query);
@@ -47,7 +47,7 @@ async function implementation(rawInput: any): Promise<Output> {
     const entriesRef = db.collection('knowledge_base_entries');
     const snapshot = await entriesRef.get();
 
-    let bestMatch = null;
+    let bestMatch: { question: string; answer: string; score: number } | null = null;
     let highestScore = 0;
 
     snapshot.forEach((doc) => {
@@ -55,8 +55,26 @@ async function implementation(rawInput: any): Promise<Output> {
       if (!Array.isArray(data.embedding) || data.embedding.length === 0) return;
 
       const score = cosineSimilarity(userEmbedding, data.embedding);
-      // PATCH: log score untuk debug
-      console.log(`[searchKnowledgeBaseTool] Score untuk "${query}" vs "${data.question}":`, score);
+
+      // --- PATCH: log stemmed versions untuk validasi ---
+      // Import stemText dari embeddingAction
+      let stemmedQuery = '';
+      let stemmedData = '';
+      try {
+        // Dynamic import to avoid circular dependency
+        const { stemText } = require('../../actions/embeddingAction');
+        stemmedQuery = stemText(query.toLowerCase().replace(/[?.,!]/g, '').trim());
+        stemmedData = stemText(data.question?.toLowerCase().replace(/[?.,!]/g, '').trim());
+      } catch (err) {
+        stemmedQuery = query;
+        stemmedData = data.question;
+      }
+
+      console.log(`[searchKnowledgeBaseTool]`);
+      console.log(`  Raw:     "${query}" vs "${data.question}"`);
+      console.log(`  Stemmed: "${stemmedQuery}" vs "${stemmedData}"`);
+      console.log(`  Score:   ${score}`);
+
       if (score > highestScore) {
         highestScore = score;
         bestMatch = {
@@ -70,10 +88,11 @@ async function implementation(rawInput: any): Promise<Output> {
     console.log('[searchKnowledgeBaseTool] Best match:', bestMatch, 'Highest score:', highestScore);
 
     if (bestMatch && highestScore >= MINIMUM_THRESHOLD) {
+      const match = bestMatch as { question: string; answer: string; score: number };
       return {
         success: true,
-        question: bestMatch.question,
-        answer: bestMatch.answer,
+        question: match.question,
+        answer: match.answer,
         similarityScore: highestScore,
       };
     }

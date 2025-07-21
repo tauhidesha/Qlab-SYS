@@ -64,7 +64,8 @@ const isNavItemActive = (navItem: NavItem, currentPathname: string): boolean => 
 
 
 export function AppSidebar({ className }: AppSidebarProps) {
-  const pathname = usePathname();
+  const rawPathname = usePathname();
+  const pathname: string = typeof rawPathname === 'string' ? rawPathname : '';
   const { state, open: sidebarOpen, isMobile } = useSidebar();
   const { user, logout } = useAuth();
   const { toast } = useToast();
@@ -256,21 +257,21 @@ export function AppSidebar({ className }: AppSidebarProps) {
             >
               <Avatar className="h-8 w-8">
                 <AvatarImage
-                  src={user?.photoURL || "https://placehold.co/40x40.png"}
+                  src={user?.photoURL ? String(user.photoURL ?? "https://placehold.co/40x40.png") : "https://placehold.co/40x40.png"}
                   alt="Avatar Pengguna"
                   data-ai-hint="user avatar"
                 />
                 <AvatarFallback>
-                  {user?.displayName?.charAt(0) || user?.email?.charAt(0) || "U"}
+                  {String((user?.displayName && user.displayName.length > 0 ? user.displayName.charAt(0) : "") || (user?.email && user.email.length > 0 ? user.email.charAt(0) : "") || "U")}
                 </AvatarFallback>
               </Avatar>
               {showText && (
                 <div className="flex flex-col flex-1">
                   <span className="text-sm font-medium text-sidebar-foreground">
-                    {user?.displayName || "Pengguna"}
+                    {typeof user?.displayName === 'string' && user.displayName ? user.displayName : "Pengguna"}
                   </span>
                   <span className="text-xs text-sidebar-foreground/70">
-                    {user?.email}
+                    {typeof user?.email === 'string' && user.email ? user.email : ""}
                   </span>
                   <div className="flex items-center gap-1 mt-1">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>

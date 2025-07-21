@@ -41,7 +41,8 @@ type CashDepositFormValues = z.infer<typeof cashDepositFormSchema>;
 export default function EditCashDepositPage() {
   const router = useRouter();
   const params = useParams();
-  const depositId = params.id as string; // This is actually an expenseId
+  // Pastikan params.id selalu string, fallback ke '' jika tidak ada
+  const depositId = params && typeof params === 'object' && 'id' in params && typeof params.id === 'string' && params.id ? params.id : '';
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
@@ -59,7 +60,7 @@ export default function EditCashDepositPage() {
   });
 
   useEffect(() => {
-    if (!depositId) {
+    if (!depositId || typeof depositId !== 'string') {
       setIsLoadingData(false);
       setDepositNotFound(true);
       toast({ title: "Error", description: "ID Setoran tidak ditemukan.", variant: "destructive" });
@@ -106,26 +107,26 @@ export default function EditCashDepositPage() {
   }, [depositId, form, router]);
 
   const onSubmit = async (data: CashDepositFormValues) => {
-    if (!depositId) return;
+    if (!depositId || typeof depositId !== 'string') {
+      toast({ title: "Error", description: "ID Setoran tidak valid.", variant: "destructive" });
+      return;
+    }
     setIsSubmitting(true);
     try {
       const expenseDocRef = doc(db, 'expenses', depositId);
       const updateData: { [key: string]: any } = {
-    // Properti yang diambil dari form 'Setoran Tunai'
-    date: Timestamp.fromDate(data.date),
-    amount: Number(data.amount),
-    bankDestination: data.bankDestination,
-    notes: data.notes,
-    
-    // Properti yang kita tambahkan secara manual sesuai konteks halaman
-    category: "Setoran Tunai ke Bank", 
-    paymentSource: "Kas Tunai",
-    description: `Setoran tunai ke ${data.bankDestination}`,
-    
-    // Timestamp untuk pembaruan
-    updatedAt: serverTimestamp(),
-};
-
+        // Properti yang diambil dari form 'Setoran Tunai'
+        date: Timestamp.fromDate(data.date),
+        amount: Number(data.amount),
+        bankDestination: data.bankDestination,
+        notes: data.notes,
+        // Properti yang kita tambahkan secara manual sesuai konteks halaman
+        category: "Setoran Tunai ke Bank", 
+        paymentSource: "Kas Tunai",
+        description: `Setoran tunai ke ${data.bankDestination}`,
+        // Timestamp untuk pembaruan
+        updatedAt: serverTimestamp(),
+      };
 
       await updateDoc(expenseDocRef, updateData);
       toast({

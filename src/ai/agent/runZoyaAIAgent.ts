@@ -1,81 +1,57 @@
-'use server';
+// @file: src/ai/agents/runZoyaAIAgent.ts (REFACTORED - TOOL LIMITED)
 
 import { OpenAI } from 'openai';
-import { masterPrompt } from '../config/aiPrompts';
-import { zoyaTools } from '../config/aiConfig';
+import { wrapOpenAI } from 'langsmith/wrappers';
+import { zoyaTools, toolFunctionMap } from '../config/aiConfig';
+import type { NormalizedToolCall } from '../utils/updateSessionFromToolResults';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+const openAIClient = wrapOpenAI(new OpenAI({ apiKey: process.env.OPENAI_API_KEY! }));
 
-export async function runZoyaAIAgent({
-  session,
-  message,
-  chatHistory,
-  senderNumber,
-  senderName,
-  toolCalls = [],
-  toolResults = [],
-}: {
-  session: any;
-  message: string;
-  chatHistory: any[];
-  senderNumber: string;
-  senderName: string | undefined;
-  toolCalls?: {
-    toolName: string;
-    arguments: any;
-    id: string;
-  }[];
-  toolResults?: any[];
-}) {
-  let systemPrompt = masterPrompt;
+interface ZoyaAgentInput {
+  chatHistory: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
+  session?: any;
+}
 
-  const usedPriceTool = toolCalls.some(tc =>
-    tc.toolName === 'getSpecificServicePrice'
-  );
+interface ZoyaAgentResult {
+  suggestedReply: string;
+  toolCalls?: NormalizedToolCall[];
+  toolResponses?: any[];
+  route: string;
+}
 
-  if (usedPriceTool) {
-    systemPrompt = `Kamu adalah Zoya, AI Sales Agent ... (isi prompt harga khusus kalau ada)`;
+
+
+export async function runZoyaAIAgent({ chatHistory, session }: ZoyaAgentInput): Promise<ZoyaAgentResult> {
+  console.log('[runZoyaAIAgent] Menerima tugas. History terakhir:', chatHistory.slice(-2));
+
+  try {
+    const start = Date.now();
+    const completion = await openAIClient.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: chatHistory,
+      temperature: 0.7,
+    });
+    const latencyMs = Date.now() - start;
+
+    const gptMessage = completion.choices[0]?.message;
+    const suggestedReply = gptMessage?.content || "Maaf, Zoya lagi bingung nih. Boleh coba tanya lagi, om?";
+
+    console.log('[runZoyaAIAgent] Berhasil menghasilkan balasan:', suggestedReply);
+
+    return {
+      suggestedReply,
+      route: 'main_agent_reply',
+    };
+  } catch (error) {
+    console.error('[runZoyaAIAgent] TERJADI ERROR SAAT MEMANGGIL OPENAI:', error);
+    return {
+      suggestedReply: "Aduh, Zoya lagi pusing nih, coba tanya Bos Mamat aja ya.",
+      route: 'main_agent_reply',
+    };
   }
-
-  const messages = [
-    { role: 'system', content: systemPrompt },
-    ...chatHistory,
-    { role: 'user', content: message },
-  ];
-
-  const start = Date.now();
-  const completion = await openai.chat.completions.create({
-    model: 'gpt-4o',
-    messages,
-    tools: zoyaTools,
-    tool_choice: 'auto',
-  });
-  const latencyMs = Date.now() - start;
-
-  // Token usage info (if available)
-  const usage = completion.usage || {};
-  // { prompt_tokens, completion_tokens, total_tokens }
-
-  // console.log('[GPT RAW COMPLETION]', JSON.stringify(completion, null, 2));
-
-  const gptMessage = completion.choices[0]?.message;
-
-  const suggestedReply = gptMessage?.content || '';
-  const extractedToolCalls = (gptMessage?.tool_calls || []).map((toolCall) => ({
-    toolName: toolCall.function.name,
-    arguments: JSON.parse(toolCall.function.arguments || '{}'),
-    id: toolCall.id,
-  }));
-
+  // Ensure a return value in case no return occurred above
   return {
-    suggestedReply,
-    route: 'ai_agent',
-    toolCalls: extractedToolCalls,
-    toolResults,
-    updatedSession: session,
-    aiMeta: {
-      latencyMs,
-      usage,
-    },
+    suggestedReply: "Aduh, Zoya lagi pusing nih, coba tanya Bos Mamat aja ya.",
+    route: 'main_agent_reply',
   };
 }

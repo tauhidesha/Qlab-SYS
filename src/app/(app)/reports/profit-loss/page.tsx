@@ -31,14 +31,15 @@ interface ProfitLossReportData {
   netProfit: number;
 }
 
-const generatePreviousMonths = (count: number): { value: string; label: string }[] => {
-  const months = [];
+type PeriodOption = { value: string; label: string };
+const generatePreviousMonths = (count: number): PeriodOption[] => {
+  const months: PeriodOption[] = [];
   let currentDate = new Date();
   for (let i = 0; i < count; i++) {
     const month = currentDate.getMonth(); // 0-11
     const year = currentDate.getFullYear();
     months.push({
-      value: `${year}-${(month + 1).toString().padStart(2, '0')}`, // YYYY-MM
+      value: `${year}-${(month + 1).toString().padStart(2, '0')}`,
       label: formatDateFns(currentDate, 'MMMM yyyy', { locale: indonesiaLocale }),
     });
     currentDate = subMonths(currentDate, 1);

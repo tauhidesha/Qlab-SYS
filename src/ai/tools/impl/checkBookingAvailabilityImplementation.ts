@@ -1,9 +1,9 @@
 // File: src/ai/tools/impl/checkBookingAvailabilityImplementation.ts
 
 import admin from 'firebase-admin';
-import { db } from '@/lib/firebase-admin';
-import { checkBookingAvailabilitySchema } from '@/ai/schema/checkBookingAvailabilitySchema';
-import { getServiceCategory } from '@/ai/utils/getServiceCategory';
+import { db } from '../../../lib/firebase-admin';
+import { checkBookingAvailabilitySchema } from '../../schema/checkBookingAvailabilitySchema';
+import { getServiceCategory } from '../../utils/getServiceCategory';
 
 import { z } from 'zod';
 

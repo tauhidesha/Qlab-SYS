@@ -51,7 +51,8 @@ type StaffFormValues = z.infer<typeof staffFormSchema>;
 export default function EditStaffPage() {
   const router = useRouter();
   const params = useParams();
-  const staffId = params.id as string;
+  // Pastikan params.id selalu string, fallback ke '' jika tidak ada
+  const staffId = params && typeof params === 'object' && 'id' in params && typeof params.id === 'string' && params.id ? params.id : '';
   const { toast } = useToast();
 
   const [isSubmitting, setIsSubmitting] = useState(false);

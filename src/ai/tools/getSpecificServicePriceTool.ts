@@ -1,9 +1,9 @@
 // @file: src/ai/tools/getSpecificServicePriceTool.ts
 
 import { z } from 'zod';
-import type { GetPriceResult } from '@/types/ai/tools';
-import hargaLayanan from '@/data/hargaLayanan';
-import type { SessionData } from '@/ai/utils/session';
+import type { GetPriceResult } from '../../types/ai/tools';
+import hargaLayanan from '../../data/hargaLayanan';
+import type { Session } from '../../types/ai';
 
 // --- Input Schema ---
 const InputSchema = z.object({
@@ -97,7 +97,7 @@ async function implementation(input: any): Promise<GetPriceResult> {
     }
 
     const { service_name: parsedServiceName, size: sizeFromArgs } = parsed.data;
-    const session: SessionData | undefined = parsed.data.session;
+    const session: Session | undefined = parsed.data.session;
 
     let finalSize = sizeFromArgs;
     console.log('[getSpecificServicePriceTool] Parsed service_name:', parsedServiceName, '| size:', sizeFromArgs);
@@ -122,8 +122,10 @@ async function implementation(input: any): Promise<GetPriceResult> {
         .map(service => {
           const variant = service.variants?.find(v => v.name === finalSize);
           const basePrice = variant?.price ?? service.price;
+          if (basePrice === undefined) return null;
           return { service_name: service.name, motor_size: finalSize, price: basePrice, estimated_duration: formatDuration(service.estimatedDuration), similarity: 1 };
-        });
+        })
+        .filter((x): x is { service_name: string; motor_size: 'S' | 'M' | 'L' | 'XL'; price: number; estimated_duration: string; similarity: number } => x !== null);
       console.log('[getSpecificServicePriceTool] Coating special case, results:', results);
       return { success: true, multiple_candidates: true, candidates: results, message: `Ditemukan 2 layanan utama untuk "coating": Coating Motor Doff & Coating Motor Glossy.` };
     }
@@ -167,11 +169,14 @@ async function implementation(input: any): Promise<GetPriceResult> {
       return { success: true, service_name: service.name, motor_size: finalSize, price: basePrice, estimated_duration: formatDuration(service.estimatedDuration), summary };
     }
 
-    const results = candidates.map(service => {
-      const variant = service.variants?.find(v => v.name === finalSize);
-      const basePrice = variant?.price ?? service.price;
-      return { service_name: service.name, motor_size: finalSize, price: basePrice, estimated_duration: formatDuration(service.estimatedDuration), similarity: service.similarity };
-    });
+    const results = candidates
+      .map(service => {
+        const variant = service.variants?.find(v => v.name === finalSize);
+        const basePrice = variant?.price ?? service.price;
+        if (basePrice === undefined) return null;
+        return { service_name: service.name, motor_size: finalSize, price: basePrice, estimated_duration: formatDuration(service.estimatedDuration), similarity: service.similarity };
+      })
+      .filter((x): x is { service_name: string; motor_size: 'S' | 'M' | 'L' | 'XL'; price: number; estimated_duration: string; similarity: number } => x !== null);
 
     console.log('[getSpecificServicePriceTool] Multiple candidates:', results);
     return { success: true, multiple_candidates: true, candidates: results, message: `Ditemukan ${results.length} layanan mirip dengan "${parsedServiceName}". Silakan pilih yang paling sesuai.` };

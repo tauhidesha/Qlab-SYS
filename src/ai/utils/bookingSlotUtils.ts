@@ -1,7 +1,7 @@
 // File: src/ai/utils/bookingSlotUtils.ts
 
 import admin from 'firebase-admin';
-import { db } from '@/lib/firebase-admin';
+import { db } from '../../lib/firebase-admin';
 
 export interface Booking {
   bookingDateTime: Date;

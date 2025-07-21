@@ -2,7 +2,7 @@
 
 // 💡 PERHATIAN: Pastikan path ini benar-benar valid saat aplikasi di-build/dijalankan di server.
 // Masalah 'kesalahan teknis' seringkali berasal dari path file yang salah setelah kompilasi.
-import daftarUkuranMotor from '@/data/daftarUkuranMotor';
+import daftarUkuranMotor from '../../data/daftarUkuranMotor';
 import levenshtein from 'js-levenshtein';
 import { normalizeToolInput } from '../utils/normalizeToolInput';
 
@@ -58,7 +58,7 @@ async function implementation(input: Input): Promise<Output> {
     };
   }
 
-  let bestMatch = null;
+  let bestMatch: typeof daftarUkuranMotor[number] | null = null;
   let bestScore = 0;
 
   // Debug log: tampilkan similarity setiap kandidat

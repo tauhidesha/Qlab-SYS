@@ -1,3 +1,20 @@
+// Fungsi resolveMotorSizes untuk cartAgent
+import daftarUkuranMotor from '../../src/data/daftarUkuranMotor';
+
+export type MotorSizeLiteral = 'L' | 'S' | 'M' | 'XL';
+
+function toMotorSizeLiteral(val: string | undefined): MotorSizeLiteral {
+  if (val === 'L' || val === 'S' || val === 'M' || val === 'XL') return val;
+  return 'L';
+}
+
+export function resolveMotorSizes(motorName: string): { motor_db_size: MotorSizeLiteral, repaint_size: MotorSizeLiteral } {
+  const found = daftarUkuranMotor.find(m => m.model?.toLowerCase() === motorName?.toLowerCase() || (m.aliases && m.aliases.some((a: string) => a.toLowerCase() === motorName?.toLowerCase())));
+  return {
+    motor_db_size: toMotorSizeLiteral(found?.motor_db_size),
+    repaint_size: toMotorSizeLiteral(found?.repaint_size),
+  };
+}
 // @file: src/lib/math.ts
 
 export function cosineSimilarity(vecA: number[], vecB: number[]): number {

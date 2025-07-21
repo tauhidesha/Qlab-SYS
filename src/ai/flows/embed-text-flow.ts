@@ -3,7 +3,7 @@
 'use server';
 
 // Impor fungsi createEmbedding yang sudah kita buat sebelumnya
-import { createEmbedding } from '@/ai/actions/embeddingAction';
+import { createEmbedding } from '../actions/embeddingAction';
 
 /**
  * Fungsi ini sekarang hanya menjadi 'wrapper' atau pemanggil

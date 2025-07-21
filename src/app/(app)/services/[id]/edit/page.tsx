@@ -90,7 +90,8 @@ type ServiceProductFormValues = z.infer<typeof serviceProductFormSchema>;
 export default function EditServiceProductPage() {
   const router = useRouter();
   const params = useParams();
-  const itemId = params.id as string;
+  // Pastikan params.id selalu string, fallback ke '' jika tidak ada
+  const itemId = params && typeof params === 'object' && 'id' in params && typeof params.id === 'string' && params.id ? params.id : '';
   const { toast } = useToast();
 
   const [isSubmitting, setIsSubmitting] = useState(false);

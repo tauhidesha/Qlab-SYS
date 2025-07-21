@@ -132,6 +132,7 @@ export default function PosContent() {
   }, [toast]);
 
   useEffect(() => {
+    if (!searchParams) return;
     const qid = searchParams.get('qid');
     if (qid && openTransactions.length > 0 && !loadingTransactions && !selectedTransactionId) {
       const matchedTransaction = openTransactions.find(t => t.queueItemId === qid);

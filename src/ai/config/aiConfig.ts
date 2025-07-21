@@ -1,3 +1,4 @@
+import { updateRepaintDetailsTool } from '../tools/updateRepaintDetailsTool';
 // @file: src/ai/config/aiConfig.ts
 
 import type { OpenAI } from 'openai';
@@ -32,6 +33,7 @@ export const zoyaTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   getRepaintSurchargeTool.toolDefinition,
   extractBookingDetailsTool.toolDefinition, // ✅ daftar ke GPT
   searchKnowledgeBaseTool.toolDefinition,
+  updateRepaintDetailsTool.toolDefinition,
 ];
 
 export const toolFunctionMap = {
@@ -48,4 +50,5 @@ export const toolFunctionMap = {
   extractBookingDetailsTool: extractBookingDetailsTool,
   triggerBosMamatTool: triggerBosMamatTool,
   searchKnowledgeBase: searchKnowledgeBaseTool,
+  updateRepaintDetailsTool: updateRepaintDetailsTool,
 };

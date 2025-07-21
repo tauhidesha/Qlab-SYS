@@ -1,7 +1,7 @@
 // @file: src/ai/tools/extractBookingDetailsTool.ts
 
 import { z } from 'zod';
-import hargaLayanan from '@/data/hargaLayanan';
+import hargaLayanan from '../../data/hargaLayanan';
 import { parse } from 'chrono-node';
 
 // --- Input schema ---

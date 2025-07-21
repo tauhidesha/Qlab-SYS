@@ -1,5 +1,5 @@
 
-import { db } from '@/lib/firebase-admin';
+import { db } from '../../lib/firebase-admin';
 import admin from 'firebase-admin';
 
 /**
@@ -16,11 +16,12 @@ export async function isInterventionLockActive(senderNumber: string): Promise<bo
 
     if (lockDocSnap.exists) {
       const data = lockDocSnap.data();
-      const lockExpiresAt = data.lockExpiresAt as admin.firestore.Timestamp;
-
-      if (lockExpiresAt && Date.now() < lockExpiresAt.toMillis()) {
-        console.log(`[LOCK CHECK] Lock is ACTIVE for ${senderNumber} until ${lockExpiresAt.toDate().toLocaleTimeString()}`);
-        return true;
+      if (data && data.lockExpiresAt) {
+        const lockExpiresAt = data.lockExpiresAt as admin.firestore.Timestamp;
+        if (lockExpiresAt && Date.now() < lockExpiresAt.toMillis()) {
+          console.log(`[LOCK CHECK] Lock is ACTIVE for ${senderNumber} until ${lockExpiresAt.toDate().toLocaleTimeString()}`);
+          return true;
+        }
       }
     }
     return false;

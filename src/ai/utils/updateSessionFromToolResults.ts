@@ -1,4 +1,4 @@
-import type { SessionData } from './session';
+import type { Session } from '../../types/ai';
 
 // This type is based on the normalized tool call structure used across the application.
 export type NormalizedToolCall = {
@@ -7,18 +7,19 @@ export type NormalizedToolCall = {
   id: string;
 };
 
-type ToolResponse = {
+export type ToolResponse = {
   tool_call_id: string;
   role: 'tool';
   name: string;
   content: string;
 };
 
+// ...existing code...
 export function updateSessionFromToolResults(
-  session: SessionData,
+  session: Session,
   toolCalls: NormalizedToolCall[],
   toolResponses: ToolResponse[]
-): SessionData {
+): Session {
   const updatedSession = { ...session };
   if (!updatedSession.inquiry) {
     updatedSession.inquiry = {};
@@ -60,29 +61,20 @@ export function updateSessionFromToolResults(
               createdAt: Date.now(),
             };
             if (serviceName) {
-              updatedSession.inquiry.lastMentionedService = {
-                serviceNames: [serviceName],
-                isAmbiguous: false,
-              };
+              updatedSession.inquiry.lastMentionedService = [serviceName];
             }
             break;
           }
 
           case 'getPromoBundleDetails': {
-            updatedSession.inquiry.lastMentionedService = {
-              serviceNames: ['Repaint Bodi Halus'],
-              isAmbiguous: false,
-            };
+            updatedSession.inquiry.lastMentionedService = ['Repaint Bodi Halus'];
             break;
           }
 
           case 'getSpecificServicePrice': {
             const serviceName = args.serviceName || args.service_name;
             if (serviceName) {
-              updatedSession.inquiry.lastMentionedService = {
-                serviceNames: [serviceName],
-                isAmbiguous: false,
-              };
+              updatedSession.inquiry.lastMentionedService = [serviceName];
             }
             const hasBookingInfo = session.inquiry?.bookingState?.bookingDate !== undefined;
             if (!hasBookingInfo) {
@@ -95,11 +87,21 @@ export function updateSessionFromToolResults(
             break;
           }
 
-          case 'getRepaintSurcharge': {
-            const effect = args.effect;
-            const surcharge = toolResult?.result?.surcharge;
-            if (effect && typeof surcharge === 'number') {
-              updatedSession.inquiry.repaintSurcharge = { effect, surcharge };
+
+          case 'updateRepaintDetailsTool': {
+            const { serviceName, color, specific_part, motor } = args;
+            updatedSession.inquiry.repaintDetails = updatedSession.inquiry.repaintDetails || {};
+            updatedSession.inquiry.repaintDetails[serviceName] = {
+              ...(updatedSession.inquiry.repaintDetails[serviceName] || {}),
+              ...(color && { color }),
+              ...(specific_part && { specific_part }),
+              ...(motor && { motor }),
+            };
+            if (motor && !updatedSession.inquiry.lastMentionedMotor) {
+              updatedSession.inquiry.lastMentionedMotor = motor;
+            }
+            if (serviceName) {
+              updatedSession.inquiry.lastMentionedService = [serviceName];
             }
             break;
           }
@@ -107,10 +109,7 @@ export function updateSessionFromToolResults(
           default: {
             const serviceName = args.serviceName || args.service_name;
             if (serviceName) {
-              updatedSession.inquiry.lastMentionedService = {
-                serviceNames: [serviceName],
-                isAmbiguous: false,
-              };
+              updatedSession.inquiry.lastMentionedService = [serviceName];
             }
             const motorQuery = args.motor_query;
             if (motorQuery && !updatedSession.inquiry.lastMentionedMotor) {

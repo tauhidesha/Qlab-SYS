@@ -28,7 +28,8 @@ import { DatePickerSingle } from '@/components/ui/date-picker-single';
 export default function EditExpensePage() {
   const router = useRouter();
   const params = useParams();
-  const expenseId = params.id as string;
+  // Pastikan params.id selalu string, fallback ke '' jika tidak ada
+  const expenseId = params && typeof params === 'object' && 'id' in params && typeof params.id === 'string' && params.id ? params.id : '';
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
@@ -53,7 +54,7 @@ export default function EditExpensePage() {
   const watchedCategory = form.watch('category');
 
   useEffect(() => {
-    if (!expenseId) {
+    if (!expenseId || typeof expenseId !== 'string') {
       setIsLoadingData(false);
       setExpenseNotFound(true);
       toast({ title: "Error", description: "ID Pengeluaran tidak ditemukan.", variant: "destructive" });
@@ -98,7 +99,10 @@ export default function EditExpensePage() {
   }, [expenseId, form, router]);
 
   const onSubmit = async (data: ExpenseFormData) => {
-    if (!expenseId) return;
+    if (!expenseId || typeof expenseId !== 'string') {
+      toast({ title: "Error", description: "ID Pengeluaran tidak valid.", variant: "destructive" });
+      return;
+    }
     setIsSubmitting(true);
     try {
       const expenseDocRef = doc(db, 'expenses', expenseId);
@@ -114,7 +118,6 @@ export default function EditExpensePage() {
       } else if (data.bankDestination === '' || data.bankDestination === undefined){
          updateData.bankDestination = '';
       }
-
 
       await updateDoc(expenseDocRef, updateData);
       toast({

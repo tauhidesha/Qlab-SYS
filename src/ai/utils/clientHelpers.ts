@@ -62,9 +62,10 @@ export async function getClientName(
 
   try {
     const docSnap = await metaRef.get();
-    if (docSnap.exists && docSnap.data().name) {
-      console.log(`[ClientHelper] Nama ditemukan untuk ${docId}: ${docSnap.data().name}`);
-      return docSnap.data().name;
+    const data = docSnap.data();
+    if (docSnap.exists && data && typeof data.name === 'string' && data.name.length > 0) {
+      console.log(`[ClientHelper] Nama ditemukan untuk ${docId}: ${data.name}`);
+      return data.name;
     }
     console.log(`[ClientHelper] Tidak ada data nama di meta untuk ${docId}.`);
     return null;

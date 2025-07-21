@@ -43,7 +43,8 @@ const incomeFormSchema = z.object({
 export default function EditIncomePage() {
   const router = useRouter();
   const params = useParams();
-  const incomeId = params.id as string;
+  // Pastikan params.id selalu string, fallback ke '' jika tidak ada
+  const incomeId = params && typeof params === 'object' && 'id' in params && typeof params.id === 'string' && params.id ? params.id : '';
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
@@ -65,7 +66,7 @@ export default function EditIncomePage() {
   });
 
   useEffect(() => {
-    if (!incomeId) {
+    if (!incomeId || typeof incomeId !== 'string') {
       setIsLoadingData(false);
       setIncomeNotFound(true);
       toast({ title: "Error", description: "ID Pemasukan tidak ditemukan.", variant: "destructive" });
@@ -109,7 +110,10 @@ export default function EditIncomePage() {
   }, [incomeId, form, router]);
 
   const onSubmit = async (data: IncomeFormData) => {
-    if (!incomeId) return;
+    if (!incomeId || typeof incomeId !== 'string') {
+      toast({ title: "Error", description: "ID Pemasukan tidak valid.", variant: "destructive" });
+      return;
+    }
     setIsSubmitting(true);
     try {
       const incomeDocRef = doc(db, 'incomeEntries', incomeId);
@@ -123,7 +127,7 @@ export default function EditIncomePage() {
       await updateDoc(incomeDocRef, updateData);
       toast({
         title: "Sukses!",
-        description: `Pemasukan "${data.description}" berhasil diperbarui.`,
+        description: `Pemasukan \"${data.description}\" berhasil diperbarui.`,
       });
       router.push('/income');
     } catch (error) {

@@ -462,8 +462,9 @@ const parsePeriodToDateRange = (period: string): { startDate: Date, endDate: Dat
     return { startDate, endDate };
 };
 
-const generatePreviousMonthsLabels = (count: number): string[] => {
-  const labels = [];
+type PeriodLabel = string;
+const generatePreviousMonthsLabels = (count: number): PeriodLabel[] => {
+  const labels: PeriodLabel[] = [];
   let currentDate = new Date();
   for (let i = 0; i < count; i++) {
     labels.push(formatDateFns(currentDate, 'MMMM yyyy', { locale: indonesiaLocale }));

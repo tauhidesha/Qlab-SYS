@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { db } from '@/lib/firebase-admin';
+import { db } from '../../lib/firebase-admin';
 import admin from 'firebase-admin';
-import { sendWhatsAppMessage } from '@/services/whatsappService';
+import { sendWhatsAppMessage } from '../../services/whatsappService';
 
 const InputSchema = z.object({
   customerPhone: z.string().describe("Nomor HP pelanggan yang pembayarannya dikonfirmasi."),

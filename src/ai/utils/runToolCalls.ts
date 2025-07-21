@@ -10,7 +10,8 @@ export async function runToolCalls(
   }[],
   extraContext: { input?: any; session?: any } = {}
 ) {
-  const results = [];
+  type ToolCallResult = { role: string; tool_call_id: string; content: string };
+  const results: ToolCallResult[] = [];
 
   for (const call of toolCalls) {
     const { toolName, id } = call;
@@ -43,7 +44,8 @@ export async function runToolCalls(
     if (toolDef && toolDef.parameters && toolDef.parameters.properties) {
       // service_name
       if ('service_name' in toolDef.parameters.properties) {
-        const mappedService = extraContext.session?.inquiry?.lastMentionedService?.serviceName;
+        const mappedServiceArr = extraContext.session?.inquiry?.lastMentionedService;
+        const mappedService = Array.isArray(mappedServiceArr) ? mappedServiceArr[0] : undefined;
         if (mappedService) {
           parsedArgs.service_name = mappedService;
         }
@@ -93,7 +95,7 @@ export async function runToolCalls(
               message: errMsg,
             }),
           });
-          continue;
+          return results;
         }
       }
       // PATCH: Jika tool getServiceDescriptionTool, return hasil mentah tanpa proses summary/polishing

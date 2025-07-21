@@ -37,7 +37,11 @@ const nextConfig = {
       // Menyembunyikan peringatan 'Critical dependency' dari OpenTelemetry.
       /Critical dependency: require function is used/,
     ];
-
+    config.experiments = {
+      ...(config.experiments || {}),
+      asyncWebAssembly: true,
+    };
+    
     return config;
   },
 };

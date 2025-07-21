@@ -68,7 +68,7 @@ function formatPhoneNumberForMatching(number?: string): string {
   }
   if (cleaned.startsWith('62') && cleaned.length >= 10) {
     return cleaned;
-	
+  
   }
   return '';
 }
@@ -370,8 +370,10 @@ const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
     };
 
     try {
-      const result: WhatsAppReplyOutput = await generateWhatsAppReply(flowInput);
-
+      const result = await generateWhatsAppReply(flowInput);
+      if (!result) {
+        throw new Error('AI tidak memberikan respon.');
+      }
       const aiMessage: PlaygroundMessage = {
         id: uuidv4(),
         sender: 'ai',

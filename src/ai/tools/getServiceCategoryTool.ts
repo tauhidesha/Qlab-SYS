@@ -1,6 +1,6 @@
 // @file: src/ai/utils/getServiceCategory.ts
 
-import hargaLayanan from '@/data/hargaLayanan';
+import hargaLayanan from '../../data/hargaLayanan';
 import levenshtein from 'js-levenshtein'; // ⬅️ pastikan package ini sudah di-install
 
 type Category = 'coating' | 'detailing' | 'repaint' | 'cuci';

@@ -38,7 +38,7 @@ type ClientFormValues = z.infer<typeof clientFormSchema>;
 export default function EditClientPage() {
   const router = useRouter();
   const params = useParams();
-  const clientId = params.id as string;
+  const clientId = params && typeof params === 'object' && 'id' in params && params.id ? (params.id as string) : '';
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);

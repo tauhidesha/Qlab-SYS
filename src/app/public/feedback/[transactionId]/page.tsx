@@ -38,7 +38,8 @@ export default function FeedbackPage() {
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
-  const transactionId = params.transactionId as string;
+  // Pastikan params.transactionId selalu string, fallback ke '' jika tidak ada
+  const transactionId = params && typeof params === 'object' && 'transactionId' in params && typeof params.transactionId === 'string' && params.transactionId ? params.transactionId : '';
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionSuccess, setSubmissionSuccess] = useState(false);

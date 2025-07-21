@@ -1,63 +1,12 @@
 // @file: src/ai/utils/session.ts
 'use server';
 
-import { db } from '@/lib/firebase-admin';
+import { db } from '../../lib/firebase-admin';
 import admin from 'firebase-admin';
-import type { MappedServiceResult } from '../handlers/routes/lib/classifiers/mapTermToOfficialService';
+import type { LastInteractionObject, MappedServiceResult, Session } from '../../types/ai';
 
 // --- TIPE DATA RESMI (SUMBER KEBENARAN) ---
-export type ServiceCategory = 'coating' | 'detailing' | 'cuci' | 'repaint';
 
-export interface BookingState {
-  serviceName?: string;
-  vehicleInfo?: string;
-  bookingDate?: string;
-  bookingTime?: string;
-  estimatedDurationMinutes?: number;
-}
-
-export interface ServiceInquiry {
-  lastMentionedService?: MappedServiceResult; // ✅ ubah dari string ke MappedServiceResult
-  pendingService?: string;
-  pendingCategory?: ServiceCategory;
-  lastMentionedMotor?: string;
-  lastMotorSize?: string; // ← hasil ekstraksi dari getMotorSizeDetails
-  lastOfferedServices?: string[];
-  bookingState?: BookingState;
-  pendingBookingDate?: string;
-  pendingBookingTime?: string;
-
-  repaintSize?: 'S' | 'M' | 'L' | 'XL';      // ← khusus untuk kebutuhan harga repaint
-  serviceSize?: 'S' | 'M' | 'L' | 'XL';      // ← untuk coating, cuci, detailing
-  repaintSurcharge?: {effect: string;surcharge: number;};
-  lastBooking?: {
-    customerPhone: string;
-    serviceName: string;
-    bookingDate: string;
-    bookingTime: string;
-    vehicleInfo: string;
-    createdAt: number;
-  };
-
-}
-
-export interface SessionData {
-  cartServices: any;
-  flow: 'general' | 'booking' | 'awaiting_booking_form';
-  inquiry: ServiceInquiry;
-  snoozeUntil?: number;
-  lastInteraction: admin.firestore.Timestamp;
-
-  // Follow-up & tracking
-  followUpState?: {
-    level: number;
-    flaggedAt: number;
-    context: string;
-  } | null;
-
-  senderName?: string;
-  lastRoute?: string;
-}
 
 // --- KONSTANTA ---
 const SESSIONS_COLLECTION = 'zoya_sessions';
@@ -69,23 +18,27 @@ function removeUndefined(obj: any): any {
 }
 
 // --- AMBIL SESI PELANGGAN ---
-export async function getSession(senderNumber: string): Promise<SessionData | null> {
+export async function getSession(senderNumber: string): Promise<Session | null> {
   const sessionDocRef = db.collection(SESSIONS_COLLECTION).doc(senderNumber);
   try {
     const docSnap = await sessionDocRef.get();
 
     if (docSnap.exists) {
-      const session = docSnap.data() as SessionData;
+      const session = docSnap.data() as Session;
 
-      // ⛑️ PATCH: jika session lama masih simpan string di lastMentionedService, ubah ke objek
+      // ⛑️ PATCH: jika session lama masih simpan string di lastMentionedService, ubah ke array of string
       const rawService = session?.inquiry?.lastMentionedService;
       if (typeof rawService === 'string') {
-        session.inquiry.lastMentionedService = { serviceNames: [rawService], isAmbiguous: false };
+        session.inquiry.lastMentionedService = [rawService];
       }
 
-      const now = admin.firestore.Timestamp.now();
-      const lastInteraction = session.lastInteraction || now;
-      
+      // PATCH: Migrate lastInteraction to object if still Timestamp
+      if (
+        session.lastInteraction &&
+        (typeof session.lastInteraction !== 'object' || !('type' in session.lastInteraction))
+      ) {
+        session.lastInteraction = { type: 'system', at: Date.now() };
+      }
       // Session timeout dihapus - session akan tetap ada untuk follow-up
       return session;
     }
@@ -98,12 +51,12 @@ export async function getSession(senderNumber: string): Promise<SessionData | nu
 }
 
 // --- SIMPAN / UPDATE SESI ---
-export async function updateSession(senderNumber: string, updates: Partial<SessionData>): Promise<void> {
+export async function updateSession(senderNumber: string, updates: Partial<Session>): Promise<void> {
   const sessionDocRef = db.collection(SESSIONS_COLLECTION).doc(senderNumber);
   try {
     const sanitizedUpdates = removeUndefined({
       ...updates,
-      lastInteraction: admin.firestore.Timestamp.now(),
+      lastInteraction: { type: 'system', at: Date.now() },
     });
 
     await sessionDocRef.set(sanitizedUpdates, { merge: true });
