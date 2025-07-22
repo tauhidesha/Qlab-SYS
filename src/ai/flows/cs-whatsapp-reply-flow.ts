@@ -18,7 +18,7 @@ import { searchKnowledgeBaseTool } from '../tools/searchKnowledgeBaseTool';
 import { processCart } from '../agent/cartAgent';
 import { runZoyaAIAgent } from '../agent/runZoyaAIAgent';
 import { isInterventionLockActive } from '../utils/interventionLock';
-import { notifyBosMamat, setSnoozeMode } from '../utils/humanHandoverTool';
+import { notifyBosMat, setSnoozeMode } from '../utils/humanHandoverTool';
 import daftarUkuranMotor from '../../data/daftarUkuranMotor';
 import { masterPrompt } from '../config/aiPrompts';
 import admin from 'firebase-admin';
@@ -80,8 +80,8 @@ export const generateWhatsAppReply = traceable(async function generateWhatsAppRe
   const detectedMotorName = detectMotorName(input.customerMessage);
   const mappedResult = await mapTermToOfficialService({ message: input.customerMessage, session: initialSession });
   if (!mappedResult) {
-    await notifyBosMamat(senderNumber, input.customerMessage);
-    return { suggestedReply: 'Waduh, Zoya lagi pusing nih. Zoya panggilin Bos Mamat aja ya!', route: 'fallback_handover', toolCalls: [] };
+    await notifyBosMat(senderNumber, input.customerMessage);
+    return { suggestedReply: 'Waduh, Zoya lagi pusing nih. Zoya panggilin BosMat aja ya!', route: 'fallback_handover', toolCalls: [] };
   }
 
   let knowledgeBaseAnswer: string | null = null;
@@ -198,7 +198,7 @@ export const generateWhatsAppReply = traceable(async function generateWhatsAppRe
 
   if (knowledgeBaseAnswer) {
     console.log('[Flow] Skenario: General Inquiry dari KB.');
-    contextNoteForMainAI = `[KONTEKS DARI SISTEM]:\n[HASIL KNOWLEDGE BASE]: ${knowledgeBaseAnswer}\n\n[TUGAS ANDA]: Sampaikan jawaban knowledge base di atas ke user dengan bahasa yang ramah dan mudah dipahami.\n\nWAJIB berikan jawaban knowledge base jika sudah ditemukan, meskipun skor kemiripan rendah.\nJangan pernah menolak atau mengalihkan ke Bos Mamat jika sudah ada jawaban KB.\nJangan pernah fallback ke Bos Mamat jika KB sudah ditemukan.\nJika perlu, tambahkan penjelasan atau follow-up yang relevan.\n\n[CATATAN]: Jika jawaban knowledge base sudah ditemukan, selalu sampaikan ke user, apapun skornya.`;
+    contextNoteForMainAI = `[KONTEKS DARI SISTEM]:\n[HASIL KNOWLEDGE BASE]: ${knowledgeBaseAnswer}\n\n[TUGAS ANDA]: Sampaikan jawaban knowledge base di atas ke user dengan bahasa yang ramah dan mudah dipahami.\n\nWAJIB berikan jawaban knowledge base jika sudah ditemukan, meskipun skor kemiripan rendah.\nJangan pernah menolak atau mengalihkan ke BosMat jika sudah ada jawaban KB.\nJangan pernah fallback ke BosMat jika KB sudah ditemukan.\nJika perlu, tambahkan penjelasan atau follow-up yang relevan.\n\n[CATATAN]: Jika jawaban knowledge base sudah ditemukan, selalu sampaikan ke user, apapun skornya.`;
   } else if (pendingClarifications.length > 0 && needAskMotor) {
     console.log('[Flow] Skenario: Klarifikasi (multi) + Motor tidak terdeteksi. Menyiapkan pertanyaan ke user.');
     let notes = [`[TUGAS ANDA]: Tanyakan dengan ramah tipe/jenis motor yang ingin dilayani. Contoh: "Motornya apa ya, om?"`];
@@ -244,8 +244,8 @@ export const generateWhatsAppReply = traceable(async function generateWhatsAppRe
   } else if (generalIntent.serviceName === 'Handover to Human') {
     console.log('[Flow] Skenario: Handover ke Manusia.');
     await setSnoozeMode(senderNumber);
-    await notifyBosMamat(senderNumber, input.customerMessage);
-    return { suggestedReply: 'Oke om, Zoya panggilin Bos Mamat dulu ya. Tunggu sebentar 🙏', route: 'handover_request', toolCalls: [] };
+    await notifyBosMat(senderNumber, input.customerMessage);
+    return { suggestedReply: 'Oke om, Zoya panggilin BosMat dulu ya. Tunggu sebentar 🙏', route: 'handover_request', toolCalls: [] };
   } else {
     console.log('[Flow] Skenario: Dialog Umum.');
     contextNoteForMainAI = `[TUGAS ANDA]: Balas pesan pengguna dengan ramah sebagai percakapan umum. Jika ada konteks tambahan dari sistem, gunakan itu untuk memperkaya jawabanmu.`;
@@ -309,17 +309,17 @@ export const generateWhatsAppReply = traceable(async function generateWhatsAppRe
   // Fallback detection: If AI reply indicates confusion or fallback, trigger Bos Mamat
   const fallbackPhrases = [
     'Zoya agak kurang paham',
-    'Zoya coba tanyain ke Bos Mamat',
-    'Zoya panggilin Bos Mamat',
+    'Zoya coba tanyain ke BosMat',
+    'Zoya panggilin BosMat',
     'Zoya lagi pusing',
-    'Bos Mamat dulu ya'
+    'BosMat dulu ya'
   ];
   const replyLower = (agentResult.suggestedReply || '').toLowerCase();
   if (fallbackPhrases.some(phrase => replyLower.includes(phrase.toLowerCase()))) {
     await setSnoozeMode(senderNumber);
-    await notifyBosMamat(senderNumber, input.customerMessage);
+    await notifyBosMat(senderNumber, input.customerMessage);
     finalOutput = {
-      suggestedReply: 'Oke om, Zoya panggilin Bos Mamat dulu ya. Tunggu sebentar 🙏',
+      suggestedReply: 'Oke om, Zoya panggilin BosMat dulu ya. Tunggu sebentar 🙏',
       route: 'handover_request',
       toolCalls: [],
       metadata: {},

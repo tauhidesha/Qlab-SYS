@@ -79,12 +79,12 @@ export async function runToolCalls(
     console.log(`[runToolCalls] Menjalankan tool '${toolName}' untuk`, senderNumber);
 
     try {
-      // Validasi argumen wajib untuk triggerBosMamatTool
-      if (toolName === 'triggerBosMamatTool') {
+      // Validasi argumen wajib untuk triggerBosMatTool
+      if (toolName === 'triggerBosMatTool') {
         const reason = parsedArgs?.reason || input?.reason;
         const customerQuestion = parsedArgs?.customerQuestion || input?.customerQuestion;
         if (!reason || !customerQuestion) {
-          const errMsg = '[runToolCalls] triggerBosMamatTool dipanggil tanpa reason atau customerQuestion.';
+          const errMsg = '[runToolCalls] triggerBosMatTool dipanggil tanpa reason atau customerQuestion.';
           console.error(errMsg);
           results.push({
             role: 'tool',

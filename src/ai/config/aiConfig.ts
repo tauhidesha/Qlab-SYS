@@ -13,7 +13,7 @@ import { checkBookingAvailabilityTool } from '../tools/checkBookingAvailabilityT
 import { matchServiceFromDescriptionTool } from '../tools/impl/matchServiceFromDescriptionTool';
 import { createBookingTool } from '../tools/createBookingTool';
 import { getRepaintSurchargeTool } from '../tools/getRepaintSurchargeTool';
-import { triggerBosMamatTool } from '../tools/impl/triggerBosMamatTool';
+import { triggerBosMatTool } from '../tools/impl/triggerBosMamatTool';
 import { extractBookingDetailsTool } from '../tools/extractBookingDetailsTool'; // ✅ tambahkan ini kalau belum
 import { searchKnowledgeBaseTool } from '../tools/searchKnowledgeBaseTool';
 
@@ -24,7 +24,7 @@ export const zoyaTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   getSpecificServicePriceTool.toolDefinition,
   getServiceDescriptionTool.toolDefinition,
   getMotorSizeDetailsTool.toolDefinition,
-  triggerBosMamatTool.toolDefinition,
+  triggerBosMatTool.toolDefinition,
   findNextAvailableSlotTool.toolDefinition,
   getPromoBundleDetailsTool.toolDefinition,
   checkBookingAvailabilityTool.toolDefinition,
@@ -48,7 +48,7 @@ export const toolFunctionMap = {
   createBooking: createBookingTool,
   getRepaintSurcharge: getRepaintSurchargeTool,
   extractBookingDetailsTool: extractBookingDetailsTool,
-  triggerBosMamatTool: triggerBosMamatTool,
+  triggerBosMatTool: triggerBosMatTool,
   searchKnowledgeBase: searchKnowledgeBaseTool,
   updateRepaintDetailsTool: updateRepaintDetailsTool,
 };

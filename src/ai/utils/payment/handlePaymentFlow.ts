@@ -26,18 +26,18 @@ interface HandlerResult {
 export async function handlePaymentFlow(body: WebhookBody): Promise<HandlerResult | null> {
   const { senderNumber, customerMessage, mediaBase64, mediaMimeType, mediaType } = body;
 
-  // 1. Jika pesan dari Bos Mamat
+  // 1. Jika pesan dari BosMat
   if (BOS_MAMAT_NUMBER && senderNumber.includes(BOS_MAMAT_NUMBER)) {
     if (customerMessage && customerMessage.trim().toLowerCase().startsWith('#confirm')) {
       const parts = customerMessage.trim().split(' ');
       if (parts.length >= 2) {
         const customerPhoneToConfirm = parts[1].replace(/\D/g, ''); // Bersihkan nomor telepon
-        console.log(`[PaymentFlow] Bos Mamat mengonfirmasi pembayaran untuk: ${customerPhoneToConfirm}`);
+        console.log(`[PaymentFlow] BosMat mengonfirmasi pembayaran untuk: ${customerPhoneToConfirm}`);
         const result = await confirmBookingPayment.implementation({ customerPhone: customerPhoneToConfirm });
         return { status: 'confirmation_processed', result };
       }
     }
-    // Jika pesan dari Bos Mamat tapi bukan #confirm, kita anggap akan di-handle oleh
+    // Jika pesan dari BosMat tapi bukan #confirm, kita anggap akan di-handle oleh
     // handleHumanReplyForwarding, jadi kita return null di sini.
     return null;
   }
@@ -46,7 +46,7 @@ export async function handlePaymentFlow(body: WebhookBody): Promise<HandlerResul
   if (mediaBase64 && mediaMimeType && (mediaType === 'image' || mediaType === 'document')) {
     // Untuk sekarang, kita asumsikan setiap gambar yang masuk adalah bukti bayar
     // untuk menyederhanakan testing. Logika `isAwaitingProof` bisa ditambahkan kembali nanti.
-    console.log(`[PaymentFlow] Menerima media dari ${senderNumber}, diasumsikan sebagai bukti bayar. Meneruskan ke Bos Mamat.`);
+    console.log(`[PaymentFlow] Menerima media dari ${senderNumber}, diasumsikan sebagai bukti bayar. Meneruskan ke BosMat.`);
     
     await forwardPaymentProofToBosMamat.implementation({
       customerPhone: senderNumber,

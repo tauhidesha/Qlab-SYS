@@ -1,14 +1,14 @@
 // src/ai/tools/impl/triggerBosMamatTool.ts
 
 import type { ToolFunction } from '@/types/ai/ToolFunction';
-import { notifyBosMamat, setSnoozeMode } from '@/ai/utils/humanHandoverTool';
+import { notifyBosMat, setSnoozeMode } from '@/ai/utils/humanHandoverTool';
 import type { OpenAI } from 'openai';
 import { z } from 'zod';
 
 // Definisikan skema dengan Zod untuk validasi internal
 const inputSchema = z.object({
-  reason: z.string().describe('Alasan Zoya perlu tanya ke Bos Mamat (misalnya: warna efek custom, motor langka, dsb)'),
-  customerQuestion: z.string().describe('Pertanyaan asli dari customer yang perlu ditanyain ke Bos Mamat'),
+  reason: z.string().describe('Alasan Zoya perlu tanya ke BosMat (misalnya: warna efek custom, motor langka, dsb)'),
+  customerQuestion: z.string().describe('Pertanyaan asli dari customer yang perlu ditanyain ke BosMat'),
 });
 
 // DIPERBAIKI: Definisikan JSON Schema untuk OpenAI secara manual sebagai konstanta
@@ -17,22 +17,22 @@ const jsonSchemaParameters = {
   properties: {
     reason: {
       type: 'string' as const,
-      description: 'Alasan Zoya perlu tanya ke Bos Mamat (misalnya: warna efek custom, motor langka, dsb)',
+    description: 'Alasan Zoya perlu tanya ke BosMat (misalnya: warna efek custom, motor langka, dsb)',
     },
     customerQuestion: {
       type: 'string' as const,
-      description: 'Pertanyaan asli dari customer yang perlu ditanyain ke Bos Mamat',
+    description: 'Pertanyaan asli dari customer yang perlu ditanyain ke BosMat',
     },
   },
   required: ['reason', 'customerQuestion'],
 };
 
 
-export const triggerBosMamatTool: ToolFunction & {
+export const triggerBosMatTool: ToolFunction & {
   toolDefinition: OpenAI.Chat.Completions.ChatCompletionTool;
 } = {
-  name: 'triggerBosMamatTool',
-  description: 'Digunakan saat Zoya butuh bantuan Bos Mamat karena tidak yakin jawabannya atau pertanyaannya terlalu spesifik.',
+  name: 'triggerBosMatTool',
+  description: 'Digunakan saat Zoya butuh bantuan BosMat karena tidak yakin jawabannya atau pertanyaannya terlalu spesifik.',
   
   // Gunakan konstanta JSON Schema yang sudah kita definisikan
   parameters: jsonSchemaParameters,
@@ -65,26 +65,26 @@ export const triggerBosMamatTool: ToolFunction & {
         throw new Error('[triggerBosMamatTool] senderNumber tidak ditemukan di dalam input. Handover dibatalkan.');
     }
 
-    console.log('[triggerBosMamatTool] Kirim ke Bos Mamat:', {
+    console.log('[triggerBosMatTool] Kirim ke BosMat:', {
       senderNumber,
       reason,
       customerQuestion,
     });
 
     await setSnoozeMode(senderNumber);
-    await notifyBosMamat(senderNumber, customerQuestion, reason);
+    await notifyBosMat(senderNumber, customerQuestion, reason);
 
     return {
       result: 'success',
-      message: `Notifikasi untuk menanyakan "${customerQuestion}" telah berhasil dikirim ke Bos Mamat.`,
+      message: `Notifikasi untuk menanyakan "${customerQuestion}" telah berhasil dikirim ke BosMat.`,
     };
   },
 
   toolDefinition: {
     type: 'function',
     function: {
-      name: 'triggerBosMamatTool',
-      description: 'Digunakan saat Zoya butuh bantuan Bos Mamat karena tidak yakin jawabannya atau pertanyaannya terlalu spesifik.',
+      name: 'triggerBosMatTool',
+      description: 'Digunakan saat Zoya butuh bantuan BosMat karena tidak yakin jawabannya atau pertanyaannya terlalu spesifik.',
       // Gunakan konstanta JSON Schema yang sama di sini
       parameters: jsonSchemaParameters,
     },

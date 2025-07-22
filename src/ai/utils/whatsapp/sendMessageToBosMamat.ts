@@ -17,7 +17,7 @@ export async function sendMessageToBosMamat({
   }
 
   const message = `
-📩 *Zoya Butuh Bantuan Bos Mamat*
+📩 *Zoya Butuh Bantuan BosMat*
 
 Pelanggan *${customerNumber}* nanya:
 "${question}"
@@ -30,6 +30,6 @@ Kalau udah siap jawaban, balas aja langsung di sini ya. Nanti Zoya terusin ke pe
   const result = await sendWhatsAppMessage(bosMamatNumber, message);
 
   if (!result.success) {
-    console.error('[sendMessageToBosMamat] Gagal kirim pesan ke Bos Mamat:', result.error);
+    console.error('[sendMessageToBosMat] Gagal kirim pesan ke BosMat:', result.error);
   }
 }

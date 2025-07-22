@@ -11,7 +11,7 @@ if (!BOS_MAMAT_NUMBER) {
 export async function handleHumanReplyForwarding(senderNumber: string, messageBody: string): Promise<boolean> {
   if (!BOS_MAMAT_NUMBER || !senderNumber.includes(BOS_MAMAT_NUMBER)) return false;
 
-  console.log(`[HumanForwarding] Deteksi balasan dari Bos Mamat: "${messageBody}"`);
+  console.log(`[HumanForwarding] Deteksi balasan dari BosMat: "${messageBody}"`);
 
   // === 1. Cek apakah pakai format manual ===
   const match = messageBody.match(/^#balas\s+(\d+)\s*\n([\s\S]+)/i);

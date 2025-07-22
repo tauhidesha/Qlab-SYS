@@ -7,7 +7,7 @@ const InputSchema = z.object({
   mediaMimeType: z.string().describe('Tipe MIME dari media, contoh: image/jpeg.'),
 });
 
-// Nomor HP Bos Mamat (Anda) untuk notifikasi
+// Nomor HP BosMat (Anda) untuk notifikasi
 const BOS_MAMAT_NUMBER = process.env.BOS_MAMAT_NUMBER;
 
 export const forwardPaymentProofToBosMamat = {
@@ -15,7 +15,7 @@ export const forwardPaymentProofToBosMamat = {
     type: 'function' as const,
     function: {
       name: 'forwardPaymentProofToBosMamat',
-      description: 'Meneruskan bukti pembayaran (sebagai base64) dari pelanggan ke Bos Mamat untuk verifikasi.',
+      description: 'Meneruskan bukti pembayaran (sebagai base64) dari pelanggan ke BosMat untuk verifikasi.',
       parameters: {
         type: 'object',
         properties: {
@@ -43,7 +43,7 @@ export const forwardPaymentProofToBosMamat = {
 
       return {
         success: true,
-        message: 'Bukti transfer berhasil diteruskan ke Bos Mamat.',
+        message: 'Bukti transfer berhasil diteruskan ke BosMat.',
       };
     } catch (error: any) {
       console.error('[forwardPaymentProofToBosMamat] Error:', error);

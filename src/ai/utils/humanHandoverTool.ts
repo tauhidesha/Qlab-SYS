@@ -6,12 +6,12 @@ import { updateSession } from './session';
 const BOS_MAMAT_NUMBER = '628179481010';
 const SNOOZE_DURATION_MS = 60 * 60 * 1000; // 1 jam
 
-export async function notifyBosMamat(
+export async function notifyBosMat(
   senderNumber: string,
   customerMessage: string,
   reason?: string
 ): Promise<void> {
-  console.log(`[Handover] Memicu notifikasi ke Bos Mamat untuk nomor ${senderNumber}`);
+  console.log(`[Handover] Memicu notifikasi ke BosMat untuk nomor ${senderNumber}`);
 
   const baseUrl = process.env.WHATSAPP_SERVER_URL;
 
@@ -23,7 +23,7 @@ export async function notifyBosMamat(
   const endpoint = `${baseUrl}/send-manual-message`;
 
   const messageToMamat = `
-📩 *Zoya Butuh Bantuan Bos Mamat*
+📩 *Zoya Butuh Bantuan BosMat*
 
 Pelanggan *${senderNumber}* nanya:
 "${customerMessage}"
@@ -42,9 +42,9 @@ Kalau udah siap jawaban, balas aja langsung di sini ya. Nanti Zoya terusin ke pe
         message: messageToMamat,
       }),
     });
-    console.log('[Handover] Notifikasi ke Bos Mamat berhasil dikirim.');
+    console.log('[Handover] Notifikasi ke BosMat berhasil dikirim.');
   } catch (error) {
-    console.error('[Handover Error] Gagal mengirim notifikasi ke Bos Mamat:', error);
+    console.error('[Handover Error] Gagal mengirim notifikasi ke BosMat:', error);
   }
 }
 

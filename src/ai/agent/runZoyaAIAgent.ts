@@ -45,13 +45,13 @@ export async function runZoyaAIAgent({ chatHistory, session }: ZoyaAgentInput): 
   } catch (error) {
     console.error('[runZoyaAIAgent] TERJADI ERROR SAAT MEMANGGIL OPENAI:', error);
     return {
-      suggestedReply: "Aduh, Zoya lagi pusing nih, coba tanya Bos Mamat aja ya.",
+      suggestedReply: "Aduh, Zoya lagi pusing nih, coba tanya BosMat aja ya.",
       route: 'main_agent_reply',
     };
   }
   // Ensure a return value in case no return occurred above
   return {
-    suggestedReply: "Aduh, Zoya lagi pusing nih, coba tanya Bos Mamat aja ya.",
+    suggestedReply: "Aduh, Zoya lagi pusing nih, coba tanya BosMat aja ya.",
     route: 'main_agent_reply',
   };
 }
