@@ -1,10 +1,10 @@
 // File: src/ai/utils/mergeSession.ts
-import type { SessionData } from './session';
+import type { Session } from '@/types/ai';
 
 export function mergeSession(
-  oldSession: SessionData,
-  updates: Partial<SessionData>
-): SessionData {
+  oldSession: Session,
+  updates: Partial<Session>
+): Session {
   return {
     ...oldSession,
     ...updates,
@@ -15,7 +15,6 @@ export function mergeSession(
     followUpState: updates.followUpState ?? oldSession.followUpState ?? null,
     senderName: updates.senderName ?? oldSession.senderName ?? 'Pelanggan WhatsApp',
     flow: updates.flow ?? oldSession.flow ?? 'general',
-    lastRoute: updates.lastRoute ?? oldSession.lastRoute ?? 'init',
     lastInteraction: updates.lastInteraction ?? oldSession.lastInteraction,
     snoozeUntil: updates.snoozeUntil ?? oldSession.snoozeUntil,
   };

@@ -5,6 +5,7 @@ import { db } from '../../lib/firebase-admin';
 import admin from 'firebase-admin';
 import { embedText } from '../flows/embed-text-flow';
 import { cosineSimilarity } from '../../lib/math';
+// import { stemText } from '../../actions/embeddingAction'; // Removed: use dynamic import below
 
 // --- Input Schema (untuk AI + validasi) ---
 const InputSchema = z.object({
@@ -62,9 +63,9 @@ async function implementation(rawInput: any): Promise<Output> {
       let stemmedData = '';
       try {
         // Dynamic import to avoid circular dependency
-        const { stemText } = require('../../actions/embeddingAction');
-        stemmedQuery = stemText(query.toLowerCase().replace(/[?.,!]/g, '').trim());
-        stemmedData = stemText(data.question?.toLowerCase().replace(/[?.,!]/g, '').trim());
+        const { stemText } = require('../lib/textUtils');
+        stemmedQuery = stemText(query);
+        stemmedData = stemText(data.question ?? '');
       } catch (err) {
         stemmedQuery = query;
         stemmedData = data.question;

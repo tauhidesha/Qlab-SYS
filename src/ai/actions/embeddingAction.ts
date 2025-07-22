@@ -1,4 +1,3 @@
-'use server'
 const embeddingCache = new Map<string, number[]>();
 
 
@@ -19,7 +18,7 @@ const stemmer = new Stemmer();
  * 1. Menghapus imbuhan akhir umum (-nya, -ku, -mu, -lah, -kah) secara manual.
  * 2. Menggunakan Sastrawi untuk stemming lanjutan (imbuhan awal seperti me-, di-, dll).
  */
-function stemText(text: string): string {
+export function stemText(text: string): string {
   // PATCH: Normalisasi awal
   const cleanedText = text.toLowerCase().replace(/[?.,!]/g, '').trim();
 
@@ -35,6 +34,7 @@ function stemText(text: string): string {
 
   // 4. Gabungkan kembali menjadi kalimat
   return processedTokens.join(' ');
+
 }
 
 export async function createEmbedding(text: string): Promise<number[]> {

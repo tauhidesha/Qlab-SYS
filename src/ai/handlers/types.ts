@@ -1,6 +1,6 @@
 // @file: src/ai/handlers/types.ts
 
-import type { SessionData } from '@/ai/utils/session';
+import type { Session } from '@/types/ai';
 import type { ZoyaChatInput } from '@/types/ai/cs-whatsapp-reply';
 
 /**
@@ -10,7 +10,7 @@ export interface RouteHandlerOutput {
   reply: {
     message: string;
   };
-  updatedSession: Partial<SessionData>;
+  updatedSession: Partial<Session>;
   // ✅ INI BAGIAN KUNCI: Pastikan baris ini ada dan tidak ada typo.
   // Properti opsional untuk tool calls.
   toolCalls?: {
@@ -24,7 +24,7 @@ export interface RouteHandlerOutput {
  */
 export interface RouteHandlerParams {
   message: string;
-  session: SessionData;
+  session: Session;
   senderNumber: string;
   senderName?: string;
   chatHistory?: ZoyaChatInput['chatHistory'];

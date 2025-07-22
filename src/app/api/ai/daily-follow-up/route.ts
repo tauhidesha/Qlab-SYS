@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
-import { type SessionData, updateSession } from '@/ai/utils/session';
+import { type Session, updateSession } from '@/ai/utils/session';
 import { sendWhatsAppMessage } from '@/services/whatsappService';
 import { OpenAI } from 'openai';
 
@@ -58,7 +58,7 @@ async function sendFollowUps(): Promise<number> {
 
     for (const doc of snapshot.docs) {
       const senderNumber = doc.id;
-      const session = doc.data() as SessionData;
+      const session = doc.data() as Session;
       const state = session.followUpState;
       if (!state) continue;
 
