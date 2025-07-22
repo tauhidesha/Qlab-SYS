@@ -27,7 +27,7 @@ export async function runZoyaAIAgent({ chatHistory, session }: ZoyaAgentInput): 
   try {
     const start = Date.now();
     const completion = await openAIClient.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4o',
       messages: chatHistory,
       temperature: 0.7,
     });

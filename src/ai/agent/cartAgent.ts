@@ -185,8 +185,11 @@ export async function processCart({ session }: CartAgentInput): Promise<CartAgen
     finalPriceDetails.push({ name: 'Saving Biaya Tambahan Warna Khusus (Gratis via Promo)', price: -promoSurchargeSaving });
   }
   
-  // --- Total Biaya ---
-  replyMessage += `\n\n*Total Biaya Akhir: Rp ${totalPrice.toLocaleString('id-ID')}*`;
+ // --- Total Biaya ---
+const finalTotal = finalPriceDetails.reduce((acc, item) => acc + item.price, 0);
+replyMessage += `\n\n*Total Biaya Akhir: Rp ${finalTotal.toLocaleString('id-ID')}*`;
+// Update juga nilai total di object yang di-return
+totalPrice = finalTotal;
   replyMessage += `\n\nMau lanjut ke booking, atau ada yang mau diubah?`;
 
   console.log('--- [AgentCart DEBUG END] ---');

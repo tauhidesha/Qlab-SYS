@@ -26,6 +26,8 @@ import { traceable } from 'langsmith/traceable';
 import { manageSessionState } from '../agent/sessionAgent';
 // START: Perubahan 1 - Import tool yang akan di-trigger
 import { getServiceDescriptionTool } from '../tools/getServiceDescriptionTool';
+import { runRouterAgent } from '../agent/runRouterAgent';
+import { runBookingAgent } from '../agent/runBookingAgent';
 // END: Perubahan 1
 
 function normalizeSenderNumber(raw: string): string {
@@ -45,10 +47,12 @@ export const generateWhatsAppReply = traceable(async function generateWhatsAppRe
   const isLocked = await isInterventionLockActive(senderNumber);
   if (isLocked) return null;
 
+  // --- PERBAIKAN DIMULAI DI SINI ---
+  let isNewSession = false; // 1. Definisikan flag, default-nya false
   let initialSession: Session | null = await getSession(senderNumber) as Session | null;
   if (initialSession?.snoozeUntil && Date.now() < initialSession.snoozeUntil) return null;
-  
   if (!initialSession) {
+    isNewSession = true; // 2. Set flag menjadi true HANYA saat sesi baru dibuat
     initialSession = {
       cartServices: [],
       inquiry: {},
@@ -57,6 +61,7 @@ export const generateWhatsAppReply = traceable(async function generateWhatsAppRe
       flow: 'general',
     };
   }
+  // --- PERBAIKAN SELESAI DI SINI ---
 
   // ==================================================================
   // TAHAP 2: PRE-PROCESSING (Deteksi Cepat & Mapping)
@@ -103,8 +108,8 @@ export const generateWhatsAppReply = traceable(async function generateWhatsAppRe
   // TAHAP 3: UPDATE STATE SESI (Panggil Session Agent)
   // ==================================================================
   console.log('[Flow] Memanggil SessionAgent untuk mengelola state...');
-  const isFirstMessage = !input.chatHistory || input.chatHistory.length === 0;
-  if (isFirstMessage && !senderName) {
+  // Gunakan isNewSession untuk penentuan nama
+  if (isNewSession && !senderName) {
     try {
       const nameSnap = await admin.firestore()
         .doc(`directMessages/${senderNumber}/meta/info`)
@@ -123,155 +128,141 @@ export const generateWhatsAppReply = traceable(async function generateWhatsAppRe
       customerMessage: input.customerMessage,
       detectedMotorName,
       mappedResult,
-      isFirstMessage,
+      isFirstMessage: isNewSession,
       senderName
   });
 
-  // ==================================================================
-  // START: Perubahan 2 - TAHAP 3.5: PROACTIVE TOOL CALL (Get Service Descriptions)
-  // ==================================================================
-  let serviceDescriptionContext = '';
-  // Ambil deskripsi hanya untuk layanan yang baru terdeteksi dan bukan inquiry umum
-  const servicesToDescribe = mappedResult.requestedServices.filter(
-    s => s.serviceName !== 'General Inquiry' && s.serviceName !== 'Handover to Human'
-  );
+  // Utility: Sanitize chat history for agent calls
+  const validRoles = ['user', 'assistant', 'system', 'tool'];
+  const sanitizeHistory = (history: any[] = []) =>
+    history
+      .filter(msg => msg && typeof msg.role === 'string' && validRoles.includes(msg.role) && typeof msg.content === 'string')
+      .map(msg => ({ role: msg.role, content: msg.content }));
 
-  if (servicesToDescribe.length > 0) {
-    console.log(`[Flow] Auto-trigger: Mengambil deskripsi untuk layanan: ${servicesToDescribe.map(s => s.serviceName).join(', ')}`);
-    
-    const descriptionPromises = servicesToDescribe.map(service => 
-      getServiceDescriptionTool.implementation({ service_name: service.serviceName })
+  // ==================================================================
+  // ==================================================================
+  // Perubahan: Helper untuk deskripsi layanan
+  async function getDescriptionsFor(serviceNames: string[]) {
+    const descriptionPromises = serviceNames.map(name =>
+      getServiceDescriptionTool.implementation({ service_name: name })
     );
-    const descriptionResults = await Promise.all(descriptionPromises);
-    
-    const successfulDescriptions = descriptionResults
-      .filter(res => res.success && res.description)
-      // Format deskripsi agar mudah dibaca oleh AI
-      .map(res => `### Deskripsi Layanan: ${res.matched_service}\n${res.description}`);
-
-    if (successfulDescriptions.length > 0) {
-      // Siapkan konteks ini untuk diberikan ke AI Utama
-      serviceDescriptionContext = `[KONTEKS TAMBAHAN DARI SISTEM]:\n${successfulDescriptions.join('\n\n')}\n------\n\n`;
-    }
+    const results = await Promise.all(descriptionPromises);
+    return results
+      .filter(r => r.success && r.description)
+      .map(r => `### Deskripsi Layanan: ${r.matched_service}\n${r.description}`)
+      .join('\n\n');
   }
-  // END: Perubahan 2
-  // ==================================================================
 
 
-  // ==================================================================
-  // TAHAP 4: PERSIAPAN KONTEKS (Berdasarkan State Sesi yang Baru)
-  // ==================================================================
-  let contextNoteForMainAI = '';
+  // PATCH: TAHAP 4 DIROMBAK UNTUK MEMPRIORITASKAN KLARIFIKASI
+  let agentResult: { suggestedReply: string; toolCalls?: any[]; route?: string; };
 
-  const initialClarificationServices = mappedResult.requestedServices.filter(item => item.status === 'clarification_needed');
-  const confirmedServices = mappedResult.requestedServices.filter(item => item.status === 'confirmed');
-  const generalIntent = mappedResult.requestedServices[0];
-
-  const pendingClarifications = initialClarificationServices.filter(service => {
-    return service.missingInfo.some(infoNeeded => {
-      if (infoNeeded === 'color' || infoNeeded === 'specific_part') {
-        const details = session.inquiry.repaintDetails?.[service.serviceName];
-        return !details || !details[infoNeeded];
-      }
-      if (infoNeeded === 'finish') {
-        const details = session.inquiry.detailingDetails?.[service.serviceName];
-        return !details || !details.finish;
-      }
-      return true;
-    });
-  }).map(service => {
-    const stillMissing = service.missingInfo.filter(infoNeeded => {
-      if (infoNeeded === 'color' || infoNeeded === 'specific_part') {
-        const details = session.inquiry.repaintDetails?.[service.serviceName];
-        return !details || !details[infoNeeded];
-      }
-      if (infoNeeded === 'finish') {
-        const details = session.inquiry.detailingDetails?.[service.serviceName];
-        return !details || !details.finish;
-      }
-      return true;
-    });
-    return { ...service, missingInfo: stillMissing };
-  });
-
+  // --- GERBANG KLARIFIKASI ---
+  const pendingClarifications = mappedResult.requestedServices.filter(service => service.status === 'clarification_needed');
   const needAskMotor = !session.inquiry.lastMentionedMotor;
 
-  if (knowledgeBaseAnswer) {
-    console.log('[Flow] Skenario: General Inquiry dari KB.');
-    contextNoteForMainAI = `[KONTEKS DARI SISTEM]:\n[HASIL KNOWLEDGE BASE]: ${knowledgeBaseAnswer}\n\n[TUGAS ANDA]: Sampaikan jawaban knowledge base di atas ke user dengan bahasa yang ramah dan mudah dipahami.\n\nWAJIB berikan jawaban knowledge base jika sudah ditemukan, meskipun skor kemiripan rendah.\nJangan pernah menolak atau mengalihkan ke BosMat jika sudah ada jawaban KB.\nJangan pernah fallback ke BosMat jika KB sudah ditemukan.\nJika perlu, tambahkan penjelasan atau follow-up yang relevan.\n\n[CATATAN]: Jika jawaban knowledge base sudah ditemukan, selalu sampaikan ke user, apapun skornya.`;
-  } else if (pendingClarifications.length > 0 && needAskMotor) {
-    console.log('[Flow] Skenario: Klarifikasi (multi) + Motor tidak terdeteksi. Menyiapkan pertanyaan ke user.');
-    let notes = [`[TUGAS ANDA]: Tanyakan dengan ramah tipe/jenis motor yang ingin dilayani. Contoh: "Motornya apa ya, om?"`];
-    pendingClarifications.forEach(item => {
-      item.missingInfo.forEach(infoNeeded => {
-        let exampleQuestion = '';
-        if (infoNeeded === 'finish') exampleQuestion = 'Motornya glossy atau doff ya, om?';
-        if (infoNeeded === 'risk_confirmation_doff') exampleQuestion = 'Untuk cat doff, ada risiko jadi sedikit lebih kilap setelah dipoles. Apakah tidak apa-apa?';
-        if (infoNeeded === 'color') exampleQuestion = `Untuk ${item.serviceName}, mau pakai warna apa ya`;
-        if (infoNeeded === 'detailing_level') exampleQuestion = 'detailing nya mau sampai ke rangka atau hanya bodi, mesin dan kaki kaki saja om?';
-        if (infoNeeded === 'specific_part') exampleQuestion = 'mau cat bodi halus aja atau sekalian bodi kasar dan velgnya nih om?';
-        notes.push(`[TUGAS ANDA]: Buatlah pertanyaan klarifikasi yang ramah kepada pengguna. Informasi yang hilang adalah '${infoNeeded}' untuk layanan ${item.serviceName}. Contoh pertanyaan: "${exampleQuestion}"`);
-      });
-    });
-    contextNoteForMainAI = notes.join('\n\n');
-  } else if (pendingClarifications.length > 0) {
-    console.log('[Flow] Skenario: Klarifikasi (multi). Menyiapkan pertanyaan ke user.');
+  if (pendingClarifications.length > 0) {
+    console.log(`[Flow] Skenario Prioritas: Klarifikasi dibutuhkan untuk ${pendingClarifications.length} layanan.`);
     let notes: string[] = [];
+    if (needAskMotor) {
+      notes.push('[TUGAS ANDA]: Tanyakan dengan ramah tipe/jenis motor yang ingin dilayani. Contoh: "Motornya apa ya, om?"');
+    }
     pendingClarifications.forEach(item => {
       item.missingInfo.forEach(infoNeeded => {
         let exampleQuestion = '';
-        if (infoNeeded === 'finish') exampleQuestion = 'Motornya glossy atau doff ya, om?';
+        if (infoNeeded === 'finish') exampleQuestion = 'Motornya glossy atau doff ya, mas?';
         if (infoNeeded === 'risk_confirmation_doff') exampleQuestion = 'Untuk cat doff, ada risiko jadi sedikit lebih kilap setelah dipoles. Apakah tidak apa-apa?';
-        if (infoNeeded === 'color') exampleQuestion = `Untuk ${item.serviceName}, mau pakai warna apa ya`;
-        if (infoNeeded === 'detailing_level') exampleQuestion = 'detailing nya mau sampai ke rangka atau hanya bodi, mesin dan kaki kaki saja om?';
-        if (infoNeeded === 'specific_part') exampleQuestion = 'mau cat bodi halus aja atau sekalian bodi kasar dan velgnya nih om?';
-        notes.push(`[TUGAS ANDA]: Buatlah pertanyaan klarifikasi yang ramah kepada pengguna. Informasi yang hilang adalah '${infoNeeded}' untuk layanan ${item.serviceName}. Contoh pertanyaan: "${exampleQuestion}"`);
+        if (infoNeeded === 'color') exampleQuestion = `Untuk ${item.serviceName}, mau pakai warna apa ya?`;
+        if (infoNeeded === 'detailing_level') exampleQuestion = 'Detailingnya mau sampai ke rangka atau hanya bodi, mesin dan kaki-kaki saja mas?';
+        if (infoNeeded === 'specific_part') exampleQuestion = 'mau repaint bodi halus saja atau sekalian velgnya nih mas?';
+        notes.push(`[TUGAS ANDA]: Buatlah pertanyaan klarifikasi yang ramah kepada pengguna untuk layanan '${item.serviceName}'. Informasi yang hilang adalah '${infoNeeded}'. Contoh pertanyaan: "${exampleQuestion}"`);
       });
     });
-    contextNoteForMainAI = notes.join('\n\n');
-  } else if (needAskMotor) {
-    console.log('[Flow] Skenario: Motor tidak terdeteksi. Menyiapkan pertanyaan ke user.');
-    contextNoteForMainAI = `[TUGAS ANDA]: Tanya motor, info motor belum ada. Contoh: "Motornya apa ya, om?"`;
-  } else if (confirmedServices.length > 0 || initialClarificationServices.length > 0) {
-    console.log('[Flow] Skenario: Layanan Terkonfirmasi. Memproses keranjang.');
-    const cartResult = await processCart({ session });
-    const priceItems = cartResult.priceDetails.map(item => `- ${item.name}: Rp ${item.price.toLocaleString('id-ID')}`);
-    contextNoteForMainAI = `[RINCIAN HARGA FINAL]:\n${priceItems.join('\n')}\nTotal Biaya: Rp ${cartResult.total.toLocaleString('id-ID')}`;
-    if (cartResult.promoApplied) {
-        contextNoteForMainAI += `\nPromo: Anda dapat ${cartResult.promoApplied.name}!`;
-    }
-    contextNoteForMainAI += `\n\n[TUGAS ANDA]: Sampaikan rincian harga beserta deskripsi layanan lengkap di atas secara jelas dan ramah kepada pengguna. Jangan ubah, jangan ringkas, dan jangan hilangkan detail harga apapun. Rincian harga WAJIB dicantumkan utuh di balasan. Setelah itu, tanyakan langkah selanjutnya (misalnya: "mau lanjut booking?", "ada yang mau diubah?").`;
-  } else if (generalIntent.serviceName === 'Handover to Human') {
-    console.log('[Flow] Skenario: Handover ke Manusia.');
-    await setSnoozeMode(senderNumber);
-    await notifyBosMat(senderNumber, input.customerMessage);
-    return { suggestedReply: 'Oke om, Zoya panggilin BosMat dulu ya. Tunggu sebentar 🙏', route: 'handover_request', toolCalls: [] };
+    const clarificationContext = `[TUGAS ANDA]: Sampaikan pertanyaan klarifikasi berikut kepada pengguna secara natural dalam satu pesan yang ramah.\n\n${notes.join('\n')}`;
+    agentResult = await runZoyaAIAgent({
+      chatHistory: [
+        { role: 'system', content: masterPrompt },
+        ...sanitizeHistory(input.chatHistory),
+        { role: 'assistant', content: clarificationContext },
+        { role: 'user', content: input.customerMessage }
+      ],
+      session,
+    });
+    agentResult.route = 'clarification_needed';
   } else {
-    console.log('[Flow] Skenario: Dialog Umum.');
-    contextNoteForMainAI = `[TUGAS ANDA]: Balas pesan pengguna dengan ramah sebagai percakapan umum. Jika ada konteks tambahan dari sistem, gunakan itu untuk memperkaya jawabanmu.`;
+    console.log('[Flow] Tidak ada klarifikasi, menjalankan RouterAgent...');
+    const { intent } = await runRouterAgent({ customerMessage: input.customerMessage });
+    const recentChatHistory = (input.chatHistory || []).slice(-6);
+    switch (intent) {
+      case 'booking_flow': {
+        console.log('[Flow][Route: Booking] Menjalankan Booking Agent...');
+        session.flow = 'booking';
+        const historyForBooking = [
+          { role: 'system', content: masterPrompt },
+          ...sanitizeHistory(recentChatHistory),
+          { role: 'user', content: input.customerMessage }
+        ];
+        agentResult = await runBookingAgent({ chatHistory: historyForBooking, session });
+        agentResult.route = 'booking_agent_reply';
+        break;
+      }
+      case 'service_inquiry': {
+        console.log('[Flow][Route: Service Inquiry] Menjalankan alur layanan/harga...');
+        session.flow = 'general';
+        const cartResult = await processCart({ session });
+        const serviceNames = session.cartServices || [];
+        const serviceDescriptionContext = await getDescriptionsFor(serviceNames);
+        const priceItems = cartResult.priceDetails.map(item => `- ${item.name}: Rp ${item.price.toLocaleString('id-ID')}`);
+        let inquiryContext = serviceDescriptionContext + '\n\n' + `[RINCIAN HARGA FINAL]:\n${priceItems.join('\n')}\nTotal Biaya: Rp ${cartResult.total.toLocaleString('id-ID')}`;
+        if (cartResult.promoApplied) {
+          inquiryContext += `\nPromo: Anda dapat ${cartResult.promoApplied.name}!`;
+        }
+        inquiryContext += `\n\n[TUGAS ANDA]: Sampaikan rincian harga dan deskripsi layanan di atas. Setelah itu, tanyakan langkah selanjutnya.`;
+        agentResult = await runZoyaAIAgent({
+          chatHistory: [
+            { role: 'system', content: masterPrompt },
+            ...sanitizeHistory(recentChatHistory),
+            { role: 'assistant', content: inquiryContext },
+            { role: 'user', content: input.customerMessage }
+          ],
+          session,
+        });
+        break;
+      }
+      case 'general_question': {
+        console.log('[Flow][Route: General Question] Mencari di Knowledge Base...');
+        session.flow = 'general';
+        const kbResult = await searchKnowledgeBaseTool.implementation({ query: input.customerMessage });
+        const kbAnswer = (kbResult.success && kbResult.answer) ? kbResult.answer : 'Maaf, Zoya tidak menemukan jawaban untuk pertanyaan itu. Mungkin BosMat bisa bantu?';
+        const kbContext = `[HASIL KNOWLEDGE BASE]: ${kbAnswer}\n\n[TUGAS ANDA]: Sampaikan jawaban di atas dengan ramah.`;
+        agentResult = await runZoyaAIAgent({
+          chatHistory: [
+            { role: 'system', content: masterPrompt },
+            ...sanitizeHistory(recentChatHistory),
+            { role: 'assistant', content: kbContext },
+            { role: 'user', content: input.customerMessage }
+          ],
+          session,
+        });
+        break;
+      }
+      case 'chitchat':
+      default: {
+        console.log('[Flow][Route: Chitchat] Menjalankan Zoya AI umum...');
+        session.flow = 'general';
+        agentResult = await runZoyaAIAgent({
+          chatHistory: [
+            { role: 'system', content: masterPrompt },
+            ...sanitizeHistory(recentChatHistory),
+            { role: 'user', content: input.customerMessage }
+          ],
+          session,
+        });
+        break;
+      }
+    }
   }
 
-  // ==================================================================
-  // TAHAP 5: EKSEKUSI FINAL (AI Utama)
-  // ==================================================================
-  // START: Perubahan 3 - Gabungkan konteks dari tool trigger dengan tugas utama
-  const finalContextForAI = serviceDescriptionContext + contextNoteForMainAI;
-  // END: Perubahan 3
-  
-  console.log('[Flow] Memanggil AI Utama dengan tugas:', finalContextForAI);
-  const recentChatHistory = input.chatHistory ? input.chatHistory.slice(-6) : [];
-  const messagesForAI: any[] = [
-    { role: 'system', content: masterPrompt },
-    ...recentChatHistory,
-    // Gunakan konteks yang sudah digabung
-    { role: 'assistant', content: finalContextForAI },
-    { role: 'user', content: input.customerMessage },
-    ...(isFirstMessage ? [{ role: 'system', content: `[SIGNAL] isFirstMessage: true${senderName ? `; customerName: ${senderName}` : ''}` }] : [])
-  ];
-  const agentResult = await runZoyaAIAgent({
-    chatHistory: messagesForAI,
-    session,
-  });
 
   if (agentResult.toolCalls?.length && session) {
     const { toolFunctionMap } = await import('../config/aiConfig');

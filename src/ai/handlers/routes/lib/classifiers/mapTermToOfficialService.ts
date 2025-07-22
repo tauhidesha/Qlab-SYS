@@ -17,8 +17,6 @@ export async function mapTermToOfficialService(
   input: { message: string; session?: Session }
 ): Promise<MappedServiceResult> {
 
-  // Daftar nama layanan resmi
-
   const fallbackResult: MappedServiceResult = {
     reasoning: 'Fallback triggered due to an internal API or parsing error.',
     requestedServices: [
@@ -31,16 +29,20 @@ export async function mapTermToOfficialService(
     ],
   };
 
-  // Daftar nama layanan resmi
-
-  // PATCH: Accept session and use last conversation
   const latestMessage = input.message.trim();
-  const lastAssistant = input.session?.chatHistory?.slice().reverse().find(msg => msg.role === 'assistant')?.content;
-const aiMapperInput = [
-  {
-    role: 'system',
-    content: `ANDA ADALAH AI MAPPER LAYANAN DETAILING MOTOR YANG ROBUST DAN TYPE-SAFE. 
-    # PERAN DAN BATASAN ANDA (PALING PENTING!)
+
+  // ✅ PATCH APPLIED: Mengambil 4 chat terakhir dari history untuk konteks yang lebih kaya.
+  // Ambil 4 chat terakhir dari history (role: 'user' / 'assistant')
+  const recentHistory = (input.session?.chatHistory ?? [])
+    .filter(m => m.role === 'user' || m.role === 'assistant')
+    .slice(-4);
+
+  // Rangkai prompt dengan riwayat percakapan
+  const aiMapperInput = [
+    {
+      role: 'system',
+      content: `ANDA ADALAH AI MAPPER LAYANAN DETAILING MOTOR YANG ROBUST DAN TYPE-SAFE.
+# PERAN DAN BATASAN ANDA (PALING PENTING!)
 - Peran Anda **HANYA SEBAGAI PEMETA (MAPPER)**. Tugas Anda adalah membaca teks dari user dan mengubahnya menjadi output JSON yang valid sesuai nama layanan resmi.
 - Anda **BUKAN** asisten penjawab. Anda **TIDAK BOLEH** mencoba menjawab pertanyaan user.
 - Anda **TIDAK MEMILIKI AKSES ke database harga**, dan itu **TIDAK APA-APA**. Tugas menyediakan harga akan dilakukan oleh sistem lain SETELAH Anda selesai melakukan pemetaan.
@@ -135,11 +137,10 @@ Contoh Output untuk kasus repaint + detailing (full default glossy detailing, st
 - JSON WAJIB valid, tidak ada trailing koma atau field kosong.
 
 **Penting: Ikuti instruksi output dan mapping dengan ketat, outputkan reasoning terlebih dahulu, baru requestedServices.**`
-  },
-  ...(lastAssistant ? [{ role: 'assistant', content: lastAssistant }] : []),
-  { role: 'user', content: latestMessage }
-];
-
+    },
+    ...recentHistory, // 🧠 Riwayat percakapan ditambahkan di sini
+    { role: 'user', content: latestMessage } // Pesan terbaru user tetap disertakan
+  ];
 
 
   // --- LOGIC UTAMA: panggil OpenAI, handle tool calls, robust fallback ---
@@ -152,7 +153,7 @@ Contoh Output untuk kasus repaint + detailing (full default glossy detailing, st
     const completion = await openai.chat.completions.create({
       model: 'gpt-4.1-mini',
       messages: aiMapperInput as any,
-      temperature: 0.3,
+      temperature: 0,
       tools: [getServiceDescriptionTool.toolDefinition],
       tool_choice: 'auto',
       response_format: { type: 'json_object' },
@@ -194,9 +195,9 @@ Contoh Output untuk kasus repaint + detailing (full default glossy detailing, st
 
       // 3. Second API call dengan hasil tool
       const secondCompletion = await openai.chat.completions.create({
-        model: 'gpt-4o',
+        model: 'gpt-4.1-mini',
         messages: toolMessages as any,
-        temperature: 0.3,
+        temperature: 0,
         response_format: { type: 'json_object' },
       });
 
@@ -233,7 +234,7 @@ Contoh Output untuk kasus repaint + detailing (full default glossy detailing, st
  * Helper function untuk parsing dan validasi hasil AI
  */
 function parseAndValidateResult(
-  aiReply: string, 
+  aiReply: string,
   fallbackResult: MappedServiceResult
 ): MappedServiceResult {
   try {
@@ -280,7 +281,7 @@ export function getCachedMapping(message: string): MappedServiceResult | null {
 export function setCachedMapping(message: string, result: MappedServiceResult): void {
   const cacheKey = message.toLowerCase().trim();
   mappingCache.set(cacheKey, result);
-  
+
   // Simple cache cleanup - keep only last 100 entries
   if (mappingCache.size > 100) {
     const firstKey = mappingCache.keys().next().value;
