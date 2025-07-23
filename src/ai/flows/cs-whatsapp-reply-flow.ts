@@ -213,19 +213,36 @@ export const generateWhatsAppReply = traceable(async function generateWhatsAppRe
         const serviceNames = session.cartServices || [];
         const serviceDescriptionContext = await getDescriptionsFor(serviceNames);
         const priceItems = cartResult.priceDetails.map(item => `- ${item.name}: Rp ${item.price.toLocaleString('id-ID')}`);
-        let inquiryContext = serviceDescriptionContext + '\n\n' + `[RINCIAN HARGA FINAL]:\n${priceItems.join('\n')}\nTotal Biaya: Rp ${cartResult.total.toLocaleString('id-ID')}`;
+
+        // 1. Siapkan konteks harga & layanan seperti biasa
+        let priceContext = serviceDescriptionContext + '\n\n' + `[RINCIAN HARGA FINAL]:\n${priceItems.join('\n')}\nTotal Biaya: Rp ${cartResult.total.toLocaleString('id-ID')}`;
         if (cartResult.promoApplied) {
-          inquiryContext += `\nPromo: Anda dapat ${cartResult.promoApplied.name}!`;
+          priceContext += `\nPromo: Anda dapat ${cartResult.promoApplied.name}!`;
         }
-        inquiryContext += `\n\n[TUGAS ANDA]: Sampaikan rincian harga dan deskripsi layanan di atas. Setelah itu, tanyakan langkah selanjutnya.`;
+
+        // 2. Buat instruksi final yang dinamis
+        const finalSystemInstruction = `
+[KONTEKS HARGA DAN LAYANAN UNTUK DISAMPAIKAN]:
+${priceContext}
+
+[PESAN TERBARU DARI PENGGUNA]:
+${input.customerMessage}
+
+[TUGAS FINAL ANDA - SANGAT PENTING!]:
+Balas pesan terbaru pengguna dengan ramah. Setelah itu, Anda WAJIB menyampaikan KEMBALI seluruh rincian dari [KONTEKS HARGA DAN LAYANAN] di atas secara lengkap. 
+Jangan berasumsi pengguna sudah tahu atau setuju dengan harga hanya karena mereka memberikan detail tambahan.
+Tutup balasan Anda dengan menanyakan langkah selanjutnya (misalnya: "Gimana, om? Mau lanjut booking?").
+`;
+
+        // 3. Susun ulang 'messages' untuk AI
         agentResult = await runZoyaAIAgent({
-          chatHistory: [
-            { role: 'system', content: masterPrompt },
-            ...sanitizeHistory(recentChatHistory),
-            { role: 'assistant', content: inquiryContext },
-            { role: 'user', content: input.customerMessage }
-          ],
-          session,
+            chatHistory: [
+              { role: 'system', content: masterPrompt }, 
+              ...sanitizeHistory(recentChatHistory),
+              { role: 'user', content: input.customerMessage },
+              { role: 'system', content: finalSystemInstruction }
+            ],
+            session,
         });
         break;
       }
