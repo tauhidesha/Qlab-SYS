@@ -37,7 +37,8 @@ function normalizeSenderNumber(raw: string): string {
 export const generateWhatsAppReply = traceable(async function generateWhatsAppReply(
   input: ZoyaChatInput
 ): Promise<WhatsAppReplyOutput | null> {
-  
+  // TAMBAHKAN SATU BARIS INI DI PALING ATAS
+  console.log('[RAW INPUT PAYLOAD]', JSON.stringify(input, null, 2));
   // ==================================================================
   // TAHAP 1: SETUP & KONDISI AWAL
   // ==================================================================

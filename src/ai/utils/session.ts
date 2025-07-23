@@ -2,7 +2,6 @@
 'use server';
 
 import { db } from '../../lib/firebase-admin';
-import admin from 'firebase-admin';
 import type { LastInteractionObject, MappedServiceResult, Session } from '../../types/ai';
 export type { Session };
 
