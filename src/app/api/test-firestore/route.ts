@@ -1,12 +1,10 @@
-// File: pages/api/test-firestore.ts
+// File: src/app/api/test-firestore/route.ts
 
-import type { NextApiRequest, NextApiResponse } from 'next';
+import { NextResponse } from 'next/server';
 import admin from 'firebase-admin';
 
-// --- SESUAIKAN BAGIAN INI JIKA PERLU ---
-// Pastikan path ini benar menunjuk ke file inisialisasi Firebase Admin Anda.
-// Jika file inisialisasi Anda ada di root, path-nya mungkin '../../firebase-admin'
-// Jika Anda tidak punya file terpusat, Anda bisa copy-paste logika inisialisasi ke sini.
+// --- LOGIKA INISIALISASI FIREBASE ADMIN ---
+// Pastikan ini berjalan dan path/env var Anda benar
 try {
   if (!admin.apps.length) {
     const serviceAccount = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON!);
@@ -18,36 +16,35 @@ try {
 } catch (error: any) {
   console.error('[Test API] Firebase Admin SDK initialization failed:', error.message);
 }
-// --- AKHIR BAGIAN PENYESUAIAN ---
+// --- END ---
 
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  console.log('[Test API] Endpoint /api/test-firestore accessed.');
+export async function GET(request: Request) {
+  console.log('[Test API] Endpoint /api/test-firestore accessed via GET.');
 
   try {
-    // 1. Mencoba melakukan operasi baca yang sangat sederhana
     const docRef = admin.firestore().doc('test_collection/test_doc');
     console.log(`[Test API] Attempting to read from: ${docRef.path}`);
     const docSnap = await docRef.get();
     console.log('[Test API] Firestore get() operation finished.');
 
-    // 2. Jika berhasil, kirim respons sukses
-    res.status(200).json({
+    return NextResponse.json({
       success: true,
       message: 'Koneksi dari Vercel ke Firestore BERHASIL.',
       docExists: docSnap.exists,
+      docData: docSnap.data() || null,
     });
 
   } catch (error: any) {
     console.error('[Test API] KESALAHAN KRITIS:', error);
     
-    // 3. Jika gagal, kirim respons error dengan detail
-    res.status(500).json({
-      success: false,
-      message: 'Koneksi dari Vercel ke Firestore GAGAL.',
-      errorName: error.name,
-      errorMessage: error.message,
-      errorCode: error.code,
-    });
+    return NextResponse.json(
+      {
+        success: false,
+        message: 'Koneksi dari Vercel ke Firestore GAGAL.',
+        errorName: error.name,
+        errorMessage: error.message,
+      },
+      { status: 500 }
+    );
   }
 }
