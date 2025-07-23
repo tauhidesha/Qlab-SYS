@@ -21,7 +21,7 @@ import { isInterventionLockActive } from '../utils/interventionLock';
 import { notifyBosMat, setSnoozeMode } from '../utils/humanHandoverTool';
 import daftarUkuranMotor from '../../data/daftarUkuranMotor';
 import { masterPrompt } from '../config/aiPrompts';
-import admin from 'firebase-admin';
+import { getFirebaseAdmin } from '@/lib/firebase-admin';
 import { traceable } from 'langsmith/traceable';
 import { manageSessionState } from '../agent/sessionAgent';
 // START: Perubahan 1 - Import tool yang akan di-trigger
@@ -115,9 +115,8 @@ export const generateWhatsAppReply = traceable(async function generateWhatsAppRe
   // Gunakan isNewSession untuk penentuan nama
   if (isNewSession && !senderName) {
     try {
-      const nameSnap = await admin.firestore()
-  .doc(`directMessages/${senderNumber}`) // <-- Path yang benar sesuai data Anda
-  .get();
+      const db = getFirebaseAdmin().firestore();
+      const nameSnap = await db.doc(`directMessages/${senderNumber}`).get();
       const nameData = nameSnap.exists ? nameSnap.data() : undefined;
       if (nameData && nameData.name) {
         senderName = nameData.name;
