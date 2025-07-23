@@ -21,10 +21,12 @@ function removeUndefined(obj: any): any {
 export async function getSession(senderNumber: string): Promise<Session | null> {
   const sessionDocRef = db.collection(SESSIONS_COLLECTION).doc(senderNumber);
   try {
+    console.log(`[SESSION] getSession: Mencoba ambil session untuk ${senderNumber} dari collection '${SESSIONS_COLLECTION}'`);
     const docSnap = await sessionDocRef.get();
-
+    console.log(`[SESSION] getSession: docSnap.exists = ${docSnap.exists}`);
     if (docSnap.exists) {
       const session = docSnap.data() as Session;
+      console.log(`[SESSION] getSession: Data session ditemukan untuk ${senderNumber}:`, JSON.stringify(session, null, 2));
 
       // ⛑️ PATCH: jika session lama masih simpan string di lastMentionedService, ubah ke array of string
       const rawService = session?.inquiry?.lastMentionedService;
@@ -41,8 +43,9 @@ export async function getSession(senderNumber: string): Promise<Session | null> 
       }
       // Session timeout dihapus - session akan tetap ada untuk follow-up
       return session;
+    } else {
+      console.log(`[SESSION] getSession: TIDAK ADA DATA session untuk ${senderNumber}`);
     }
-
     return null;
   } catch (error) {
     console.error(`[SESSION] Gagal mengambil sesi untuk ${senderNumber}:`, error);
