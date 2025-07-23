@@ -113,8 +113,8 @@ export const generateWhatsAppReply = traceable(async function generateWhatsAppRe
   if (isNewSession && !senderName) {
     try {
       const nameSnap = await admin.firestore()
-        .doc(`directMessages/${senderNumber}/meta/info`)
-        .get();
+  .doc(`directMessages/${senderNumber}`) // <-- Path yang benar sesuai data Anda
+  .get();
       const nameData = nameSnap.exists ? nameSnap.data() : undefined;
       if (nameData && nameData.name) {
         senderName = nameData.name;
@@ -193,7 +193,8 @@ export const generateWhatsAppReply = traceable(async function generateWhatsAppRe
   } else {
     console.log('[Flow] Tidak ada klarifikasi, menjalankan RouterAgent...');
     const { intent } = await runRouterAgent({ customerMessage: input.customerMessage });
-    const recentChatHistory = (input.chatHistory || []).slice(-6);
+    // KE SINI (Mengambil dari sesi yang punya memori dari Turn 1)
+    const recentChatHistory = (session.chatHistory || []).slice(-6);
     switch (intent) {
       case 'booking_flow': {
         console.log('[Flow][Route: Booking] Menjalankan Booking Agent...');
