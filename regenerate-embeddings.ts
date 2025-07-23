@@ -1,7 +1,7 @@
 // @file: regenerate-embeddings.ts
 
 import 'dotenv/config';
-import { db } from './src/lib/firebase-admin'; 
+import { getFirebaseAdmin } from './src/lib/firebase-admin';
 import { createEmbedding } from './src/ai/actions/embeddingAction'; 
 
 /**
@@ -11,6 +11,7 @@ import { createEmbedding } from './src/ai/actions/embeddingAction';
 async function regenerateAllEmbeddings() {
   console.log("Memulai proses regenerasi embedding (berdasarkan question saja)...");
 
+  const db = getFirebaseAdmin().firestore();
   const collectionRef = db.collection('knowledge_base_entries');
   const snapshot = await collectionRef.get();
 

@@ -1,6 +1,6 @@
 
 
-import { db } from '@/lib/firebase-admin';
+import { getFirebaseAdmin } from '@/lib/firebase-admin';
 import admin from 'firebase-admin';
 import { getServiceCategory } from '@/ai/utils/getServiceCategory';
 
@@ -59,6 +59,7 @@ export async function createBookingImplementation(
       category,
     };
 
+    const db = getFirebaseAdmin().firestore();
     const docRef = await db.collection('bookings').add(newBooking);
     console.log(`[CreateBookingImpl] Booking berhasil dibuat dengan ID: ${docRef.id}`);
 

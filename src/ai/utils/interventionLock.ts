@@ -1,5 +1,5 @@
 
-import { db } from '../../lib/firebase-admin';
+import { getFirebaseAdmin } from '../../lib/firebase-admin';
 import admin from 'firebase-admin';
 
 /**
@@ -11,6 +11,7 @@ export async function isInterventionLockActive(senderNumber: string): Promise<bo
   if (!senderNumber) return false;
 
   try {
+    const db = getFirebaseAdmin().firestore();
     const lockDocRef = db.collection('ai_intervention_locks').doc(senderNumber);
     const lockDocSnap = await lockDocRef.get();
 

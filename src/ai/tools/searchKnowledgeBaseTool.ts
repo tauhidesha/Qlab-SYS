@@ -1,7 +1,7 @@
 // @file: src/ai/tools/searchKnowledgeBaseTool.ts
 
 import { z } from 'zod';
-import { db } from '../../lib/firebase-admin';
+import { getFirebaseAdmin } from '../../lib/firebase-admin';
 import admin from 'firebase-admin';
 import { embedText } from '../flows/embed-text-flow';
 import { cosineSimilarity } from '../../lib/math';
@@ -45,6 +45,7 @@ async function implementation(rawInput: any): Promise<Output> {
       };
     }
 
+    const db = getFirebaseAdmin().firestore();
     const entriesRef = db.collection('knowledge_base_entries');
     const snapshot = await entriesRef.get();
 

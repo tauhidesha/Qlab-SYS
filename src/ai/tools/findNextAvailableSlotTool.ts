@@ -1,8 +1,8 @@
 // File: src/ai/tools/findNextAvailableSlotTool.ts
 
 import { z } from 'zod';
+import { getFirebaseAdmin } from '../../lib/firebase-admin';
 // Pastikan path DB/helper sudah benar di proyek kamu
-import { db } from '../../lib/firebase-admin';
 import admin from 'firebase-admin';
 import { parseDateTime } from '../utils/dateTimeParser';
 import { getOvernightWarning, getServiceCategory } from '../utils/bookingSlotUtils';
@@ -39,6 +39,7 @@ async function implementation(input: Input): Promise<Output> {
 
     // Logika khusus kategori repaint (antrian mingguan)
     if (category === 'repaint') {
+      const db = getFirebaseAdmin().firestore();
       const bookingsRef = db.collection('bookings');
       // Ambil SEMUA booking yang statusnya aktif
       const allActiveBookingsSnapshot = await bookingsRef
@@ -103,6 +104,7 @@ async function implementation(input: Input): Promise<Output> {
     const searchLimitDate = new Date(searchStartDate);
     searchLimitDate.setDate(searchStartDate.getDate() + 30);
 
+    const db = getFirebaseAdmin().firestore();
     const bookingsRef = db.collection('bookings');
     const querySnapshot = await bookingsRef
       .where('bookingDateTime', '>=', admin.firestore.Timestamp.fromDate(searchStartDate))

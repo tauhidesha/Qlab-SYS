@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { db } from '../../lib/firebase-admin';
+import { getFirebaseAdmin } from '../../lib/firebase-admin';
 import admin from 'firebase-admin';
 import { sendWhatsAppMessage } from '../../services/whatsappService';
 
@@ -36,6 +36,7 @@ export const confirmBookingPayment = {
       // Hapus duplikat jika ada
       phoneVariations = [...new Set(phoneVariations)];
 
+      const db = getFirebaseAdmin().firestore();
       const bookingsRef = db.collection('bookings');
       const querySnapshot = await bookingsRef
         .where('customerPhone', 'in', phoneVariations)

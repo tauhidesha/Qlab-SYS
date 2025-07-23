@@ -1,7 +1,7 @@
 // File: src/ai/tools/impl/checkBookingAvailabilityImplementation.ts
 
 import admin from 'firebase-admin';
-import { db } from '../../../lib/firebase-admin';
+import { getFirebaseAdmin } from '../../../lib/firebase-admin';
 import { checkBookingAvailabilitySchema } from '../../schema/checkBookingAvailabilitySchema';
 import { getServiceCategory } from '../../utils/getServiceCategory';
 
@@ -33,6 +33,7 @@ export async function checkBookingAvailabilityImplementation(input: Input): Prom
     };
   }
 
+  const db = getFirebaseAdmin().firestore();
   const bookingsRef = db.collection('bookings');
   const category = getServiceCategory(serviceName);
 

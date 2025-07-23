@@ -1,7 +1,7 @@
 // File: src/ai/utils/bookingSlotUtils.ts
 
 import admin from 'firebase-admin';
-import { db } from '../../lib/firebase-admin';
+import { getFirebaseAdmin } from '../../lib/firebase-admin';
 
 export interface Booking {
   bookingDateTime: Date;
@@ -33,6 +33,7 @@ export function getOvernightWarning(startDate: Date, durationMinutes: number, is
 }
 
 export async function getRepaintBookingsOverlap(dates: string[]): Promise<Booking[]> {
+  const db = getFirebaseAdmin().firestore();
   const bookingsRef = db.collection('bookings');
   const snapshot = await bookingsRef
     .where('status', 'in', ['pending', 'Confirmed', 'In Queue', 'In Progress'])
@@ -54,6 +55,7 @@ export async function getRepaintBookingsOverlap(dates: string[]): Promise<Bookin
 }
 
 export async function getDailyBookings(date: string, service: string): Promise<Booking[]> {
+  const db = getFirebaseAdmin().firestore();
   const bookingsRef = db.collection('bookings');
   const snapshot = await bookingsRef
     .where('bookingDate', '==', date)

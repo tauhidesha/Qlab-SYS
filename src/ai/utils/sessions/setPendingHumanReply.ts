@@ -1,7 +1,7 @@
 // src/ai/utils/session/setPendingHumanReply.ts
 
 import admin from 'firebase-admin';
-import { db } from '@/lib/firebase-admin';
+import { getFirebaseAdmin } from '@/lib/firebase-admin';
 
 export async function setPendingHumanReply({
   customerNumber,
@@ -10,6 +10,7 @@ export async function setPendingHumanReply({
   customerNumber: string;
   question: string;
 }) {
+  const db = getFirebaseAdmin().firestore();
   const sessionRef = db.collection('zoya_sessions').doc(customerNumber);
   await sessionRef.set({
     pending_human_reply: {

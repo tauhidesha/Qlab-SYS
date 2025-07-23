@@ -1,4 +1,4 @@
-import { db } from '../../lib/firebase-admin';
+import { getFirebaseAdmin } from '../../lib/firebase-admin';
 import admin from 'firebase-admin';
 
 // Helper fuzzy match
@@ -74,6 +74,7 @@ export const createBookingTool = {
 
       // Lookup clientId dari Firestore berdasarkan customerPhone
       let clientId: string | undefined = undefined;
+      const db = getFirebaseAdmin().firestore();
       const clientSnap = await db.collection('clients').where('phone', '==', customerPhone).get();
       if (!clientSnap.empty) {
         clientId = clientSnap.docs[0].id;

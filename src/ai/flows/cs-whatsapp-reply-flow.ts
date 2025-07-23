@@ -64,14 +64,7 @@ export const generateWhatsAppReply = traceable(async function generateWhatsAppRe
       flow: 'general',
     };
   }
-  // PATCH: Logic greeting hanya di pesan pertama hari itu (setelah initialSession sudah di-assign)
-  let lastInteractionTimestamp: number | undefined = undefined;
-  if (initialSession && initialSession.lastInteraction && typeof initialSession.lastInteraction.at === 'number') {
-    lastInteractionTimestamp = initialSession.lastInteraction.at;
-  }
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const isFirstMessageOfDay = !lastInteractionTimestamp || lastInteractionTimestamp < startOfToday.getTime();
+  // FLOW BEFORE PATCH: Use session.lastInteraction for first message of day logic
   // --- PERBAIKAN SELESAI DI SINI ---
 
   // ==================================================================
@@ -134,6 +127,8 @@ export const generateWhatsAppReply = traceable(async function generateWhatsAppRe
       console.warn('[Flow] Gagal mengambil nama pengirim dari Firestore:', err);
     }
   }
+  // PATCH: Set dulu lastInteraction.at biar deteksi isFirstMessageOfDay akurat
+  initialSession.lastInteraction = { type: 'user', at: Date.now() };
   let session = manageSessionState({
       currentSession: initialSession,
       customerMessage: input.customerMessage,
@@ -142,6 +137,12 @@ export const generateWhatsAppReply = traceable(async function generateWhatsAppRe
       isFirstMessage: isNewSession,
       senderName
   });
+  // FLOW BEFORE PATCH: Use session.lastInteraction for first message of day logic
+  const lastInteractionTimestamp = session?.lastInteraction?.at;
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const isFirstMessageOfDay = !lastInteractionTimestamp || lastInteractionTimestamp < startOfToday.getTime();
+  console.log('[DEBUG] Apakah ini pesan pertama hari ini?', isFirstMessageOfDay);
 
   // Utility: Sanitize chat history for agent calls
   const validRoles = ['user', 'assistant', 'system', 'tool'];
@@ -232,35 +233,19 @@ export const generateWhatsAppReply = traceable(async function generateWhatsAppRe
           priceContext += `\nPromo: Anda dapat ${cartResult.promoApplied.name}!`;
         }
 
-        // Siapkan TUGAS dasar untuk AI
-        let finalTask = `[TUGAS ANDA]: Balas pesan terbaru pengguna dengan ramah. Setelah itu, WAJIB sampaikan KEMBALI seluruh rincian dari [KONTEKS HARGA DAN LAYANAN] di atas secara lengkap. Tutup balasan Anda dengan menanyakan langkah selanjutnya.`;
-
-        // Modifikasi TUGAS berdasarkan apakah ini pesan pertama hari itu
-        if (isFirstMessageOfDay) {
-          finalTask = `[TUGAS ANDA DIMULAI DENGAN SAPAAN]: Sapa pengguna dengan ramah seolah ini pesan pertama hari ini (contoh: "Halo mas! Aku Zoya...").\n\n${finalTask}`;
-        } else {
-          finalTask = `[JANGAN MENYAPA LAGI, LANGSUNG KE INTI]: Balasanmu HARUS langsung ke inti topik, jangan gunakan sapaan pembuka seperti "Halo mas".\n\n${finalTask}`;
+        let inquiryContext = serviceDescriptionContext + '\n\n' + `[RINCIAN HARGA FINAL]:\n${priceItems.join('\n')}\nTotal Biaya: Rp ${cartResult.total.toLocaleString('id-ID')}`;
+        if (cartResult.promoApplied) {
+          inquiryContext += `\nPromo: Anda dapat ${cartResult.promoApplied.name}!`;
         }
-
-        // Buat konteks akhir untuk AI dengan tugas yang sudah dinamis
-        const finalSystemInstruction = `
-[KONTEKS HARGA DAN LAYANAN UNTUK DISAMPAIKAN]:
-${priceContext}
-
-[PESAN TERBARU DARI PENGGUNA]:
-${input.customerMessage}
-
-${finalTask}
-`;
-
-        // Panggil AI dengan TANPA chat history
+        inquiryContext += `\n\n[TUGAS ANDA]: Sampaikan rincian harga dan deskripsi layanan di atas. Setelah itu, tanyakan langkah selanjutnya.`;
         agentResult = await runZoyaAIAgent({
-            chatHistory: [
-              { role: 'system', content: masterPrompt },
-              { role: 'user', content: input.customerMessage },
-              { role: 'system', content: finalSystemInstruction }
-            ],
-            session,
+          chatHistory: [
+            { role: 'system', content: masterPrompt },
+            ...sanitizeHistory(recentChatHistory),
+            { role: 'assistant', content: inquiryContext },
+            { role: 'user', content: input.customerMessage }
+          ],
+          session,
         });
         break;
       }
@@ -270,17 +255,11 @@ ${finalTask}
         const kbResult = await searchKnowledgeBaseTool.implementation({ query: input.customerMessage });
         const kbAnswer = (kbResult.success && kbResult.answer) ? kbResult.answer : 'Maaf, Zoya tidak menemukan jawaban untuk pertanyaan itu. Mungkin BosMat bisa bantu?';
 
-        // Siapkan TUGAS dasar untuk AI
-        let finalTask = `[TUGAS ANDA]: Sampaikan jawaban di atas dengan ramah.`;
-        if (isFirstMessageOfDay) {
-          finalTask = `[TUGAS ANDA DIMULAI DENGAN SAPAAN]: Sapa pengguna dengan ramah seolah ini pesan pertama hari ini (contoh: "Halo mas! Aku Zoya...").\n\n${finalTask}`;
-        } else {
-          finalTask = `[JANGAN MENYAPA LAGI, LANGSUNG KE INTI]: Balasanmu HARUS langsung ke inti topik, jangan gunakan sapaan pembuka seperti "Halo mas".\n\n${finalTask}`;
-        }
-        const kbContext = `[HASIL KNOWLEDGE BASE]: ${kbAnswer}\n\n${finalTask}`;
+        const kbContext = `[HASIL KNOWLEDGE BASE]: ${kbAnswer}\n\n[TUGAS ANDA]: Sampaikan jawaban di atas dengan ramah.`;
         agentResult = await runZoyaAIAgent({
           chatHistory: [
             { role: 'system', content: masterPrompt },
+            ...sanitizeHistory(recentChatHistory),
             { role: 'assistant', content: kbContext },
             { role: 'user', content: input.customerMessage }
           ],
@@ -292,18 +271,11 @@ ${finalTask}
       default: {
         console.log('[Flow][Route: Chitchat] Menjalankan Zoya AI umum...');
         session.flow = 'general';
-        // Siapkan TUGAS dasar untuk AI
-        let finalTask = `[TUGAS ANDA]: Balas pesan pengguna dengan ramah dan relevan.`;
-        if (isFirstMessageOfDay) {
-          finalTask = `[TUGAS ANDA DIMULAI DENGAN SAPAAN]: Sapa pengguna dengan ramah seolah ini pesan pertama hari ini (contoh: "Halo mas! Aku Zoya...").\n\n${finalTask}`;
-        } else {
-          finalTask = `[JANGAN MENYAPA LAGI, LANGSUNG KE INTI]: Balasanmu HARUS langsung ke inti topik, jangan gunakan sapaan pembuka seperti "Halo mas".\n\n${finalTask}`;
-        }
         agentResult = await runZoyaAIAgent({
           chatHistory: [
             { role: 'system', content: masterPrompt },
-            { role: 'user', content: input.customerMessage },
-            { role: 'system', content: finalTask }
+            ...sanitizeHistory(recentChatHistory),
+            { role: 'user', content: input.customerMessage }
           ],
           session,
         });

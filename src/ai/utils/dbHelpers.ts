@@ -1,6 +1,6 @@
 // File: src/ai/utils/dbHelpers.ts
 
-import { db } from '@/lib/firebase-admin'; // Pastikan path ke firebase config benar
+import { getFirebaseAdmin } from '@/lib/firebase-admin'; // Pastikan path ke firebase config benar
 import admin from 'firebase-admin';
 
 /**
@@ -12,6 +12,7 @@ export async function getServiceIdByName(
   serviceName: string,
 ): Promise<string | null> {
   try {
+    const db = getFirebaseAdmin().firestore();
     const servicesRef = db.collection('services');
     const serviceSnapshot = await servicesRef.where('name', '==', serviceName).limit(1).get();
 

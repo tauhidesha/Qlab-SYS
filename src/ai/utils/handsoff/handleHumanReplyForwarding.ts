@@ -1,4 +1,4 @@
-import { db } from '@/lib/firebase-admin';
+import { getFirebaseAdmin } from '@/lib/firebase-admin';
 import admin from 'firebase-admin';
 import { sendWhatsAppMessage } from '@/services/whatsappService';
 
@@ -22,6 +22,7 @@ export async function handleHumanReplyForwarding(senderNumber: string, messageBo
 
     console.log(`[ManualReply] Mencoba cari sesi dengan ID: '${targetNumber}'`);
 
+    const db = getFirebaseAdmin().firestore();
     const sessionRef = db.collection('zoya_sessions').doc(targetNumber);
     const sessionSnap = await sessionRef.get();
 
@@ -41,6 +42,7 @@ export async function handleHumanReplyForwarding(senderNumber: string, messageBo
   }
 
   // === 2. Kalau gak pakai format, fallback ke pointer ===
+  const db = getFirebaseAdmin().firestore();
   const forwardingRef = db.collection('zoya_sessions').doc('human_forwarding_state');
   const forwardingSnap = await forwardingRef.get();
   const forwardingData = forwardingSnap.data();

@@ -1,6 +1,6 @@
 // File: src/ai/utils/clientHelpers.ts
 
-import { db } from '@/lib/firebase-admin';
+import { getFirebaseAdmin } from '@/lib/firebase-admin';
 import admin from 'firebase-admin';
 
 /**
@@ -14,6 +14,7 @@ export async function findOrCreateClientByPhone(
   phone: string,
   name: string,
 ): Promise<string> {
+  const db = getFirebaseAdmin().firestore();
   const clientsRef = db.collection('clients');
   // 1. Cari klien yang sudah ada berdasarkan nomor telepon
   try {
@@ -58,6 +59,7 @@ export async function getClientName(
 ): Promise<string | null> {
   // Pastikan senderNumber bersih dari @c.us sebelum jadi ID dokumen
   const docId = senderNumber.replace('@c.us', '');
+  const db = getFirebaseAdmin().firestore();
   const metaRef = db.collection('directMessages').doc(docId).collection('meta').doc('info');
 
   try {
