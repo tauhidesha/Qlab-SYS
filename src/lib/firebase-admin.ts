@@ -43,6 +43,7 @@ function initializeAdminApp(): Promise<void> {
       const serviceAccount = JSON.parse(serviceAccountJson);
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
+        databaseURL: "https://detailflow-8mkmj.firebaseio.com"
       });
 
       db = admin.firestore();
