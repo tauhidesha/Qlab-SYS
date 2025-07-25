@@ -29,7 +29,66 @@ export async function mapTermToOfficialService(
     ],
   };
 
+
   const latestMessage = input.message.trim();
+  // PATCH DETEKSI KHUSUS UNTUK "bebas pilih warna" + "biaya tambahan" → asumsikan repaint promo
+  const mentionsColor = /warna|bebas pilih|kombinasi/i.test(latestMessage);
+  const mentionsBiaya = /tambahan biaya|surcharge|ada biaya/i.test(latestMessage);
+  const motorKnown = !!input.session?.inquiry?.lastMentionedMotor;
+
+  if ((mentionsColor && mentionsBiaya) && motorKnown) {
+    const inferredPromoResult: MappedServiceResult = {
+      reasoning: 'User menanyakan tentang kebebasan memilih warna dan kemungkinan biaya tambahan, serta motor sudah diketahui. Berdasarkan konteks ini, diasumsikan bahwa user sedang menanyakan promo repaint, maka dipetakan ke Repaint Bodi Halus dengan promo.',
+      requestedServices: [
+        {
+          serviceName: 'Repaint Bodi Halus',
+          status: 'clarification_needed',
+          missingInfo: ['specific_part', 'color'],
+          notes: 'Deteksi otomatis dari pertanyaan seputar warna dan biaya tambahan.',
+          promo: true
+        }
+      ],
+      promoMentioned: true,
+      promoExplained: false
+    };
+    return inferredPromoResult;
+  }
+
+  // Tambahkan detection mention promo di message user
+  const mentionsPromo = /promo|diskon|bundling|hemat|paket/i.test(latestMessage);
+  const promoSessionFlag = mentionsPromo ? { promoMentioned: true, promoExplained: true } : {};
+
+  // PATCH: Jika user menyebut promo dan motor, tapi tidak menyebut layanan spesifik → auto mapping ke paket promo default
+  // Deteksi: tidak ada nama layanan resmi di message
+  const serviceKeywords = [
+    'repaint', 'detailing', 'coating', 'cuci', 'poles', 'velg', 'cover', 'arm', 'bodi halus', 'bodi kasar', 'full detailing', 'complete service'
+  ];
+  const mentionsService = serviceKeywords.some(keyword => latestMessage.toLowerCase().includes(keyword));
+  if (mentionsPromo && motorKnown && !mentionsService) {
+    const promoBundleResult: MappedServiceResult = {
+      reasoning: 'User menyebut promo dan motor, meskipun tidak menyebutkan layanan spesifik. Berdasarkan rule promo default, sistem memetakan ke Repaint Bodi Halus dan Full Detailing Glossy sebagai bundling dasar.',
+      requestedServices: [
+        {
+          serviceName: 'Repaint Bodi Halus',
+          status: 'clarification_needed',
+          missingInfo: ['specific_part', 'color'],
+          notes: 'Mapping default dari promo bundling.',
+          promo: true
+        },
+        {
+          serviceName: 'Full Detailing Glossy',
+          status: 'confirmed',
+          missingInfo: [],
+          notes: 'Ditambahkan otomatis karena bundling promo repaint + detailing.',
+          promo: true
+        }
+      ],
+      promoMentioned: true,
+      promoExplained: false
+    };
+    console.log('[AI MAPPER][PROMO PATCH][RESULT]', JSON.stringify(promoBundleResult, null, 2));
+    return promoBundleResult;
+  }
 
   // ✅ PATCH APPLIED: Mengambil 4 chat terakhir dari history untuk konteks yang lebih kaya.
   // Ambil 4 chat terakhir dari history (role: 'user' / 'assistant')
@@ -207,7 +266,7 @@ Contoh Output untuk kasus repaint + detailing (full default glossy detailing, st
         return fallbackResult;
       }
 
-      const parsed = parseAndValidateResult(finalReply, fallbackResult);
+      const parsed = parseAndValidateResult(finalReply, fallbackResult, mentionsPromo);
       setCachedMapping(latestMessage, parsed);
       return parsed;
     }
@@ -219,7 +278,7 @@ Contoh Output untuk kasus repaint + detailing (full default glossy detailing, st
       return fallbackResult;
     }
 
-    const parsed = parseAndValidateResult(directReply, fallbackResult);
+    const parsed = parseAndValidateResult(directReply, fallbackResult, mentionsPromo);
     setCachedMapping(latestMessage, parsed);
     console.log('[AI MAPPER][RESULT]', JSON.stringify(parsed, null, 2));
     return parsed;
@@ -235,7 +294,8 @@ Contoh Output untuk kasus repaint + detailing (full default glossy detailing, st
  */
 function parseAndValidateResult(
   aiReply: string,
-  fallbackResult: MappedServiceResult
+  fallbackResult: MappedServiceResult,
+  mentionsPromo?: boolean
 ): MappedServiceResult {
   try {
     // Only parse if reply is valid JSON
@@ -259,10 +319,23 @@ function parseAndValidateResult(
         }
         return item;
       });
+      // Tambahan flag "promo" jika ditemukan mention promo di message
+      if (mentionsPromo) {
+        parsed.requestedServices = parsed.requestedServices.map((item: any) => ({
+          ...item,
+          promo: true,
+        }));
+      }
     }
+    // Inject session flags (promoSessionFlag) into parsed result
+    if (mentionsPromo) {
+      Object.assign(parsed, { promoMentioned: true, promoExplained: true });
+    }
+    console.log('[AI MAPPER][RESULT][FALLBACK]', JSON.stringify(parsed, null, 2));
     return parsed;
   } catch (err) {
     console.error('[AI MAPPER] JSON parse error:', err);
+    console.log('[AI MAPPER][RESULT][FALLBACK]', JSON.stringify(fallbackResult, null, 2));
     return fallbackResult;
   }
 }

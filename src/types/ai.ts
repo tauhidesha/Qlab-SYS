@@ -1,4 +1,11 @@
-// BookingState interface
+// @file: src/types/ai.ts (Versi Refactored & Terstruktur)
+
+// Tipe Bantuan untuk kejelasan
+export interface RepaintDetail {
+  color?: string;
+  specific_part?: string;
+}
+
 export interface BookingState {
   serviceName?: string;
   vehicleInfo?: string;
@@ -30,12 +37,9 @@ export interface ServiceInquiry {
     vehicleInfo: string;
     createdAt: number;
   };
-  repaintDetails?: { [serviceName: string]: { color?: string; specific_part?: string } };
+  repaintDetails?: { [serviceName: string]: RepaintDetail };
   cartContext?: string;
 }
-// src/types/ai.ts
-
-// src/types/ai.ts
 
 // Existing interfaces
 export interface MappedServiceItem {
@@ -43,6 +47,7 @@ export interface MappedServiceItem {
   status: string;
   missingInfo: string[];
   notes: string;
+  promo?: boolean;
 }
 // PATCH: Allow lastInteraction to be an object with type property
 export interface LastInteractionObject {
@@ -51,23 +56,67 @@ export interface LastInteractionObject {
   context?: any;
 }
 
-// Update Session interface to allow lastInteraction as LastInteractionObject
+// ==================================================================
+// Interface Session Utama yang Sudah Disempurnakan
+// ==================================================================
 export interface Session {
-  cartServices: string[];
-  inquiry: any;
+  inquiry?: any;
+  // --- Info Pengguna ---
+  senderNumber: string; // WAJIB ADA: Menyelesaikan masalah no HP hilang
   senderName?: string;
-  flow?: string;
-  snoozeUntil?: number;
-  followUpState?: {
-    level: number;
-    flaggedAt: number;
-    context: string;
-  } | null;
+
+  // --- State Alur Utama ---
+  flow?: 'general' | 'booking' | 'promo';
   lastInteraction: LastInteractionObject;
-  chatHistory?: { role: string; content: string }[];
+  snoozeUntil?: number;
+  priceQuotePresented?: boolean;
+  awaitingClarification?: boolean;
+
+  // --- Info Keranjang & Layanan ---
+  cartServices: string[];
+  // Gabungkan semua detail dari ServiceInquiry ke sini
+  lastMentionedMotor?: string;
+  motorSize?: 'S' | 'M' | 'L' | 'XL';
+  repaintDetails?: { [serviceName: string]: RepaintDetail };
+
+  // --- Info Promo ---
+  promoFlow?: {
+    pendingClarifications: any;
+    promoDetails: PromoBundleResult;
+    isActive: boolean;
+  };
+  
+  // --- Riwayat Percakapan (untuk AI) ---
+  chatHistory?: { role: string; content: string; tool_calls?: any[] }[];
+
+  // --- State lain-lain ---
+  // Anda bisa tambahkan properti lain di sini jika perlu
+  // contoh: followUpState, lastBooking, dll.
+  lastAssistantMessage?: string; // <-- TAMBAHAN BARU
+
+  threadId?: string; // <-- TAMBAHAN PENTING
 }
+
+
+// --- Tipe Data Lainnya (tidak berubah) ---
 
 export interface MappedServiceResult {
   reasoning: string;
   requestedServices: MappedServiceItem[];
+  promoMentioned?: boolean;
+  promoExplained?: boolean;
+}
+
+// Tambahkan definisi PromoBundleResult agar bisa dipakai di Session
+export interface PromoBundleResult {
+  isPromoAvailable: boolean;
+  promoDetails?: {
+    name?: string;
+    services?: string[];
+    promoPrice?: number;
+  };
+  motor_model?: string;
+  note?: string;
+  summary?: string;
+  terms?: string[];
 }

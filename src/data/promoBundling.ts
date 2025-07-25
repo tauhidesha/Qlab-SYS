@@ -32,5 +32,17 @@ const promoBundling = [
     "description": "Paket Repaint Bodi Halus (XL) + Full Detailing (L)."
   }
 ];
-
 export default promoBundling;
+
+// Syarat dan Ketentuan Promo Bundling
+export const promoTerms = [
+  "Garansi hasil pengerjaan selama 1 bulan — kalau ada masalah, bisa klaim tanpa ribet.",
+  "Bebas pilih warna — termasuk warna custom seperti candy, bunglon, atau moonlight (bunglon ada tambahan biaya).",
+  "Harga promo sudah termasuk: pengerokan, dempul, pengecatan bodi halus, dan full detailing (sesuai ukuran).",
+  "Full detailing mencakup: bodi, mesin, kaki-kaki, hingga rangka (tidak include coating).",
+  "Cicilan bisa lewat Tokopedia — tinggal checkout dan pilih metode cicilan.",
+  "Slot terbatas setiap minggunya — siapa cepat, dia dapat.",
+  "Berlaku hanya untuk motor non-vespa dan non-moge.",
+  "Booking cukup bayar DP Rp 100.000 untuk kunci slotnya.",
+];
+

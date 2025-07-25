@@ -1,342 +1,172 @@
+// @file: src/ai/flows/cs-whatsapp-reply-flow.ts (VERSI BARU - ASSISTANTS API)
+
 "use server";
 
-// Local interface for tool response filtering
-interface ToolResponse {
-  tool_call_id: string;
-  role: 'tool';
-  name: string;
-  content: string;
-}
-// @file: src/ai/flows/cs-whatsapp-reply-flow.ts (REFACTORED - DENGAN AUTO-TRIGGER)
-
-import type { ZoyaChatInput, WhatsAppReplyOutput } from '../../types/ai/cs-whatsapp-reply';
-import type { Session, LastInteractionObject } from '../../types/ai';
-// ToolResponse type is now local to this file
+// Perbaiki import: gunakan path dan tipe yang benar sesuai struktur QLAB-SYS
+import type { ZoyaChatInput, WhatsAppReplyOutput } from '@/types/ai/cs-whatsapp-reply';
+import type { Session } from '@/types/ai';
 import { getSession, updateSession } from '../utils/session';
-import { mapTermToOfficialService } from '../handlers/routes/lib/classifiers/mapTermToOfficialService';
-import { searchKnowledgeBaseTool } from '../tools/searchKnowledgeBaseTool';
-import { processCart } from '../agent/cartAgent';
-import { runZoyaAIAgent } from '../agent/runZoyaAIAgent';
-import { isInterventionLockActive } from '../utils/interventionLock';
-import { notifyBosMat, setSnoozeMode } from '../utils/humanHandoverTool';
-import daftarUkuranMotor from '../../data/daftarUkuranMotor';
-import { masterPrompt } from '../config/aiPrompts';
-import { getFirebaseAdmin } from '@/lib/firebase-admin';
-import { traceable } from 'langsmith/traceable';
-import { manageSessionState } from '../agent/sessionAgent';
-// START: Perubahan 1 - Import tool yang akan di-trigger
-import { getServiceDescriptionTool } from '../tools/getServiceDescriptionTool';
-import { runRouterAgent } from '../agent/runRouterAgent';
-import { runBookingAgent } from '../agent/runBookingAgent';
-// END: Perubahan 1
+import { openai } from '@/lib/openai';
+import { toolFunctionMap } from '../config/aiConfig';
+
+// --- KONFIGURASI ---
+const ASSISTANT_ID = "asst_JyaduA3bLsVjEkQQKYux52JA"; // <-- GANTI DENGAN ID ASISTEN ANDA
 
 function normalizeSenderNumber(raw: string): string {
   return raw?.replace(/@c\.us$/, '') || '';
 }
 
-export const generateWhatsAppReply = traceable(async function generateWhatsAppReply(
+/**
+ * Fungsi ini adalah jantung dari agent loop. Ia menunggu Asisten menyelesaikan tugasnya.
+ */
+async function waitForRunCompletion(threadId: string, runId: string): Promise<string> {
+  while (true) {
+    console.log("[Assistants API] Checking run status...");
+    // Panggilan .retrieve() yang benar untuk versi terbaru
+    const runStatus = await openai.beta.threads.runs.retrieve(runId, { thread_id: threadId });
+
+    // 1. Jika Run sudah selesai
+    if (runStatus.status === 'completed') {
+      console.log("[Assistants API] Run completed.");
+      const messages = await openai.beta.threads.messages.list(threadId, { limit: 1 });
+      const lastMessage = messages.data[0];
+      if (lastMessage && lastMessage.content[0]?.type === 'text') {
+        return lastMessage.content[0].text.value;
+      }
+      return "Zoya selesai memproses, tapi tidak ada balasan teks.";
+    }
+
+    // 2. Jika Asisten butuh memanggil tool
+    if (runStatus.status === 'requires_action') {
+      console.log("[Assistants API] Run requires action (memanggil tool)...");
+      const toolCalls = runStatus.required_action?.submit_tool_outputs.tool_calls || [];
+      
+      const finalBookingCall = toolCalls.find(tc => tc.function.name === 'finalizeBooking');
+      if (finalBookingCall) {
+        console.log("[Assistants API] Handoff terdeteksi! Mengeksekusi booking final...");
+        const bookingArgs = JSON.parse(finalBookingCall.function.arguments);
+        // --- PERUBAHAN UTAMA DI SINI ---
+        // Panggil tool createBooking LOKAL Anda
+        const finalResult = await toolFunctionMap['createBooking'].implementation(bookingArgs);
+        // Cek dulu apakah booking-nya berhasil disimpan di database
+        if (finalResult && finalResult.success) {
+          // Jika berhasil, kirim pesan konfirmasi LENGKAP dengan instruksi DP
+          const confirmationMessage = 
+`Oke mas *${bookingArgs.customerName}*, booking sudah Zoya kunci! 🤘\n\nDetailnya sudah tersimpan untuk jadwal:\n•⁠  ⁠*Layanan:* ${bookingArgs.serviceName}\n•⁠  ⁠*Jadwal:* ${bookingArgs.bookingDate}, jam ${bookingArgs.bookingTime}\n\nLangkah terakhir, untuk mengamankan slot ini, silakan transfer *Booking Fee (DP) sebesar Rp100.000* ke:\n\nBCA: \`\`\`1662515412\`\`\`\na/n *Muhammad Tauhid Haryadesa*\n\nSetelah transfer, tinggal kirim bukti pembayarannya ke sini ya mas. Ditunggu konfirmasinya! 😊`;
+          return confirmationMessage;
+        } else {
+          // Jika tool createBooking gagal karena suatu alasan
+          return `Waduh mas, sepertinya ada sedikit kendala pas Zoya coba simpan bookingnya. Coba kontak BosMat langsung ya untuk bantuan.`;
+        }
+        // --- AKHIR PERUBAHAN ---
+      }
+
+      const toolOutputs = await Promise.all(toolCalls.map(async (toolCall) => {
+        const functionName = toolCall.function.name;
+        const args = JSON.parse(toolCall.function.arguments);
+        const toolImplementation = toolFunctionMap[functionName]?.implementation;
+        let output = { success: false, error: `Tool ${functionName} tidak ditemukan.` };
+        if (toolImplementation) {
+          console.log(`[Assistants API] Calling local tool: ${functionName}`, args);
+          output = await toolImplementation(args);
+        }
+        return { tool_call_id: toolCall.id, output: JSON.stringify(output) };
+      }));
+
+      // Panggilan .submitToolOutputs() yang benar untuk versi terbaru
+      await openai.beta.threads.runs.submitToolOutputs(runId, {
+        thread_id: threadId,
+        tool_outputs: toolOutputs,
+      });
+    }
+
+    // 3. Jika Run gagal
+    if (["failed", "cancelled", "expired"].includes(runStatus.status)) {
+      console.error(`[Assistants API] Run failed with status: ${runStatus.status}`, runStatus.last_error);
+      return `Waduh, Zoya lagi ada kendala teknis nih. (Error: ${runStatus.status})`;
+    }
+
+    // Tunggu sejenak sebelum cek status lagi
+    await new Promise(resolve => setTimeout(resolve, 1500));
+  }
+}
+
+export async function generateWhatsAppReply(
   input: ZoyaChatInput
 ): Promise<WhatsAppReplyOutput | null> {
-  // TAMBAHKAN SATU BARIS INI DI PALING ATAS
   console.log('[RAW INPUT PAYLOAD]', JSON.stringify(input, null, 2));
-  // ==================================================================
-  // TAHAP 1: SETUP & KONDISI AWAL
-  // ==================================================================
   const senderNumber = normalizeSenderNumber(input.senderNumber || 'playground_user');
-  let senderName = input.senderName || undefined;
+  const senderName = input.senderName || undefined;
 
-  // ...existing code...
+  // Ambil sesi hanya untuk mendapatkan thread_id
+  let session = await getSession(senderNumber) as Session | null;
 
-  const isLocked = await isInterventionLockActive(senderNumber);
-  if (isLocked) return null;
-
-  // --- PERBAIKAN DIMULAI DI SINI ---
-  let isNewSession = false; // 1. Definisikan flag, default-nya false
-  let initialSession: Session | null = await getSession(senderNumber) as Session | null;
-  if (initialSession?.snoozeUntil && Date.now() < initialSession.snoozeUntil) return null;
-  if (!initialSession) {
-    isNewSession = true; // 2. Set flag menjadi true HANYA saat sesi baru dibuat
-    initialSession = {
-      cartServices: [],
-      inquiry: {},
-      lastInteraction: { type: 'system', at: Date.now() },
-      senderName,
-      flow: 'general',
-    };
-  }
-  // FLOW BEFORE PATCH: Use session.lastInteraction for first message of day logic
-  // --- PERBAIKAN SELESAI DI SINI ---
-
-  // ==================================================================
-  // TAHAP 2: PRE-PROCESSING (Deteksi Cepat & Mapping)
-  // ==================================================================
-  function detectMotorName(message: string): string | null {
-    const normalizedMessage = message.toLowerCase();
-    for (const motor of daftarUkuranMotor) {
-      if (normalizedMessage.includes(motor.model.toLowerCase())) {
-        return motor.model;
-      }
-      if (motor.aliases && Array.isArray(motor.aliases)) {
-        for (const alias of motor.aliases) {
-          if (normalizedMessage.includes(alias.toLowerCase())) {
-            return motor.model;
-          }
+  try {
+    // 1. Dapatkan atau buat thread_id untuk user ini
+    let threadId = session?.threadId;
+    if (!threadId) {
+      console.log(`[Assistants API] Membuat thread baru untuk ${senderNumber}`);
+      const thread = await openai.beta.threads.create({
+        metadata: {
+          customer_name: senderName || 'Belum diketahui',
+          customer_phone: senderNumber,
         }
-      }
-    }
-    return null;
-  }
-  const detectedMotorName = detectMotorName(input.customerMessage);
-  const mappedResult = await mapTermToOfficialService({ message: input.customerMessage, session: initialSession });
-  if (!mappedResult) {
-    await notifyBosMat(senderNumber, input.customerMessage);
-    return { suggestedReply: 'Waduh, Zoya lagi pusing nih. Zoya panggilin BosMat aja ya!', route: 'fallback_handover', toolCalls: [] };
-  }
-
-  let knowledgeBaseAnswer: string | null = null;
-  if (
-    mappedResult.requestedServices.length === 1 &&
-    mappedResult.requestedServices[0].serviceName === 'General Inquiry' 
-  ) {
-    const kbResult = await searchKnowledgeBaseTool.implementation({ query: input.customerMessage });
-    if (kbResult.success && kbResult.answer) {
-      knowledgeBaseAnswer = kbResult.answer;
-    } else if (kbResult.message) {
-      knowledgeBaseAnswer = kbResult.message;
-    } else {
-      knowledgeBaseAnswer = 'Maaf, belum ada jawaban di knowledge base.';
-    }
-  }
-
-  // ==================================================================
-  // TAHAP 3: UPDATE STATE SESI (Panggil Session Agent)
-  // ==================================================================
-  console.log('[Flow] Memanggil SessionAgent untuk mengelola state...');
-  // Gunakan isNewSession untuk penentuan nama
-  if (isNewSession && !senderName) {
-    try {
-      const db = getFirebaseAdmin().firestore();
-      const nameSnap = await db.doc(`directMessages/${senderNumber}`).get();
-      const nameData = nameSnap.exists ? nameSnap.data() : undefined;
-      if (nameData && nameData.name) {
-        senderName = nameData.name;
-        console.log('[Flow] Nama pengirim diambil dari Firestore:', senderName);
-      }
-    } catch (err) {
-      console.warn('[Flow] Gagal mengambil nama pengirim dari Firestore:', err);
-    }
-  }
-  // PATCH: Set dulu lastInteraction.at biar deteksi isFirstMessageOfDay akurat
-  initialSession.lastInteraction = { type: 'user', at: Date.now() };
-  let session = manageSessionState({
-      currentSession: initialSession,
-      customerMessage: input.customerMessage,
-      detectedMotorName,
-      mappedResult,
-      isFirstMessage: isNewSession,
-      senderName
-  });
-  // FLOW BEFORE PATCH: Use session.lastInteraction for first message of day logic
-  const lastInteractionTimestamp = session?.lastInteraction?.at;
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const isFirstMessageOfDay = !lastInteractionTimestamp || lastInteractionTimestamp < startOfToday.getTime();
-  console.log('[DEBUG] Apakah ini pesan pertama hari ini?', isFirstMessageOfDay);
-
-  // Utility: Sanitize chat history for agent calls
-  const validRoles = ['user', 'assistant', 'system', 'tool'];
-  const sanitizeHistory = (history: any[] = []) =>
-    history
-      .filter(msg => msg && typeof msg.role === 'string' && validRoles.includes(msg.role) && typeof msg.content === 'string')
-      .map(msg => ({ role: msg.role, content: msg.content }));
-
-  // ==================================================================
-  // ==================================================================
-  // Perubahan: Helper untuk deskripsi layanan
-  async function getDescriptionsFor(serviceNames: string[]) {
-    const descriptionPromises = serviceNames.map(name =>
-      getServiceDescriptionTool.implementation({ service_name: name })
-    );
-    const results = await Promise.all(descriptionPromises);
-    return results
-      .filter(r => r.success && r.description)
-      .map(r => `### Deskripsi Layanan: ${r.matched_service}\n${r.description}`)
-      .join('\n\n');
-  }
-
-
-  // PATCH: TAHAP 4 DIROMBAK UNTUK MEMPRIORITASKAN KLARIFIKASI
-  let agentResult: { suggestedReply: string; toolCalls?: any[]; route?: string; };
-
-  // --- GERBANG KLARIFIKASI ---
-  const pendingClarifications = mappedResult.requestedServices.filter(service => service.status === 'clarification_needed');
-  const needAskMotor = !session.inquiry.lastMentionedMotor;
-
-  if (pendingClarifications.length > 0) {
-    console.log(`[Flow] Skenario Prioritas: Klarifikasi dibutuhkan untuk ${pendingClarifications.length} layanan.`);
-    let notes: string[] = [];
-    if (needAskMotor) {
-      notes.push('[TUGAS ANDA]: Tanyakan dengan ramah tipe/jenis motor yang ingin dilayani. Contoh: "Motornya apa ya, om?"');
-    }
-    pendingClarifications.forEach(item => {
-      item.missingInfo.forEach(infoNeeded => {
-        let exampleQuestion = '';
-        if (infoNeeded === 'finish') exampleQuestion = 'Motornya glossy atau doff ya, mas?';
-        if (infoNeeded === 'risk_confirmation_doff') exampleQuestion = 'Untuk cat doff, ada risiko jadi sedikit lebih kilap setelah dipoles. Apakah tidak apa-apa?';
-        if (infoNeeded === 'color') exampleQuestion = `Untuk ${item.serviceName}, mau pakai warna apa ya?`;
-        if (infoNeeded === 'detailing_level') exampleQuestion = 'Detailingnya mau sampai ke rangka atau hanya bodi, mesin dan kaki-kaki saja mas?';
-        if (infoNeeded === 'specific_part') exampleQuestion = 'mau repaint bodi halus saja atau sekalian velgnya nih mas?';
-        notes.push(`[TUGAS ANDA]: Buatlah pertanyaan klarifikasi yang ramah kepada pengguna untuk layanan '${item.serviceName}'. Informasi yang hilang adalah '${infoNeeded}'. Contoh pertanyaan: "${exampleQuestion}"`);
       });
-    });
-    const clarificationContext = `[TUGAS ANDA]: Sampaikan pertanyaan klarifikasi berikut kepada pengguna secara natural dalam satu pesan yang ramah.\n\n${notes.join('\n')}`;
-    agentResult = await runZoyaAIAgent({
-      chatHistory: [
-        { role: 'system', content: masterPrompt },
-        ...sanitizeHistory(input.chatHistory),
-        { role: 'assistant', content: clarificationContext },
-        { role: 'user', content: input.customerMessage }
-      ],
-      session,
-    });
-    agentResult.route = 'clarification_needed';
-  } else {
-    console.log('[Flow] Tidak ada klarifikasi, menjalankan RouterAgent...');
-    const { intent } = await runRouterAgent({ customerMessage: input.customerMessage });
-    // KE SINI (Mengambil dari sesi yang punya memori dari Turn 1)
-    const recentChatHistory = (session.chatHistory || []).slice(-6);
-    switch (intent) {
-      case 'booking_flow': {
-        console.log('[Flow][Route: Booking] Menjalankan Booking Agent...');
-        session.flow = 'booking';
-        const historyForBooking = [
-          { role: 'system', content: masterPrompt },
-          ...sanitizeHistory(recentChatHistory),
-          { role: 'user', content: input.customerMessage }
-        ];
-        agentResult = await runBookingAgent({ chatHistory: historyForBooking, session });
-        agentResult.route = 'booking_agent_reply';
-        break;
-      }
-      case 'service_inquiry': {
-        console.log('[Flow][Route: Service Inquiry] Menjalankan alur layanan/harga...');
-        session.flow = 'general';
-        const cartResult = await processCart({ session });
-        const serviceNames = session.cartServices || [];
-        const serviceDescriptionContext = await getDescriptionsFor(serviceNames);
-        const priceItems = cartResult.priceDetails.map(item => `- ${item.name}: Rp ${item.price.toLocaleString('id-ID')}`);
-
-        // 1. Siapkan konteks harga & layanan seperti biasa
-        let priceContext = serviceDescriptionContext + '\n\n' + `[RINCIAN HARGA FINAL]:\n${priceItems.join('\n')}\nTotal Biaya: Rp ${cartResult.total.toLocaleString('id-ID')}`;
-        if (cartResult.promoApplied) {
-          priceContext += `\nPromo: Anda dapat ${cartResult.promoApplied.name}!`;
-        }
-
-        let inquiryContext = serviceDescriptionContext + '\n\n' + `[RINCIAN HARGA FINAL]:\n${priceItems.join('\n')}\nTotal Biaya: Rp ${cartResult.total.toLocaleString('id-ID')}`;
-        if (cartResult.promoApplied) {
-          inquiryContext += `\nPromo: Anda dapat ${cartResult.promoApplied.name}!`;
-        }
-        inquiryContext += `\n\n[TUGAS ANDA]: Sampaikan rincian harga dan deskripsi layanan di atas. Setelah itu, tanyakan langkah selanjutnya.`;
-        agentResult = await runZoyaAIAgent({
-          chatHistory: [
-            { role: 'system', content: masterPrompt },
-            ...sanitizeHistory(recentChatHistory),
-            { role: 'assistant', content: inquiryContext },
-            { role: 'user', content: input.customerMessage }
-          ],
-          session,
-        });
-        break;
-      }
-      case 'general_question': {
-        console.log('[Flow][Route: General Question] Mencari di Knowledge Base...');
-        session.flow = 'general';
-        const kbResult = await searchKnowledgeBaseTool.implementation({ query: input.customerMessage });
-        const kbAnswer = (kbResult.success && kbResult.answer) ? kbResult.answer : 'Maaf, Zoya tidak menemukan jawaban untuk pertanyaan itu. Mungkin BosMat bisa bantu?';
-
-        const kbContext = `[HASIL KNOWLEDGE BASE]: ${kbAnswer}\n\n[TUGAS ANDA]: Sampaikan jawaban di atas dengan ramah.`;
-        agentResult = await runZoyaAIAgent({
-          chatHistory: [
-            { role: 'system', content: masterPrompt },
-            ...sanitizeHistory(recentChatHistory),
-            { role: 'assistant', content: kbContext },
-            { role: 'user', content: input.customerMessage }
-          ],
-          session,
-        });
-        break;
-      }
-      case 'chitchat':
-      default: {
-        console.log('[Flow][Route: Chitchat] Menjalankan Zoya AI umum...');
-        session.flow = 'general';
-        agentResult = await runZoyaAIAgent({
-          chatHistory: [
-            { role: 'system', content: masterPrompt },
-            ...sanitizeHistory(recentChatHistory),
-            { role: 'user', content: input.customerMessage }
-          ],
-          session,
-        });
-        break;
-      }
-    }
-  }
-
-
-  if (agentResult.toolCalls?.length && session) {
-    const { toolFunctionMap } = await import('../config/aiConfig');
-    const { updateSessionFromToolResults } = await import('../utils/updateSessionFromToolResults');
-    const toolResponses = await Promise.all(
-      agentResult.toolCalls.map(async (call) => {
-        const tool = toolFunctionMap[call.toolName];
-        if (!tool || typeof tool.implementation !== 'function') return null;
-        const toolOutput = await tool.implementation(call.arguments, { session, input });
-        return {
-          tool_call_id: call.id,
-          role: 'tool',
-          name: call.toolName,
-          content: JSON.stringify(toolOutput),
+      threadId = thread.id;
+      // Inisialisasi sesi jika belum ada
+      if (!session) {
+        session = {
+          senderNumber,
+          senderName,
+          lastInteraction: { type: 'system', at: Date.now() },
+          cartServices: [],
+          threadId: threadId,
         };
-      })
-    );
-    session = updateSessionFromToolResults(
-      session,
-      agentResult.toolCalls,
-      toolResponses.filter((r): r is ToolResponse => !!r)
-    );
-  }
+      } else {
+        session.threadId = threadId;
+      }
+      await updateSession(senderNumber, session as Partial<Session>);
+    }
 
-  // ==================================================================
-  // TAHAP 6: FINALISASI (Tidak Berubah)
-  // ...existing code...
-  let finalOutput: WhatsAppReplyOutput = {
-    suggestedReply: agentResult.suggestedReply,
-    toolCalls: agentResult.toolCalls || [],
-    route: agentResult.route || 'main_agent_reply',
-    metadata: {},
-  };
+    // 2. Tambahkan pesan user ke thread
+    console.log(`[Assistants API] Menambahkan pesan ke thread ${threadId}`);
+    await openai.beta.threads.messages.create(threadId, {
+      role: "user",
+      content: input.customerMessage,
+    });
 
-  // Fallback detection: If AI reply indicates confusion or fallback, trigger Bos Mamat
-  const fallbackPhrases = [
-    'Zoya agak kurang paham',
-    'Zoya coba tanyain ke BosMat',
-    'Zoya panggilin BosMat',
-    'Zoya lagi pusing',
-    'BosMat dulu ya'
-  ];
-  const replyLower = (agentResult.suggestedReply || '').toLowerCase();
-  if (fallbackPhrases.some(phrase => replyLower.includes(phrase.toLowerCase()))) {
-    await setSnoozeMode(senderNumber);
-    await notifyBosMat(senderNumber, input.customerMessage);
-    finalOutput = {
-      suggestedReply: 'Oke om, Zoya panggilin BosMat dulu ya. Tunggu sebentar 🙏',
-      route: 'handover_request',
+    // 3. Buat dan jalankan Run pada thread
+    console.log(`[Assistants API] Menjalankan asisten ${ASSISTANT_ID} pada thread ${threadId}`);
+    const run = await openai.beta.threads.runs.create(threadId, {
+      assistant_id: ASSISTANT_ID,
+      // Di sini Anda bisa menambahkan instruksi tambahan jika perlu
+      // instructions: "Tolong tanggapi pesan terakhir dari user."
+    });
+
+    // 4. Tunggu hasilnya (teks final dari Asisten)
+    const assistantReply = await waitForRunCompletion(threadId, run.id);
+    
+    // 5. Finalisasi output
+    const finalOutput: WhatsAppReplyOutput = {
+      suggestedReply: assistantReply,
       toolCalls: [],
+      route: 'assistant_api_reply',
       metadata: {},
     };
-  }
+    
+    // Simpan balasan Zoya ke sesi jika diperlukan untuk logika lain
+    if (session) {
+      await updateSession(senderNumber, { ...session, lastAssistantMessage: finalOutput.suggestedReply });
+    }
 
-  await updateSession(senderNumber, { ...session, lastInteraction: { type: 'system', at: Date.now() } });
-  return finalOutput;
-});
+    return finalOutput;
+
+  } catch (error) {
+    console.error("Error besar di alur utama Asisten:", error);
+    return { 
+      suggestedReply: "Waduh, Zoya lagi pusing nih. Coba lagi nanti ya atau hubungi BosMat.",
+      toolCalls: [],
+      route: 'unhandled_error'
+    };
+  }
+}

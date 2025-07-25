@@ -5,6 +5,9 @@ import promoBundling from '../../data/promoBundling';
 import daftarUkuranMotor from '../../data/daftarUkuranMotor';
 import { normalizeToolInput } from '../utils/normalizeToolInput';
 
+// Tambahkan terms
+import { promoTerms } from '../../data/promoBundling'; // <<< import baru
+
 // --- Input Schema ---
 const InputSchema = z.object({
   motor_query: z.string().optional().describe('Model motor (misal "PCX", "Vario", dll)'),
@@ -18,19 +21,19 @@ type Output = {
   motor_model?: string;
   note: string;
   summary?: string;
+  terms?: string[]; // <<< baru
 };
 
 // --- Implementation ---
 async function implementation(input: Input): Promise<Output> {
   try {
-    // REVISI: Hapus blok impor lama dan panggil fungsi secara langsung.
     const motor_query = normalizeToolInput(input, 'motor_query');
 
-    // Jika motor umum (tidak spesifik)
     if (!motor_query || motor_query === 'N/A' || motor_query.toLowerCase().trim() === 'umum') {
       return {
         isPromoAvailable: true,
         promoDetails: promoBundling,
+        terms: promoTerms, // <<< baru
         note: `🔥 Ada promo spesial buat semua tipe motor nih bro, biar makin kinclong tanpa bikin kantong bolong!`,
         summary: `✅ *Repaint Bodi Halus* + *Full Detailing Glossy*\n💰 Hemat sampai *300rb-an*! Buruan sebelum slot-nya habis ya, bro 😎`,
       };
@@ -63,6 +66,7 @@ async function implementation(input: Input): Promise<Output> {
       isPromoAvailable: true,
       motor_model: motor.model,
       promoDetails: specificPromo,
+      terms: promoTerms, // <<< baru
       note: `Untuk motor ${motor.model} (size ${repaintSize}), ada promo bundling!`,
       summary:
         `🔥 Promo bundling buat ${motor.model} (size ${repaintSize}):\n\n` +

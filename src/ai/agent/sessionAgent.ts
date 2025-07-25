@@ -38,6 +38,78 @@ export function manageSessionState(input: SessionAgentInput): Session {
   }
   // --- AKHIR TAMBAHAN ---
 
+  // --- LOGIKA PENJAGA PROMO BUNDLING (VERSI LEBIH KUAT) ---
+  const isPromoFlowActive = (currentSession as any).promoFlow?.isActive;
+  
+  if (isPromoFlowActive) {
+    console.log('[SessionAgent][PROMO GUARD] Promo flow is active. Enforcing bundle integrity...');
+    const corePromoServices = ['Repaint Bodi Halus', 'Full Detailing Glossy'];
+    corePromoServices.forEach(coreService => {
+      if (!newSession.cartServices.includes(coreService)) {
+        console.log(`[SessionAgent][PROMO GUARD] Core promo service "${coreService}" was missing. Re-adding it to cart.`);
+        newSession.cartServices.push(coreService);
+      }
+    });
+  }
+  // --- AKHIR LOGIKA PENJAGA ---
+
+  // --- LOGIKA BARU UNTUK MENGGABUNGKAN, BUKAN MENGGANTI ---
+  const mergedServices = mappedResult?.requestedServices || [];
+
+  if (Array.isArray(mergedServices) && mergedServices.length > 0) {
+      console.log('[SessionAgent][MERGE] Menggabungkan cart lama dengan hasil mapper baru...');
+      if (!Array.isArray(newSession.cartServices)) {
+          newSession.cartServices = [];
+      }
+      mergedServices.forEach(newService => {
+          if (!newSession.cartServices.includes(newService.serviceName)) {
+              console.log(`[SessionAgent][MERGE] Menambahkan layanan baru: ${newService.serviceName}`);
+              newSession.cartServices.push(newService.serviceName);
+          } else {
+              console.log(`[SessionAgent][MERGE] Layanan ${newService.serviceName} sudah ada, tidak ada perubahan.`);
+          }
+      });
+  } else {
+      console.log('[SessionAgent][MERGE] Mapper tidak menemukan layanan baru, cart tidak diubah.');
+  }
+  // --- AKHIR LOGIKA BARU ---
+
+  // Pastikan inquiry diupdate dengan requestedServices yang sudah dijaga
+  newSession.inquiry = {
+    ...newSession.inquiry,
+    ...mappedResult,
+    requestedServices: newSession.cartServices.map(serviceName => {
+      const found = mergedServices.find(s => s.serviceName === serviceName);
+      return found || { serviceName, status: 'confirmed', missingInfo: [], notes: '' };
+    })
+  };
+
+  // --- LOGIKA BARU UNTUK MENGGABUNGKAN, BUKAN MENGGANTI ---
+  const newServices = mappedResult?.requestedServices || [];
+
+  if (Array.isArray(newServices) && newServices.length > 0) {
+      console.log('[SessionAgent][MERGE] Menggabungkan cart lama dengan hasil mapper baru...');
+      
+      // Pastikan cartServices di sesi adalah array
+      if (!Array.isArray(newSession.cartServices)) {
+          newSession.cartServices = [];
+      }
+
+      newServices.forEach(newService => {
+          // HANYA tambahkan layanan baru jika belum ada di keranjang.
+          // Ini mencegah keranjang dikosongkan secara tidak sengaja.
+          if (!newSession.cartServices.includes(newService.serviceName)) {
+              console.log(`[SessionAgent][MERGE] Menambahkan layanan baru: ${newService.serviceName}`);
+              newSession.cartServices.push(newService.serviceName);
+          } else {
+              console.log(`[SessionAgent][MERGE] Layanan ${newService.serviceName} sudah ada, tidak ada perubahan.`);
+          }
+      });
+  } else {
+      console.log('[SessionAgent][MERGE] Mapper tidak menemukan layanan baru, cart tidak diubah.');
+  }
+  // --- AKHIR LOGIKA BARU ---
+
   // 1. Inisialisasi/Update data dasar
   newSession.senderName = newSession.senderName || senderName;
   if (!newSession.cartServices) newSession.cartServices = [];
@@ -146,7 +218,12 @@ export function manageSessionState(input: SessionAgentInput): Session {
       context: clarificationServices.map(s => s.serviceName),
     };
   }
-  // Anda bisa menambahkan logika lain untuk set lastInteraction di sini
+
+  // 6. Inject promo flags from mappedResult if present
+  Object.assign(newSession, {
+    ...(mappedResult.promoMentioned && { promoMentioned: true }),
+    ...(mappedResult.promoExplained && { promoExplained: true }),
+  });
 
   return newSession;
 }

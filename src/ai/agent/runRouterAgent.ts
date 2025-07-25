@@ -3,39 +3,52 @@ import { routerAgentPrompt } from './routerAgent';
 
 // Asumsikan Anda punya satu file client OpenAI terpusat untuk konsistensi
 // Jika tidak, Anda bisa buat instance baru di sini
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || '' });
 
 // Definisikan tipe data untuk input dan output agar kode lebih aman
 interface RouterAgentInput {
   customerMessage: string;
+  lastAssistantMessage?: string; // <-- Tambahkan parameter baru
 }
 
 // Gunakan tipe literal untuk membatasi nilai intent yang valid
-type IntentCategory = 'booking_flow' | 'service_inquiry' | 'general_question' | 'chitchat';
+type IntentCategory = 'booking_flow' | 'service_inquiry' | 'service_detail_inquiry' | 'general_question' | 'chitchat';
+
+const validIntents = [
+  'booking_flow',
+  'service_inquiry',
+  'service_detail_inquiry',
+  'general_question',
+  'chitchat',
+] as const;
+
+function isValidIntent(intent: string): intent is IntentCategory {
+  return validIntents.includes(intent as IntentCategory);
+}
 
 interface RouterAgentResult {
   intent: IntentCategory;
 }
 
-export async function runRouterAgent({ customerMessage }: RouterAgentInput): Promise<RouterAgentResult> {
+export async function runRouterAgent({ customerMessage, lastAssistantMessage }: RouterAgentInput): Promise<RouterAgentResult> {
   console.log('[RouterAgent] Mengklasifikasikan intent pengguna...');
-  
+
   // Siapkan hasil fallback jika terjadi error
   const fallbackResult: RouterAgentResult = { intent: 'general_question' };
 
+  // Buat pesan user yang lebih kaya konteks
+  const contextualUserMessage = `Pesan Terakhir Zoya: "${lastAssistantMessage || 'Tidak ada, ini pesan pertama.'}"
+\n\nPesan Baru Pengguna: "${customerMessage}"`;
+
   try {
     const response = await openai.chat.completions.create({
-      // Model: Gunakan model yang cepat dan murah untuk tugas klasifikasi ini.
-      // gpt-4o-mini atau gpt-3.5-turbo adalah pilihan yang sangat baik.
       model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: routerAgentPrompt },
-        { role: 'user', content: customerMessage }
+        { role: 'user', content: contextualUserMessage }
       ],
-      // Temperature 0 untuk hasil yang paling konsisten dan tidak kreatif
       temperature: 0,
-      // Ini adalah kunci utama: paksa LLM untuk selalu output JSON
-      response_format: { type: 'json_object' }, 
+      response_format: { type: 'json_object' },
     });
 
     const replyContent = response.choices[0].message.content;
@@ -44,14 +57,13 @@ export async function runRouterAgent({ customerMessage }: RouterAgentInput): Pro
       console.error('[RouterAgent] Error: Respons dari OpenAI kosong.');
       return fallbackResult;
     }
-    
     // Parsing JSON yang aman dengan error handling
     try {
       const parsed = JSON.parse(replyContent);
-      // Validasi sederhana untuk memastikan output sesuai format
-      if (parsed.intent && typeof parsed.intent === 'string') {
+      // Validasi intent dengan helper agar lebih aman
+      if (parsed.intent && typeof parsed.intent === 'string' && isValidIntent(parsed.intent)) {
         console.log(`[RouterAgent] Intent terdeteksi: ${parsed.intent}`);
-        return { intent: parsed.intent as IntentCategory };
+        return { intent: parsed.intent };
       }
     } catch (parseError) {
       console.error('[RouterAgent] Error: Gagal mem-parsing JSON dari OpenAI.', parseError);

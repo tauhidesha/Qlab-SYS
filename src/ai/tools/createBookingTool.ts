@@ -33,130 +33,61 @@ export const createBookingTool = {
         properties: {
           customerPhone: { type: 'string', description: 'Nomor telepon pelanggan' },
           customerName: { type: 'string', description: 'Nama pelanggan' },
-          serviceName: { type: 'string', description: 'Nama layanan yang dibooking' },
+          serviceName: { type: 'string', description: 'Nama layanan yang dibooking (bisa lebih dari satu, dipisah koma)' },
           bookingDate: { type: 'string', description: 'Tanggal booking, format YYYY-MM-DD' },
           bookingTime: { type: 'string', description: 'Jam booking, format HH:mm' },
           vehicleInfo: { type: 'string', description: "Informasi kendaraan, cth: 'Vario 160 Merah'" },
-          notes: { type: 'string', description: 'Catatan tambahan', nullable: true },
         },
         required: ['customerPhone', 'customerName', 'serviceName', 'bookingDate', 'bookingTime', 'vehicleInfo'],
       },
     },
   },
-
-  implementation: async ({
-    customerPhone,
-    customerName,
-    serviceName,
-    bookingDate,
-    bookingTime,
-    vehicleInfo,
-    notes,
-  }: {
-    customerPhone: string;
-    customerName: string;
-    serviceName: string;
-    bookingDate: string;
-    bookingTime: string;
-    vehicleInfo: string;
-    notes?: string;
-  }) => {
+  implementation: async (args) => {
     try {
-      const today = new Date();
-      let inputDate = new Date(`${bookingDate}T${bookingTime}:00`);
-      if (inputDate < today) {
-        const tomorrow = new Date(today);
-        tomorrow.setDate(today.getDate() + 1);
-        bookingDate = tomorrow.toISOString().slice(0, 10);
-        inputDate = new Date(`${bookingDate}T${bookingTime}:00`);
+      const { 
+        customerName, 
+        customerPhone, 
+        serviceName, 
+        bookingDate, 
+        bookingTime, 
+        vehicleInfo 
+      } = args;
+
+      // 1. Pecah string serviceName menjadi array
+      const servicesArray = serviceName.split(',').map(s => s.trim());
+
+      // 2. Gabungkan tanggal dan waktu menjadi satu objek Date JavaScript
+      const dateTimeString = `${bookingDate}T${bookingTime}:00`;
+      const bookingDateTime = new Date(dateTimeString);
+      if (isNaN(bookingDateTime.getTime())) {
+        throw new Error(`Format tanggal atau waktu tidak valid: ${dateTimeString}`);
       }
-      const bookingDateTime = admin.firestore.Timestamp.fromDate(inputDate);
 
-      // Lookup clientId dari Firestore berdasarkan customerPhone
-      let clientId: string | undefined = undefined;
-      const db = getFirebaseAdmin().firestore();
-      const clientSnap = await db.collection('clients').where('phone', '==', customerPhone).get();
-      if (!clientSnap.empty) {
-        clientId = clientSnap.docs[0].id;
-      }
-
-      // Lookup serviceId dari Firestore (case-insensitive, fuzzy)
-      let serviceId: string | undefined = undefined;
-      let estimatedDuration = undefined;
-      let foundServiceName = serviceName;
-      let serviceCategory: 'detailing' | 'coating' | 'repaint' | 'other' | undefined = undefined;
-      const servicesSnap = await db.collection('services').get();
-      let bestScore = 0;
-      servicesSnap.forEach(docSnap => {
-        const data = docSnap.data();
-        const score = stringSimilarity(serviceName, data.name);
-        if (score > bestScore && score > 0.7) {
-          bestScore = score;
-          serviceId = docSnap.id;
-          foundServiceName = data.name;
-          estimatedDuration = data.estimatedDuration;
-          serviceCategory = data.category; // Ambil kategori dari data service
-        }
-      });
-
-      // Jika kategori tidak ada di service, coba tentukan dari nama.
-      const category = serviceCategory || getServiceCategory(foundServiceName);
-
-      // Simpan booking ke Firestore
-      const bookingPayload: any = {
+      // 3. Siapkan objek data yang BERSIH untuk disimpan ke Firestore
+      const bookingData = {
         customerName,
         customerPhone,
-        clientId: clientId ?? null,
         vehicleInfo,
-        serviceId,
-        serviceName: foundServiceName,
-        category,
-        bookingDateTime,
-        status: 'Pending',
-        notes: notes || '',
-        source: 'AI',
-        estimatedDuration: estimatedDuration || undefined,
-        createdAt: admin.firestore.Timestamp.now(),
-        updatedAt: admin.firestore.Timestamp.now(),
+        bookingDateTime: admin.firestore.Timestamp.fromDate(bookingDateTime),
+        status: 'Confirmed',
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        services: servicesArray,
       };
 
-      const docRef = await db.collection('bookings').add(bookingPayload);
+      const db = getFirebaseAdmin().firestore();
+      const bookingRef = await db.collection('bookings').add(bookingData);
 
-      // Jika booking untuk hari ini, buat queueItems dan update status booking
-      const isToday = inputDate.toDateString() === today.toDateString();
-      let queueItemId: string | undefined = undefined;
-      if (isToday) {
-        const queueItemData = {
-          customerName,
-          clientId,
-          vehicleInfo,
-          service: foundServiceName,
-          serviceId,
-          variantId: undefined,
-          status: 'Menunggu',
-          estimatedTime: estimatedDuration || 'N/A',
-          bookingId: docRef.id,
-          createdAt: bookingDateTime,
-        };
-        const queueDocRef = await db.collection('queueItems').add(queueItemData);
-        queueItemId = queueDocRef.id;
-        // Update booking yang sudah ada dengan queueItemId dan status baru
-        await docRef.update({ queueItemId, status: 'In Queue' });
-      }
-
+      console.log(`[createBookingTool] Booking berhasil dibuat dengan ID: ${bookingRef.id}`);
       return {
         success: true,
-        message: `Booking berhasil dicatat untuk ${foundServiceName} pada ${bookingDate} jam ${bookingTime}`,
-        bookingId: docRef.id,
-        serviceId,
-        clientId,
-        queueItemId,
+        bookingId: bookingRef.id,
+        message: `Booking untuk ${customerName} pada ${bookingDate} jam ${bookingTime} berhasil dibuat.`,
       };
     } catch (error) {
       console.error('[createBookingTool] Gagal menyimpan booking:', error);
       return {
         success: false,
-        message: 'Gagal menyimpan booking. Coba lagi nanti.',
+        error: error.message,
       };
     }
   },

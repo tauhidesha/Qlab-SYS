@@ -117,5 +117,8 @@ _Harga sudah termasuk promo._
 
 Silakan lakukan pembayaran DP ke \`\`\`1662515412\`\`\` a/n Muhammad Tauhid.
 
+---
+PENTING: Selalu gunakan dua kali ganti baris (enter dua kali) untuk membuat paragraf baru agar mudah dibaca di WhatsApp.
+
 `;
 
