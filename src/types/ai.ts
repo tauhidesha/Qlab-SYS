@@ -61,6 +61,12 @@ export interface LastInteractionObject {
 // ==================================================================
 export interface Session {
   inquiry?: any;
+  // --- Follow-up State untuk cron follow-up WhatsApp ---
+  followUpState?: {
+    level: number;
+    flaggedAt: number;
+    context: any;
+  };
   // --- Info Pengguna ---
   senderNumber: string; // WAJIB ADA: Menyelesaikan masalah no HP hilang
   senderName?: string;
@@ -71,7 +77,6 @@ export interface Session {
   snoozeUntil?: number;
   priceQuotePresented?: boolean;
   awaitingClarification?: boolean;
-
   // --- Info Keranjang & Layanan ---
   cartServices: string[];
   // Gabungkan semua detail dari ServiceInquiry ke sini

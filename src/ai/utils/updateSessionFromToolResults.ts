@@ -76,14 +76,14 @@ export function updateSessionFromToolResults(
             if (serviceName) {
               updatedSession.inquiry.lastMentionedService = [serviceName];
             }
-            const hasBookingInfo = session.inquiry?.bookingState?.bookingDate !== undefined;
-            if (!hasBookingInfo) {
-              updatedSession.followUpState = {
-                level: 1,
-                flaggedAt: Date.now(),
-                context: serviceName || 'unknown_service',
-              };
-            }
+            // const hasBookingInfo = session.inquiry?.bookingState?.bookingDate !== undefined;
+            // if (!hasBookingInfo) {
+            //   updatedSession.followUpState = {
+            //     level: 1,
+            //     flaggedAt: Date.now(),
+            //     context: serviceName || 'unknown_service',
+            //   };
+            // }
             break;
           }
 
