@@ -16,6 +16,7 @@ import { getRepaintSurchargeTool } from '../tools/getRepaintSurchargeTool';
 import { triggerBosMatTool } from '../tools/impl/triggerBosMamatTool';
 import { extractBookingDetailsTool } from '../tools/extractBookingDetailsTool'; // ✅ tambahkan ini kalau belum
 import { searchKnowledgeBaseTool } from '../tools/searchKnowledgeBaseTool';
+import { updateCartToolDefinition, updateCartToolImplementation } from '../tools/updateCartTool';
 
 import { masterPrompt } from './aiPrompts';
 
@@ -51,4 +52,8 @@ export const toolFunctionMap = {
   triggerBosMatTool: triggerBosMatTool,
   searchKnowledgeBase: searchKnowledgeBaseTool,
   updateRepaintDetailsTool: updateRepaintDetailsTool,
+  updateCart: {
+    definition: updateCartToolDefinition,
+    implementation: updateCartToolImplementation,
+  },
 };

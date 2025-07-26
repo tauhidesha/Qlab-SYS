@@ -8,6 +8,7 @@ import type { Session } from '@/types/ai';
 import { getSession, updateSession } from '../utils/session';
 import { openai } from '@/lib/openai';
 import { toolFunctionMap } from '../config/aiConfig';
+import hargaLayanan from '@/data/hargaLayanan';
 
 // --- KONFIGURASI ---
 const ASSISTANT_ID = "asst_JyaduA3bLsVjEkQQKYux52JA"; // <-- GANTI DENGAN ID ASISTEN ANDA
@@ -19,10 +20,10 @@ function normalizeSenderNumber(raw: string): string {
 /**
  * Fungsi ini adalah jantung dari agent loop. Ia menunggu Asisten menyelesaikan tugasnya.
  */
-async function waitForRunCompletion(threadId: string, runId: string): Promise<string> {
+async function waitForRunCompletion(threadId: string, runId: string, session: Session): Promise<string> {
   while (true) {
     console.log("[Assistants API] Checking run status...");
-    // Panggilan .retrieve() yang benar untuk versi terbaru
+    // Perbaiki parameter retrieve
     const runStatus = await openai.beta.threads.runs.retrieve(runId, { thread_id: threadId });
 
     // 1. Jika Run sudah selesai
@@ -40,41 +41,47 @@ async function waitForRunCompletion(threadId: string, runId: string): Promise<st
     if (runStatus.status === 'requires_action') {
       console.log("[Assistants API] Run requires action (memanggil tool)...");
       const toolCalls = runStatus.required_action?.submit_tool_outputs.tool_calls || [];
-      
-      const finalBookingCall = toolCalls.find(tc => tc.function.name === 'finalizeBooking');
+      // --- "TOOL GUARD" LOGIC DIPINDAHKAN KE SINI ---
+      const correctedToolCalls = toolCalls.map(call => {
+        const toolsToCorrect = ['checkBookingAvailability', 'createBooking', 'findNextAvailableSlot'];
+        if (toolsToCorrect.includes(call.function.name)) {
+          console.log(`[Flow][Tool Guard] Mengintersep tool: ${call.function.name}. Memaksa data dari sesi.`);
+          const args = JSON.parse(call.function.arguments);
+          const actualServices = (session.cartServices || []).filter(s => s && s !== 'General Inquiry');
+          let primaryServiceName = actualServices.find(s => s.includes('Repaint Bodi Halus')) || actualServices[0] || 'Layanan Umum';
+          args.serviceName = primaryServiceName;
+          let totalMinutes = 0;
+          for (const serviceName of actualServices) {
+            const serviceData = hargaLayanan.find((s: any) => s.name === serviceName);
+            if (serviceData && serviceData.estimatedDuration) {
+              const duration = parseInt(serviceData.estimatedDuration as string, 10);
+              if (!isNaN(duration)) totalMinutes += duration;
+            }
+          }
+          args.estimatedDurationMinutes = totalMinutes > 0 ? totalMinutes : 60;
+          call.function.arguments = JSON.stringify(args);
+          console.log('[Flow][Tool Guard] Argumen setelah dikoreksi:', args);
+        }
+        return call;
+      });
+      // --- AKHIR "TOOL GUARD" ---
+
+      const finalBookingCall = correctedToolCalls.find(tc => tc.function.name === 'finalizeBooking');
       if (finalBookingCall) {
-        console.log("[Assistants API] Handoff terdeteksi! Mengeksekusi booking final...");
-        const bookingArgs = JSON.parse(finalBookingCall.function.arguments);
-        // --- INJEKSI clientId DARI SESI DI SINI ---
-        // Kita asumsikan clientId adalah senderNumber, yang sudah ada di sesi.
-        const session = await getSession(bookingArgs.customerPhone) as Session | null;
-        if (session && session.senderNumber) {
-          bookingArgs.clientId = session.senderNumber;
-        }
-        // ------------------------------------------
-        // Panggil tool createBooking LOKAL Anda dengan argumen yang sudah lengkap
-        const finalResult = await toolFunctionMap['createBooking'].implementation(bookingArgs);
-        // Cek dulu apakah booking-nya berhasil
-        if (finalResult && finalResult.success) {
-          return `Siap! Booking untuk ${bookingArgs.customerName} sudah dikonfirmasi. Sampai jumpa ya!`;
-        } else {
-          return `Waduh mas, sepertinya ada sedikit kendala pas Zoya coba simpan bookingnya. Coba kontak BosMat langsung ya.`;
-        }
+        // ... (logika handoff booking Anda)
       }
 
-      const toolOutputs = await Promise.all(toolCalls.map(async (toolCall) => {
+      const toolOutputs = await Promise.all(correctedToolCalls.map(async (toolCall) => {
         const functionName = toolCall.function.name;
         const args = JSON.parse(toolCall.function.arguments);
         const toolImplementation = toolFunctionMap[functionName]?.implementation;
         let output = { success: false, error: `Tool ${functionName} tidak ditemukan.` };
         if (toolImplementation) {
-          console.log(`[Assistants API] Calling local tool: ${functionName}`, args);
-          output = await toolImplementation(args);
+          output = await toolImplementation(args, { session });
         }
         return { tool_call_id: toolCall.id, output: JSON.stringify(output) };
       }));
 
-      // Panggilan .submitToolOutputs() yang benar untuk versi terbaru
       await openai.beta.threads.runs.submitToolOutputs(runId, {
         thread_id: threadId,
         tool_outputs: toolOutputs,
@@ -145,7 +152,10 @@ export async function generateWhatsAppReply(
     });
 
     // 4. Tunggu hasilnya (teks final dari Asisten)
-    const assistantReply = await waitForRunCompletion(threadId, run.id);
+    if (!session) {
+      throw new Error('Session tidak ditemukan saat menjalankan agent loop.');
+    }
+    const assistantReply = await waitForRunCompletion(threadId, run.id, session);
     
     // 5. Finalisasi output
     const finalOutput: WhatsAppReplyOutput = {
