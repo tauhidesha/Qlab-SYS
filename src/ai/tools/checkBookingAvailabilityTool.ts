@@ -2,6 +2,9 @@
 
 import { z } from 'zod';
 import { checkBookingAvailabilityImplementation } from './impl/checkBookingAvailabilityImplementation';
+import { getFirebaseAdmin } from '@/lib/firebase-admin';
+import admin from 'firebase-admin';
+import { getServiceCategory } from './createBookingTool';
 
 // --- Input Schema (untuk validasi backend + prompt AI) ---
 const InputSchema = z.object({
@@ -157,14 +160,46 @@ async function findNextAvailableSlotCustom(
   return null;
 }
 
-// --- Dummy: Fungsi untuk ambil booking repaint overlap 5 hari ---
-async function getRepaintBookingsOverlap(dates: string[]): Promise<any[]> {
-  // TODO: Ganti dengan query Firestore yang ambil semua booking repaint yang overlap di tanggal-tanggal ini
-  return [];
-}
-
 // --- Dummy: Fungsi untuk ambil booking harian untuk detailing/coating ---
 async function getDailyBookings(date: string, service: string): Promise<any[]> {
-  // TODO: Ganti dengan query Firestore yang ambil semua booking untuk service tertentu di tanggal ini
-  return [];
+  const db = getFirebaseAdmin().firestore();
+  // Tentukan awal dan akhir hari dari tanggal yang diberikan
+  const startOfDay = new Date(`${date}T00:00:00.000Z`);
+  const endOfDay = new Date(`${date}T23:59:59.999Z`);
+  const category = getServiceCategory(service);
+  const querySnapshot = await db.collection('bookings')
+    .where('bookingDateTime', '>=', admin.firestore.Timestamp.fromDate(startOfDay))
+    .where('bookingDateTime', '<=', admin.firestore.Timestamp.fromDate(endOfDay))
+    .where('category', '==', category)
+    .get();
+  console.log(`[getDailyBookings] Ditemukan ${querySnapshot.docs.length} booking ${category} pada ${date}.`);
+  return querySnapshot.docs.map(doc => doc.data());
+}
+
+// --- Dummy: Fungsi untuk ambil booking repaint overlap 5 hari ---
+async function getRepaintBookingsOverlap(dates: string[]): Promise<any[]> {
+  // Karena Firestore tidak bisa melakukan query 'date overlap' secara langsung,
+  // kita ambil data dalam rentang waktu yang lebih besar lalu filter di sisi server.
+  const db = getFirebaseAdmin().firestore();
+  // Ambil tanggal paling awal dan paling akhir dari rentang 5 hari
+  const startDate = new Date(`${dates[0]}T00:00:00.000Z`);
+  const endDate = new Date(`${dates[dates.length - 1]}T23:59:59.999Z`);
+  const querySnapshot = await db.collection('bookings')
+    .where('category', '==', 'repaint')
+    .where('status', 'in', ['Confirmed', 'In Progress', 'In Queue'])
+    .where('bookingDateTime', '<=', admin.firestore.Timestamp.fromDate(endDate))
+    .get();
+  // Filter manual untuk booking yang benar-benar overlap
+  const overlappingBookings = querySnapshot.docs.filter(doc => {
+    const data = doc.data();
+    const bookingStart = (data.bookingDateTime as admin.firestore.Timestamp).toDate();
+    // Asumsikan durasi repaint rata-rata 5 hari jika tidak ada data spesifik
+    const durationDays = data.estimatedDuration ? Math.ceil(parseInt(data.estimatedDuration) / (24 * 60)) : 5;
+    const bookingEnd = new Date(bookingStart);
+    bookingEnd.setDate(bookingStart.getDate() + durationDays);
+    // Cek apakah rentang [bookingStart, bookingEnd] bersinggungan dengan rentang [startDate, endDate]
+    return bookingStart < endDate && bookingEnd > startDate;
+  });
+  console.log(`[getRepaintBookingsOverlap] Ditemukan ${overlappingBookings.length} booking repaint yang overlap.`);
+  return overlappingBookings.map(doc => doc.data());
 }

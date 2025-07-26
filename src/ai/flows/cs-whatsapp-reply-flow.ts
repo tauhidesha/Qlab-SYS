@@ -136,11 +136,26 @@ export async function generateWhatsAppReply(
       await updateSession(senderNumber, session as Partial<Session>);
     }
 
-    // 2. Tambahkan pesan user ke thread
+    // --- PERUBAHAN DI SINI: Rakit pesan yang kaya konteks ---
+    const today = new Date().toISOString().split('T')[0];
+    const servicesInCart = (session?.cartServices || []).filter(s => s && s !== 'General Inquiry').join(', ');
+
+    const contextualizedMessage = `
+[KONTEKS SISTEM - JANGAN TAMPILKAN KE USER]
+Tanggal hari ini: ${today}
+Layanan di keranjang saat ini: ${servicesInCart || 'Belum ada'}
+[/KONTEKS SISTEM]
+
+[PESAN DARI USER]:
+${input.customerMessage}
+    `;
+    // --- AKHIR PERUBAHAN ---
+
+    // 2. Tambahkan pesan yang sudah diperkaya konteks ini ke thread
     console.log(`[Assistants API] Menambahkan pesan ke thread ${threadId}`);
     await openai.beta.threads.messages.create(threadId, {
       role: "user",
-      content: input.customerMessage,
+      content: contextualizedMessage, // <-- Gunakan pesan baru ini
     });
 
     // 3. Buat dan jalankan Run pada thread

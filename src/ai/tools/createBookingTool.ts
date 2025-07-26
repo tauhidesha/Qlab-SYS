@@ -15,7 +15,7 @@ function stringSimilarity(a: string, b: string): number {
   return matches / Math.max(a.length, b.length);
 }
 
-function getServiceCategory(serviceName: string): 'detailing' | 'coating' | 'repaint' | 'other' {
+export function getServiceCategory(serviceName: string): 'detailing' | 'coating' | 'repaint' | 'other' {
   const name = serviceName.toLowerCase();
   if (name.includes('detailing') || name.includes('poles')) return 'detailing';
   if (name.includes('coating')) return 'coating';
