@@ -1,5 +1,6 @@
 import { getFirebaseAdmin } from '../../lib/firebase-admin';
 import admin from 'firebase-admin';
+import { z } from 'zod';
 
 // Helper fuzzy match
 function stringSimilarity(a: string, b: string): number {
@@ -43,6 +44,25 @@ export const createBookingTool = {
     },
   },
   implementation: async (args) => {
+    // 1. Validasi input dengan Zod
+    const BookingArgsSchema = z.object({
+      customerPhone: z.string(),
+      customerName: z.string(),
+      serviceName: z.string(),
+      bookingDate: z.string(),
+      bookingTime: z.string(),
+      vehicleInfo: z.string(),
+      clientId: z.string().optional(),
+    });
+    let parsed;
+    try {
+      parsed = BookingArgsSchema.parse(args);
+    } catch (error) {
+      return {
+        success: false,
+        error: 'Input tidak valid: ' + (error instanceof Error ? error.message : JSON.stringify(error)),
+      };
+    }
     try {
       const { 
         customerName, 
@@ -51,27 +71,28 @@ export const createBookingTool = {
         bookingDate, 
         bookingTime, 
         vehicleInfo 
-      } = args;
+      } = parsed;
 
-      // 1. Pecah string serviceName menjadi array
+      // 2. Pecah string serviceName menjadi array
       const servicesArray = serviceName.split(',').map(s => s.trim());
 
-      // 2. Gabungkan tanggal dan waktu menjadi satu objek Date JavaScript
+      // 3. Gabungkan tanggal dan waktu menjadi satu objek Date JavaScript
       const dateTimeString = `${bookingDate}T${bookingTime}:00`;
       const bookingDateTime = new Date(dateTimeString);
       if (isNaN(bookingDateTime.getTime())) {
         throw new Error(`Format tanggal atau waktu tidak valid: ${dateTimeString}`);
       }
 
-      // 3. Siapkan objek data yang BERSIH untuk disimpan ke Firestore
+      // 4. Siapkan objek data yang BERSIH untuk disimpan ke Firestore
       const bookingData = {
         customerName,
         customerPhone,
         vehicleInfo,
         bookingDateTime: admin.firestore.Timestamp.fromDate(bookingDateTime),
-        status: 'Confirmed',
+        status: 'pending',
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         services: servicesArray,
+        category: getServiceCategory(servicesArray[0]),
       };
 
       const db = getFirebaseAdmin().firestore();
@@ -87,7 +108,7 @@ export const createBookingTool = {
       console.error('[createBookingTool] Gagal menyimpan booking:', error);
       return {
         success: false,
-        error: error.message,
+        error: error instanceof Error ? error.message : JSON.stringify(error),
       };
     }
   },

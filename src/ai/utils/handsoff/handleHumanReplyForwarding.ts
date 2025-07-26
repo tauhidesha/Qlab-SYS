@@ -1,78 +1,61 @@
 import { getFirebaseAdmin } from '@/lib/firebase-admin';
 import admin from 'firebase-admin';
-import { sendWhatsAppMessage } from '@/services/whatsappService';
 
-const BOS_MAMAT_NUMBER = process.env.BOS_MAMAT_NUMBER;
-
-if (!BOS_MAMAT_NUMBER) {
-  console.error('[handleHumanReplyForwarding] BOS_MAMAT_NUMBER belum diset di .env');
+// Tipe data baru untuk output
+interface ForwardingInstruction {
+  targetCustomerNumber: string;
+  ghostwriterMessage: string;
 }
 
-export async function handleHumanReplyForwarding(senderNumber: string, messageBody: string): Promise<boolean> {
-  if (!BOS_MAMAT_NUMBER || !senderNumber.includes(BOS_MAMAT_NUMBER)) return false;
+/**
+ * Mendeteksi pesan dari BosMat dan mengubahnya menjadi instruksi untuk Zoya.
+ * @returns {Promise<ForwardingInstruction | null>} - Objek instruksi atau null.
+ */
+export async function handleHumanReplyForwarding(senderNumber: string, messageBody: string): Promise<ForwardingInstruction | null> {
+  const BOS_MAMAT_NUMBER = process.env.BOS_MAMAT_NUMBER;
+  if (!BOS_MAMAT_NUMBER || !senderNumber.includes(BOS_MAMAT_NUMBER)) {
+    return null; // Bukan pesan dari BosMat, abaikan.
+  }
 
   console.log(`[HumanForwarding] Deteksi balasan dari BosMat: "${messageBody}"`);
+  
+  let targetCustomerNumber: string | null = null;
+  let replyText: string = messageBody;
 
-  // === 1. Cek apakah pakai format manual ===
-  const match = messageBody.match(/^#balas\s+(\d+)\s*\n([\s\S]+)/i);
-
+  // Cek apakah pakai format manual #balas
+  const match = messageBody.match(/^#balas\s+([0-9]+)\s*\n([\s\S]+)/i);
   if (match) {
-    const targetNumber = match[1].trim(); // 🔧 fix penting
-    const replyText = match[2].trim();
-
-    console.log(`[ManualReply] Mencoba cari sesi dengan ID: '${targetNumber}'`);
-
+    targetCustomerNumber = match[1].trim();
+    replyText = match[2].trim();
+  } else {
+    // Jika tidak, gunakan pointer dari state
     const db = getFirebaseAdmin().firestore();
-    const sessionRef = db.collection('zoya_sessions').doc(targetNumber);
-    const sessionSnap = await sessionRef.get();
-
-    if (!sessionSnap.exists) {
-      console.warn(`[ManualReply] Customer ${targetNumber} tidak ditemukan.`);
-      return false;
-    }
-
-    await sendWhatsAppMessage(targetNumber, replyText);
-    await sessionRef.update({
-      pending_human_reply: admin.firestore.FieldValue.delete(),
-      snoozeUntil: 0,
-    });
-
-    console.log(`[ManualReply] Balasan manual diteruskan ke ${targetNumber}`);
-    return true;
+    const forwardingRef = db.collection('zoya_sessions').doc('human_forwarding_state');
+    const forwardingSnap = await forwardingRef.get();
+    targetCustomerNumber = forwardingSnap.data()?.lastCustomerNumber || null;
   }
 
-  // === 2. Kalau gak pakai format, fallback ke pointer ===
+  if (!targetCustomerNumber) {
+    console.warn('[HumanForwarding] Tidak bisa menentukan target pelanggan. Pesan diabaikan.');
+    return null;
+  }
+
+  // Hapus state agar tidak membalas ke orang yang sama lagi
   const db = getFirebaseAdmin().firestore();
-  const forwardingRef = db.collection('zoya_sessions').doc('human_forwarding_state');
-  const forwardingSnap = await forwardingRef.get();
-  const forwardingData = forwardingSnap.data();
-
-  const customerNumber = forwardingData?.lastCustomerNumber;
-  if (!customerNumber) {
-    console.warn(`[HumanForwarding] Tidak ada customer yang sedang nunggu.`);
-    return false;
-  }
-
-  const sessionRef = db.collection('zoya_sessions').doc(customerNumber);
-  const sessionSnap = await sessionRef.get();
-  const sessionData = sessionSnap.data();
-
-  if (!sessionData?.pending_human_reply) {
-    console.warn(`[HumanForwarding] Customer ${customerNumber} tidak punya pending_human_reply.`);
-    return false;
-  }
-
-  await sendWhatsAppMessage(customerNumber, messageBody);
+  const sessionRef = db.collection('zoya_sessions').doc(targetCustomerNumber);
   await sessionRef.update({
     pending_human_reply: admin.firestore.FieldValue.delete(),
     snoozeUntil: 0,
   });
-
-  console.log(`[HumanForwarding] Balasan diteruskan ke ${customerNumber} via pointer.`);
-
-  await forwardingRef.update({
+  await db.collection('zoya_sessions').doc('human_forwarding_state').update({
     lastCustomerNumber: admin.firestore.FieldValue.delete(),
   });
 
-  return true;
+  // BUAT PERINTAH UNTUK ZOYA, BUKAN MENGIRIM PESAN
+  const ghostwriterMessage = `[INSTRUKSI DARI BOSMAT]: Tolong sampaikan pesan berikut ke pelanggan dengan gaya bahasamu yang santai dan ramah: "${replyText}"`;
+  
+  return {
+    targetCustomerNumber,
+    ghostwriterMessage,
+  };
 }

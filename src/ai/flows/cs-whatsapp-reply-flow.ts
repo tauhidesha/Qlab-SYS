@@ -45,20 +45,21 @@ async function waitForRunCompletion(threadId: string, runId: string): Promise<st
       if (finalBookingCall) {
         console.log("[Assistants API] Handoff terdeteksi! Mengeksekusi booking final...");
         const bookingArgs = JSON.parse(finalBookingCall.function.arguments);
-        // --- PERUBAHAN UTAMA DI SINI ---
-        // Panggil tool createBooking LOKAL Anda
-        const finalResult = await toolFunctionMap['createBooking'].implementation(bookingArgs);
-        // Cek dulu apakah booking-nya berhasil disimpan di database
-        if (finalResult && finalResult.success) {
-          // Jika berhasil, kirim pesan konfirmasi LENGKAP dengan instruksi DP
-          const confirmationMessage = 
-`Oke mas *${bookingArgs.customerName}*, booking sudah Zoya kunci! 🤘\n\nDetailnya sudah tersimpan untuk jadwal:\n•⁠  ⁠*Layanan:* ${bookingArgs.serviceName}\n•⁠  ⁠*Jadwal:* ${bookingArgs.bookingDate}, jam ${bookingArgs.bookingTime}\n\nLangkah terakhir, untuk mengamankan slot ini, silakan transfer *Booking Fee (DP) sebesar Rp100.000* ke:\n\nBCA: \`\`\`1662515412\`\`\`\na/n *Muhammad Tauhid Haryadesa*\n\nSetelah transfer, tinggal kirim bukti pembayarannya ke sini ya mas. Ditunggu konfirmasinya! 😊`;
-          return confirmationMessage;
-        } else {
-          // Jika tool createBooking gagal karena suatu alasan
-          return `Waduh mas, sepertinya ada sedikit kendala pas Zoya coba simpan bookingnya. Coba kontak BosMat langsung ya untuk bantuan.`;
+        // --- INJEKSI clientId DARI SESI DI SINI ---
+        // Kita asumsikan clientId adalah senderNumber, yang sudah ada di sesi.
+        const session = await getSession(bookingArgs.customerPhone) as Session | null;
+        if (session && session.senderNumber) {
+          bookingArgs.clientId = session.senderNumber;
         }
-        // --- AKHIR PERUBAHAN ---
+        // ------------------------------------------
+        // Panggil tool createBooking LOKAL Anda dengan argumen yang sudah lengkap
+        const finalResult = await toolFunctionMap['createBooking'].implementation(bookingArgs);
+        // Cek dulu apakah booking-nya berhasil
+        if (finalResult && finalResult.success) {
+          return `Siap! Booking untuk ${bookingArgs.customerName} sudah dikonfirmasi. Sampai jumpa ya!`;
+        } else {
+          return `Waduh mas, sepertinya ada sedikit kendala pas Zoya coba simpan bookingnya. Coba kontak BosMat langsung ya.`;
+        }
       }
 
       const toolOutputs = await Promise.all(toolCalls.map(async (toolCall) => {
