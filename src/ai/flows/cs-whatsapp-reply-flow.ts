@@ -104,6 +104,9 @@ export async function generateWhatsAppReply(
 ): Promise<WhatsAppReplyOutput | null> {
   console.log('[RAW INPUT PAYLOAD]', JSON.stringify(input, null, 2));
   const senderNumber = normalizeSenderNumber(input.senderNumber || 'playground_user');
+  if (!senderNumber) {
+    throw new Error('senderNumber wajib diisi untuk getSession');
+  }
   const senderName = input.senderName || undefined;
 
   // Ambil sesi hanya untuk mendapatkan thread_id
