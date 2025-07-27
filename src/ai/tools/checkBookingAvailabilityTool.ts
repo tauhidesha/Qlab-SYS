@@ -2,14 +2,15 @@
 
 import { z } from 'zod';
 import { checkBookingAvailabilityImplementation } from './impl/checkBookingAvailabilityImplementation';
+import { parseDateTime } from '@/ai/utils/dateTimeParser';
 import { getFirebaseAdmin } from '@/lib/firebase-admin';
 import admin from 'firebase-admin';
 import { getServiceCategory } from './createBookingTool';
 
 // --- Input Schema (untuk validasi backend + prompt AI) ---
 const InputSchema = z.object({
-  bookingDate: z.string().describe('Tanggal booking, format YYYY-MM-DD'),
-  bookingTime: z.string().describe('Jam booking, format HH:mm'),
+  bookingDate: z.string().describe('Tanggal booking. Bisa format YYYY-MM-DD atau bahasa alami seperti "besok", "minggu depan", dll.'),
+  bookingTime: z.string().describe('Jam booking, format HH:mm atau bahasa alami seperti "jam 2 siang".'),
   serviceName: z.string().describe('Nama layanan yang ingin dibooking'),
   estimatedDurationMinutes: z.number().describe('Estimasi durasi layanan dalam menit'),
 });
@@ -44,6 +45,19 @@ export const checkBookingAvailabilityTool = {
 
   // --- Implementation (panggil logika sebenarnya di folder impl) ---
   implementation: async (input: Input): Promise<Output> => {
+    // --- Parsing natural language date/time jika perlu ---
+    let bookingDate = input.bookingDate;
+    let bookingTime = input.bookingTime;
+    // Jika bookingDate atau bookingTime bukan format standar, parse
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    const timeRegex = /^\d{2}:\d{2}$/;
+    if (!dateRegex.test(bookingDate) || !timeRegex.test(bookingTime)) {
+      const parsed = await parseDateTime(`${input.bookingDate} ${input.bookingTime}`);
+      if (parsed.date) bookingDate = parsed.date;
+      if (parsed.time) bookingTime = parsed.time;
+    }
+    // Gantikan input dengan hasil parsing
+    input = { ...input, bookingDate, bookingTime };
     // --- Penentuan jenis layanan ---
     const service = input.serviceName.toLowerCase();
     const isRepaint = service.includes("repaint");
