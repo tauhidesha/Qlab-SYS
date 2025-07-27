@@ -6,12 +6,19 @@
 import type { ZoyaChatInput, WhatsAppReplyOutput } from '@/types/ai/cs-whatsapp-reply';
 import type { Session } from '@/types/ai';
 import { getSession, updateSession } from '../utils/session';
-import { openai } from '@/lib/openai';
+import { isInterventionLockActive } from '../utils/interventionLock';
+import { openai as baseOpenai } from '@/lib/openai';
 import { toolFunctionMap } from '../config/aiConfig';
 import hargaLayanan from '@/data/hargaLayanan';
+import { traceable } from "langsmith/traceable";
+import { wrapOpenAI } from "langsmith/wrappers";
 
 // --- KONFIGURASI ---
+
 const ASSISTANT_ID = "asst_JyaduA3bLsVjEkQQKYux52JA"; // <-- GANTI DENGAN ID ASISTEN ANDA
+
+// Wrap OpenAI client for LangSmith tracing
+const openai = wrapOpenAI(baseOpenai);
 
 function normalizeSenderNumber(raw: string): string {
   return raw?.replace(/@c\.us$/, '') || '';
@@ -99,103 +106,99 @@ async function waitForRunCompletion(threadId: string, runId: string, session: Se
   }
 }
 
-export async function generateWhatsAppReply(
-  input: ZoyaChatInput
-): Promise<WhatsAppReplyOutput | null> {
-  console.log('[RAW INPUT PAYLOAD]', JSON.stringify(input, null, 2));
-  const senderNumber = normalizeSenderNumber(input.senderNumber || 'playground_user');
-  if (!senderNumber) {
-    throw new Error('senderNumber wajib diisi untuk getSession');
-  }
-  const senderName = input.senderName || undefined;
 
-  // Ambil sesi hanya untuk mendapatkan thread_id
-  let session = await getSession(senderNumber) as Session | null;
+export const generateWhatsAppReply = traceable(
+  async function generateWhatsAppReply(
+    input: ZoyaChatInput
+  ): Promise<WhatsAppReplyOutput | null> {
+    console.log('[RAW INPUT PAYLOAD]', JSON.stringify(input, null, 2));
+    const senderNumber = normalizeSenderNumber(input.senderNumber || 'playground_user');
+    if (!senderNumber) {
+      throw new Error('senderNumber wajib diisi untuk getSession');
+    }
+    const senderName = input.senderName || undefined;
 
-  try {
-    // 1. Dapatkan atau buat thread_id untuk user ini
-    let threadId = session?.threadId;
-    if (!threadId) {
-      console.log(`[Assistants API] Membuat thread baru untuk ${senderNumber}`);
-      const thread = await openai.beta.threads.create({
-        metadata: {
-          customer_name: senderName || 'Belum diketahui',
-          customer_phone: senderNumber,
+    // --- Intervention Lock Check ---
+    const locked = await isInterventionLockActive(senderNumber);
+    if (locked) {
+      console.log(`[InterventionLock] Sesi ${senderNumber} sedang di-lock untuk intervensi manusia. Tidak memproses balasan otomatis.`);
+      return null;
+    }
+
+    // Ambil sesi hanya untuk mendapatkan thread_id
+    let session = await getSession(senderNumber) as Session | null;
+
+    try {
+      // 1. Dapatkan atau buat thread_id untuk user ini
+      let threadId = session?.threadId;
+      if (!threadId) {
+        console.log(`[Assistants API] Membuat thread baru untuk ${senderNumber}`);
+        const thread = await openai.beta.threads.create({
+          metadata: {
+            customer_name: senderName || 'Belum diketahui',
+            customer_phone: senderNumber,
+          }
+        });
+        threadId = thread.id;
+        // Inisialisasi sesi jika belum ada
+        if (!session) {
+          session = {
+            senderNumber,
+            senderName,
+            lastInteraction: { type: 'system', at: Date.now() },
+            cartServices: [],
+            threadId: threadId,
+          };
+        } else {
+          session.threadId = threadId;
         }
-      });
-      threadId = thread.id;
-      // Inisialisasi sesi jika belum ada
-      if (!session) {
-        session = {
-          senderNumber,
-          senderName,
-          lastInteraction: { type: 'system', at: Date.now() },
-          cartServices: [],
-          threadId: threadId,
-        };
-      } else {
-        session.threadId = threadId;
+        await updateSession(senderNumber, session as Partial<Session>);
       }
-      await updateSession(senderNumber, session as Partial<Session>);
+
+      // 2. Kirim pesan user langsung ke thread, dengan blok [SENDER_INFO]
+      console.log(`[Assistants API] Menambahkan pesan user ke thread ${threadId}`);
+      const senderInfoBlock = `\n[SENDER_INFO]\nNama: ${senderName || 'Tidak diketahui'}\nNomor: ${senderNumber}`;
+      await openai.beta.threads.messages.create(threadId, {
+        role: "user",
+        content: `${input.customerMessage}${senderInfoBlock}`,
+      });
+
+      // 3. Buat dan jalankan Run pada thread
+      console.log(`[Assistants API] Menjalankan asisten ${ASSISTANT_ID} pada thread ${threadId}`);
+      const run = await openai.beta.threads.runs.create(threadId, {
+        assistant_id: ASSISTANT_ID,
+        // Di sini Anda bisa menambahkan instruksi tambahan jika perlu
+        // instructions: "Tolong tanggapi pesan terakhir dari user."
+      });
+
+      // 4. Tunggu hasilnya (teks final dari Asisten)
+      if (!session) {
+        throw new Error('Session tidak ditemukan saat menjalankan agent loop.');
+      }
+      const assistantReply = await waitForRunCompletion(threadId, run.id, session);
+      
+      // 5. Finalisasi output
+      const finalOutput: WhatsAppReplyOutput = {
+        suggestedReply: assistantReply,
+        toolCalls: [],
+        route: 'assistant_api_reply',
+        metadata: {},
+      };
+      
+      // Simpan balasan Zoya ke sesi jika diperlukan untuk logika lain
+      if (session) {
+        await updateSession(senderNumber, { ...session, lastAssistantMessage: finalOutput.suggestedReply });
+      }
+
+      return finalOutput;
+
+    } catch (error) {
+      console.error("Error besar di alur utama Asisten:", error);
+      return { 
+        suggestedReply: "Waduh, Zoya lagi pusing nih. Coba lagi nanti ya atau hubungi BosMat.",
+        toolCalls: [],
+        route: 'unhandled_error'
+      };
     }
-
-    // --- PERUBAHAN DI SINI: Rakit pesan yang kaya konteks ---
-    const today = new Date().toISOString().split('T')[0];
-    const servicesInCart = (session?.cartServices || []).filter(s => s && s !== 'General Inquiry').join(', ');
-
-    const contextualizedMessage = `
-[KONTEKS SISTEM - JANGAN TAMPILKAN KE USER]
-Tanggal hari ini: ${today}
-Layanan di keranjang saat ini: ${servicesInCart || 'Belum ada'}
-[/KONTEKS SISTEM]
-
-[PESAN DARI USER]:
-${input.customerMessage}
-    `;
-    // --- AKHIR PERUBAHAN ---
-
-    // 2. Tambahkan pesan yang sudah diperkaya konteks ini ke thread
-    console.log(`[Assistants API] Menambahkan pesan ke thread ${threadId}`);
-    await openai.beta.threads.messages.create(threadId, {
-      role: "user",
-      content: contextualizedMessage, // <-- Gunakan pesan baru ini
-    });
-
-    // 3. Buat dan jalankan Run pada thread
-    console.log(`[Assistants API] Menjalankan asisten ${ASSISTANT_ID} pada thread ${threadId}`);
-    const run = await openai.beta.threads.runs.create(threadId, {
-      assistant_id: ASSISTANT_ID,
-      // Di sini Anda bisa menambahkan instruksi tambahan jika perlu
-      // instructions: "Tolong tanggapi pesan terakhir dari user."
-    });
-
-    // 4. Tunggu hasilnya (teks final dari Asisten)
-    if (!session) {
-      throw new Error('Session tidak ditemukan saat menjalankan agent loop.');
-    }
-    const assistantReply = await waitForRunCompletion(threadId, run.id, session);
-    
-    // 5. Finalisasi output
-    const finalOutput: WhatsAppReplyOutput = {
-      suggestedReply: assistantReply,
-      toolCalls: [],
-      route: 'assistant_api_reply',
-      metadata: {},
-    };
-    
-    // Simpan balasan Zoya ke sesi jika diperlukan untuk logika lain
-    if (session) {
-      await updateSession(senderNumber, { ...session, lastAssistantMessage: finalOutput.suggestedReply });
-    }
-
-    return finalOutput;
-
-  } catch (error) {
-    console.error("Error besar di alur utama Asisten:", error);
-    return { 
-      suggestedReply: "Waduh, Zoya lagi pusing nih. Coba lagi nanti ya atau hubungi BosMat.",
-      toolCalls: [],
-      route: 'unhandled_error'
-    };
   }
-}
+);
