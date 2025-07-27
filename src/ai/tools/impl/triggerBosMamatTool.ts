@@ -38,10 +38,14 @@ export const triggerBosMatTool: ToolFunction & {
   parameters: jsonSchemaParameters,
 
   implementation: async ({ arguments: args, toolCall, input }) => {
-    // ... (implementasi Anda dari sebelumnya sudah bagus, tidak perlu diubah) ...
     let parsedArgs: z.infer<typeof inputSchema>;
     try {
       let rawArgs = args || toolCall?.arguments;
+      console.log('[triggerBosMatTool] rawArgs:', rawArgs);
+
+      if (!rawArgs) {
+        throw new Error('[triggerBosMamatTool] Argumen kosong. Tool harus dipanggil dengan reason dan customerQuestion.');
+      }
 
       if (typeof rawArgs === 'string') {
         try {
@@ -50,14 +54,14 @@ export const triggerBosMatTool: ToolFunction & {
           throw new Error('Argumen tool adalah string JSON yang tidak valid.');
         }
       }
-      
+
       parsedArgs = inputSchema.parse(rawArgs);
 
     } catch (error) {
       console.error('[triggerBosMamatTool] Gagal mem-validasi argumen:', error);
-      throw new Error(`[triggerBosMamatTool] Argumen tidak lengkap atau tidak valid. Error: ${error}`);
+      throw new Error(`[triggerBosMamatTool] Argumen tidak lengkap atau tidak valid. Error: ${JSON.stringify(error, null, 2)}`);
     }
-    
+
     const { reason, customerQuestion } = parsedArgs;
 
     const senderNumber = input?.senderNumber;
