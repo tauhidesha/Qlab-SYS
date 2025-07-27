@@ -81,6 +81,20 @@ async function waitForRunCompletion(threadId: string, runId: string, session: Se
       const toolOutputs = await Promise.all(correctedToolCalls.map(async (toolCall) => {
         const functionName = toolCall.function.name;
         const args = JSON.parse(toolCall.function.arguments);
+
+        // Fallback/validasi untuk triggerBosMatTool agar tidak error jika argumen kosong
+        if (functionName === 'triggerBosMatTool') {
+          if (!args.reason || !args.customerQuestion) {
+            return {
+              tool_call_id: toolCall.id,
+              output: JSON.stringify({
+                success: false,
+                error: 'Argumen reason dan customerQuestion wajib diisi untuk triggerBosMatTool.'
+              })
+            };
+          }
+        }
+
         const toolImplementation = toolFunctionMap[functionName]?.implementation;
         let output = { success: false, error: `Tool ${functionName} tidak ditemukan.` };
         if (toolImplementation) {
