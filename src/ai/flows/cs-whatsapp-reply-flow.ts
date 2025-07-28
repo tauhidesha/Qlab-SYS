@@ -30,8 +30,10 @@ function normalizeSenderNumber(raw: string): string {
 async function waitForRunCompletion(threadId: string, runId: string, session: Session): Promise<string> {
   while (true) {
     console.log("[Assistants API] Checking run status...");
-    // Perbaiki parameter retrieve
-    const runStatus = await openai.beta.threads.runs.retrieve(runId, { thread_id: threadId });
+    const runStatus = await openai.beta.threads.runs.retrieve(
+      threadId,
+      runId
+    );
 
     // 1. Jika Run sudah selesai
     if (runStatus.status === 'completed') {
@@ -103,10 +105,13 @@ async function waitForRunCompletion(threadId: string, runId: string, session: Se
         return { tool_call_id: toolCall.id, output: JSON.stringify(output) };
       }));
 
-      await openai.beta.threads.runs.submitToolOutputs(runId, {
-        thread_id: threadId,
-        tool_outputs: toolOutputs,
-      });
+      await openai.beta.threads.runs.submitToolOutputs(
+        threadId,
+        runId,
+        {
+          tool_outputs: toolOutputs,
+        }
+      );
     }
 
     // 3. Jika Run gagal
