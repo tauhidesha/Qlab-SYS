@@ -171,7 +171,8 @@ export const generateWhatsAppReply = traceable(
 
       // 2. Kirim pesan user langsung ke thread, dengan blok [SENDER_INFO]
       console.log(`[Assistants API] Menambahkan pesan user ke thread ${threadId}`);
-      const senderInfoBlock = `\n[SENDER_INFO]\nNama: ${senderName || 'Tidak diketahui'}\nNomor: ${senderNumber}`;
+      const today = new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      const senderInfoBlock = `\n[SENDER_INFO]\nNama: ${senderName || 'Tidak diketahui'}\nNomor: ${senderNumber}\nTanggal Hari Ini: ${today}`;
       await openai.beta.threads.messages.create(threadId, {
         role: "user",
         content: `${input.customerMessage}${senderInfoBlock}`,
