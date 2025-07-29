@@ -95,7 +95,7 @@ async function implementation(input: Input): Promise<Output> {
   return {
     success: true,
     motor_query,
-    motor_size: bestMatch.service_size,
+    motor_size: bestMatch.motor_db_size,
     repaint_size: bestMatch.repaint_size,
     matched_model: bestMatch.model,
     similarity: bestScore,
