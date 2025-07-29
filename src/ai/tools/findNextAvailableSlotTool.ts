@@ -25,6 +25,9 @@ type Output = {
 
 // --- Implementation ---
 async function implementation(input: Input): Promise<Output> {
+  // Log input
+  console.log('[findNextAvailableSlotTool] input:', input);
+
   try {
     const { preferred_date, service_name } = InputSchema.parse(input);
     const category = service_name ? getServiceCategory(service_name) : null;
@@ -184,19 +187,24 @@ async function implementation(input: Input): Promise<Output> {
       ? `Slot terdekat tersedia pada ${firstSlot.day}, ${firstSlot.date} jam ${firstSlot.time}.`
       : '';
 
-    return {
+    // --- before return, log output ---
+    const result: Output = {
       success: true,
       requestedDate,
       availableSlots: formattedSlots,
       reason: slotSummary,
     };
+    console.log('[findNextAvailableSlotTool] output:', result);
+    return result;
 
   } catch (error: any) {
-    return {
+    const errorResult: Output = {
       success: false,
       requestedDate: null,
       reason: `Terjadi error saat mencari jadwal: ${error.message}`,
     };
+    console.log('[findNextAvailableSlotTool] output (error):', errorResult);
+    return errorResult;
   }
 }
 
@@ -211,7 +219,7 @@ export const findNextAvailableSlotTool = {
         type: 'object',
         properties: {
           preferred_date: { type: 'string', description: 'Tanggal/hari pilihan user (opsional).' },
-          service_name: { type: 'string', description: 'Nama layanan (opsional, untuk filtering kategori).' },
+          service_name: { type: 'string', description: 'Nama layanan (repaint, detailing, dll).' },
         },
         required: [],
       },

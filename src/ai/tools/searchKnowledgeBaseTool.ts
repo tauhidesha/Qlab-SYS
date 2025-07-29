@@ -1,11 +1,7 @@
 // @file: src/ai/tools/searchKnowledgeBaseTool.ts
 
 import { z } from 'zod';
-import { getFirebaseAdmin } from '../../lib/firebase-admin';
-import admin from 'firebase-admin';
-import { embedText } from '../flows/embed-text-flow';
-import { cosineSimilarity } from '../../lib/math';
-// import { stemText } from '../../actions/embeddingAction'; // Removed: use dynamic import below
+import { searchKnowledgeBase as ragSearchKnowledgeBase } from '@/ai/utils/rag';
 
 // --- Input Schema (untuk AI + validasi) ---
 const InputSchema = z.object({
@@ -33,77 +29,21 @@ async function implementation(rawInput: any): Promise<Output> {
   }
 
   const { query } = parsed.data;
-  // PATCH: Turunkan threshold agar entry mirip tetap lolos
-  const MINIMUM_THRESHOLD = 0.4;
-
   try {
-    const userEmbedding = await embedText(query);
-    if (!userEmbedding) {
-      return {
-        success: false,
-        message: 'Gagal membuat embedding untuk query.',
-      };
-    }
-
-    const db = getFirebaseAdmin().firestore();
-    const entriesRef = db.collection('knowledge_base_entries');
-    const snapshot = await entriesRef.get();
-
-    let bestMatch: { question: string; answer: string; score: number } | null = null;
-    let highestScore = 0;
-
-    snapshot.forEach((doc) => {
-      const data = doc.data();
-      if (!Array.isArray(data.embedding) || data.embedding.length === 0) return;
-
-      const score = cosineSimilarity(userEmbedding, data.embedding);
-
-      // --- PATCH: log stemmed versions untuk validasi ---
-      // Import stemText dari embeddingAction
-      let stemmedQuery = '';
-      let stemmedData = '';
-      try {
-        // Dynamic import to avoid circular dependency
-        const { stemText } = require('../lib/textUtils');
-        stemmedQuery = stemText(query);
-        stemmedData = stemText(data.question ?? '');
-      } catch (err) {
-        stemmedQuery = query;
-        stemmedData = data.question;
-      }
-
-      console.log(`[searchKnowledgeBaseTool]`);
-      console.log(`  Raw:     "${query}" vs "${data.question}"`);
-      console.log(`  Stemmed: "${stemmedQuery}" vs "${stemmedData}"`);
-      console.log(`  Score:   ${score}`);
-
-      if (score > highestScore) {
-        highestScore = score;
-        bestMatch = {
-          question: data.question,
-          answer: data.answer,
-          score,
-        };
-      }
-    });
-
-    console.log('[searchKnowledgeBaseTool] Best match:', bestMatch, 'Highest score:', highestScore);
-
-    if (bestMatch && highestScore >= MINIMUM_THRESHOLD) {
-      const match = bestMatch as { question: string; answer: string; score: number };
+    const context = await ragSearchKnowledgeBase(query);
+    if (context && !context.startsWith('Zoya tidak menemukan informasi')) {
       return {
         success: true,
-        question: match.question,
-        answer: match.answer,
-        similarityScore: highestScore,
+        answer: context,
+        question: query,
+        similarityScore: 1, // Not available from RAG util, so set to 1 for now
+      };
+    } else {
+      return {
+        success: false,
+        message: 'Tidak ditemukan jawaban yang cocok untuk pertanyaan ini.',
       };
     }
-
-    return {
-      success: false,
-      message: `Tidak ditemukan jawaban yang cocok untuk pertanyaan ini.`,
-    };
-
   } catch (err: any) {
     console.error('[searchKnowledgeBaseTool] Error:', err);
     return {

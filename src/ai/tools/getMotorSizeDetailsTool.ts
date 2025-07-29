@@ -47,16 +47,22 @@ async function implementation(input: Input): Promise<Output> {
     };
   }
   
-  // REVISI: Hapus dynamic import yang lama dan panggil fungsi secara langsung
-  const motor_query = normalizeToolInput(input, 'motor_query')?.trim().toLowerCase();
-  
-  console.log('[getMotorSizeDetailsTool][DEBUG] Query:', motor_query);
+
+  // Normalisasi query: hapus angka/tahun/nama belakang agar pencarian lebih toleran
+  let motor_query = normalizeToolInput(input, 'motor_query')?.trim().toLowerCase();
   if (!motor_query) {
     return {
       success: false,
       message: 'motor_query tidak valid atau kosong.',
     };
   }
+  // Hilangkan angka (tahun/model) di belakang, misal: "nmax 2023" => "nmax"
+  motor_query = motor_query.replace(/\s*\d{4,5}\b.*$/, '').replace(/\s+abs\b.*$/, '').trim();
+  // Jika masih ada lebih dari 2 kata, ambil 2 kata pertama saja
+  if (motor_query.split(' ').length > 2) {
+    motor_query = motor_query.split(' ').slice(0, 2).join(' ');
+  }
+  console.log('[getMotorSizeDetailsTool][DEBUG] Query (normalized):', motor_query);
 
   let bestMatch: typeof daftarUkuranMotor[number] | null = null;
   let bestScore = 0;
@@ -89,7 +95,7 @@ async function implementation(input: Input): Promise<Output> {
   return {
     success: true,
     motor_query,
-    motor_size: bestMatch.motor_db_size,
+    motor_size: bestMatch.service_size,
     repaint_size: bestMatch.repaint_size,
     matched_model: bestMatch.model,
     similarity: bestScore,
