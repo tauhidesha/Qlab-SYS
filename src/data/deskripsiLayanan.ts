@@ -27,18 +27,6 @@ const deskripsiLayanan = [
     "description": "Pengecatan ulang bagian cover CVT atau swing arm. Harga sama untuk kebanyakan motor."
   },
   {
-    "name": "Cuci Reguler",
-    "category": "cuci",
-    "summary": "Solusi cepat bikin motor kinclong dari debu dan kotoran harian, plus semir ban.",
-    "description": "Buat apa sih? Biar motor kamu bersih dari debu & kotoran harian. Pas banget buat yang pengen motornya kinclong lagi dengan cepat.\n\nGimana prosesnya? Motor kamu kita cuci pakai sabun premium yang aman buat cat, terus bannya kita semir biar kelihatan seger lagi.\n\nLayanan Termasuk:\n- Cuci seluruh bodi dengan sabun premium.\n- Dressing atau semir ban"
-  },
-  {
-    "name": "Cuci Premium",
-    "category": "cuci",
-    "summary": "Cuci lebih dari bersih, dengan tambahan wax untuk kilau dan proteksi ekstra.",
-    "description": "Buat apa sih? Nggak cuma bersih, layanan ini bikin motormu lebih kinclong dan ada lapisan pelindung tipisnya. Cocok buat kamu yang mau motornya kelihatan lebih 'wow'.\n\nGimana prosesnya? Ini upgrade dari Cuci Reguler. Setelah dicuci bersih, bodinya kita kasih wax biar mengkilap. Bagian plastik kasar sama kaki-kakinya juga kita rawat biar warnanya balik lagi.\n\nLayanan Termasuk:\n- Cuci dengan sabun premium.\n- Aplikasi wax pada bodi untuk menambah kilau & proteksi.\n- Dressing pada bagian bodi kasar (plastik tekstur kulit jeruk).\n- Dressing pada area kaki-kaki & ban."
-  },
-  {
     "name": "Detailing Mesin",
     "category": "detailing",
     "summary": "Membersihkan area mesin dari kerak oli dan kotoran membandel sampai ke sela-sela.",
