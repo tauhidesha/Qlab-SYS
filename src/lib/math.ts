@@ -11,7 +11,7 @@ function toMotorSizeLiteral(val: string | undefined): MotorSizeLiteral {
 export function resolveMotorSizes(motorName: string): { motor_db_size: MotorSizeLiteral, repaint_size: MotorSizeLiteral } {
   const found = daftarUkuranMotor.find(m => m.model?.toLowerCase() === motorName?.toLowerCase() || (m.aliases && m.aliases.some((a: string) => a.toLowerCase() === motorName?.toLowerCase())));
   return {
-    motor_db_size: toMotorSizeLiteral(found?.motor_db_size),
+    motor_db_size: toMotorSizeLiteral(found?.service_size),
     repaint_size: toMotorSizeLiteral(found?.repaint_size),
   };
 }
