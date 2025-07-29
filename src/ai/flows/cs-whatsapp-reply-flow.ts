@@ -52,22 +52,41 @@ async function waitForRunCompletion(threadId: string, runId: string, session: Se
       const correctedToolCalls = toolCalls.map(call => {
         const toolsToCorrect = ['checkBookingAvailability', 'createBooking', 'findNextAvailableSlot'];
         if (toolsToCorrect.includes(call.function.name)) {
-          console.log(`[Flow][Tool Guard] Mengintersep tool: ${call.function.name}. Memaksa data dari sesi.`);
+          console.log(`[Flow][Tool Guard] Intercepting tool: ${call.function.name}.`);
           const args = JSON.parse(call.function.arguments);
-          const actualServices = (session.cartServices || []).filter(s => s && s !== 'General Inquiry');
-          let primaryServiceName = actualServices.find(s => s.includes('Repaint Bodi Halus')) || actualServices[0] || 'Layanan Umum';
-          args.serviceName = primaryServiceName;
-          let totalMinutes = 0;
-          for (const serviceName of actualServices) {
-            const serviceData = hargaLayanan.find((s: any) => s.name === serviceName);
-            if (serviceData && serviceData.estimatedDuration) {
-              const duration = parseInt(serviceData.estimatedDuration as string, 10);
-              if (!isNaN(duration)) totalMinutes += duration;
+
+          // Cek jika LLM tidak menyediakan serviceName, baru kita coba isi dari sesi
+          if (!args.serviceName) {
+            console.log(`[Flow][Tool Guard] serviceName is missing. Attempting to fill from session.`);
+            const actualServices = (session.cartServices || []).filter(s => s && s !== 'General Inquiry');
+            const primaryServiceName = actualServices.find(s => s.includes('Repaint Bodi Halus')) || actualServices[0];
+
+            if (primaryServiceName) {
+              args.serviceName = primaryServiceName;
+              console.log(`[Flow][Tool Guard] Filled serviceName with '${primaryServiceName}' from session.`);
+            } else {
+              console.log(`[Flow][Tool Guard] No suitable service found in session cart.`);
+              // Pertimbangkan untuk tidak melanjutkan jika serviceName sangat krusial
             }
+          } else {
+            console.log(`[Flow][Tool Guard] serviceName already provided by LLM: '${args.serviceName}'. No override.`);
           }
-          args.estimatedDurationMinutes = totalMinutes > 0 ? totalMinutes : 60;
+
+          // Logika durasi bisa tetap berjalan atau disesuaikan
+          // Jika serviceName diisi dari sesi, durasi juga harus dihitung ulang
+          if (!args.estimatedDurationMinutes || args.serviceName) {
+              const serviceData = hargaLayanan.find((s: any) => s.name === args.serviceName);
+              if (serviceData && serviceData.estimatedDuration) {
+                  const duration = parseInt(serviceData.estimatedDuration as string, 10);
+                  if (!isNaN(duration)) {
+                      args.estimatedDurationMinutes = duration;
+                      console.log(`[Flow][Tool Guard] Updated duration for '${args.serviceName}' to ${duration} minutes.`);
+                  }
+              }
+          }
+
           call.function.arguments = JSON.stringify(args);
-          console.log('[Flow][Tool Guard] Argumen setelah dikoreksi:', args);
+          console.log('[Flow][Tool Guard] Final arguments:', args);
         }
         return call;
       });
