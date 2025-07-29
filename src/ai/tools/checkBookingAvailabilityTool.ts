@@ -45,6 +45,8 @@ export const checkBookingAvailabilityTool = {
 
   // --- Implementation (panggil logika sebenarnya di folder impl) ---
   implementation: async (input: Input): Promise<Output> => {
+    console.log('[checkBookingAvailabilityTool] Input:', JSON.stringify(input, null, 2));
+
     // --- Parsing natural language date/time jika perlu ---
     let bookingDate = input.bookingDate;
     let bookingTime = input.bookingTime;
@@ -111,27 +113,33 @@ export const checkBookingAvailabilityTool = {
     }
 
     if (available) {
-      return {
+      const output: Output = {
         available: true,
         summary: `Slot tersedia untuk booking layanan ${input.serviceName} pada ${input.bookingDate} jam ${input.bookingTime}` + (overnightWarning ? `\n${overnightWarning}` : ""),
-      } as Output;
+      };
+      console.log('[checkBookingAvailabilityTool] Output:', JSON.stringify(output, null, 2));
+      return output;
     }
 
     // --- Cari slot berikutnya yang tersedia ---
     const nextAvailableSlot = await findNextAvailableSlotCustom(input, 30, isRepaint, isDetailingOrCoating);
     if (nextAvailableSlot) {
-      return {
+      const output: Output = {
         available: false,
         conflictReason,
         summary: `Slot tidak tersedia pada tanggal yang diminta. Slot berikutnya yang tersedia adalah pada ${nextAvailableSlot.date} jam ${nextAvailableSlot.time}` + (overnightWarning ? `\n${overnightWarning}` : ""),
-      } as Output;
+      };
+      console.log('[checkBookingAvailabilityTool] Output:', JSON.stringify(output, null, 2));
+      return output;
     }
 
-    return {
+    const output: Output = {
       available: false,
       conflictReason,
       summary: conflictReason || overnightWarning || `Slot tidak tersedia untuk booking layanan ${input.serviceName} pada ${input.bookingDate} jam ${input.bookingTime}`,
-    } as Output;
+    };
+    console.log('[checkBookingAvailabilityTool] Output:', JSON.stringify(output, null, 2));
+    return output;
   },
 };
 
