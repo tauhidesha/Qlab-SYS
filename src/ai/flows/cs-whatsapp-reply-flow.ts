@@ -1,8 +1,10 @@
+
 // @file: src/ai/flows/cs-whatsapp-reply-flow.ts (VERSI BARU - ASSISTANTS API)
 
 "use server";
 
 // Perbaiki import: gunakan path dan tipe yang benar sesuai struktur QLAB-SYS
+import { traceable } from "langsmith/traceable";
 import type { ZoyaChatInput, WhatsAppReplyOutput } from '@/types/ai/cs-whatsapp-reply';
 import type { Session } from '@/types/ai';
 import { getSession, updateSession } from '../utils/session';
@@ -10,15 +12,13 @@ import { isInterventionLockActive } from '../utils/interventionLock';
 import { openai as baseOpenai } from '@/lib/openai';
 import { toolFunctionMap } from '../config/aiConfig';
 import hargaLayanan from '@/data/hargaLayanan';
-import { traceable } from "langsmith/traceable";
-import { wrapOpenAI } from "langsmith/wrappers";
+
 
 // --- KONFIGURASI ---
 
 const ASSISTANT_ID = "asst_JyaduA3bLsVjEkQQKYux52JA"; // <-- GANTI DENGAN ID ASISTEN ANDA
 
-// Wrap OpenAI client for LangSmith tracing
-const openai = wrapOpenAI(baseOpenai);
+const openai = baseOpenai;
 
 function normalizeSenderNumber(raw: string): string {
   return raw?.replace(/@c\.us$/, '') || '';
@@ -172,9 +172,11 @@ export const generateWhatsAppReply = traceable(
       // 2. Kirim pesan user langsung ke thread, dengan blok [SENDER_INFO]
       console.log(`[Assistants API] Menambahkan pesan user ke thread ${threadId}`);
       const senderInfoBlock = `\n[SENDER_INFO]\nNama: ${senderName || 'Tidak diketahui'}\nNomor: ${senderNumber}`;
+      const now = new Date();
+      const dateInfoBlock = `\n[DATE_INFO]\nTanggal: ${now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}\nWaktu: ${now.toLocaleTimeString('id-ID')}`;
       await openai.beta.threads.messages.create(threadId, {
         role: "user",
-        content: `${input.customerMessage}${senderInfoBlock}`,
+        content: `${input.customerMessage}${senderInfoBlock}${dateInfoBlock}`,
       });
 
       // 3. Buat dan jalankan Run pada thread
@@ -191,7 +193,16 @@ export const generateWhatsAppReply = traceable(
       }
       const assistantReply = await waitForRunCompletion(threadId, run.id, session);
       
-      // 5. Finalisasi output
+      // 5. Update followUpState jika belum ada (untuk kebutuhan follow-up otomatis)
+      if (session && !session.followUpState) {
+        session.followUpState = {
+          level: 1,
+          flaggedAt: Date.now(),
+          context: input.customerMessage || 'unknown',
+        };
+        await updateSession(senderNumber, session);
+      }
+      // Finalisasi output
       const finalOutput: WhatsAppReplyOutput = {
         suggestedReply: assistantReply,
         toolCalls: [],
