@@ -48,37 +48,8 @@ async function waitForRunCompletion(threadId: string, runId: string, session: Se
     if (runStatus.status === 'requires_action') {
       console.log("[Assistants API] Run requires action (memanggil tool)...");
       const toolCalls = runStatus.required_action?.submit_tool_outputs.tool_calls || [];
-      // --- "TOOL GUARD" LOGIC DIPINDAHKAN KE SINI ---
-      const correctedToolCalls = toolCalls.map(call => {
-        const toolsToCorrect = ['checkBookingAvailability', 'createBooking', 'findNextAvailableSlot'];
-        if (toolsToCorrect.includes(call.function.name)) {
-          console.log(`[Flow][Tool Guard] Mengintersep tool: ${call.function.name}. Memaksa data dari sesi.`);
-          const args = JSON.parse(call.function.arguments);
-          const actualServices = (session.cartServices || []).filter(s => s && s !== 'General Inquiry');
-          let primaryServiceName = actualServices.find(s => s.includes('Repaint Bodi Halus')) || actualServices[0] || 'Layanan Umum';
-          args.serviceName = primaryServiceName;
-          let totalMinutes = 0;
-          for (const serviceName of actualServices) {
-            const serviceData = hargaLayanan.find((s: any) => s.name === serviceName);
-            if (serviceData && serviceData.estimatedDuration) {
-              const duration = parseInt(serviceData.estimatedDuration as string, 10);
-              if (!isNaN(duration)) totalMinutes += duration;
-            }
-          }
-          args.estimatedDurationMinutes = totalMinutes > 0 ? totalMinutes : 60;
-          call.function.arguments = JSON.stringify(args);
-          console.log('[Flow][Tool Guard] Argumen setelah dikoreksi:', args);
-        }
-        return call;
-      });
-      // --- AKHIR "TOOL GUARD" ---
-
-      const finalBookingCall = correctedToolCalls.find(tc => tc.function.name === 'finalizeBooking');
-      if (finalBookingCall) {
-        // ... (logika handoff booking Anda)
-      }
-
-      const toolOutputs = await Promise.all(correctedToolCalls.map(async (toolCall) => {
+      // Kirim tool calls langsung tanpa tool guard
+      const toolOutputs = await Promise.all(toolCalls.map(async (toolCall) => {
         const functionName = toolCall.function.name;
         const args = JSON.parse(toolCall.function.arguments);
 
@@ -219,7 +190,20 @@ export const generateWhatsAppReply = traceable(
 
     } catch (error) {
       console.error("Error besar di alur utama Asisten:", error);
-      return { 
+      // Fallback: triggerBosMatTool jika error besar
+      try {
+        const triggerBosMat = toolFunctionMap['triggerBosMatTool']?.implementation;
+        if (triggerBosMat && session) {
+          await triggerBosMat({
+            reason: 'Unhandled error in WhatsApp AI flow',
+            customerQuestion: input.customerMessage || 'unknown',
+            error: (error instanceof Error ? error.message : String(error))
+          }, { session, senderNumber });
+        }
+      } catch (e) {
+        console.error('Gagal triggerBosMatTool di fallback error:', e);
+      }
+      return {
         suggestedReply: "Waduh, Zoya lagi pusing nih. Coba lagi nanti ya atau hubungi BosMat.",
         toolCalls: [],
         route: 'unhandled_error'
