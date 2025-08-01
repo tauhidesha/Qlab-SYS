@@ -11,22 +11,32 @@ import { isInterventionLockActive } from '../utils/interventionLock';
 import { toolFunctionMap, zoyaTools } from '../config/aiConfig';
 import { masterPrompt } from '../config/aiPrompts';
 import OpenAI from 'openai';
+import { wrapOpenAI } from 'langsmith/wrappers';
+import { traceable } from 'langsmith/traceable';
 
-const openAIClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+const openAIClient = wrapOpenAI(new OpenAI({ apiKey: process.env.OPENAI_API_KEY! }));
+
+// Log LangSmith configuration
+console.log('[LANGSMITH CONFIG]', {
+  tracing: process.env.LANGSMITH_TRACING,
+  project: process.env.LANGSMITH_PROJECT,
+  endpoint: process.env.LANGSMITH_ENDPOINT ? 'configured' : 'not set'
+});
 
 function normalizeSenderNumber(raw: string): string {
   return raw?.replace(/@c\.us$/, '') || '';
 }
 
-export const generateWhatsAppReply = async function generateWhatsAppReply(
-  input: ZoyaChatInput
-): Promise<WhatsAppReplyOutput | null> {
-  console.log('[RAW INPUT PAYLOAD]', JSON.stringify(input, null, 2));
-  const senderNumber = normalizeSenderNumber(input.senderNumber || 'playground_user');
-  console.log('[SENDER NUMBER]', senderNumber);
-  if (!senderNumber) {
-    throw new Error('senderNumber wajib diisi untuk getSession');
-  }
+export const generateWhatsAppReply = traceable(
+  async function generateWhatsAppReply(
+    input: ZoyaChatInput
+  ): Promise<WhatsAppReplyOutput | null> {
+    console.log('[RAW INPUT PAYLOAD]', JSON.stringify(input, null, 2));
+    const senderNumber = normalizeSenderNumber(input.senderNumber || 'playground_user');
+    console.log('[SENDER NUMBER]', senderNumber);
+    if (!senderNumber) {
+      throw new Error('senderNumber wajib diisi untuk getSession');
+    }
   const senderName = input.senderName || undefined;
   console.log('[SENDER NAME]', senderName);
 
@@ -142,7 +152,21 @@ Gunakan informasi ini untuk menghitung tanggal relatif seperti "besok", "lusa", 
           
           const toolImpl = toolFunctionMap[functionName];
           if (toolImpl && toolImpl.implementation) {
-            const result = await toolImpl.implementation(args, { session, senderNumber });
+            // Wrap tool execution with tracing
+            const traceableToolExecution = traceable(
+              async (args: any, context: any) => {
+                return await toolImpl.implementation(args, context);
+              },
+              {
+                name: `tool_${functionName}`,
+                metadata: {
+                  tool_name: functionName,
+                  tool_args: JSON.stringify(args)
+                }
+              }
+            );
+            
+            const result = await traceableToolExecution(args, { session, senderNumber });
             console.log(`[TOOL RESULT] ${functionName}`, result);
             
             allToolResults.push({
@@ -251,4 +275,12 @@ Gunakan informasi ini untuk menghitung tanggal relatif seperti "besok", "lusa", 
       route: 'unhandled_error'
     };
   }
-};
+}, {
+  name: "generateWhatsAppReply",
+  metadata: {
+    component: "cs-whatsapp-flow",
+    version: "v1.0"
+  },
+  // Add input/output data to LangSmith trace
+  run_type: "chain"
+});
