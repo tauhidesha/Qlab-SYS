@@ -1,17 +1,14 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Semua koleksi utama UI hanya butuh user login
+    // Allow access to all collections for authenticated users
     match /{colName}/{docId} {
       allow read, write: if request.auth != null;
-    }
-    // Subcollection messages di directMessages
-    match /directMessages/{messageId}/messages/{subMessageId} {
-      allow read, write: if request.auth != null;
-    }
-    // Block semua koleksi lain yang tidak didefinisikan
-    match /{document=**} {
-      allow read, write: if false;
+      
+      // Allow access to all subcollections for authenticated users
+      match /{subcollection}/{subdocId} {
+        allow read, write: if request.auth != null;
+      }
     }
   }
 }

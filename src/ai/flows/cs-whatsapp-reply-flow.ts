@@ -1,213 +1,254 @@
 
-// @file: src/ai/flows/cs-whatsapp-reply-flow.ts (VERSI BARU - ASSISTANTS API)
+// @file: src/ai/flows/cs-whatsapp-reply-flow.ts (FINAL ATTEMPT)
 
 "use server";
 
-// Perbaiki import: gunakan path dan tipe yang benar sesuai struktur QLAB-SYS
-import { traceable } from "langsmith/traceable";
 import type { ZoyaChatInput, WhatsAppReplyOutput } from '@/types/ai/cs-whatsapp-reply';
-import type { Session } from '@/types/ai';
+import type { Session } from '@/types/ai/session';
 import { getSession, updateSession } from '../utils/session';
+import { getConversationHistory, saveAIResponse } from '../utils/conversationHistory';
 import { isInterventionLockActive } from '../utils/interventionLock';
-import { openai as baseOpenai } from '@/lib/openai';
-import { toolFunctionMap } from '../config/aiConfig';
-import hargaLayanan from '@/data/hargaLayanan';
+import { toolFunctionMap, zoyaTools } from '../config/aiConfig';
+import { masterPrompt } from '../config/aiPrompts';
+import OpenAI from 'openai';
 
-
-// --- KONFIGURASI ---
-
-const ASSISTANT_ID = "asst_JyaduA3bLsVjEkQQKYux52JA"; // <-- GANTI DENGAN ID ASISTEN ANDA
-
-const openai = baseOpenai;
+const openAIClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
 function normalizeSenderNumber(raw: string): string {
   return raw?.replace(/@c\.us$/, '') || '';
 }
 
-/**
- * Fungsi ini adalah jantung dari agent loop. Ia menunggu Asisten menyelesaikan tugasnya.
- */
-async function waitForRunCompletion(threadId: string, runId: string, session: Session): Promise<string> {
-  while (true) {
-    console.log("[Assistants API] Checking run status...");
-    // Perbaiki parameter retrieve
-    const runStatus = await openai.beta.threads.runs.retrieve(runId, { thread_id: threadId });
-
-    // 1. Jika Run sudah selesai
-    if (runStatus.status === 'completed') {
-      console.log("[Assistants API] Run completed.");
-      const messages = await openai.beta.threads.messages.list(threadId, { limit: 1 });
-      const lastMessage = messages.data[0];
-      if (lastMessage && lastMessage.content[0]?.type === 'text') {
-        return lastMessage.content[0].text.value;
-      }
-      return "Zoya selesai memproses, tapi tidak ada balasan teks.";
-    }
-
-    // 2. Jika Asisten butuh memanggil tool
-    if (runStatus.status === 'requires_action') {
-      console.log("[Assistants API] Run requires action (memanggil tool)...");
-      const toolCalls = runStatus.required_action?.submit_tool_outputs.tool_calls || [];
-      // Kirim tool calls langsung tanpa tool guard
-      const toolOutputs = await Promise.all(toolCalls.map(async (toolCall) => {
-        const functionName = toolCall.function.name;
-        const args = JSON.parse(toolCall.function.arguments);
-
-        // Fallback/validasi untuk triggerBosMatTool agar tidak error jika argumen kosong
-        if (functionName === 'triggerBosMatTool') {
-          if (!args.reason || !args.customerQuestion) {
-            return {
-              tool_call_id: toolCall.id,
-              output: JSON.stringify({
-                success: false,
-                error: 'Argumen reason dan customerQuestion wajib diisi untuk triggerBosMatTool.'
-              })
-            };
-          }
-        }
-
-        const toolImplementation = toolFunctionMap[functionName]?.implementation;
-        let output = { success: false, error: `Tool ${functionName} tidak ditemukan.` };
-        if (toolImplementation) {
-          output = await toolImplementation(args, { session });
-        }
-        return { tool_call_id: toolCall.id, output: JSON.stringify(output) };
-      }));
-
-      await openai.beta.threads.runs.submitToolOutputs(runId, {
-        thread_id: threadId,
-        tool_outputs: toolOutputs,
-      });
-    }
-
-    // 3. Jika Run gagal
-    if (["failed", "cancelled", "expired"].includes(runStatus.status)) {
-      console.error(`[Assistants API] Run failed with status: ${runStatus.status}`, runStatus.last_error);
-      return `Waduh, Zoya lagi ada kendala teknis nih. (Error: ${runStatus.status})`;
-    }
-
-    // Tunggu sejenak sebelum cek status lagi
-    await new Promise(resolve => setTimeout(resolve, 1500));
+export const generateWhatsAppReply = async function generateWhatsAppReply(
+  input: ZoyaChatInput
+): Promise<WhatsAppReplyOutput | null> {
+  console.log('[RAW INPUT PAYLOAD]', JSON.stringify(input, null, 2));
+  const senderNumber = normalizeSenderNumber(input.senderNumber || 'playground_user');
+  console.log('[SENDER NUMBER]', senderNumber);
+  if (!senderNumber) {
+    throw new Error('senderNumber wajib diisi untuk getSession');
   }
-}
+  const senderName = input.senderName || undefined;
+  console.log('[SENDER NAME]', senderName);
 
+  const locked = await isInterventionLockActive(senderNumber);
+  console.log('[INTERVENTION LOCK CHECK]', { senderNumber, locked });
+  if (locked) {
+    console.log(`[InterventionLock] Sesi ${senderNumber} sedang di-lock untuk intervensi manusia. Tidak memproses balasan otomatis.`);
+    return null;
+  }
 
-export const generateWhatsAppReply = traceable(
-  async function generateWhatsAppReply(
-    input: ZoyaChatInput
-  ): Promise<WhatsAppReplyOutput | null> {
-    console.log('[RAW INPUT PAYLOAD]', JSON.stringify(input, null, 2));
-    const senderNumber = normalizeSenderNumber(input.senderNumber || 'playground_user');
-    if (!senderNumber) {
-      throw new Error('senderNumber wajib diisi untuk getSession');
-    }
-    const senderName = input.senderName || undefined;
+  let session = await getSession(senderNumber) as Session | null;
+  console.log('[SESSION FROM DB]', session ? 'Found existing session' : 'No session found, creating new one');
+  if (!session) {
+    console.log('[CREATING NEW SESSION]', senderNumber);
+    session = {
+      senderNumber,
+      senderName,
+      lastInteraction: { type: 'system', at: Date.now() },
+      cartServices: [],
+      history: [], // Keep for backward compatibility but won't be used
+    };
+    const cleanSession = { ...session };
+    Object.keys(cleanSession).forEach((k) => {
+      if (cleanSession[k] === undefined) {
+        delete cleanSession[k];
+      }
+    });
+    await updateSession(senderNumber, cleanSession);
+    console.log('[NEW SESSION CREATED]', cleanSession);
+  }
 
-    // --- Intervention Lock Check ---
-    const locked = await isInterventionLockActive(senderNumber);
-    if (locked) {
-      console.log(`[InterventionLock] Sesi ${senderNumber} sedang di-lock untuk intervensi manusia. Tidak memproses balasan otomatis.`);
-      return null;
-    }
+  // Get conversation history from directMessages/{senderNumber}/messages subcollection
+  let history: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = await getConversationHistory(senderNumber);
+  console.log('[CONVERSATION HISTORY LENGTH]', history.length, 'from directMessages subcollection');
 
-    // Ambil sesi hanya untuk mendapatkan thread_id
-    let session = await getSession(senderNumber) as Session | null;
+  // Add system prompt if history is empty (first message)
+  if (history.length === 0) {
+    history.push({ role: 'system', content: masterPrompt });
+    console.log('[SYSTEM PROMPT ADDED]', 'Master prompt added to conversation');
+  }
 
-    try {
-      // 1. Dapatkan atau buat thread_id untuk user ini
-      let threadId = session?.threadId;
-      if (!threadId) {
-        console.log(`[Assistants API] Membuat thread baru untuk ${senderNumber}`);
-        const thread = await openai.beta.threads.create({
-          metadata: {
-            customer_name: senderName || 'Belum diketahui',
-            customer_phone: senderNumber,
-          }
+  history.push({ role: 'user', content: input.customerMessage });
+  console.log('[ADDED USER MESSAGE]', input.customerMessage);
+
+  // Add current date context for date-related operations
+  const currentDate = new Date();
+  const currentDateString = currentDate.toLocaleDateString('id-ID', {
+    weekday: 'long',
+    year: 'numeric', 
+    month: 'long',
+    day: 'numeric'
+  });
+  const currentDateIso = currentDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+  
+  const dateContextMessage = `[INFORMASI TANGGAL HARI INI]
+Tanggal hari ini: ${currentDateString} (${currentDateIso})
+Gunakan informasi ini untuk menghitung tanggal relatif seperti "besok", "lusa", "minggu depan", dll.`;
+
+  history.push({ role: 'system', content: dateContextMessage });
+  console.log('[DATE CONTEXT ADDED]', `Current date: ${currentDateString} (${currentDateIso})`);
+
+  try {
+    console.log('[CALLING OPENAI]', { model: 'gpt-4.1-mini', messagesCount: history.length, toolsEnabled: true });
+
+    let finalResponse = '';
+    let allToolResults: Array<{ toolName: string; arguments: any; }> = [];
+    let maxIterations = 4; // Prevent infinite loops - limited to 4 iterations
+    let iteration = 0;
+    
+    while (iteration < maxIterations) {
+      iteration++;
+      console.log(`[ITERATION ${iteration}] Starting OpenAI call`);
+      
+      const completion = await openAIClient.chat.completions.create({
+        model: 'gpt-4.1-mini',
+        messages: history,
+        temperature: 1,
+        tools: zoyaTools,
+        tool_choice: 'auto',
+      });
+
+      const message = completion.choices[0]?.message;
+      const messageContent = message?.content || '';
+      const toolCalls = message?.tool_calls || [];
+      
+      console.log(`[ITERATION ${iteration}] Response:`, messageContent);
+      console.log(`[ITERATION ${iteration}] Tool calls:`, toolCalls.length);
+      
+      // Add assistant message to history
+      if (messageContent || toolCalls.length > 0) {
+        history.push({
+          role: 'assistant',
+          content: messageContent,
+          tool_calls: toolCalls.length > 0 ? toolCalls : undefined
         });
-        threadId = thread.id;
-        // Inisialisasi sesi jika belum ada
-        if (!session) {
-          session = {
-            senderNumber,
-            senderName,
-            lastInteraction: { type: 'system', at: Date.now() },
-            cartServices: [],
-            threadId: threadId,
-          };
-        } else {
-          session.threadId = threadId;
-        }
-        await updateSession(senderNumber, session as Partial<Session>);
       }
-
-      // 2. Kirim pesan user langsung ke thread, dengan blok [SENDER_INFO]
-      console.log(`[Assistants API] Menambahkan pesan user ke thread ${threadId}`);
-      const senderInfoBlock = `\n[SENDER_INFO]\nNama: ${senderName || 'Tidak diketahui'}\nNomor: ${senderNumber}`;
-      const now = new Date();
-      const dateInfoBlock = `\n[DATE_INFO]\nTanggal: ${now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}\nWaktu: ${now.toLocaleTimeString('id-ID')}`;
-      await openai.beta.threads.messages.create(threadId, {
-        role: "user",
-        content: `${input.customerMessage}${senderInfoBlock}${dateInfoBlock}`,
-      });
-
-      // 3. Buat dan jalankan Run pada thread
-      console.log(`[Assistants API] Menjalankan asisten ${ASSISTANT_ID} pada thread ${threadId}`);
-      const run = await openai.beta.threads.runs.create(threadId, {
-        assistant_id: ASSISTANT_ID,
-        // Di sini Anda bisa menambahkan instruksi tambahan jika perlu
-        // instructions: "Tolong tanggapi pesan terakhir dari user."
-      });
-
-      // 4. Tunggu hasilnya (teks final dari Asisten)
-      if (!session) {
-        throw new Error('Session tidak ditemukan saat menjalankan agent loop.');
-      }
-      const assistantReply = await waitForRunCompletion(threadId, run.id, session);
       
-      // 5. Update followUpState jika belum ada (untuk kebutuhan follow-up otomatis)
-      if (session && !session.followUpState) {
-        session.followUpState = {
-          level: 1,
-          flaggedAt: Date.now(),
-          context: input.customerMessage || 'unknown',
-        };
-        await updateSession(senderNumber, session);
+      // If no tool calls, this is the final response
+      if (toolCalls.length === 0) {
+        finalResponse = messageContent || "Maaf, Zoya lagi bingung nih. Boleh coba tanya lagi, om?";
+        console.log(`[ITERATION ${iteration}] Final response received`);
+        break;
       }
-      // Finalisasi output
-      const finalOutput: WhatsAppReplyOutput = {
-        suggestedReply: assistantReply,
-        toolCalls: [],
-        route: 'assistant_api_reply',
-        metadata: {},
-      };
       
-      // Simpan balasan Zoya ke sesi jika diperlukan untuk logika lain
-      if (session) {
-        await updateSession(senderNumber, { ...session, lastAssistantMessage: finalOutput.suggestedReply });
-      }
-
-      return finalOutput;
-
-    } catch (error) {
-      console.error("Error besar di alur utama Asisten:", error);
-      // Fallback: triggerBosMatTool jika error besar
-      try {
-        const triggerBosMat = toolFunctionMap['triggerBosMatTool']?.implementation;
-        if (triggerBosMat && session) {
-          await triggerBosMat({
-            reason: 'Unhandled error in WhatsApp AI flow',
-            customerQuestion: input.customerMessage || 'unknown',
-            error: (error instanceof Error ? error.message : String(error))
-          }, { session, senderNumber });
+      // Process tool calls
+      console.log(`[ITERATION ${iteration}] Processing ${toolCalls.length} tool calls`);
+      for (const toolCall of toolCalls) {
+        try {
+          const functionName = toolCall.function.name;
+          const args = JSON.parse(toolCall.function.arguments);
+          
+          console.log(`[TOOL CALL] ${functionName}`, args);
+          
+          const toolImpl = toolFunctionMap[functionName];
+          if (toolImpl && toolImpl.implementation) {
+            const result = await toolImpl.implementation(args, { session, senderNumber });
+            console.log(`[TOOL RESULT] ${functionName}`, result);
+            
+            allToolResults.push({
+              toolName: functionName,
+              arguments: args
+            });
+            
+            // Add tool result to history
+            history.push({
+              role: 'tool',
+              content: JSON.stringify(result),
+              tool_call_id: toolCall.id
+            });
+          } else {
+            console.error(`[TOOL ERROR] Tool implementation not found: ${functionName}`);
+            // Add error result to history
+            history.push({
+              role: 'tool',
+              content: JSON.stringify({ error: `Tool ${functionName} not implemented` }),
+              tool_call_id: toolCall.id
+            });
+          }
+        } catch (toolError) {
+          console.error(`[TOOL ERROR] ${toolCall.function.name}:`, toolError);
+          const errorArgs = JSON.parse(toolCall.function.arguments);
+          allToolResults.push({
+            toolName: toolCall.function.name,
+            arguments: errorArgs
+          });
+          
+          // Add error result to history
+          history.push({
+            role: 'tool',
+            content: JSON.stringify({ error: toolError instanceof Error ? toolError.message : String(toolError) }),
+            tool_call_id: toolCall.id
+          });
         }
-      } catch (e) {
-        console.error('Gagal triggerBosMatTool di fallback error:', e);
       }
-      return {
-        suggestedReply: "Waduh, Zoya lagi pusing nih. Coba lagi nanti ya atau hubungi BosMat.",
-        toolCalls: [],
-        route: 'unhandled_error'
+    }
+    
+    if (iteration >= maxIterations) {
+      console.warn('[MAX ITERATIONS REACHED] Stopping loop to prevent infinite execution');
+      finalResponse = finalResponse || "Maaf, Zoya butuh waktu lebih lama untuk memproses. Coba tanya lagi ya, mas!";
+    }
+    
+    console.log('[FINAL PROCESSING] Response ready:', finalResponse);
+    console.log('[FINAL PROCESSING] Total tools used:', allToolResults.length);
+
+    // Save only AI response to directMessages subcollection (user messages already saved by WhatsApp server)
+    if (finalResponse) {
+      await saveAIResponse(senderNumber, finalResponse, {
+        toolsUsed: allToolResults.map(t => t.toolName),
+        iterations: iteration
+      });
+      console.log('[AI RESPONSE SAVED] to directMessages subcollection');
+    }
+
+    // Update session with final response (but remove history from session)
+    session.lastAssistantMessage = finalResponse;
+    
+    if (!session.followUpState) {
+      session.followUpState = {
+        level: 1,
+        flaggedAt: Date.now(),
+        context: input.customerMessage || 'unknown',
       };
     }
+
+    const cleanSessionUpdate = { ...session };
+    Object.keys(cleanSessionUpdate).forEach((k) => {
+      if (cleanSessionUpdate[k] === undefined) {
+        delete cleanSessionUpdate[k];
+      }
+    });
+    await updateSession(senderNumber, cleanSessionUpdate);
+    console.log('[SESSION UPDATED]', { senderNumber, conversationLength: history.length });
+
+    const finalOutput: WhatsAppReplyOutput = {
+      suggestedReply: finalResponse,
+      toolCalls: allToolResults,
+      route: allToolResults.length > 0 ? 'openai_with_tools' : 'openai_completion_reply',
+      metadata: { 
+        toolsUsed: allToolResults.map(t => t.toolName),
+        iterations: iteration
+      },
+    };
+    console.log('[FINAL OUTPUT]', finalOutput);
+    return finalOutput;
+  } catch (error) {
+    console.error("Error besar di alur utama OpenAI Completion:", error);
+    try {
+      const triggerBosMat = toolFunctionMap['triggerBosMatTool']?.implementation;
+      if (triggerBosMat && session) {
+        await triggerBosMat({
+          reason: 'Unhandled error in WhatsApp AI flow',
+          customerQuestion: input.customerMessage || 'unknown',
+          error: (error instanceof Error ? error.message : String(error))
+        }, { session, senderNumber });
+      }
+    } catch (e) {
+      console.error('Gagal triggerBosMatTool di fallback error:', e);
+    }
+    return {
+      suggestedReply: "Waduh, Zoya lagi pusing nih. Coba lagi nanti ya atau hubungi BosMat.",
+      toolCalls: [],
+      route: 'unhandled_error'
+    };
   }
-);
+};
