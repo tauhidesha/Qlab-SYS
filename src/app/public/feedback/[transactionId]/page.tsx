@@ -152,7 +152,7 @@ export default function FeedbackPage() {
                 size="lg"
               >
                 <a 
-                  href="https://www.google.com/search?q=Bosmat+Repainting+and+Detailing+Studio+review" 
+                  href="https://g.page/r/Cb2npq6EDStKEBI/review" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-2"
