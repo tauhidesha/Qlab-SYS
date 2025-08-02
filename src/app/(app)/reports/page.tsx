@@ -376,37 +376,39 @@ export default function TransactionHistoryPage() {
                           <TableCell>{transaction.paymentMethod || 'N/A'}</TableCell>
                           <TableCell>{transaction.serviceStaffName || 'N/A'}</TableCell>
                           <TableCell className="text-xs max-w-[200px] truncate">{transaction.notes || '-'}</TableCell>
-                          <TableCell className="text-center min-w-[200px]">
-                            <div className="flex items-center justify-center gap-1">
-                              <button
-                                onClick={() => {
-                                  console.log('Edit clicked for transaction:', transaction.id);
-                                  handleEditTransaction(transaction);
-                                }}
-                                className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-                                type="button"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => {
-                                  console.log('Resend receipt clicked for transaction:', transaction.id);
-                                  handleResendReceipt(transaction);
-                                }}
-                                className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
-                                type="button"
-                              >
-                                Kirim Struk
-                              </button>
+                          <TableCell className="text-center min-w-[280px]">
+                            <div className="flex flex-col items-center justify-center gap-1">
+                              <div className="flex gap-1">
+                                <button
+                                  onClick={() => {
+                                    console.log('Edit clicked for transaction:', transaction.id);
+                                    handleEditTransaction(transaction);
+                                  }}
+                                  className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                                  type="button"
+                                >
+                                  ✏️ Edit
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    console.log('Resend receipt clicked for transaction:', transaction.id);
+                                    handleResendReceipt(transaction);
+                                  }}
+                                  className="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+                                  type="button"
+                                >
+                                  📱 Kirim Struk
+                                </button>
+                              </div>
                               <button
                                 onClick={() => {
                                   console.log('Refund clicked for transaction:', transaction.id);
                                   handleRefundTransaction(transaction);
                                 }}
-                                className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                                className="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
                                 type="button"
                               >
-                                Refund
+                                🔄 Refund
                               </button>
                             </div>
                           </TableCell>
