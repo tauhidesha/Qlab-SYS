@@ -261,16 +261,24 @@ export default function TransactionHistoryPage() {
                           <TableCell className="text-center min-w-[150px]">
                             <div className="flex items-center justify-center gap-1">
                               <button
-                                onClick={() => handleEditTransaction(transaction)}
-                                className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                                onClick={() => {
+                                  console.log('Edit clicked for transaction:', transaction.id);
+                                  handleEditTransaction(transaction);
+                                }}
+                                className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                                type="button"
                               >
-                                ✏️ Edit
+                                Edit
                               </button>
                               <button
-                                onClick={() => handleRefundTransaction(transaction)}
-                                className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                                onClick={() => {
+                                  console.log('Refund clicked for transaction:', transaction.id);
+                                  handleRefundTransaction(transaction);
+                                }}
+                                className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                                type="button"
                               >
-                                🔄 Refund
+                                Refund
                               </button>
                             </div>
                           </TableCell>
