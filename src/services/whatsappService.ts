@@ -25,6 +25,7 @@ function formatPhoneNumber(number: string): string {
 }
 
 export async function sendWhatsAppMessage(number: string, message: string): Promise<SendMessageResponse> {
+  const startTime = Date.now();
   const whatsappServerUrl = process.env.WHATSAPP_SERVER_URL;
 
   if (!whatsappServerUrl) {
@@ -33,7 +34,7 @@ export async function sendWhatsAppMessage(number: string, message: string): Prom
     return { success: false, error: errorMsg };
   }
 
-  console.log(`WhatsappService: Menerima nomor asli: "${number}"`);
+  console.log(`WhatsappService: [${startTime}] Menerima nomor asli: "${number}"`);
   const formattedNumber = formatPhoneNumber(number);
   console.log(`WhatsappService: Nomor setelah format: "${formattedNumber}"`);
 
@@ -46,10 +47,15 @@ export async function sendWhatsAppMessage(number: string, message: string): Prom
   const endpoint = `${whatsappServerUrl}/send-manual-message`;
 
   try {
-    console.log(`WhatsappService: Mengirim permintaan (fire-and-forget) ke server WhatsApp di ${endpoint} untuk nomor ${formattedNumber}`);
+    console.log(`WhatsappService: [${Date.now() - startTime}ms] Mengirim permintaan ke server WhatsApp di ${endpoint} untuk nomor ${formattedNumber}`);
+    console.log(`WhatsappService: Payload yang akan dikirim:`, JSON.stringify({
+      number: formattedNumber,
+      message: message.substring(0, 100) + (message.length > 100 ? '...' : '')
+    }, null, 2));
 
-    // ✅ FIRE-AND-FORGET, tidak pakai await
-    fetch(endpoint, {
+    // ✅ TIMEOUT PROTECTION untuk Vercel free plan (max 10s)
+    const timeoutMs = 8000; // 8 detik buffer
+    const fetchPromise = fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -60,6 +66,35 @@ export async function sendWhatsAppMessage(number: string, message: string): Prom
       }),
     });
 
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Request timeout after ' + timeoutMs + 'ms')), timeoutMs)
+    );
+
+    // Race between fetch and timeout
+    Promise.race([fetchPromise, timeoutPromise])
+      .then(response => {
+        if (response instanceof Response) {
+          const elapsedTime = Date.now() - startTime;
+          console.log(`WhatsappService: [${elapsedTime}ms] Response status dari server WhatsApp: ${response.status}`);
+          return response.text();
+        }
+        throw new Error('Invalid response object');
+      })
+      .then(responseText => {
+        const elapsedTime = Date.now() - startTime;
+        console.log(`WhatsappService: [${elapsedTime}ms] Response body dari server WhatsApp: ${responseText}`);
+      })
+      .catch(error => {
+        const elapsedTime = Date.now() - startTime;
+        if (error.message.includes('timeout')) {
+          console.error(`WhatsappService: [${elapsedTime}ms] ⏰ TIMEOUT - Request dibatalkan karena melebihi ${timeoutMs}ms (Vercel free plan limit protection)`);
+        } else {
+          console.error(`WhatsappService: [${elapsedTime}ms] ❌ Error saat fetch ke server WhatsApp:`, error);
+        }
+      });
+
+    const elapsedTime = Date.now() - startTime;
+    console.log(`WhatsappService: [${elapsedTime}ms] ✅ Fire-and-forget request initiated (tidak menunggu response)`);
     return { success: true }; // tidak nunggu result dari server bot
   } catch (error: any) {
     console.error(`WhatsappService: Gagal memanggil endpoint ${endpoint}.`, error);
