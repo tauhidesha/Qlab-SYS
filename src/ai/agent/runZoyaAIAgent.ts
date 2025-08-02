@@ -1,126 +1,163 @@
-// @file: src/ai/agents/runZoyaAIAgent.ts (REFACTORED - TOOL LIMITED)
+// @file: src/ai/agent/runZoyaAIAgent-optimized.ts
+'use server';
 
-import { OpenAI } from 'openai';
-import { wrapOpenAI } from 'langsmith/wrappers';
-import { zoyaTools, toolFunctionMap } from '../config/aiConfig';
-import { masterPrompt } from '../config/aiPrompts';
-import type { NormalizedToolCall } from '../utils/updateSessionFromToolResults';
-
-const openAIClient = wrapOpenAI(new OpenAI({ apiKey: process.env.OPENAI_API_KEY! }));
+import { openai } from '@/lib/openai';
+import { zoyaTools, toolFunctionMap } from '@/ai/config/aiConfig';
+import { optimizedMasterPrompt, lightweightPrompt, minimalPrompt } from '@/ai/config/aiPrompts-optimized';
+import { optimizeConversationHistory, monitorTokenUsage, calculateConversationTokens } from '@/ai/utils/contextManagement';
+import type { Session } from '@/types/ai/session';
+import type OpenAI from 'openai';
 
 interface ZoyaAgentInput {
   chatHistory: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
-  session?: any;
-  senderNumber?: string;
+  session: Session;
+  senderNumber: string;
   senderName?: string;
 }
 
 interface ZoyaAgentResult {
   suggestedReply: string;
-  toolCalls?: NormalizedToolCall[];
-  toolResponses?: any[];
-  route: string;
+  toolCalls: Array<{
+    id: string;
+    toolName: string;
+    arguments: any;
+  }>;
+  metadata: {
+    toolsUsed: string[];
+    iterations: number;
+    tokenUsage: {
+      estimated: number;
+      actual?: number;
+    };
+  };
 }
 
+interface NormalizedToolCall {
+  id: string;
+  toolName: string;
+  arguments: any;
+  result: any;
+}
 
-
-export async function runZoyaAIAgent({ chatHistory, session, senderNumber, senderName }: ZoyaAgentInput): Promise<ZoyaAgentResult> {
-  console.log('[runZoyaAIAgent] Menerima tugas. History terakhir:', chatHistory.slice(-2));
-  console.log('[runZoyaAIAgent] Context:', { senderNumber, senderName });
-
+export async function runZoyaAIAgentOptimized({ 
+  chatHistory, 
+  session, 
+  senderNumber, 
+  senderName 
+}: ZoyaAgentInput): Promise<ZoyaAgentResult> {
+  
+  console.log('[runZoyaAIAgentOptimized] Starting optimized agent');
+  
   try {
-    // Ensure master prompt is always present
-    const hasMasterPrompt = chatHistory.some(p => p.role === 'system' && p.content?.toString().includes('Bosmat Detailing'));
+    // Select prompt based on conversation length to manage tokens
+    const conversationStats = calculateConversationTokens(chatHistory);
+    let selectedPrompt = optimizedMasterPrompt;
     
-    if (!hasMasterPrompt) {
-      // Filter out any other system messages and prepend master prompt
-      const userAndAssistantHistory = chatHistory.filter(p => p.role !== 'system');
-      chatHistory = [{ role: 'system', content: masterPrompt }, ...userAndAssistantHistory];
-      console.log('[runZoyaAIAgent] Master prompt injected into chat history');
+    if (conversationStats.totalTokens > 4000) {
+      selectedPrompt = lightweightPrompt;
+      console.log('[runZoyaAIAgentOptimized] Using lightweight prompt due to high token count');
+    } else if (conversationStats.totalTokens > 2500) {
+      selectedPrompt = optimizedMasterPrompt;
+      console.log('[runZoyaAIAgentOptimized] Using optimized prompt');
     }
-
-    // Process tool calls in iterations (like original flow)
+    
+    // Optimize conversation history
+    const optimizedHistory = optimizeConversationHistory(chatHistory, 3000);
+    
+    // Ensure system prompt is current
+    const hasSystemPrompt = optimizedHistory.some(p => p.role === 'system' && p.content?.toString().includes('Zoya'));
+    
+    if (!hasSystemPrompt) {
+      const userAndAssistantHistory = optimizedHistory.filter(p => p.role !== 'system');
+      optimizedHistory.splice(0, 0, { role: 'system', content: selectedPrompt });
+      console.log('[runZoyaAIAgentOptimized] System prompt injected');
+    }
+    
+    // Monitor initial token usage
+    monitorTokenUsage(optimizedHistory);
+    
+    // Process with iterative tool calling (reduced iterations)
     let finalResponse = '';
     let allToolResults: NormalizedToolCall[] = [];
-    let maxIterations = 5; // Increase iterations to allow final response after tools
+    const maxIterations = 3; // Reduced from 5 to save tokens
     let iteration = 0;
+    let lastCompletion: OpenAI.Chat.Completions.ChatCompletion | undefined;
     
     while (iteration < maxIterations) {
       iteration++;
-      console.log(`[runZoyaAIAgent] Iteration ${iteration}`);
+      console.log(`[runZoyaAIAgentOptimized] Iteration ${iteration}/${maxIterations}`);
       
       const start = Date.now();
-      const completion = await openAIClient.chat.completions.create({
-        model: 'gpt-4.1-mini', // Fixed model name
-        messages: chatHistory,
-        temperature: 0.7,
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini', // Use mini model for efficiency
+        messages: optimizedHistory,
+        temperature: 0.5, // Reduced temperature for more consistent responses
         tools: zoyaTools,
         tool_choice: 'auto',
+        max_tokens: 1000, // Limit response tokens
       });
       const latencyMs = Date.now() - start;
-
+      lastCompletion = completion;
+      
+      // Monitor API response token usage
+      if (completion.usage) {
+        monitorTokenUsage(optimizedHistory, completion);
+      }
+      
       const gptMessage = completion.choices[0]?.message;
       const messageContent = gptMessage?.content || '';
       const toolCalls = gptMessage?.tool_calls || [];
       
-      console.log(`[runZoyaAIAgent] Iteration ${iteration} Response:`, messageContent);
-      console.log(`[runZoyaAIAgent] Iteration ${iteration} Tool calls:`, toolCalls.length);
-
+      console.log(`[runZoyaAIAgentOptimized] Iteration ${iteration} - Latency: ${latencyMs}ms`);
+      console.log(`[runZoyaAIAgentOptimized] Response: ${messageContent.substring(0, 100)}...`);
+      console.log(`[runZoyaAIAgentOptimized] Tool calls: ${toolCalls.length}`);
+      
       // Add assistant message to history
       if (messageContent || toolCalls.length > 0) {
-        chatHistory.push({
+        optimizedHistory.push({
           role: 'assistant',
           content: messageContent,
           tool_calls: toolCalls.length > 0 ? toolCalls : undefined
         });
       }
-
+      
       // If no tool calls, this is the final response
       if (toolCalls.length === 0) {
-        finalResponse = messageContent || "Maaf, Zoya lagi bingung nih. Boleh coba tanya lagi, om?";
-        console.log(`[runZoyaAIAgent] Final response received at iteration ${iteration}`);
+        finalResponse = messageContent || "Maaf, Zoya lagi bingung nih. Boleh coba tanya lagi, mas?";
+        console.log(`[runZoyaAIAgentOptimized] Final response at iteration ${iteration}`);
         break;
       }
-
-      // Process tool calls
-      console.log(`[runZoyaAIAgent] Processing ${toolCalls.length} tool calls`);
+      
+      // Execute tool calls
       for (const toolCall of toolCalls) {
         try {
-          const functionName = toolCall.function.name;
-          const args = JSON.parse(toolCall.function.arguments);
+          console.log(`[runZoyaAIAgentOptimized] Executing tool: ${toolCall.function.name}`);
           
-          console.log(`[runZoyaAIAgent] Executing tool: ${functionName}`, args);
-          
-          const toolImpl = toolFunctionMap[functionName];
-          if (toolImpl && toolImpl.implementation) {
-            const result = await toolImpl.implementation(args, { session, senderNumber, senderName });
-            console.log(`[runZoyaAIAgent] Tool result: ${functionName}`, result);
-            
-            allToolResults.push({
-              id: toolCall.id,
-              toolName: functionName,
-              arguments: args
-            });
-            
-            // Add tool result to history for next iteration
-            chatHistory.push({
-              role: 'tool',
-              content: JSON.stringify(result),
-              tool_call_id: toolCall.id
-            });
-          } else {
-            console.error(`[runZoyaAIAgent] Tool implementation not found: ${functionName}`);
-            // Add error result to history
-            chatHistory.push({
-              role: 'tool',
-              content: JSON.stringify({ error: `Tool ${functionName} not implemented` }),
-              tool_call_id: toolCall.id
-            });
+          const toolFunction = toolFunctionMap[toolCall.function.name];
+          if (!toolFunction?.implementation) {
+            throw new Error(`Tool ${toolCall.function.name} not found`);
           }
+          
+          const toolArgs = JSON.parse(toolCall.function.arguments);
+          const toolResult = await toolFunction.implementation(toolArgs);
+          
+          allToolResults.push({
+            id: toolCall.id,
+            toolName: toolCall.function.name,
+            arguments: toolArgs,
+            result: toolResult
+          });
+          
+          // Add tool result to history
+          optimizedHistory.push({
+            role: 'tool',
+            content: JSON.stringify(toolResult),
+            tool_call_id: toolCall.id
+          });
+          
         } catch (toolError) {
-          console.error(`[runZoyaAIAgent] Tool error: ${toolCall.function.name}`, toolError);
-          // Add error result to history
-          chatHistory.push({
+          console.error(`[runZoyaAIAgentOptimized] Tool error:`, toolError);
+          optimizedHistory.push({
             role: 'tool',
             content: JSON.stringify({ error: toolError instanceof Error ? toolError.message : String(toolError) }),
             tool_call_id: toolCall.id
@@ -128,35 +165,57 @@ export async function runZoyaAIAgent({ chatHistory, session, senderNumber, sende
         }
       }
       
-      // If we have tool results and this might be the last iteration, 
-      // force a final response attempt
+      // Force final response on last iteration
       if (iteration === maxIterations - 1 && allToolResults.length > 0) {
-        console.log('[runZoyaAIAgent] Last iteration, forcing final response attempt');
-        chatHistory.push({
+        console.log('[runZoyaAIAgentOptimized] Last iteration, forcing final response');
+        optimizedHistory.push({
           role: 'system',
-          content: 'Based on the tool results above, provide a complete and helpful response to the users question. Do not call any more tools.'
+          content: 'Berikan respons final berdasarkan hasil tool di atas. Jangan panggil tool lagi.'
         });
       }
     }
     
+    // Fallback if no final response
     if (iteration >= maxIterations && !finalResponse) {
-      console.warn('[runZoyaAIAgent] Max iterations reached, using fallback response');
-      finalResponse = "Maaf, Zoya butuh waktu lebih lama untuk memproses. Coba tanya lagi ya, mas!";
+      console.warn('[runZoyaAIAgentOptimized] Max iterations reached, using fallback');
+      finalResponse = allToolResults.length > 0 
+        ? "Zoya sudah cek infonya mas. Ada yang bisa Zoya bantu lagi?"
+        : "Maaf mas, Zoya lagi ada gangguan. Bisa coba tanya lagi?";
     }
-
-    console.log('[runZoyaAIAgent] Final reply:', finalResponse);
-
+    
+    const finalStats = calculateConversationTokens(optimizedHistory);
+    
     return {
       suggestedReply: finalResponse,
-      toolCalls: allToolResults.length > 0 ? allToolResults : undefined,
-      toolResponses: allToolResults.length > 0 ? allToolResults : undefined,
-      route: allToolResults.length > 0 ? 'agent_with_tools' : 'agent_reply',
+      toolCalls: allToolResults.map(tc => ({
+        id: tc.id,
+        toolName: tc.toolName,
+        arguments: tc.arguments,
+      })),
+      metadata: {
+        toolsUsed: allToolResults.map(tc => tc.toolName),
+        iterations: iteration,
+        tokenUsage: {
+          estimated: finalStats.totalTokens,
+          actual: lastCompletion?.usage?.total_tokens
+        }
+      },
     };
+    
   } catch (error) {
-    console.error('[runZoyaAIAgent] TERJADI ERROR SAAT MEMANGGIL OPENAI:', error);
+    console.error('[runZoyaAIAgentOptimized] Critical error:', error);
+    
     return {
-      suggestedReply: "Aduh, Zoya lagi pusing nih, coba tanya BosMat aja ya.",
-      route: 'main_agent_reply',
+      suggestedReply: "Maaf mas, Zoya lagi ada masalah teknis. Bisa coba lagi nanti?",
+      toolCalls: [],
+      metadata: {
+        toolsUsed: [],
+        iterations: 0,
+        tokenUsage: { estimated: 0 }
+      },
     };
   }
 }
+
+// Export alias for backward compatibility
+export const runZoyaAIAgent = runZoyaAIAgentOptimized;

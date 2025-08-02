@@ -12,7 +12,11 @@
     "seed:firestore": "tsx src/lib/seedFirestore.ts",
     "test": "jest",
     "test:zoya": "jest tests/zoya/aiFlow.e2e.test.ts",
-    "test:env": "PATH=./node_modules/.bin:$PATH dotenv-cli -e .env -- jest"
+    "test:env": "PATH=./node_modules/.bin:$PATH dotenv-cli -e .env -- jest",
+    "test:token-optimization": "tsx scripts/test-token-optimization.ts",
+    "test:token-optimization:mock": "tsx scripts/test-token-optimization.ts -- --mock",
+    "test:token-optimization:real": "tsx scripts/test-token-optimization.ts -- --real",
+    "test:token-simple": "tsx scripts/test-token-simple.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^4.1.3",
