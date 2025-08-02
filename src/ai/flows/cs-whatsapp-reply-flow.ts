@@ -8,13 +8,11 @@ import type { Session } from '@/types/ai/session';
 import { getSession, updateSession } from '../utils/session';
 import { getConversationHistory, saveAIResponse } from '../utils/conversationHistory';
 import { isInterventionLockActive } from '../utils/interventionLock';
-import { toolFunctionMap, zoyaTools } from '../config/aiConfig';
+import { toolFunctionMap } from '../config/aiConfig';
 import { masterPrompt } from '../config/aiPrompts';
-import OpenAI from 'openai';
-import { wrapOpenAI } from 'langsmith/wrappers';
+import { runZoyaAIAgent } from '../agent/runZoyaAIAgent';
 import { traceable } from 'langsmith/traceable';
-
-const openAIClient = wrapOpenAI(new OpenAI({ apiKey: process.env.OPENAI_API_KEY! }));
+import type OpenAI from 'openai';
 
 // Log LangSmith configuration
 console.log('[LANGSMITH CONFIG]', {
@@ -105,127 +103,25 @@ Gunakan informasi ini untuk menghitung tanggal relatif seperti "besok", "lusa", 
   console.log('[DATE CONTEXT ADDED]', `Current date: ${currentDateString} (${currentDateIso})`);
 
   try {
-    console.log('[CALLING OPENAI]', { model: 'gpt-4o-mini', messagesCount: history.length, toolsEnabled: true });
+    console.log('[CALLING ZOYA AI AGENT]', { messagesCount: history.length, toolsEnabled: true });
 
-    let finalResponse = '';
-    let allToolResults: Array<{ toolName: string; arguments: any; }> = [];
-    let maxIterations = 4; // Prevent infinite loops - limited to 4 iterations
-    let iteration = 0;
-    
-    while (iteration < maxIterations) {
-      iteration++;
-      console.log(`[ITERATION ${iteration}] Starting OpenAI call`);
-      
-      const completion = await openAIClient.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: history,
-        temperature: 1,
-        tools: zoyaTools,
-        tool_choice: 'auto',
-      });
+    // Use the runZoyaAIAgent instead of direct OpenAI calls
+    const agentResult = await runZoyaAIAgent({ 
+      chatHistory: history, 
+      session 
+    });
 
-      const message = completion.choices[0]?.message;
-      const messageContent = message?.content || '';
-      const toolCalls = message?.tool_calls || [];
-      
-      console.log(`[ITERATION ${iteration}] Response:`, messageContent);
-      console.log(`[ITERATION ${iteration}] Tool calls:`, toolCalls.length);
-      
-      // Add assistant message to history
-      if (messageContent || toolCalls.length > 0) {
-        history.push({
-          role: 'assistant',
-          content: messageContent,
-          tool_calls: toolCalls.length > 0 ? toolCalls : undefined
-        });
-      }
-      
-      // If no tool calls, this is the final response
-      if (toolCalls.length === 0) {
-        finalResponse = messageContent || "Maaf, Zoya lagi bingung nih. Boleh coba tanya lagi, om?";
-        console.log(`[ITERATION ${iteration}] Final response received`);
-        break;
-      }
-      
-      // Process tool calls
-      console.log(`[ITERATION ${iteration}] Processing ${toolCalls.length} tool calls`);
-      for (const toolCall of toolCalls) {
-        try {
-          const functionName = toolCall.function.name;
-          const args = JSON.parse(toolCall.function.arguments);
-          
-          console.log(`[TOOL CALL] ${functionName}`, args);
-          
-          const toolImpl = toolFunctionMap[functionName];
-          if (toolImpl && toolImpl.implementation) {
-            // Wrap tool execution with tracing
-            const traceableToolExecution = traceable(
-              async (args: any, context: any) => {
-                return await toolImpl.implementation(args, context);
-              },
-              {
-                name: `tool_${functionName}`,
-                metadata: {
-                  tool_name: functionName,
-                  tool_args: JSON.stringify(args)
-                }
-              }
-            );
-            
-            const result = await traceableToolExecution(args, { session, senderNumber });
-            console.log(`[TOOL RESULT] ${functionName}`, result);
-            
-            allToolResults.push({
-              toolName: functionName,
-              arguments: args
-            });
-            
-            // Add tool result to history
-            history.push({
-              role: 'tool',
-              content: JSON.stringify(result),
-              tool_call_id: toolCall.id
-            });
-          } else {
-            console.error(`[TOOL ERROR] Tool implementation not found: ${functionName}`);
-            // Add error result to history
-            history.push({
-              role: 'tool',
-              content: JSON.stringify({ error: `Tool ${functionName} not implemented` }),
-              tool_call_id: toolCall.id
-            });
-          }
-        } catch (toolError) {
-          console.error(`[TOOL ERROR] ${toolCall.function.name}:`, toolError);
-          const errorArgs = JSON.parse(toolCall.function.arguments);
-          allToolResults.push({
-            toolName: toolCall.function.name,
-            arguments: errorArgs
-          });
-          
-          // Add error result to history
-          history.push({
-            role: 'tool',
-            content: JSON.stringify({ error: toolError instanceof Error ? toolError.message : String(toolError) }),
-            tool_call_id: toolCall.id
-          });
-        }
-      }
-    }
-    
-    if (iteration >= maxIterations) {
-      console.warn('[MAX ITERATIONS REACHED] Stopping loop to prevent infinite execution');
-      finalResponse = finalResponse || "Maaf, Zoya butuh waktu lebih lama untuk memproses. Coba tanya lagi ya, mas!";
-    }
-    
-    console.log('[FINAL PROCESSING] Response ready:', finalResponse);
-    console.log('[FINAL PROCESSING] Total tools used:', allToolResults.length);
+    const finalResponse = agentResult.suggestedReply;
+    const allToolResults = agentResult.toolCalls || [];
+
+    console.log('[AGENT PROCESSING] Response ready:', finalResponse);
+    console.log('[AGENT PROCESSING] Total tools used:', allToolResults.length);
 
     // Save only AI response to directMessages subcollection (user messages already saved by WhatsApp server)
     if (finalResponse) {
       await saveAIResponse(senderNumber, finalResponse, {
         toolsUsed: allToolResults.map(t => t.toolName),
-        iterations: iteration
+        iterations: 1
       });
       console.log('[AI RESPONSE SAVED] to directMessages subcollection');
     }
@@ -256,7 +152,7 @@ Gunakan informasi ini untuk menghitung tanggal relatif seperti "besok", "lusa", 
       route: allToolResults.length > 0 ? 'openai_with_tools' : 'openai_completion_reply',
       metadata: { 
         toolsUsed: allToolResults.map(t => t.toolName),
-        iterations: iteration
+        iterations: 1
       },
     };
     console.log('[FINAL OUTPUT]', finalOutput);

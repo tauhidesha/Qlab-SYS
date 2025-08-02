@@ -74,6 +74,7 @@ function formatPhoneNumberForMatching(number?: string): string {
 }
 
 export default function AiCsAssistantPage() {
+  const { user, loading: authLoading } = useAuth();
   const [customerMessageInput, setCustomerMessageInput] = useState('');
   const [currentPlaygroundInput, setCurrentPlaygroundInput] = useState('');
   const [playgroundChatHistory, setPlaygroundChatHistory] = useState<PlaygroundMessage[]>([]);
@@ -156,12 +157,18 @@ const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
         const metaData = metaDocSnap.exists() ? metaDocSnap.data() : {};
         console.log(`[fetchCustomers] Meta data for ${phone}:`, metaData);
 
-        // Ambil pesan terakhir
+        // Ambil pesan terakhir dari subcollection
         const messagesRef = collection(db, 'directMessages', phone, 'messages');
         const lastMsgQuery = query(messagesRef, orderBy('timestamp', 'desc'), limit(1));
         const lastMsgSnap = await getFirestoreDocs(lastMsgQuery);
-        const lastMsgData = lastMsgSnap.docs[0]?.data();
-        console.log(`[fetchCustomers] Last message for ${phone}:`, lastMsgData);
+        let lastMsgData = lastMsgSnap.docs[0]?.data();
+        console.log(`[fetchCustomers] Last message from subcollection for ${phone}:`, lastMsgData);
+
+        // Fallback: jika subcollection kosong, cek apakah ada data di parent document
+        if (!lastMsgData && parentData.text) {
+          console.log(`[fetchCustomers] Using fallback data from parent document for ${phone}`);
+          lastMsgData = parentData;
+        }
 
         const displayName = metaData.name || lastMsgData?.waName || parentData.name || phone;
         const lastMessage = lastMsgData?.text || 'Klik untuk melihat chat...';
@@ -209,19 +216,22 @@ const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
 
 
   useEffect(() => {
-    const loadInitialData = async () => {
-      setLoadingCustomers(true);
-      try {
-        const fetchedCustomers = await fetchCustomers();
-        setCustomers(fetchedCustomers);
-      } catch (error) {
-        console.error("Failed to fetch customers:", error);
-      } finally {
-        setLoadingCustomers(false);
-      }
-    };
-    loadInitialData();
-  }, [fetchCustomers]);
+    // Only fetch customers if user is authenticated and not loading
+    if (!authLoading && user) {
+      const loadInitialData = async () => {
+        setLoadingCustomers(true);
+        try {
+          const fetchedCustomers = await fetchCustomers();
+          setCustomers(fetchedCustomers);
+        } catch (error) {
+          console.error("Failed to fetch customers:", error);
+        } finally {
+          setLoadingCustomers(false);
+        }
+      };
+      loadInitialData();
+    }
+  }, [fetchCustomers, authLoading, user]);
 
   useEffect(() => {
     if (unsubscribeChatRef.current) {
@@ -248,6 +258,13 @@ const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
             const history: ChatMessageUi[] = [];
             querySnapshot.forEach((doc) => {
               const data = doc.data() as DirectMessage;
+              console.log(`[Chat Listener] Processing message ${doc.id}:`, data);
+              
+              // Validate message data
+              if (!data.text) {
+                console.warn(`[Chat Listener] Message ${doc.id} has no text:`, data);
+              }
+              
               history.push({
                 ...data,
                 id: doc.id,
@@ -255,7 +272,7 @@ const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
               });
             });
             setChatHistory(history);
-            console.log(`[Chat Listener] Updated chat history with ${history.length} messages`);
+            console.log(`[Chat Listener] Updated chat history with ${history.length} messages:`, history);
           }, (error) => {
             console.error(`[Chat Listener] Error fetching real-time chat for ${selectedCustomer.name} (phone: ${phoneToQuery}):`, error);
             
@@ -451,18 +468,27 @@ const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
           description: `Pesan Anda sedang dikirim ke ${selectedCustomer.name}.`,
         });
 
-        const directMessagesRef = collection(db, 'directMessages');
-        const csMessageData: Omit<DirectMessage, 'id'> = {
-          customerId: selectedCustomer.id,
-          customerName: selectedCustomer.name,
-          senderNumber: formattedPhoneForSending,
+        // Save CS message to subcollection (same structure as WhatsApp server and AI)
+        const messagesRef = collection(db, 'directMessages', formattedPhoneForSending, 'messages');
+        const csMessageData = {
           text: textToSend,
-          sender: 'user',
-          timestamp: serverTimestamp() as any,
-          read: true,
+          sender: 'user', // CS staff manual message
+          timestamp: serverTimestamp(),
+          // Additional metadata for CS tracking
+          sentBy: 'cs-dashboard',
+          customerName: selectedCustomer.name,
+          customerId: selectedCustomer.id,
         };
-        await addDoc(directMessagesRef, csMessageData);
-        console.log("CS manual reply saved to directMessages.");
+        await addDoc(messagesRef, csMessageData);
+        console.log("CS manual reply saved to directMessages subcollection.");
+
+        // Also update parent document with customer info
+        const parentDocRef = doc(db, 'directMessages', formattedPhoneForSending);
+        await setDoc(parentDocRef, {
+          name: selectedCustomer.name,
+          customerId: selectedCustomer.id,
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
 
         try {
             const lockResponse = await fetch('/api/whatsapp/set-intervention-lock', {
