@@ -55,15 +55,28 @@ export async function getConversationHistory(senderNumber: string): Promise<Open
       });
     });
     
-    // 3. Sort all messages by timestamp and convert to OpenAI format
-    const sortedMessages = messages
+    // 3. Deduplicate messages and sort by timestamp
+    const uniqueMessages = new Map<string, { role: 'user' | 'assistant'; content: string; timestamp: number }>();
+    
+    messages.forEach(msg => {
+      // Create a key based on content and role to identify duplicates
+      const key = `${msg.role}:${msg.content.trim()}`;
+      
+      // Keep the message with the latest timestamp if duplicates exist
+      if (!uniqueMessages.has(key) || uniqueMessages.get(key)!.timestamp < msg.timestamp) {
+        uniqueMessages.set(key, msg);
+      }
+    });
+    
+    const sortedMessages = Array.from(uniqueMessages.values())
       .sort((a, b) => a.timestamp - b.timestamp)
       .map(msg => ({
         role: msg.role,
         content: msg.content
       })) as OpenAI.Chat.Completions.ChatCompletionMessageParam[];
     
-    console.log(`[getConversationHistory] Found ${sortedMessages.length} messages (${subSnapshot.size} from subcollection, ${rootSnapshot.size} from root)`);
+    console.log(`[getConversationHistory] Found ${messages.length} total messages, deduplicated to ${sortedMessages.length} unique messages`);
+    console.log(`[getConversationHistory] Sources: ${subSnapshot.size} from subcollection, ${rootSnapshot.size} from root`);
     return sortedMessages;
   } catch (error) {
     console.error('[getConversationHistory] Error getting history:', error);
@@ -85,6 +98,25 @@ export async function saveAIResponse(
   
   try {
     const messagesRef = db.collection(DIRECT_MESSAGES_COLLECTION).doc(senderNumber).collection('messages');
+    
+    // Check for recent duplicate AI responses (within last 5 minutes)
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const recentQuery = messagesRef
+      .where('sender', '==', 'zoya')
+      .where('timestamp', '>', admin.firestore.Timestamp.fromDate(fiveMinutesAgo))
+      .orderBy('timestamp', 'desc')
+      .limit(3);
+    
+    const recentSnapshot = await recentQuery.get();
+    const isDuplicate = recentSnapshot.docs.some(doc => {
+      const data = doc.data();
+      return data.text === aiResponse;
+    });
+    
+    if (isDuplicate) {
+      console.log(`[saveAIResponse] Duplicate AI response detected, skipping save for ${senderNumber}`);
+      return;
+    }
     
     await messagesRef.add({
       text: aiResponse,
