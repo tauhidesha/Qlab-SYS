@@ -93,7 +93,7 @@ type DirectRewardFormValues = z.infer<typeof directRewardFormSchema>;
 
 export default function SettingsPage() {
   const { toast } = useToast();
-  const [workshopName, setWorkshopName] = useState('QLAB Auto Detailing');
+  const [workshopName, setWorkshopName] = useState('Bosmat Repainting and Detailing Studio');
   const [workshopAddress, setWorkshopAddress] = useState('Jl. Sudirman No. 123, Jakarta');
   const [workshopPhone, setWorkshopPhone] = useState('+62 21 555 0123');
   const [isLoadingGeneralSettings, setIsLoadingGeneralSettings] = useState(true);
@@ -172,7 +172,7 @@ export default function SettingsPage() {
         const docSnap = await getDoc(settingsDocRef);
         if (docSnap.exists()) {
           const data = docSnap.data();
-          setWorkshopName(data.workshopName || 'QLAB Auto Detailing');
+          setWorkshopName(data.workshopName || 'Bosmat Repainting and Detailing Studio');
           setWorkshopAddress(data.workshopAddress || 'Jl. Sudirman No. 123, Jakarta');
           setWorkshopPhone(data.workshopPhone || '+62 21 555 0123');
         }

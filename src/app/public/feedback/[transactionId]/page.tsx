@@ -136,14 +136,14 @@ export default function FeedbackPage() {
           <CheckCircle className="mx-auto h-20 w-20 text-green-500 mb-4" />
           <h2 className="text-3xl font-semibold">Terima Kasih!</h2>
           <p className="text-muted-foreground text-lg">
-            Masukan Anda sangat berharga bagi kami untuk terus meningkatkan kualitas layanan QLAB Auto Detailing.
+            Masukan Anda sangat berharga bagi kami untuk terus meningkatkan kualitas layanan Bosmat Repainting and Detailing Studio.
           </p>
             <p className="text-sm text-muted-foreground">
             ID Transaksi: {transactionId.substring(0,8)}...
           </p>
         </CardContent>
          <CardFooter className="justify-center">
-            <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} QLAB Auto Detailing</p>
+            <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} Bosmat Repainting and Detailing Studio</p>
         </CardFooter>
       </Card>
     );

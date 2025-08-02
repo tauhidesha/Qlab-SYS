@@ -39,7 +39,7 @@ import type { StaffMember } from '@/types/staff';
 import type { LoyaltyReward } from '@/types/loyalty';
 
 
-const SHOP_NAME = "QLAB Auto Detailing";
+const SHOP_NAME = "Bosmat Repainting and Detailing Studio";
 
 // --- KONFIGURASI BONUS ITEM OTOMATIS ---
 const TRIGGER_SERVICE_ID = 'SVC_ADVANCE_FORMULA_PLACEHOLDER';
