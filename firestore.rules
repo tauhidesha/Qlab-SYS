@@ -16,5 +16,11 @@ service cloud.firestore {
       // Allow server-side access (Admin SDK) without authentication
       allow read, write: if true;
     }
+    
+    // Special rules for knowledge base - allow server-side AI access
+    match /knowledge_base_entries/{entryId} {
+      // Allow server-side access (Admin SDK) for AI tools without authentication
+      allow read: if true;
+    }
   }
 }

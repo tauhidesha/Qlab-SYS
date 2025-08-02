@@ -112,7 +112,7 @@ async function implementation(rawInput: any): Promise<Output> {
     const topMatches = entriesWithSimilarity.slice(0, 3);
     
     // Set minimum similarity threshold
-    const MIN_SIMILARITY_THRESHOLD = 0.5; // Lowered threshold for better results
+    const MIN_SIMILARITY_THRESHOLD = 0.4; // Lowered threshold for better results
     
     const validMatches = topMatches.filter(match => match.similarityScore >= MIN_SIMILARITY_THRESHOLD);
     
