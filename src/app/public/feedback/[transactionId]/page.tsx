@@ -138,6 +138,32 @@ export default function FeedbackPage() {
           <p className="text-muted-foreground text-lg">
             Masukan Anda sangat berharga bagi kami untuk terus meningkatkan kualitas layanan Bosmat Repainting and Detailing Studio.
           </p>
+          
+          {/* Google Review Button */}
+          <div className="space-y-4">
+            <div className="border-t pt-4">
+              <h3 className="text-lg font-medium mb-2">Bantu Kami Berkembang!</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Jika Anda puas dengan layanan kami, mohon luangkan waktu sebentar untuk memberikan review di Google.
+              </p>
+              <Button 
+                asChild 
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                size="lg"
+              >
+                <a 
+                  href="https://www.google.com/search?q=Bosmat+Repainting+and+Detailing+Studio+review" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2"
+                >
+                  <Star className="h-5 w-5 fill-current" />
+                  Beri Review di Google
+                </a>
+              </Button>
+            </div>
+          </div>
+
             <p className="text-sm text-muted-foreground">
             ID Transaksi: {transactionId.substring(0,8)}...
           </p>
