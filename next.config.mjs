@@ -4,6 +4,11 @@ const nextConfig = {
   // For example:
   // reactStrictMode: true,
   
+  // Environment variables yang bisa di-expose ke client
+  env: {
+    NEXT_PUBLIC_APP_BASE_URL: process.env.NEXT_PUBLIC_APP_BASE_URL || 'https://repaintdandetailingmotor-bosmat.vercel.app',
+  },
+  
   // Headers untuk mengatasi CORS issues
   async headers() {
     return [

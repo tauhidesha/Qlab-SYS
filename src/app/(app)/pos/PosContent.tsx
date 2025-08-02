@@ -831,15 +831,9 @@ export default function PosContent() {
       text += `Poin Baru Diperoleh: ${transaction.pointsEarnedInThisTx.toLocaleString('id-ID')} poin\n`;
     }
 
-    const feedbackBaseUrl = process.env.NEXT_PUBLIC_APP_BASE_URL;
-    let feedbackUrl = `[APP_BASE_URL_BELUM_DISET_DI_.ENV]/public/feedback/${transaction.id}`;
-
-    if (feedbackBaseUrl && feedbackBaseUrl.trim() !== '') {
-      const normalizedBaseUrl = feedbackBaseUrl.endsWith('/') ? feedbackBaseUrl.slice(0, -1) : feedbackBaseUrl;
-      feedbackUrl = `${normalizedBaseUrl}/public/feedback/${transaction.id}`;
-    } else {
-      console.warn("NEXT_PUBLIC_APP_BASE_URL is not set. Feedback link will be a placeholder.");
-    }
+    const feedbackBaseUrl = process.env.NEXT_PUBLIC_APP_BASE_URL || 'https://repaintdandetailingmotor-bosmat.vercel.app';
+    const normalizedBaseUrl = feedbackBaseUrl.endsWith('/') ? feedbackBaseUrl.slice(0, -1) : feedbackBaseUrl;
+    const feedbackUrl = `${normalizedBaseUrl}/public/feedback/${transaction.id}`;
 
     text += `\nKami sangat menghargai masukan Anda! Isi survei singkat di: ${feedbackUrl}`;
     text += `\n\nTerima kasih atas kunjungan Anda!`;
