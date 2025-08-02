@@ -236,7 +236,7 @@ export default function TransactionHistoryPage() {
             ) : (
               <>
                 {/* Desktop Table View */}
-                <div className="hidden lg:block overflow-x-auto">
+                <div className="hidden md:block overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -258,24 +258,20 @@ export default function TransactionHistoryPage() {
                           <TableCell>{transaction.paymentMethod || 'N/A'}</TableCell>
                           <TableCell>{transaction.serviceStaffName || 'N/A'}</TableCell>
                           <TableCell className="text-xs max-w-[200px] truncate">{transaction.notes || '-'}</TableCell>
-                          <TableCell className="text-center">
-                            <div className="flex items-center justify-center gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
+                          <TableCell className="text-center min-w-[150px]">
+                            <div className="flex items-center justify-center gap-1">
+                              <button
                                 onClick={() => handleEditTransaction(transaction)}
-                                className="h-8 w-8 p-0"
+                                className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
                               >
-                                <Edit3 className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
+                                ✏️ Edit
+                              </button>
+                              <button
                                 onClick={() => handleRefundTransaction(transaction)}
-                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
                               >
-                                <RefreshCcw className="h-4 w-4" />
-                              </Button>
+                                🔄 Refund
+                              </button>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -285,7 +281,7 @@ export default function TransactionHistoryPage() {
                 </div>
 
                 {/* Mobile & Tablet Card View */}
-                <div className="lg:hidden space-y-3">
+                <div className="md:hidden space-y-3">
                   {paidTransactions.map((transaction) => (
                     <Card key={transaction.id} className="shadow-sm border border-orange-300">
                       <div className="p-3 space-y-3">
