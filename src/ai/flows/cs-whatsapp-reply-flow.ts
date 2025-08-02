@@ -108,7 +108,9 @@ Gunakan informasi ini untuk menghitung tanggal relatif seperti "besok", "lusa", 
     // Use the runZoyaAIAgent instead of direct OpenAI calls
     const agentResult = await runZoyaAIAgent({ 
       chatHistory: history, 
-      session 
+      session,
+      senderNumber,
+      senderName
     });
 
     const finalResponse = agentResult.suggestedReply;

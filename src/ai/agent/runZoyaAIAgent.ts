@@ -11,6 +11,8 @@ const openAIClient = wrapOpenAI(new OpenAI({ apiKey: process.env.OPENAI_API_KEY!
 interface ZoyaAgentInput {
   chatHistory: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
   session?: any;
+  senderNumber?: string;
+  senderName?: string;
 }
 
 interface ZoyaAgentResult {
@@ -22,8 +24,9 @@ interface ZoyaAgentResult {
 
 
 
-export async function runZoyaAIAgent({ chatHistory, session }: ZoyaAgentInput): Promise<ZoyaAgentResult> {
+export async function runZoyaAIAgent({ chatHistory, session, senderNumber, senderName }: ZoyaAgentInput): Promise<ZoyaAgentResult> {
   console.log('[runZoyaAIAgent] Menerima tugas. History terakhir:', chatHistory.slice(-2));
+  console.log('[runZoyaAIAgent] Context:', { senderNumber, senderName });
 
   try {
     // Ensure master prompt is always present
@@ -90,7 +93,7 @@ export async function runZoyaAIAgent({ chatHistory, session }: ZoyaAgentInput): 
           
           const toolImpl = toolFunctionMap[functionName];
           if (toolImpl && toolImpl.implementation) {
-            const result = await toolImpl.implementation(args, { session });
+            const result = await toolImpl.implementation(args, { session, senderNumber, senderName });
             console.log(`[runZoyaAIAgent] Tool result: ${functionName}`, result);
             
             allToolResults.push({
