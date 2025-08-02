@@ -99,7 +99,7 @@ Gunakan informasi ini untuk menghitung tanggal relatif seperti "besok", "lusa", 
   console.log('[DATE CONTEXT ADDED]', `Current date: ${currentDateString} (${currentDateIso})`);
 
   try {
-    console.log('[CALLING OPENAI]', { model: 'gpt-4.1-mini', messagesCount: history.length, toolsEnabled: true });
+    console.log('[CALLING OPENAI]', { model: 'gpt-4o-mini', messagesCount: history.length, toolsEnabled: true });
 
     let finalResponse = '';
     let allToolResults: Array<{ toolName: string; arguments: any; }> = [];
@@ -111,7 +111,7 @@ Gunakan informasi ini untuk menghitung tanggal relatif seperti "besok", "lusa", 
       console.log(`[ITERATION ${iteration}] Starting OpenAI call`);
       
       const completion = await openAIClient.chat.completions.create({
-        model: 'gpt-4.1-mini',
+        model: 'gpt-4o-mini',
         messages: history,
         temperature: 1,
         tools: zoyaTools,
