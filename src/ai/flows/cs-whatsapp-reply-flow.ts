@@ -72,10 +72,12 @@ export const generateWhatsAppReply = traceable(
   let history: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = await getConversationHistory(senderNumber);
   console.log('[CONVERSATION HISTORY LENGTH]', history.length, 'from directMessages subcollection');
 
-  // Add system prompt if history is empty (first message)
-  if (history.length === 0) {
-    history.push({ role: 'system', content: masterPrompt });
-    console.log('[SYSTEM PROMPT ADDED]', 'Master prompt added to conversation');
+  // Ensure master prompt is always present at the start of the conversation
+  if (history.length === 0 || !history[0].content?.toString().includes('INFO LOKASI')) {
+    // Filter out any other system messages to avoid duplication
+    const userAndAssistantHistory = history.filter(p => p.role !== 'system');
+    history = [{ role: 'system', content: masterPrompt }, ...userAndAssistantHistory];
+    console.log('[SYSTEM PROMPT ADDED/PREPENDED]', 'Master prompt injected into conversation history.');
   }
 
   history.push({ role: 'user', content: input.customerMessage });
