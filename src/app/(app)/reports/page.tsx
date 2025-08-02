@@ -5,12 +5,17 @@ import AppHeader from '@/components/layout/AppHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { DatePickerWithRange } from '@/components/ui/date-picker-range';
-import { Download, Loader2, History } from 'lucide-react';
+import { Download, Loader2, History, Edit3, RefreshCcw, AlertTriangle } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, query, where, orderBy, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, query, where, orderBy, getDocs, Timestamp, doc, updateDoc, addDoc } from 'firebase/firestore';
 import type { Transaction } from '@/types/transaction';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from '@/hooks/use-toast';
 import type { DateRange } from "react-day-picker";
 
@@ -19,6 +24,15 @@ export default function TransactionHistoryPage() {
   const [loadingTransactions, setLoadingTransactions] = useState(true);
   const [dateRange, setDateRange] = React.useState<DateRange | undefined>(undefined);
   const { toast } = useToast();
+
+  // States for editing and refunding
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [refundingTransaction, setRefundingTransaction] = useState<Transaction | null>(null);
+  const [editedCustomerName, setEditedCustomerName] = useState('');
+  const [editedNotes, setEditedNotes] = useState('');
+  const [refundReason, setRefundReason] = useState('');
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+  const [isSubmittingRefund, setIsSubmittingRefund] = useState(false);
 
 
   useEffect(() => {
@@ -74,6 +88,104 @@ export default function TransactionHistoryPage() {
       year: 'numeric', month: 'short', day: 'numeric',
       hour: '2-digit', minute: '2-digit'
     });
+  };
+
+  const handleEditTransaction = (transaction: Transaction) => {
+    setEditingTransaction(transaction);
+    setEditedCustomerName(transaction.customerName);
+    setEditedNotes(transaction.notes || '');
+  };
+
+  const handleRefundTransaction = (transaction: Transaction) => {
+    setRefundingTransaction(transaction);
+    setRefundReason('');
+  };
+
+  const submitEditTransaction = async () => {
+    if (!editingTransaction) return;
+    
+    setIsSubmittingEdit(true);
+    try {
+      const transactionRef = doc(db, 'transactions', editingTransaction.id);
+      await updateDoc(transactionRef, {
+        customerName: editedCustomerName,
+        notes: editedNotes,
+        updatedAt: Timestamp.now()
+      });
+
+      // Update local state
+      setPaidTransactions(prev => 
+        prev.map(tx => 
+          tx.id === editingTransaction.id 
+            ? { ...tx, customerName: editedCustomerName, notes: editedNotes }
+            : tx
+        )
+      );
+
+      toast({
+        title: "Sukses",
+        description: "Transaksi berhasil diperbarui."
+      });
+
+      setEditingTransaction(null);
+    } catch (error) {
+      console.error("Error updating transaction:", error);
+      toast({
+        title: "Error",
+        description: "Gagal memperbarui transaksi.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmittingEdit(false);
+    }
+  };
+
+  const submitRefundTransaction = async () => {
+    if (!refundingTransaction) return;
+    
+    setIsSubmittingRefund(true);
+    try {
+      // Update transaction status to refunded
+      const transactionRef = doc(db, 'transactions', refundingTransaction.id);
+      await updateDoc(transactionRef, {
+        status: 'refunded',
+        refundReason: refundReason,
+        refundedAt: Timestamp.now(),
+        updatedAt: Timestamp.now()
+      });
+
+      // Create refund record in expenses collection
+      await addDoc(collection(db, 'expenses'), {
+        date: Timestamp.now(),
+        category: 'Refund',
+        description: `Refund untuk transaksi ${refundingTransaction.id.substring(0, 8)}... - ${refundingTransaction.customerName}`,
+        amount: refundingTransaction.total,
+        notes: `Alasan refund: ${refundReason}`,
+        relatedTransactionId: refundingTransaction.id,
+        paymentSource: 'Kas Tunai',
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now()
+      });
+
+      // Remove from local state (since it's no longer a paid transaction)
+      setPaidTransactions(prev => prev.filter(tx => tx.id !== refundingTransaction.id));
+
+      toast({
+        title: "Sukses",
+        description: `Refund sebesar Rp ${refundingTransaction.total.toLocaleString('id-ID')} berhasil diproses.`
+      });
+
+      setRefundingTransaction(null);
+    } catch (error) {
+      console.error("Error processing refund:", error);
+      toast({
+        title: "Error",
+        description: "Gagal memproses refund.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmittingRefund(false);
+    }
   };
 
   return (
@@ -134,6 +246,7 @@ export default function TransactionHistoryPage() {
                         <TableHead>Metode Pembayaran</TableHead>
                         <TableHead>Staf Layanan</TableHead>
                         <TableHead>Catatan</TableHead>
+                        <TableHead className="text-center">Aksi</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -145,6 +258,26 @@ export default function TransactionHistoryPage() {
                           <TableCell>{transaction.paymentMethod || 'N/A'}</TableCell>
                           <TableCell>{transaction.serviceStaffName || 'N/A'}</TableCell>
                           <TableCell className="text-xs max-w-[200px] truncate">{transaction.notes || '-'}</TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleEditTransaction(transaction)}
+                                className="h-8 w-8 p-0"
+                              >
+                                <Edit3 className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleRefundTransaction(transaction)}
+                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <RefreshCcw className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -192,6 +325,28 @@ export default function TransactionHistoryPage() {
                             </div>
                           )}
                         </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEditTransaction(transaction)}
+                            className="h-8 px-3"
+                          >
+                            <Edit3 className="h-4 w-4 mr-1" />
+                            Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleRefundTransaction(transaction)}
+                            className="h-8 px-3 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <RefreshCcw className="h-4 w-4 mr-1" />
+                            Refund
+                          </Button>
+                        </div>
                       </div>
                     </Card>
                   ))}
@@ -205,6 +360,112 @@ export default function TransactionHistoryPage() {
             </p>
           </CardFooter>
         </Card>
+
+        {/* Edit Transaction Dialog */}
+        <Dialog open={!!editingTransaction} onOpenChange={(open) => !open && setEditingTransaction(null)}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Edit Transaksi</DialogTitle>
+              <DialogDescription>
+                Edit informasi transaksi {editingTransaction?.id.substring(0, 8)}...
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="customerName" className="text-right">
+                  Nama Pelanggan
+                </Label>
+                <Input
+                  id="customerName"
+                  value={editedCustomerName}
+                  onChange={(e) => setEditedCustomerName(e.target.value)}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="notes" className="text-right">
+                  Catatan
+                </Label>
+                <Textarea
+                  id="notes"
+                  value={editedNotes}
+                  onChange={(e) => setEditedNotes(e.target.value)}
+                  className="col-span-3"
+                  rows={3}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setEditingTransaction(null)}>
+                Batal
+              </Button>
+              <Button 
+                onClick={submitEditTransaction} 
+                disabled={isSubmittingEdit || !editedCustomerName.trim()}
+              >
+                {isSubmittingEdit ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Menyimpan...
+                  </>
+                ) : (
+                  'Simpan Perubahan'
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Refund Transaction Dialog */}
+        <AlertDialog open={!!refundingTransaction} onOpenChange={(open) => !open && setRefundingTransaction(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-red-500" />
+                Konfirmasi Refund
+              </AlertDialogTitle>
+              <AlertDialogDescription className="space-y-2">
+                <p>
+                  Anda akan memproses refund untuk transaksi <strong>{refundingTransaction?.id.substring(0, 8)}...</strong> 
+                  atas nama <strong>{refundingTransaction?.customerName}</strong>
+                </p>
+                <p>
+                  Jumlah refund: <strong>Rp {refundingTransaction?.total.toLocaleString('id-ID')}</strong>
+                </p>
+                <div className="mt-4">
+                  <Label htmlFor="refundReason">Alasan Refund (wajib)</Label>
+                  <Textarea
+                    id="refundReason"
+                    value={refundReason}
+                    onChange={(e) => setRefundReason(e.target.value)}
+                    placeholder="Jelaskan alasan refund..."
+                    rows={3}
+                    className="mt-1"
+                  />
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setRefundingTransaction(null)}>
+                Batal
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={submitRefundTransaction}
+                disabled={isSubmittingRefund || !refundReason.trim()}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                {isSubmittingRefund ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Memproses...
+                  </>
+                ) : (
+                  'Proses Refund'
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </div>
   );

@@ -12,6 +12,7 @@ export const EXPENSE_CATEGORIES = [
   "Perbaikan & Pemeliharaan",
   "Pajak & Lisensi",
   "Setoran Tunai ke Bank",
+  "Refund",
   "Lain-lain"
 ] as const;
 
