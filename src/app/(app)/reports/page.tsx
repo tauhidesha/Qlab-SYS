@@ -8,7 +8,7 @@ import { DatePickerWithRange } from '@/components/ui/date-picker-range';
 import { Download, Loader2, History, Edit3, RefreshCcw, AlertTriangle, Send, MoreVertical } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, query, where, orderBy, getDocs, Timestamp, doc, updateDoc, addDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, getDocs, Timestamp, doc, updateDoc, addDoc, getDoc } from 'firebase/firestore';
 import type { Transaction } from '@/types/transaction';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -107,9 +107,24 @@ export default function TransactionHistoryPage() {
     setRefundReason('');
   };
 
-  const handleResendReceipt = (transaction: Transaction) => {
+  const handleResendReceipt = async (transaction: Transaction) => {
     setResendingReceipt(transaction.id);
-    setResendPhoneNumber('');
+    
+    // Try to get client phone number if clientId exists
+    let clientPhone = '';
+    if (transaction.clientId) {
+      try {
+        const clientDoc = await getDoc(doc(db, 'clients', transaction.clientId));
+        if (clientDoc.exists()) {
+          const clientData = clientDoc.data();
+          clientPhone = clientData.phone || '';
+        }
+      } catch (error) {
+        console.error('Error fetching client data:', error);
+      }
+    }
+    
+    setResendPhoneNumber(clientPhone);
     setShowResendDialog(true);
   };
 
@@ -618,6 +633,11 @@ export default function TransactionHistoryPage() {
               </DialogTitle>
               <DialogDescription>
                 Kirim ulang struk digital untuk transaksi ini melalui WhatsApp.
+                {resendPhoneNumber && (
+                  <span className="block mt-1 text-green-600 font-medium">
+                    ✓ Nomor client terdeteksi otomatis
+                  </span>
+                )}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -640,6 +660,11 @@ export default function TransactionHistoryPage() {
                   <li>628123456789</li>
                   <li>8123456789</li>
                 </ul>
+                {resendPhoneNumber && (
+                  <p className="mt-2 text-green-600 text-xs">
+                    💡 Nomor sudah terisi otomatis dari data client. Anda bisa mengubahnya jika diperlukan.
+                  </p>
+                )}
               </div>
             </div>
             <div className="flex justify-end gap-2">
