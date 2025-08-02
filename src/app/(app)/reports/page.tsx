@@ -5,7 +5,7 @@ import AppHeader from '@/components/layout/AppHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { DatePickerWithRange } from '@/components/ui/date-picker-range';
-import { Download, Loader2, History, Edit3, RefreshCcw, AlertTriangle } from 'lucide-react';
+import { Download, Loader2, History, Edit3, RefreshCcw, AlertTriangle, Send } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, orderBy, getDocs, Timestamp, doc, updateDoc, addDoc } from 'firebase/firestore';
@@ -33,6 +33,11 @@ export default function TransactionHistoryPage() {
   const [refundReason, setRefundReason] = useState('');
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
   const [isSubmittingRefund, setIsSubmittingRefund] = useState(false);
+
+  // States for resend receipt
+  const [resendingReceipt, setResendingReceipt] = useState<string | null>(null); // transaction id
+  const [resendPhoneNumber, setResendPhoneNumber] = useState('');
+  const [showResendDialog, setShowResendDialog] = useState(false);
 
 
   useEffect(() => {
@@ -99,6 +104,119 @@ export default function TransactionHistoryPage() {
   const handleRefundTransaction = (transaction: Transaction) => {
     setRefundingTransaction(transaction);
     setRefundReason('');
+  };
+
+  const handleResendReceipt = (transaction: Transaction) => {
+    setResendingReceipt(transaction.id);
+    setResendPhoneNumber('');
+    setShowResendDialog(true);
+  };
+
+  const formatWhatsAppNumber = (phone: string): string => {
+    let cleaned = phone.replace(/\D/g, '');
+    if (cleaned.startsWith('0')) {
+      cleaned = '62' + cleaned.substring(1);
+    } else if (cleaned.startsWith('8') && cleaned.length >= 9 && cleaned.length <= 13) {
+      cleaned = '62' + cleaned;
+    } else if (!cleaned.startsWith('62')) {
+      cleaned = '62' + cleaned;
+    }
+    return cleaned;
+  };
+
+  const generateWhatsAppReceiptText = (transaction: Transaction): string => {
+    const SHOP_NAME = "Bosmat Repainting and Detailing Studio";
+    
+    let text = `*Struk Digital - ${SHOP_NAME}*\n\n`;
+    text += `ID Transaksi: ${transaction.id.substring(0, 8)}...\n`;
+    text += `Pelanggan: ${transaction.customerName}\n`;
+    
+    if (transaction.paidAt && transaction.paidAt.toDate) {
+      text += `Tanggal: ${transaction.paidAt.toDate().toLocaleString('id-ID', { 
+        day: '2-digit', 
+        month: 'short', 
+        year: 'numeric', 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      })}\n\n`;
+    } else {
+      text += `Tanggal: ${new Date().toLocaleString('id-ID', { 
+        day: '2-digit', 
+        month: 'short', 
+        year: 'numeric', 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      })}\n\n`;
+    }
+
+    text += `Item:\n`;
+    transaction.items.forEach(item => {
+      text += `- ${item.name} (${item.quantity} x Rp ${item.price.toLocaleString('id-ID')})`;
+      if (item.staffName) text += ` (Oleh: ${item.staffName})`;
+      if (item.type === 'reward_merchandise') text += ` (REWARD)`;
+      text += ` = Rp ${(item.quantity * item.price).toLocaleString('id-ID')}\n`;
+    });
+    
+    text += `\nSubtotal: Rp ${transaction.subtotal.toLocaleString('id-ID')}\n`;
+
+    if (transaction.discountAmount && transaction.discountAmount > 0) {
+      text += `Diskon Manual: - Rp ${transaction.discountAmount.toLocaleString('id-ID')}\n`;
+    }
+
+    text += `*Total: Rp ${transaction.total.toLocaleString('id-ID')}*\n`;
+    text += `Metode Bayar: ${transaction.paymentMethod || 'N/A'}\n`;
+
+    if (transaction.pointsEarnedInThisTx && transaction.pointsEarnedInThisTx > 0) {
+      text += `Poin Baru Diperoleh: ${transaction.pointsEarnedInThisTx.toLocaleString('id-ID')} poin\n`;
+    }
+
+    const feedbackUrl = `${process.env.NEXT_PUBLIC_APP_BASE_URL || 'https://repaintdandetailingmotor-bosmat.vercel.app'}/feedback/${transaction.id}`;
+    text += `\nKami sangat menghargai masukan Anda! Isi survei singkat di: ${feedbackUrl}`;
+    text += `\n\nTerima kasih atas kunjungan Anda!`;
+    
+    return text;
+  };
+
+  const submitResendReceipt = async () => {
+    if (!resendingReceipt || !resendPhoneNumber.trim()) return;
+    
+    const transaction = paidTransactions.find(tx => tx.id === resendingReceipt);
+    if (!transaction) return;
+
+    setResendingReceipt('submitting');
+    try {
+      const formattedNumber = formatWhatsAppNumber(resendPhoneNumber);
+      const receiptText = generateWhatsAppReceiptText(transaction);
+
+      const response = await fetch('/api/whatsapp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          number: formattedNumber,
+          message: receiptText
+        })
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Sukses",
+          description: `Struk berhasil dikirim ulang ke ${resendPhoneNumber}`
+        });
+      } else {
+        throw new Error('Gagal mengirim struk');
+      }
+
+      setShowResendDialog(false);
+      setResendingReceipt(null);
+    } catch (error) {
+      console.error("Error resending receipt:", error);
+      toast({
+        title: "Error",
+        description: "Gagal mengirim ulang struk.",
+        variant: "destructive"
+      });
+      setResendingReceipt(null);
+    }
   };
 
   const submitEditTransaction = async () => {
@@ -258,24 +376,34 @@ export default function TransactionHistoryPage() {
                           <TableCell>{transaction.paymentMethod || 'N/A'}</TableCell>
                           <TableCell>{transaction.serviceStaffName || 'N/A'}</TableCell>
                           <TableCell className="text-xs max-w-[200px] truncate">{transaction.notes || '-'}</TableCell>
-                          <TableCell className="text-center min-w-[150px]">
+                          <TableCell className="text-center min-w-[200px]">
                             <div className="flex items-center justify-center gap-1">
                               <button
                                 onClick={() => {
                                   console.log('Edit clicked for transaction:', transaction.id);
                                   handleEditTransaction(transaction);
                                 }}
-                                className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                                className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
                                 type="button"
                               >
                                 Edit
                               </button>
                               <button
                                 onClick={() => {
+                                  console.log('Resend receipt clicked for transaction:', transaction.id);
+                                  handleResendReceipt(transaction);
+                                }}
+                                className="px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+                                type="button"
+                              >
+                                Kirim Struk
+                              </button>
+                              <button
+                                onClick={() => {
                                   console.log('Refund clicked for transaction:', transaction.id);
                                   handleRefundTransaction(transaction);
                                 }}
-                                className="px-3 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                                className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
                                 type="button"
                               >
                                 Refund
@@ -340,6 +468,15 @@ export default function TransactionHistoryPage() {
                           >
                             <Edit3 className="h-4 w-4 mr-1" />
                             Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleResendReceipt(transaction)}
+                            className="h-8 px-3 text-green-600 hover:text-green-700 hover:bg-green-50"
+                          >
+                            <Send className="h-4 w-4 mr-1" />
+                            Kirim Struk
                           </Button>
                           <Button
                             size="sm"
@@ -470,6 +607,65 @@ export default function TransactionHistoryPage() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Resend Receipt Dialog */}
+        <Dialog open={showResendDialog} onOpenChange={(open) => !open && setShowResendDialog(false)}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Send className="h-5 w-5 text-green-500" />
+                Kirim Ulang Struk WhatsApp
+              </DialogTitle>
+              <DialogDescription>
+                Kirim ulang struk digital untuk transaksi ini melalui WhatsApp.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="phoneNumber" className="text-right">
+                  Nomor WhatsApp
+                </Label>
+                <Input
+                  id="phoneNumber"
+                  value={resendPhoneNumber}
+                  onChange={(e) => setResendPhoneNumber(e.target.value)}
+                  placeholder="08xxxxxxxxx atau 628xxxxxxxxx"
+                  className="col-span-3"
+                />
+              </div>
+              <div className="text-sm text-muted-foreground px-4">
+                <p className="mb-2">Format nomor yang didukung:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>08123456789</li>
+                  <li>628123456789</li>
+                  <li>8123456789</li>
+                </ul>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowResendDialog(false)}>
+                Batal
+              </Button>
+              <Button 
+                onClick={submitResendReceipt} 
+                disabled={resendingReceipt === 'submitting' || !resendPhoneNumber.trim()}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {resendingReceipt === 'submitting' ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Mengirim...
+                  </>
+                ) : (
+                  <>
+                    <Send className="mr-2 h-4 w-4" />
+                    Kirim Struk
+                  </>
+                )}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );
