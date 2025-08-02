@@ -5,7 +5,7 @@ import AppHeader from '@/components/layout/AppHeader';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { DatePickerWithRange } from '@/components/ui/date-picker-range';
-import { Download, Loader2, History, Edit3, RefreshCcw, AlertTriangle, Send } from 'lucide-react';
+import { Download, Loader2, History, Edit3, RefreshCcw, AlertTriangle, Send, MoreVertical } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, orderBy, getDocs, Timestamp, doc, updateDoc, addDoc } from 'firebase/firestore';
@@ -13,6 +13,7 @@ import type { Transaction } from '@/types/transaction';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -376,41 +377,38 @@ export default function TransactionHistoryPage() {
                           <TableCell>{transaction.paymentMethod || 'N/A'}</TableCell>
                           <TableCell>{transaction.serviceStaffName || 'N/A'}</TableCell>
                           <TableCell className="text-xs max-w-[200px] truncate">{transaction.notes || '-'}</TableCell>
-                          <TableCell className="text-center min-w-[280px]">
-                            <div className="flex flex-col items-center justify-center gap-1">
-                              <div className="flex gap-1">
-                                <button
-                                  onClick={() => {
-                                    console.log('Edit clicked for transaction:', transaction.id);
-                                    handleEditTransaction(transaction);
-                                  }}
-                                  className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-                                  type="button"
+                          <TableCell className="text-center">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                  <span className="sr-only">Buka menu</span>
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem
+                                  onClick={() => handleEditTransaction(transaction)}
+                                  className="cursor-pointer"
                                 >
-                                  ✏️ Edit
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    console.log('Resend receipt clicked for transaction:', transaction.id);
-                                    handleResendReceipt(transaction);
-                                  }}
-                                  className="px-3 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
-                                  type="button"
+                                  <Edit3 className="mr-2 h-4 w-4" />
+                                  Edit Transaksi
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleResendReceipt(transaction)}
+                                  className="cursor-pointer"
                                 >
-                                  📱 Kirim Struk
-                                </button>
-                              </div>
-                              <button
-                                onClick={() => {
-                                  console.log('Refund clicked for transaction:', transaction.id);
-                                  handleRefundTransaction(transaction);
-                                }}
-                                className="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-                                type="button"
-                              >
-                                🔄 Refund
-                              </button>
-                            </div>
+                                  <Send className="mr-2 h-4 w-4" />
+                                  Kirim Ulang Struk
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => handleRefundTransaction(transaction)}
+                                  className="cursor-pointer text-red-600"
+                                >
+                                  <RefreshCcw className="mr-2 h-4 w-4" />
+                                  Proses Refund
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                         </TableRow>
                       ))}
