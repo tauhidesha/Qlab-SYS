@@ -10,5 +10,11 @@ service cloud.firestore {
         allow read, write: if request.auth != null;
       }
     }
+    
+    // Special rules for AI intervention locks - allow server-side access
+    match /ai_intervention_locks/{senderNumber} {
+      // Allow server-side access (Admin SDK) without authentication
+      allow read, write: if true;
+    }
   }
 }

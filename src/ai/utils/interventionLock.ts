@@ -25,10 +25,22 @@ export async function isInterventionLockActive(senderNumber: string): Promise<bo
         }
       }
     }
+    
+    console.log(`[LOCK CHECK] No active lock found for ${senderNumber}`);
     return false;
-  } catch (error) {
+  } catch (error: any) {
     console.error(`[LOCK CHECK] Error checking intervention lock for ${senderNumber}:`, error);
+    
+    // Log more specific error details for debugging
+    if (error?.code === 'permission-denied') {
+      console.error(`[LOCK CHECK] Permission denied accessing ai_intervention_locks collection`);
+    } else if (error?.code === 'unavailable') {
+      console.error(`[LOCK CHECK] Firestore service unavailable`);
+    }
+    
     // In case of error, assume the lock is not active to avoid blocking users.
+    // This ensures the AI flow continues even if there are permission issues
+    console.log(`[LOCK CHECK] Defaulting to NO LOCK due to error - AI flow will continue`);
     return false;
   }
 }
