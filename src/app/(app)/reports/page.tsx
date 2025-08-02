@@ -186,7 +186,7 @@ export default function TransactionHistoryPage() {
       text += `Poin Baru Diperoleh: ${transaction.pointsEarnedInThisTx.toLocaleString('id-ID')} poin\n`;
     }
 
-    const feedbackUrl = `${process.env.NEXT_PUBLIC_APP_BASE_URL || 'https://repaintdandetailingmotor-bosmat.vercel.app'}/feedback/${transaction.id}`;
+    const feedbackUrl = `${process.env.NEXT_PUBLIC_APP_BASE_URL || 'https://repaintdandetailingmotor-bosmat.vercel.app'}/public/feedback/${transaction.id}`;
     text += `\nKami sangat menghargai masukan Anda! Isi survei singkat di: ${feedbackUrl}`;
     text += `\n\nTerima kasih atas kunjungan Anda!`;
     

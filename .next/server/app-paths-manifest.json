@@ -1,1 +1,3 @@
-{}
+{
+  "/public/feedback/[transactionId]/page": "app/public/feedback/[transactionId]/page.js"
+}
