@@ -70,32 +70,32 @@ export async function sendWhatsAppMessage(number: string, message: string): Prom
       setTimeout(() => reject(new Error('Request timeout after ' + timeoutMs + 'ms')), timeoutMs)
     );
 
-    // Race between fetch and timeout
-    Promise.race([fetchPromise, timeoutPromise])
-      .then(response => {
-        if (response instanceof Response) {
-          const elapsedTime = Date.now() - startTime;
-          console.log(`WhatsappService: [${elapsedTime}ms] Response status dari server WhatsApp: ${response.status}`);
-          return response.text();
-        }
-        throw new Error('Invalid response object');
-      })
-      .then(responseText => {
-        const elapsedTime = Date.now() - startTime;
-        console.log(`WhatsappService: [${elapsedTime}ms] Response body dari server WhatsApp: ${responseText}`);
-      })
-      .catch(error => {
-        const elapsedTime = Date.now() - startTime;
-        if (error.message.includes('timeout')) {
-          console.error(`WhatsappService: [${elapsedTime}ms] ⏰ TIMEOUT - Request dibatalkan karena melebihi ${timeoutMs}ms (Vercel free plan limit protection)`);
-        } else {
-          console.error(`WhatsappService: [${elapsedTime}ms] ❌ Error saat fetch ke server WhatsApp:`, error);
-        }
-      });
-
-    const elapsedTime = Date.now() - startTime;
-    console.log(`WhatsappService: [${elapsedTime}ms] ✅ Fire-and-forget request initiated (tidak menunggu response)`);
-    return { success: true }; // tidak nunggu result dari server bot
+    // ✅ WAIT for response to ensure network call actually completes
+    try {
+      const response = await Promise.race([fetchPromise, timeoutPromise]) as Response;
+      const elapsedTime = Date.now() - startTime;
+      
+      console.log(`WhatsappService: [${elapsedTime}ms] ✅ Response received - status: ${response.status}`);
+      
+      if (response.ok) {
+        const responseText = await response.text();
+        console.log(`WhatsappService: [${Date.now() - startTime}ms] ✅ Response body: ${responseText}`);
+        return { success: true, messageId: 'sent' };
+      } else {
+        const errorText = await response.text();
+        console.error(`WhatsappService: [${Date.now() - startTime}ms] ❌ HTTP Error ${response.status}: ${errorText}`);
+        return { success: false, error: `HTTP ${response.status}: ${errorText}` };
+      }
+    } catch (networkError: any) {
+      const elapsedTime = Date.now() - startTime;
+      if (networkError.message.includes('timeout')) {
+        console.error(`WhatsappService: [${elapsedTime}ms] ⏰ TIMEOUT - Request dibatalkan karena melebihi ${timeoutMs}ms`);
+        return { success: false, error: 'Request timeout - possible Vercel free plan limitation' };
+      } else {
+        console.error(`WhatsappService: [${elapsedTime}ms] 🌐 NETWORK ERROR:`, networkError);
+        return { success: false, error: `Network error: ${networkError.message}` };
+      }
+    }
   } catch (error: any) {
     console.error(`WhatsappService: Gagal memanggil endpoint ${endpoint}.`, error);
     return {
