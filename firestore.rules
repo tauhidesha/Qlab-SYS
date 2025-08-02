@@ -22,5 +22,17 @@ service cloud.firestore {
       // Allow server-side access (Admin SDK) for AI tools without authentication
       allow read: if true;
     }
+    
+    // Special rules for transactions - allow read access for feedback verification
+    match /transactions/{transactionId} {
+      // Allow read access for feedback verification without authentication
+      allow read: if true;
+    }
+    
+    // Special rules for feedback entries - allow public submission
+    match /feedbackEntries/{feedbackId} {
+      // Allow write access for feedback submission without authentication
+      allow write: if true;
+    }
   }
 }
