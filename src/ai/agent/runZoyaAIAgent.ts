@@ -112,7 +112,7 @@ export const runZoyaAIAgentOptimized = createTraceable(async ({
       
       const start = Date.now();
       const completion = await openai.chat.completions.create({
-        model: 'gpt-4o', // Use 4.1 mini model for efficiency
+        model: 'gpt-4.1-mini', // Use 4.1 mini model for efficiency
         messages: optimizedHistory,
         temperature: 0.5, // Reduced temperature for more consistent responses
         tools: zoyaTools,
