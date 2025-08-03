@@ -198,7 +198,21 @@ const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
     }));
 
     console.log(`[fetchCustomers] Successfully processed ${customersData.length} customers`);
-    return customersData;
+    
+    // Sort by lastMessageAt (most recent first)
+    const sortedCustomers = customersData.sort((a, b) => {
+      // Handle Timestamp objects and string dates
+      const getTime = (timestamp: any) => {
+        if (!timestamp || timestamp === 'N/A') return 0;
+        if (timestamp?.toDate) return timestamp.toDate().getTime(); // Firestore Timestamp
+        if (typeof timestamp === 'string') return new Date(timestamp).getTime();
+        return timestamp.getTime ? timestamp.getTime() : 0;
+      };
+      
+      return getTime(b.lastMessageTimestamp) - getTime(a.lastMessageTimestamp);
+    });
+    
+    return sortedCustomers;
 
   } catch (error) {
     console.error("[fetchCustomers] Error fetching customers from Firestore: ", error);
