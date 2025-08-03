@@ -64,13 +64,31 @@ export async function runZoyaAIAgentOptimized({
     // Optimize conversation history
     const optimizedHistory = optimizeConversationHistory(chatHistory, 3000);
     
-    // Ensure system prompt is current
+    // Prepare customer context
+    const customerContext = senderName 
+      ? `\n\n**CUSTOMER INFO**: Sedang melayani mas ${senderName} (${senderNumber})`
+      : `\n\n**CUSTOMER INFO**: Sedang melayani customer ${senderNumber}`;
+    
+    // Ensure system prompt is current with customer context
     const hasSystemPrompt = optimizedHistory.some(p => p.role === 'system' && p.content?.toString().includes('Zoya'));
     
     if (!hasSystemPrompt) {
       const userAndAssistantHistory = optimizedHistory.filter(p => p.role !== 'system');
-      optimizedHistory.splice(0, 0, { role: 'system', content: selectedPrompt });
-      console.log('[runZoyaAIAgentOptimized] System prompt injected');
+      optimizedHistory.splice(0, 0, { 
+        role: 'system', 
+        content: selectedPrompt + customerContext 
+      });
+      console.log(`[runZoyaAIAgentOptimized] System prompt injected with customer: ${senderName || senderNumber}`);
+    } else {
+      // Update existing system prompt with customer context
+      const systemPromptIndex = optimizedHistory.findIndex(p => p.role === 'system');
+      if (systemPromptIndex !== -1) {
+        const existingPrompt = optimizedHistory[systemPromptIndex].content?.toString() || '';
+        if (!existingPrompt.includes('CUSTOMER INFO')) {
+          optimizedHistory[systemPromptIndex].content = existingPrompt + customerContext;
+          console.log(`[runZoyaAIAgentOptimized] Updated system prompt with customer: ${senderName || senderNumber}`);
+        }
+      }
     }
     
     // Monitor initial token usage
