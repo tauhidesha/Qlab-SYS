@@ -8,6 +8,9 @@ import { masterPrompt, lightweightPrompt, minimalPrompt } from '@/ai/config/aiPr
 import { optimizeConversationHistory, monitorTokenUsage, calculateConversationTokens } from '@/ai/utils/contextManagement';
 import type { Session } from '@/types/ai/session';
 import type OpenAI from 'openai';
+import { traceable } from 'langsmith/traceable';
+import { wrapOpenAI } from 'langsmith/wrappers';
+import { createTraceable, TRACE_TAGS, createTraceMetadata, LANGSMITH_CONFIG } from '@/lib/langsmith';
 
 interface ZoyaAgentInput {
   chatHistory: OpenAI.Chat.Completions.ChatCompletionMessageParam[];
@@ -30,6 +33,7 @@ interface ZoyaAgentResult {
       estimated: number;
       actual?: number;
     };
+    langsmith?: any; // Optional LangSmith metadata
   };
 }
 
@@ -40,12 +44,12 @@ interface NormalizedToolCall {
   result: any;
 }
 
-export async function runZoyaAIAgentOptimized({ 
+export const runZoyaAIAgentOptimized = createTraceable(async ({ 
   chatHistory, 
   session, 
   senderNumber, 
   senderName 
-}: ZoyaAgentInput): Promise<ZoyaAgentResult> {
+}: ZoyaAgentInput): Promise<ZoyaAgentResult> => {
   
   console.log('[runZoyaAIAgentOptimized] Starting optimized agent');
   
@@ -158,7 +162,19 @@ export async function runZoyaAIAgentOptimized({
         try {
           console.log(`[runZoyaAIAgentOptimized] Executing ${toolCalls.length} tools via runToolCalls`);
           
-          const toolResults = await runToolCalls(toolCallRequests, {
+          // Track tool execution with LangSmith
+          const tracedRunToolCalls = createTraceable(
+            runToolCalls,
+            'tool-execution',
+            [...TRACE_TAGS.TOOLS],
+            createTraceMetadata('tools', 'batch-execution', {
+              toolCount: toolCalls.length,
+              toolNames: toolCalls.map(tc => tc.function.name),
+              iteration: iteration
+            })
+          );
+          
+          const toolResults = await tracedRunToolCalls(toolCallRequests, {
             session,
             input: { senderNumber, senderName }
           });
@@ -213,6 +229,35 @@ export async function runZoyaAIAgentOptimized({
     
     const finalStats = calculateConversationTokens(optimizedHistory);
     
+    // Prepare LangSmith metadata
+    const langsmithMetadata = {
+      customer: {
+        number: senderNumber,
+        name: senderName
+      },
+      conversation: {
+        messageCount: chatHistory.length,
+        optimizedMessageCount: optimizedHistory.length,
+        tokenStats: finalStats
+      },
+      execution: {
+        iterations: iteration,
+        maxIterations,
+        promptType: conversationStats.totalTokens > 4000 ? 'lightweight' : 
+                   conversationStats.totalTokens > 2500 ? 'master' : 'optimized',
+        toolsExecuted: allToolResults.length,
+        finalResponseLength: finalResponse.length
+      },
+      performance: {
+        estimatedTokens: finalStats.totalTokens,
+        actualTokens: lastCompletion?.usage?.total_tokens,
+        completionTokens: lastCompletion?.usage?.completion_tokens,
+        promptTokens: lastCompletion?.usage?.prompt_tokens
+      }
+    };
+    
+    console.log('[runZoyaAIAgentOptimized] LangSmith metadata:', langsmithMetadata);
+    
     return {
       suggestedReply: finalResponse,
       toolCalls: allToolResults.map(tc => ({
@@ -226,7 +271,8 @@ export async function runZoyaAIAgentOptimized({
         tokenUsage: {
           estimated: finalStats.totalTokens,
           actual: lastCompletion?.usage?.total_tokens
-        }
+        },
+        langsmith: langsmithMetadata
       },
     };
     
@@ -239,11 +285,21 @@ export async function runZoyaAIAgentOptimized({
       metadata: {
         toolsUsed: [],
         iterations: 0,
-        tokenUsage: { estimated: 0 }
+        tokenUsage: { estimated: 0 },
+        langsmith: {
+          error: error instanceof Error ? error.message : String(error),
+          customer: { number: senderNumber, name: senderName },
+          timestamp: new Date().toISOString()
+        }
       },
     };
   }
-}
+}, 'runZoyaAIAgentOptimized', 
+[...TRACE_TAGS.AI_AGENT, ...TRACE_TAGS.WHATSAPP], 
+createTraceMetadata('ai-agent', 'conversation-processing', {
+  version: '2.0',
+  optimized: true
+}));
 
 // Export alias for backward compatibility
 export const runZoyaAIAgent = runZoyaAIAgentOptimized;

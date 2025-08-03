@@ -8,8 +8,9 @@ import { optimizeConversationHistory, monitorTokenUsage, calculateConversationTo
 import { lightweightPrompt } from '@/ai/config/aiPrompts';
 import type { ZoyaChatInput, WhatsAppReplyOutput } from '@/types/ai/cs-whatsapp-reply';
 import type { Session } from '@/types/ai/session';
+import { createTraceable, TRACE_TAGS, createTraceMetadata } from '@/lib/langsmith';
 
-export async function generateWhatsAppReplyOptimized(input: ZoyaChatInput): Promise<WhatsAppReplyOutput> {
+export const generateWhatsAppReplyOptimized = createTraceable(async (input: ZoyaChatInput): Promise<WhatsAppReplyOutput> => {
   console.log('[generateWhatsAppReplyOptimized] Starting optimized flow');
   
   const { customerMessage, senderNumber, senderName } = input;
@@ -137,7 +138,11 @@ export async function generateWhatsAppReplyOptimized(input: ZoyaChatInput): Prom
       },
     };
   }
-}
+}, 'generateWhatsAppReplyOptimized',
+[...TRACE_TAGS.WHATSAPP, ...TRACE_TAGS.AI_AGENT],
+createTraceMetadata('whatsapp-flow', 'message-processing', {
+  optimized: true
+}));
 
 /**
  * Token usage monitoring wrapper for the optimized flow
