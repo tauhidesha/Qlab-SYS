@@ -604,47 +604,62 @@ export default function SettingsPage() {
   return (
     <div className="flex flex-col h-full">
       <AppHeader title="Pengaturan" />
-      <main className="flex-1 overflow-y-auto p-6">
-        <Tabs defaultValue="knowledge-base" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-5 mb-6">
-            <TabsTrigger value="general"><SlidersHorizontal className="mr-2 h-4 w-4 hidden md:inline" />Umum</TabsTrigger>
-            <TabsTrigger value="knowledge-base"><Gift className="mr-2 h-4 w-4 hidden md:inline" />Knowledge Base</TabsTrigger>
-            <TabsTrigger value="loyalty"><Gift className="mr-2 h-4 w-4 hidden md:inline" />Loyalitas Dasar</TabsTrigger>
-            <TabsTrigger value="loyalty_rewards"><Award className="mr-2 h-4 w-4 hidden md:inline" />Daftar Reward Poin</TabsTrigger>
-            <TabsTrigger value="direct_rewards"><Zap className="mr-2 h-4 w-4 hidden md:inline" />Reward Langsung</TabsTrigger>
+      <main className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6">
+        <Tabs defaultValue="knowledge-base" className="w-full max-w-full">
+          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 mb-4 md:mb-6 h-auto gap-0.5 p-1">
+            <TabsTrigger value="general" className="text-xs sm:text-sm p-1.5 sm:p-3 flex flex-col sm:flex-row items-center justify-center">
+              <SlidersHorizontal className="h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+              <span className="text-xs leading-tight">Umum</span>
+            </TabsTrigger>
+            <TabsTrigger value="knowledge-base" className="text-xs sm:text-sm p-1.5 sm:p-3 flex flex-col sm:flex-row items-center justify-center">
+              <Gift className="h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+              <span className="text-xs leading-tight">KB</span>
+            </TabsTrigger>
+            <TabsTrigger value="loyalty" className="text-xs sm:text-sm p-1.5 sm:p-3 flex flex-col sm:flex-row items-center justify-center col-start-1 lg:col-start-auto">
+              <Gift className="h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+              <span className="text-xs leading-tight">Loyalitas</span>
+            </TabsTrigger>
+            <TabsTrigger value="loyalty_rewards" className="text-xs sm:text-sm p-1.5 sm:p-3 flex flex-col sm:flex-row items-center justify-center">
+              <Award className="h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+              <span className="text-xs leading-tight">Reward</span>
+            </TabsTrigger>
+            <TabsTrigger value="direct_rewards" className="text-xs sm:text-sm p-1.5 sm:p-3 flex flex-col sm:flex-row items-center justify-center col-start-2 lg:col-start-auto">
+              <Zap className="h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
+              <span className="text-xs leading-tight">Direct</span>
+            </TabsTrigger>
           </TabsList>
           
-          <TabsContent value="general" className="space-y-6">
+          <TabsContent value="general" className="space-y-4 md:space-y-6">
             <Card>
-              <CardHeader>
-                <CardTitle>Pengaturan Umum Bengkel</CardTitle>
-                <CardDescription>Kelola informasi bengkel Anda dan pengaturan dasar.</CardDescription>
+              <CardHeader className="p-4 md:p-6">
+                <CardTitle className="text-lg md:text-xl">Pengaturan Umum Bengkel</CardTitle>
+                <CardDescription className="text-sm">Kelola informasi bengkel Anda dan pengaturan dasar.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-4 md:space-y-6 p-4 md:p-6">
                 {isLoadingGeneralSettings ? (
                   <div className="flex items-center space-x-2">
                     <Loader2 className="h-5 w-5 animate-spin" />
-                    <span>Memuat pengaturan umum...</span>
+                    <span className="text-sm">Memuat pengaturan umum...</span>
                   </div>
                 ) : (
                   <>
                     <div className="space-y-2">
-                      <Label htmlFor="workshop-name">Nama Bengkel</Label>
-                      <Input id="workshop-name" value={workshopName} onChange={(e) => setWorkshopName(e.target.value)} disabled={isSavingGeneralSettings}/>
+                      <Label htmlFor="workshop-name" className="text-sm font-medium">Nama Bengkel</Label>
+                      <Input id="workshop-name" value={workshopName} onChange={(e) => setWorkshopName(e.target.value)} disabled={isSavingGeneralSettings} className="w-full"/>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="workshop-address">Alamat</Label>
-                      <Input id="workshop-address" value={workshopAddress} onChange={(e) => setWorkshopAddress(e.target.value)} disabled={isSavingGeneralSettings}/>
+                      <Label htmlFor="workshop-address" className="text-sm font-medium">Alamat</Label>
+                      <Input id="workshop-address" value={workshopAddress} onChange={(e) => setWorkshopAddress(e.target.value)} disabled={isSavingGeneralSettings} className="w-full"/>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="workshop-phone">Nomor Telepon</Label>
-                      <Input id="workshop-phone" type="tel" value={workshopPhone} onChange={(e) => setWorkshopPhone(e.target.value)} disabled={isSavingGeneralSettings}/>
+                      <Label htmlFor="workshop-phone" className="text-sm font-medium">Nomor Telepon</Label>
+                      <Input id="workshop-phone" type="tel" value={workshopPhone} onChange={(e) => setWorkshopPhone(e.target.value)} disabled={isSavingGeneralSettings} className="w-full"/>
                     </div>
                   </>
                 )}
               </CardContent>
-              <CardFooter>
-                <Button onClick={handleSaveGeneralSettings} disabled={isSavingGeneralSettings || isLoadingGeneralSettings}>
+              <CardFooter className="p-4 md:p-6">
+                <Button onClick={handleSaveGeneralSettings} disabled={isSavingGeneralSettings || isLoadingGeneralSettings} className="w-full sm:w-auto">
                    {isSavingGeneralSettings ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   Simpan Perubahan Umum
                 </Button>
@@ -711,56 +726,87 @@ export default function SettingsPage() {
           <TabsContent value="knowledge-base">
             <AlertDialog open={!!kbEntryToDelete} onOpenChange={(open) => !open && setKbEntryToDelete(null)}>
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
+                <CardHeader className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0 p-4 md:p-6">
                   <div>
-                    <CardTitle>Manajemen Knowledge Base</CardTitle>
-                    <CardDescription>Tambah atau edit pertanyaan dan jawaban yang dapat diakses oleh AI. Setiap perubahan akan otomatis menghasilkan embedding baru.</CardDescription>
+                    <CardTitle className="text-lg md:text-xl">Manajemen Knowledge Base</CardTitle>
+                    <CardDescription className="text-sm">Tambah atau edit pertanyaan dan jawaban yang dapat diakses oleh AI. Setiap perubahan akan otomatis menghasilkan embedding baru.</CardDescription>
                   </div>
-                  <Button onClick={() => handleOpenKbForm(null)}>
+                  <Button onClick={() => handleOpenKbForm(null)} className="w-full sm:w-auto">
                       <PlusCircle className="mr-2 h-4 w-4" /> Tambah Entri
                   </Button>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-4 md:p-6">
                   {isLoadingKnowledgeBase ? (
                       <div className="flex items-center justify-center py-10">
                       <Loader2 className="h-8 w-8 animate-spin text-primary" />
                       </div>
                   ) : knowledgeBaseEntries.length === 0 ? (
-                      <p className="text-center text-muted-foreground py-8">Belum ada entri knowledge base.</p>
+                      <p className="text-center text-muted-foreground py-8 text-sm">Belum ada entri knowledge base.</p>
                   ) : (
-                      <Table>
-                      <TableHeader>
-                          <TableRow>
-                          <TableHead>Pertanyaan</TableHead>
-                          <TableHead>Potongan Jawaban</TableHead>
-                          <TableHead className="text-center">Status</TableHead>
-                          <TableHead className="text-right">Aksi</TableHead>
-                          </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                          {knowledgeBaseEntries.map((entry) => (
-                          <TableRow key={entry.id}>
-                              <TableCell className="font-medium max-w-xs truncate">{entry.question}</TableCell>
-                              <TableCell className="max-w-md truncate">{entry.answer}</TableCell>
-                              <TableCell className="text-center">
-                              <Badge variant={entry.isActive ? "default" : "outline"}>
-                                  {entry.isActive ? "Aktif" : "Nonaktif"}
-                              </Badge>
-                              </TableCell>
-                              <TableCell className="text-right">
-                              <Button variant="ghost" size="icon" onClick={() => handleOpenKbForm(entry)} className="hover:text-primary">
-                                  <Edit3 className="h-4 w-4" />
-                              </Button>
-                              <AlertDialogTrigger asChild>
-                                  <Button variant="ghost" size="icon" onClick={() => setKbEntryToDelete(entry)} className="text-destructive hover:text-destructive">
-                                  <Trash2 className="h-4 w-4" />
+                      <>
+                        {/* Desktop Table */}
+                        <div className="hidden md:block overflow-x-auto">
+                          <Table>
+                          <TableHeader>
+                              <TableRow>
+                              <TableHead className="min-w-[150px]">Pertanyaan</TableHead>
+                              <TableHead className="min-w-[200px]">Potongan Jawaban</TableHead>
+                              <TableHead className="text-center w-20">Status</TableHead>
+                              <TableHead className="text-right w-20">Aksi</TableHead>
+                              </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                              {knowledgeBaseEntries.map((entry) => (
+                              <TableRow key={entry.id}>
+                                  <TableCell className="font-medium max-w-xs truncate">{entry.question}</TableCell>
+                                  <TableCell className="max-w-md truncate">{entry.answer}</TableCell>
+                                  <TableCell className="text-center">
+                                  <Badge variant={entry.isActive ? "default" : "outline"}>
+                                      {entry.isActive ? "Aktif" : "Nonaktif"}
+                                  </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                  <Button variant="ghost" size="icon" onClick={() => handleOpenKbForm(entry)} className="hover:text-primary">
+                                      <Edit3 className="h-4 w-4" />
                                   </Button>
-                              </AlertDialogTrigger>
-                              </TableCell>
-                          </TableRow>
+                                  <AlertDialogTrigger asChild>
+                                      <Button variant="ghost" size="icon" onClick={() => setKbEntryToDelete(entry)} className="text-destructive hover:text-destructive">
+                                      <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                  </AlertDialogTrigger>
+                                  </TableCell>
+                              </TableRow>
+                              ))}
+                          </TableBody>
+                          </Table>
+                        </div>
+
+                        {/* Mobile List */}
+                        <div className="md:hidden space-y-3">
+                          {knowledgeBaseEntries.map((entry) => (
+                            <Card key={entry.id} className="p-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="font-medium text-sm truncate">{entry.question}</h4>
+                                  <Badge variant={entry.isActive ? "default" : "outline"} className="mt-1 text-xs">
+                                    {entry.isActive ? "Aktif" : "Nonaktif"}
+                                  </Badge>
+                                </div>
+                                <div className="flex gap-1 flex-shrink-0">
+                                  <Button variant="ghost" size="sm" onClick={() => handleOpenKbForm(entry)} className="h-8 w-8 p-0">
+                                    <Edit3 className="h-3 w-3" />
+                                  </Button>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="sm" onClick={() => setKbEntryToDelete(entry)} className="h-8 w-8 p-0 text-destructive">
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                </div>
+                              </div>
+                            </Card>
                           ))}
-                      </TableBody>
-                      </Table>
+                        </div>
+                      </>
                   )}
                 </CardContent>
               </Card>
@@ -782,29 +828,29 @@ export default function SettingsPage() {
             </AlertDialog>
           </TabsContent>
 
-          <TabsContent value="loyalty">
+          <TabsContent value="loyalty" className="space-y-4 md:space-y-6">
             <Card>
-              <CardHeader>
-                <CardTitle>Pengaturan Dasar Program Loyalitas</CardTitle>
-                <CardDescription>Konfigurasi umum bagaimana program loyalitas berjalan.</CardDescription>
+              <CardHeader className="p-4 md:p-6">
+                <CardTitle className="text-lg md:text-xl">Pengaturan Dasar Program Loyalitas</CardTitle>
+                <CardDescription className="text-sm">Konfigurasi umum bagaimana program loyalitas berjalan.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-4 md:space-y-6 p-4 md:p-6">
                  {isLoadingFinancialSettings ? (
                   <div className="flex items-center space-x-2">
                     <Loader2 className="h-5 w-5 animate-spin" />
-                    <span>Memuat pengaturan...</span>
+                    <span className="text-sm">Memuat pengaturan...</span>
                   </div>
                 ) : (
                 <>
-                  <div className="flex items-center justify-between rounded-lg border p-4">
-                    <div>
-                      <Label htmlFor="loyalty-program-active" className="font-medium">Aktifkan Program Loyalitas</Label>
-                      <p className="text-sm text-muted-foreground">Izinkan pelanggan mendapatkan dan menukarkan poin.</p>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between rounded-lg border p-3 md:p-4 space-y-2 sm:space-y-0">
+                    <div className="flex-1">
+                      <Label htmlFor="loyalty-program-active" className="font-medium text-sm md:text-base">Aktifkan Program Loyalitas</Label>
+                      <p className="text-xs md:text-sm text-muted-foreground">Izinkan pelanggan mendapatkan dan menukarkan poin.</p>
                     </div>
-                    <Switch id="loyalty-program-active" defaultChecked disabled aria-readonly />
+                    <Switch id="loyalty-program-active" defaultChecked disabled aria-readonly className="self-start sm:self-center" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="min-points-redeem-general">Minimum Poin Umum untuk Tukar Reward</Label>
+                    <Label htmlFor="min-points-redeem-general" className="text-sm font-medium">Minimum Poin Umum untuk Tukar Reward</Label>
                     <Input 
                       id="min-points-redeem-general" 
                       type="number" 
@@ -812,18 +858,19 @@ export default function SettingsPage() {
                       onChange={(e) => setMinPointsToRedeemGeneral(e.target.value)}
                       placeholder="mis. 100"
                       disabled={isSavingFinancialSettings}
+                      className="w-full"
                     />
                       <p className="text-xs text-muted-foreground">Klien harus memiliki setidaknya poin ini untuk bisa menukarkan reward apapun.</p>
                   </div>
                 </>
                 )}
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs md:text-sm text-muted-foreground">
                   Pengaturan detail poin yang diberikan per layanan/produk dapat diatur di halaman "Layanan & Produk".
                   Pengaturan reward spesifik (item merchandise, diskon, dll.) ada di tab "Daftar Reward Poin".
                 </p>
               </CardContent>
-              <CardFooter>
-                <Button onClick={handleSaveFinancialSettings} disabled={isSavingFinancialSettings || isLoadingFinancialSettings}>
+              <CardFooter className="p-4 md:p-6">
+                <Button onClick={handleSaveFinancialSettings} disabled={isSavingFinancialSettings || isLoadingFinancialSettings} className="w-full sm:w-auto">
                   {isSavingFinancialSettings ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : null}
@@ -836,64 +883,98 @@ export default function SettingsPage() {
           <TabsContent value="loyalty_rewards">
             <AlertDialog open={!!rewardToDelete} onOpenChange={(open) => !open && setRewardToDelete(null)}>
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
+                <CardHeader className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0 p-4 md:p-6">
                   <div>
-                    <CardTitle>Manajemen Reward Poin Loyalitas</CardTitle>
-                    <CardDescription>Kelola item atau diskon yang dapat ditukar dengan poin loyalitas.</CardDescription>
+                    <CardTitle className="text-lg md:text-xl">Manajemen Reward Poin Loyalitas</CardTitle>
+                    <CardDescription className="text-sm">Kelola item atau diskon yang dapat ditukar dengan poin loyalitas.</CardDescription>
                   </div>
-                  <Button onClick={() => handleOpenRewardForm(null)}>
+                  <Button onClick={() => handleOpenRewardForm(null)} className="w-full sm:w-auto">
                     <PlusCircle className="mr-2 h-4 w-4" /> Tambah Reward Poin
                   </Button>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-4 md:p-6">
                   {isLoadingRewards ? (
                     <div className="flex items-center justify-center py-10">
                       <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     </div>
                   ) : loyaltyRewards.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">Belum ada reward poin yang dikonfigurasi.</p>
+                    <p className="text-center text-muted-foreground py-8 text-sm">Belum ada reward poin yang dikonfigurasi.</p>
                   ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Nama Reward</TableHead>
-                          <TableHead className="text-center">Poin</TableHead>
-                          <TableHead>Tipe</TableHead>
-                          <TableHead>Nilai</TableHead>
-                          <TableHead className="text-center">Status</TableHead>
-                          <TableHead className="text-right">Aksi</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
+                    <>
+                      {/* Desktop Table */}
+                      <div className="hidden md:block overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="min-w-[120px]">Nama Reward</TableHead>
+                              <TableHead className="text-center w-16">Poin</TableHead>
+                              <TableHead className="w-24">Tipe</TableHead>
+                              <TableHead className="min-w-[80px]">Nilai</TableHead>
+                              <TableHead className="text-center w-20">Status</TableHead>
+                              <TableHead className="text-right w-20">Aksi</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {loyaltyRewards.map((reward) => (
+                              <TableRow key={reward.id}>
+                                <TableCell className="font-medium">{reward.name}</TableCell>
+                                <TableCell className="text-center">{reward.pointsRequired}</TableCell>
+                                <TableCell className="capitalize">{reward.type === 'merchandise' ? 'Merchandise' : 'Diskon Transaksi'}</TableCell>
+                                <TableCell>
+                                  {reward.type === 'discount_transaction' 
+                                    ? `Rp ${(reward.rewardValue as number).toLocaleString('id-ID')}`
+                                    : reward.rewardValue}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  <Badge variant={reward.isActive ? "default" : "outline"}>
+                                    {reward.isActive ? "Aktif" : "Nonaktif"}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Button variant="ghost" size="icon" onClick={() => handleOpenRewardForm(reward)} className="hover:text-primary">
+                                    <Edit3 className="h-4 w-4" />
+                                  </Button>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" onClick={() => setRewardToDelete(reward)} className="text-destructive hover:text-destructive">
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+
+                      {/* Mobile List */}
+                      <div className="md:hidden space-y-3">
                         {loyaltyRewards.map((reward) => (
-                          <TableRow key={reward.id}>
-                            <TableCell className="font-medium">{reward.name}</TableCell>
-                            <TableCell className="text-center">{reward.pointsRequired}</TableCell>
-                            <TableCell className="capitalize">{reward.type === 'merchandise' ? 'Merchandise' : 'Diskon Transaksi'}</TableCell>
-                            <TableCell>
-                              {reward.type === 'discount_transaction' 
-                                ? `Rp ${(reward.rewardValue as number).toLocaleString('id-ID')}`
-                                : reward.rewardValue}
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <Badge variant={reward.isActive ? "default" : "outline"}>
-                                {reward.isActive ? "Aktif" : "Nonaktif"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button variant="ghost" size="icon" onClick={() => handleOpenRewardForm(reward)} className="hover:text-primary">
-                                <Edit3 className="h-4 w-4" />
-                              </Button>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" onClick={() => setRewardToDelete(reward)} className="text-destructive hover:text-destructive">
-                                  <Trash2 className="h-4 w-4" />
+                          <Card key={reward.id} className="p-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-medium text-sm truncate">{reward.name}</h4>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className="text-xs text-muted-foreground">{reward.pointsRequired} poin</span>
+                                  <Badge variant={reward.isActive ? "default" : "outline"} className="text-xs">
+                                    {reward.isActive ? "Aktif" : "Nonaktif"}
+                                  </Badge>
+                                </div>
+                              </div>
+                              <div className="flex gap-1 flex-shrink-0">
+                                <Button variant="ghost" size="sm" onClick={() => handleOpenRewardForm(reward)} className="h-8 w-8 p-0">
+                                  <Edit3 className="h-3 w-3" />
                                 </Button>
-                              </AlertDialogTrigger>
-                            </TableCell>
-                          </TableRow>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="sm" onClick={() => setRewardToDelete(reward)} className="h-8 w-8 p-0 text-destructive">
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                              </div>
+                            </div>
+                          </Card>
                         ))}
-                      </TableBody>
-                    </Table>
+                      </div>
+                    </>
                   )}
                 </CardContent>
               </Card>
@@ -918,60 +999,92 @@ export default function SettingsPage() {
           <TabsContent value="direct_rewards">
              <AlertDialog open={!!directRewardToDelete} onOpenChange={(open) => !open && setDirectRewardToDelete(null)}>
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
+                <CardHeader className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0 p-4 md:p-6">
                   <div>
-                    <CardTitle>Manajemen Reward Langsung (Beli X Dapat Y)</CardTitle>
-                    <CardDescription>Atur reward otomatis ketika pelanggan membeli layanan tertentu.</CardDescription>
+                    <CardTitle className="text-lg md:text-xl">Manajemen Reward Langsung (Beli X Dapat Y)</CardTitle>
+                    <CardDescription className="text-sm">Atur reward otomatis ketika pelanggan membeli layanan tertentu.</CardDescription>
                   </div>
-                  <Button onClick={() => handleOpenDirectRewardForm(null)} disabled={isLoadingServicesForDropdown}>
+                  <Button onClick={() => handleOpenDirectRewardForm(null)} disabled={isLoadingServicesForDropdown} className="w-full sm:w-auto">
                      {isLoadingServicesForDropdown && !isDirectRewardFormDialogOpen ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
                      Tambah Aturan Baru
                   </Button>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-4 md:p-6">
                   {isLoadingDirectRewards || isLoadingServicesForDropdown ? (
                     <div className="flex items-center justify-center py-10">
                       <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                      <span className="ml-2">Memuat data...</span>
+                      <span className="ml-2 text-sm">Memuat data...</span>
                     </div>
                   ) : directRewards.length === 0 ? (
-                    <p className="text-center text-muted-foreground py-8">Belum ada aturan reward langsung yang dikonfigurasi.</p>
+                    <p className="text-center text-muted-foreground py-8 text-sm">Belum ada aturan reward langsung yang dikonfigurasi.</p>
                   ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Layanan Pemicu</TableHead>
-                          <TableHead>Produk Reward</TableHead>
-                          <TableHead>Deskripsi</TableHead>
-                          <TableHead className="text-center">Status</TableHead>
-                          <TableHead className="text-right">Aksi</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
+                    <>
+                      {/* Desktop Table */}
+                      <div className="hidden md:block overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="min-w-[120px]">Layanan Pemicu</TableHead>
+                              <TableHead className="min-w-[120px]">Produk Reward</TableHead>
+                              <TableHead className="min-w-[100px]">Deskripsi</TableHead>
+                              <TableHead className="text-center w-20">Status</TableHead>
+                              <TableHead className="text-right w-20">Aksi</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {directRewards.map((reward) => (
+                              <TableRow key={reward.id}>
+                                <TableCell className="font-medium">{reward.triggerServiceName}</TableCell>
+                                <TableCell>{reward.rewardProductName}</TableCell>
+                                <TableCell className="text-xs max-w-xs truncate">{reward.description || "-"}</TableCell>
+                                <TableCell className="text-center">
+                                  <Badge variant={reward.isActive ? "default" : "outline"}>
+                                    {reward.isActive ? "Aktif" : "Nonaktif"}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Button variant="ghost" size="icon" onClick={() => handleOpenDirectRewardForm(reward)} className="hover:text-primary">
+                                    <Edit3 className="h-4 w-4" />
+                                  </Button>
+                                  <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" onClick={() => setDirectRewardToDelete(reward)} className="text-destructive hover:text-destructive">
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+
+                      {/* Mobile List */}
+                      <div className="md:hidden space-y-3">
                         {directRewards.map((reward) => (
-                          <TableRow key={reward.id}>
-                            <TableCell className="font-medium">{reward.triggerServiceName}</TableCell>
-                            <TableCell>{reward.rewardProductName}</TableCell>
-                            <TableCell className="text-xs max-w-xs truncate">{reward.description || "-"}</TableCell>
-                            <TableCell className="text-center">
-                              <Badge variant={reward.isActive ? "default" : "outline"}>
-                                {reward.isActive ? "Aktif" : "Nonaktif"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button variant="ghost" size="icon" onClick={() => handleOpenDirectRewardForm(reward)} className="hover:text-primary">
-                                <Edit3 className="h-4 w-4" />
-                              </Button>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" onClick={() => setDirectRewardToDelete(reward)} className="text-destructive hover:text-destructive">
-                                  <Trash2 className="h-4 w-4" />
+                          <Card key={reward.id} className="p-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-medium text-sm truncate">{reward.triggerServiceName}</h4>
+                                <p className="text-xs text-muted-foreground truncate">→ {reward.rewardProductName}</p>
+                                <Badge variant={reward.isActive ? "default" : "outline"} className="mt-1 text-xs">
+                                  {reward.isActive ? "Aktif" : "Nonaktif"}
+                                </Badge>
+                              </div>
+                              <div className="flex gap-1 flex-shrink-0">
+                                <Button variant="ghost" size="sm" onClick={() => handleOpenDirectRewardForm(reward)} className="h-8 w-8 p-0">
+                                  <Edit3 className="h-3 w-3" />
                                 </Button>
-                              </AlertDialogTrigger>
-                            </TableCell>
-                          </TableRow>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="sm" onClick={() => setDirectRewardToDelete(reward)} className="h-8 w-8 p-0 text-destructive">
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                              </div>
+                            </div>
+                          </Card>
                         ))}
-                      </TableBody>
-                    </Table>
+                      </div>
+                    </>
                   )}
                 </CardContent>
               </Card>
