@@ -606,28 +606,59 @@ export default function SettingsPage() {
       <AppHeader title="Pengaturan" />
       <main className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6">
         <Tabs defaultValue="knowledge-base" className="w-full max-w-full">
-          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 mb-4 md:mb-6 h-auto gap-0.5 p-1">
-            <TabsTrigger value="general" className="text-xs sm:text-sm p-1.5 sm:p-3 flex flex-col sm:flex-row items-center justify-center">
-              <SlidersHorizontal className="h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
-              <span className="text-xs leading-tight">Umum</span>
-            </TabsTrigger>
-            <TabsTrigger value="knowledge-base" className="text-xs sm:text-sm p-1.5 sm:p-3 flex flex-col sm:flex-row items-center justify-center">
-              <Gift className="h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
-              <span className="text-xs leading-tight">KB</span>
-            </TabsTrigger>
-            <TabsTrigger value="loyalty" className="text-xs sm:text-sm p-1.5 sm:p-3 flex flex-col sm:flex-row items-center justify-center col-start-1 lg:col-start-auto">
-              <Gift className="h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
-              <span className="text-xs leading-tight">Loyalitas</span>
-            </TabsTrigger>
-            <TabsTrigger value="loyalty_rewards" className="text-xs sm:text-sm p-1.5 sm:p-3 flex flex-col sm:flex-row items-center justify-center">
-              <Award className="h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
-              <span className="text-xs leading-tight">Reward</span>
-            </TabsTrigger>
-            <TabsTrigger value="direct_rewards" className="text-xs sm:text-sm p-1.5 sm:p-3 flex flex-col sm:flex-row items-center justify-center col-start-2 lg:col-start-auto">
-              <Zap className="h-3 w-3 sm:mr-2 sm:h-4 sm:w-4" />
-              <span className="text-xs leading-tight">Direct</span>
-            </TabsTrigger>
-          </TabsList>
+          <div className="mb-4 md:mb-6 p-1 bg-muted rounded-md">
+            {/* Mobile: Show all tabs in compact layout */}
+            <div className="grid grid-cols-1 gap-1 md:hidden">
+              <div className="grid grid-cols-3 gap-1">
+                <TabsTrigger value="general" className="text-xs p-2 flex flex-col items-center justify-center">
+                  <SlidersHorizontal className="h-3 w-3 mb-0.5" />
+                  <span className="text-xs leading-tight">Umum</span>
+                </TabsTrigger>
+                <TabsTrigger value="knowledge-base" className="text-xs p-2 flex flex-col items-center justify-center">
+                  <Gift className="h-3 w-3 mb-0.5" />
+                  <span className="text-xs leading-tight">KB</span>
+                </TabsTrigger>
+                <TabsTrigger value="loyalty" className="text-xs p-2 flex flex-col items-center justify-center">
+                  <Gift className="h-3 w-3 mb-0.5" />
+                  <span className="text-xs leading-tight">Loyalitas</span>
+                </TabsTrigger>
+              </div>
+              <div className="grid grid-cols-2 gap-1">
+                <TabsTrigger value="loyalty_rewards" className="text-xs p-2 flex flex-col items-center justify-center">
+                  <Award className="h-3 w-3 mb-0.5" />
+                  <span className="text-xs leading-tight">Reward</span>
+                </TabsTrigger>
+                <TabsTrigger value="direct_rewards" className="text-xs p-2 flex flex-col items-center justify-center">
+                  <Zap className="h-3 w-3 mb-0.5" />
+                  <span className="text-xs leading-tight">Direct</span>
+                </TabsTrigger>
+              </div>
+            </div>
+            
+            {/* Desktop: Standard horizontal layout */}
+            <TabsList className="hidden md:grid w-full grid-cols-5 h-auto gap-1 p-1">
+              <TabsTrigger value="general" className="text-sm p-3 flex flex-row items-center justify-center">
+                <SlidersHorizontal className="h-4 w-4 mr-2" />
+                <span>Umum</span>
+              </TabsTrigger>
+              <TabsTrigger value="knowledge-base" className="text-sm p-3 flex flex-row items-center justify-center">
+                <Gift className="h-4 w-4 mr-2" />
+                <span>Knowledge Base</span>
+              </TabsTrigger>
+              <TabsTrigger value="loyalty" className="text-sm p-3 flex flex-row items-center justify-center">
+                <Gift className="h-4 w-4 mr-2" />
+                <span>Loyalitas Dasar</span>
+              </TabsTrigger>
+              <TabsTrigger value="loyalty_rewards" className="text-sm p-3 flex flex-row items-center justify-center">
+                <Award className="h-4 w-4 mr-2" />
+                <span>Daftar Reward Poin</span>
+              </TabsTrigger>
+              <TabsTrigger value="direct_rewards" className="text-sm p-3 flex flex-row items-center justify-center">
+                <Zap className="h-4 w-4 mr-2" />
+                <span>Reward Langsung</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
           
           <TabsContent value="general" className="space-y-4 md:space-y-6">
             <Card>
