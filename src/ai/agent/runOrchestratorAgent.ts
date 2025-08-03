@@ -23,7 +23,7 @@ export async function runOrchestratorAgent(statusReport: string): Promise<Orches
   console.log('[OrchestratorAgent] Menganalisis status untuk menentukan alur...');
   try {
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4.1-mini',
       messages: [
         { role: 'system', content: orchestratorAgentPrompt },
         { role: 'user', content: statusReport }

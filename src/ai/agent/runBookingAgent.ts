@@ -42,7 +42,7 @@ Gunakan informasi sesi ini sebagai sumber kebenaran utama. JANGAN tanyakan lagi 
   // --- AKHIR PERUBAHAN ---
 
   const response = await openai.chat.completions.create({
-    model: 'gpt-4o-mini',
+    model: 'gpt-4.1-mini',
     messages,
     tools: bookingTools,
     tool_choice: 'auto',
