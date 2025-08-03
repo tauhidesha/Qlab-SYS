@@ -99,32 +99,38 @@ export async function saveAIResponse(
   try {
     const messagesRef = db.collection(DIRECT_MESSAGES_COLLECTION).doc(senderNumber).collection('messages');
     
-    // Check for recent duplicate AI responses (within last 5 minutes)
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-    const recentQuery = messagesRef
-      .where('sender', '==', 'zoya')
-      .where('timestamp', '>', admin.firestore.Timestamp.fromDate(fiveMinutesAgo))
-      .orderBy('timestamp', 'desc')
-      .limit(3);
-    
-    const recentSnapshot = await recentQuery.get();
-    const isDuplicate = recentSnapshot.docs.some(doc => {
-      const data = doc.data();
-      return data.text === aiResponse;
-    });
-    
-    if (isDuplicate) {
-      console.log(`[saveAIResponse] Duplicate AI response detected, skipping save for ${senderNumber}`);
-      return;
-    }
-    
-    await messagesRef.add({
-      text: aiResponse,
-      timestamp: admin.firestore.FieldValue.serverTimestamp(),
-      sender: 'zoya',
-      // Additional metadata for AI tracking
-      sentBy: 'ai-flow',
-      ...(metadata && Object.keys(metadata).length > 0 && { metadata })
+    // Use transaction to prevent race condition duplicates
+    await db.runTransaction(async (transaction) => {
+      // Check for recent duplicate AI responses (within last 5 minutes)
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      const recentQuery = messagesRef
+        .where('sender', '==', 'zoya')
+        .where('timestamp', '>', admin.firestore.Timestamp.fromDate(fiveMinutesAgo))
+        .orderBy('timestamp', 'desc')
+        .limit(3);
+      
+      const recentSnapshot = await transaction.get(recentQuery);
+      const isDuplicate = recentSnapshot.docs.some(doc => {
+        const data = doc.data();
+        return data.text === aiResponse;
+      });
+      
+      if (isDuplicate) {
+        console.log(`[saveAIResponse] Duplicate AI response detected, skipping save for ${senderNumber}`);
+        return;
+      }
+      
+      // Create new document reference for the message
+      const newMessageRef = messagesRef.doc();
+      
+      transaction.set(newMessageRef, {
+        text: aiResponse,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        sender: 'zoya',
+        // Additional metadata for AI tracking
+        sentBy: 'ai-flow',
+        ...(metadata && Object.keys(metadata).length > 0 && { metadata })
+      });
     });
     
     console.log(`[saveAIResponse] Successfully saved AI response for ${senderNumber}`);

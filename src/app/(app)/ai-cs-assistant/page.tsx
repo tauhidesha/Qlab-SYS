@@ -27,6 +27,32 @@ import { v4 as uuidv4 } from 'uuid';
 
 // Types for AI Settings and KB are now managed in the settings page
 
+// Memoized chat message component to prevent unnecessary re-renders
+const ChatMessage = React.memo(({ message }: { message: ChatMessageUi }) => (
+  <div
+    className={`flex ${message.sender === 'customer' ? 'justify-start' : 'justify-end'}`}
+  >
+    <div
+      className={`px-4 py-2 rounded-xl shadow max-w-[80%] ${
+        message.sender === 'customer'
+          ? 'bg-muted text-muted-foreground'
+          : message.sender === 'user'
+            ? 'bg-primary text-primary-foreground'
+            : 'bg-secondary text-secondary-foreground'
+      }`}
+    >
+      <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+      <p className={`text-xs mt-1 ${
+        message.sender === 'customer' ? 'text-muted-foreground/80'
+        : message.sender === 'user' ? 'text-primary-foreground/80'
+        : 'text-secondary-foreground/80'
+        } text-right`}>
+        {message.timestamp} {message.sender === 'ai' && '(AI Otomatis)'}
+      </p>
+    </div>
+  </div>
+));
+
 
 interface ChatMessageUi extends Omit<DirectMessage, 'timestamp' | 'id'> {
   id: string;
@@ -248,7 +274,9 @@ const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
   }, [fetchCustomers, authLoading, user]);
 
   useEffect(() => {
+    // Clear existing listener first
     if (unsubscribeChatRef.current) {
+      console.log('[Chat Listener] Cleaning up existing listener');
       unsubscribeChatRef.current();
       unsubscribeChatRef.current = null;
     }
@@ -268,15 +296,32 @@ const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
           console.log(`[Chat Listener] Setting up real-time listener for: directMessages/${phoneToQuery}/messages`);
 
           unsubscribeChatRef.current = onSnapshot(q, (querySnapshot) => {
-            console.log(`[Chat Listener] Received ${querySnapshot.docs.length} messages for ${phoneToQuery}`);
+            console.log(`[Chat Listener] Snapshot received for ${phoneToQuery} - ${querySnapshot.docs.length} messages, metadata: ${JSON.stringify(querySnapshot.metadata)}`);
+            
+            // Skip if this is from cache and we already have data
+            if (querySnapshot.metadata.fromCache && querySnapshot.metadata.hasPendingWrites === false) {
+              console.log('[Chat Listener] Skipping cache-only snapshot');
+              return;
+            }
+            
             const history: ChatMessageUi[] = [];
+            const processedIds = new Set<string>();
+            
             querySnapshot.forEach((doc) => {
               const data = doc.data() as DirectMessage;
               console.log(`[Chat Listener] Processing message ${doc.id}:`, data);
               
+              // Skip if already processed (prevent duplicates)
+              if (processedIds.has(doc.id)) {
+                console.warn(`[Chat Listener] Duplicate message ID ${doc.id}, skipping`);
+                return;
+              }
+              processedIds.add(doc.id);
+              
               // Validate message data
               if (!data.text) {
                 console.warn(`[Chat Listener] Message ${doc.id} has no text:`, data);
+                return; // Skip messages without text
               }
               
               history.push({
@@ -285,8 +330,16 @@ const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
                 timestamp: data.timestamp?.toDate().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) || 'N/A',
               });
             });
+            
+            // Sort by timestamp to ensure correct order
+            history.sort((a, b) => {
+              const timeA = a.timestamp === 'N/A' ? 0 : new Date(`2000-01-01 ${a.timestamp}`).getTime();
+              const timeB = b.timestamp === 'N/A' ? 0 : new Date(`2000-01-01 ${b.timestamp}`).getTime();
+              return timeA - timeB;
+            });
+            
+            console.log(`[Chat Listener] Setting chat history with ${history.length} unique messages:`, history.map(h => ({ id: h.id, text: h.text.substring(0, 50), sender: h.sender })));
             setChatHistory(history);
-            console.log(`[Chat Listener] Updated chat history with ${history.length} messages:`, history);
           }, (error) => {
             console.error(`[Chat Listener] Error fetching real-time chat for ${selectedCustomer.name} (phone: ${phoneToQuery}):`, error);
             
@@ -327,10 +380,11 @@ const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
 
     return () => {
       if (unsubscribeChatRef.current) {
+        console.log('[Chat Listener] Cleanup function called');
         unsubscribeChatRef.current();
       }
     };
-  }, [selectedCustomer, toast, isPlaygroundMode]);
+  }, [selectedCustomer?.id, selectedCustomer?.phone, isPlaygroundMode]); // More specific dependencies
 
 
   const handleSelectPlayground = () => {
@@ -394,10 +448,12 @@ const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
         content: msg.text,
       }));
     
-    // Prepare ZoyaChatInput
+    // Prepare ZoyaChatInput for playground (without senderNumber to prevent database save)
     const flowInput: ZoyaChatInput = {
       chatHistory: genkitMessagesForFlow.slice(0, -1), 
       customerMessage: userMessageText,
+      // Playground mode: explicitly do not include senderNumber to prevent saving to DB
+      // This will cause AI flow to only generate response without persisting to Firestore
     };
 
     try {
@@ -492,9 +548,11 @@ const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
           sentBy: 'cs-dashboard',
           customerName: selectedCustomer.name,
           customerId: selectedCustomer.id,
+          // Add unique identifier to prevent duplicates
+          csMessageId: `cs-${Date.now()}-${Math.random().toString(36).substring(7)}`,
         };
         await addDoc(messagesRef, csMessageData);
-        console.log("CS manual reply saved to directMessages subcollection.");
+        console.log("[CS Manual Reply] Saved to directMessages subcollection with ID:", csMessageData.csMessageId);
 
         // Also update parent document with customer info
         const parentDocRef = doc(db, 'directMessages', formattedPhoneForSending);
@@ -885,29 +943,7 @@ const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
                   )}
                   <ScrollArea className={cn("p-4 space-y-4", isMobileView ? "h-[calc(100vh-180px)]" : "h-[400px]")}>
                     {chatHistory.map((message) => (
-                      <div
-                        key={message.id}
-                        className={`flex ${message.sender === 'customer' ? 'justify-start' : 'justify-end'}`}
-                      >
-                        <div
-                          className={`px-4 py-2 rounded-xl shadow max-w-[80%] ${
-                            message.sender === 'customer'
-                              ? 'bg-muted text-muted-foreground'
-                              : message.sender === 'user'
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-secondary text-secondary-foreground'
-                          }`}
-                        >
-                          <p className="text-sm whitespace-pre-wrap">{message.text}</p>
-                          <p className={`text-xs mt-1 ${
-                            message.sender === 'customer' ? 'text-muted-foreground/80'
-                            : message.sender === 'user' ? 'text-primary-foreground/80'
-                            : 'text-secondary-foreground/80'
-                            } text-right`}>
-                            {message.timestamp} {message.sender === 'ai' && '(AI Otomatis)'}
-                          </p>
-                        </div>
-                      </div>
+                      <ChatMessage key={message.id} message={message} />
                     ))}
                     {chatHistory.length === 0 && (
                         <p className="text-center text-muted-foreground py-10">Belum ada riwayat chat untuk pelanggan ini.</p>
