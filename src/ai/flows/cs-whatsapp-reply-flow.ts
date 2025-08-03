@@ -6,6 +6,8 @@ import { runZoyaAIAgentOptimized } from '@/ai/agent/runZoyaAIAgent';
 import { getConversationHistory, saveAIResponse } from '@/ai/utils/conversationHistory';
 import { optimizeConversationHistory, monitorTokenUsage, calculateConversationTokens } from '@/ai/utils/contextManagement';
 import { lightweightPrompt } from '@/ai/config/aiPrompts';
+import { isInterventionLockActive } from '@/ai/utils/interventionLock';
+import { triggerBosMatTool } from '@/ai/tools/impl/triggerBosMamatTool';
 import type { ZoyaChatInput, WhatsAppReplyOutput } from '@/types/ai/cs-whatsapp-reply';
 import type { Session } from '@/types/ai/session';
 import { createTraceable, TRACE_TAGS, createTraceMetadata } from '@/lib/langsmith';
@@ -17,6 +19,24 @@ export const generateWhatsAppReplyOptimized = createTraceable(async (input: Zoya
   
   if (!senderNumber) {
     throw new Error('senderNumber is required');
+  }
+  
+  // Check intervention lock first
+  const locked = await isInterventionLockActive(senderNumber);
+  console.log('[INTERVENTION LOCK CHECK]', { senderNumber, locked });
+  if (locked) {
+    console.log(`[InterventionLock] Sesi ${senderNumber} sedang di-lock untuk intervensi manusia. Tidak memproses balasan otomatis.`);
+    return {
+      suggestedReply: "", // Empty reply means no AI response
+      toolCalls: [],
+      route: 'intervention_locked',
+      metadata: { 
+        toolsUsed: [],
+        iterations: 0,
+        tokenUsage: { estimated: 0 },
+        interventionLocked: true
+      },
+    };
   }
   
   try {
@@ -87,7 +107,42 @@ export const generateWhatsAppReplyOptimized = createTraceable(async (input: Zoya
         type: 'ai_response', 
         at: Date.now()
       },
+      lastAssistantMessage: agentResult.suggestedReply,
     };
+
+    // Set followUpState for daily follow-up automation
+    if (!session.followUpState) {
+      sessionUpdate.followUpState = {
+        level: 1,
+        flaggedAt: Date.now(),
+        context: customerMessage || 'unknown',
+      };
+    } else {
+      // Only reset follow-up state if customer made a booking
+      // Check if any booking-related tools were used
+      const bookingTools = ['createBooking', 'checkBookingAvailability', 'findNextAvailableSlot'];
+      const hasBookingActivity = agentResult.metadata.toolsUsed.some(tool => 
+        bookingTools.includes(tool)
+      );
+      
+      if (hasBookingActivity) {
+        // Customer made booking progress, reset follow-up state
+        sessionUpdate.followUpState = {
+          level: 1,
+          flaggedAt: Date.now(),
+          context: `Booking activity: ${customerMessage}`,
+        };
+        console.log('[generateWhatsAppReplyOptimized] Follow-up reset due to booking activity');
+      } else {
+        // Customer is just chatting, don't reset - let cron job follow up later
+        // Just update the context but keep the existing flaggedAt and level
+        sessionUpdate.followUpState = {
+          ...session.followUpState,
+          context: customerMessage || session.followUpState.context,
+        };
+        console.log('[generateWhatsAppReplyOptimized] Follow-up state maintained for future cron follow-up');
+      }
+    }
 
     // Clean undefined values
     Object.keys(sessionUpdate).forEach((k) => {
@@ -125,6 +180,21 @@ export const generateWhatsAppReplyOptimized = createTraceable(async (input: Zoya
   } catch (error) {
     console.error('[generateWhatsAppReplyOptimized] Critical error:', error);
     
+    // Trigger BosMAT for critical errors
+    try {
+      console.log('[generateWhatsAppReplyOptimized] Triggering BosMAT due to critical error');
+      await triggerBosMatTool.implementation({
+        reason: 'Critical error in WhatsApp AI flow',
+        customerQuestion: customerMessage || 'Unknown message'
+      }, { 
+        senderNumber, 
+        senderName, 
+        session: await getSession(senderNumber) as Session | null 
+      });
+    } catch (bosmatError) {
+      console.error('[generateWhatsAppReplyOptimized] Failed to trigger BosMAT:', bosmatError);
+    }
+    
     // Fallback response
     return {
       suggestedReply: "Maaf mas, Zoya lagi ada masalah teknis. Bisa coba lagi nanti?",
@@ -134,7 +204,8 @@ export const generateWhatsAppReplyOptimized = createTraceable(async (input: Zoya
         toolsUsed: [],
         iterations: 0,
         tokenUsage: { estimated: 0 },
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
+        bosmatTriggered: true
       },
     };
   }
