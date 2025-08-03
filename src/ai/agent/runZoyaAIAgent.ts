@@ -3,7 +3,7 @@
 
 import { openai } from '@/lib/openai';
 import { zoyaTools, toolFunctionMap } from '@/ai/config/aiConfig';
-import { optimizedMasterPrompt, lightweightPrompt, minimalPrompt } from '@/ai/config/aiPrompts-optimized';
+import { masterPrompt, lightweightPrompt, minimalPrompt } from '@/ai/config/aiPrompts';
 import { optimizeConversationHistory, monitorTokenUsage, calculateConversationTokens } from '@/ai/utils/contextManagement';
 import type { Session } from '@/types/ai/session';
 import type OpenAI from 'openai';
@@ -51,13 +51,13 @@ export async function runZoyaAIAgentOptimized({
   try {
     // Select prompt based on conversation length to manage tokens
     const conversationStats = calculateConversationTokens(chatHistory);
-    let selectedPrompt = optimizedMasterPrompt;
+    let selectedPrompt = masterPrompt;
     
     if (conversationStats.totalTokens > 4000) {
       selectedPrompt = lightweightPrompt;
       console.log('[runZoyaAIAgentOptimized] Using lightweight prompt due to high token count');
     } else if (conversationStats.totalTokens > 2500) {
-      selectedPrompt = optimizedMasterPrompt;
+      selectedPrompt = masterPrompt;
       console.log('[runZoyaAIAgentOptimized] Using optimized prompt');
     }
     
