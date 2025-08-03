@@ -48,7 +48,7 @@ export const updateRepaintDetailsTool: ToolFunction & { toolDefinition: any } = 
 
   implementation: async (args, context) => {
     const { serviceName, color, specific_part, motor } = args;
-    const session = context.session;
+    const session = context?.session;
 
     if (!session || !session.inquiry) {
       return {

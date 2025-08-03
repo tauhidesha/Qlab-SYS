@@ -2,7 +2,8 @@
 'use server';
 
 import { openai } from '@/lib/openai';
-import { zoyaTools, toolFunctionMap } from '@/ai/config/aiConfig';
+import { toolFunctionMap, zoyaTools } from '../config/aiConfig';
+import { runToolCalls } from '../utils/runToolCalls';
 import { masterPrompt, lightweightPrompt, minimalPrompt } from '@/ai/config/aiPrompts';
 import { optimizeConversationHistory, monitorTokenUsage, calculateConversationTokens } from '@/ai/utils/contextManagement';
 import type { Session } from '@/types/ai/session';
@@ -146,40 +147,49 @@ export async function runZoyaAIAgentOptimized({
         break;
       }
       
-      // Execute tool calls
-      for (const toolCall of toolCalls) {
+      // Execute tool calls using runToolCalls utility
+      if (toolCalls.length > 0) {
+        const toolCallRequests = toolCalls.map(toolCall => ({
+          toolName: toolCall.function.name,
+          arguments: toolCall.function.arguments,
+          id: toolCall.id
+        }));
+        
         try {
-          console.log(`[runZoyaAIAgentOptimized] Executing tool: ${toolCall.function.name}`);
+          console.log(`[runZoyaAIAgentOptimized] Executing ${toolCalls.length} tools via runToolCalls`);
           
-          const toolFunction = toolFunctionMap[toolCall.function.name];
-          if (!toolFunction?.implementation) {
-            throw new Error(`Tool ${toolCall.function.name} not found`);
+          const toolResults = await runToolCalls(toolCallRequests, {
+            session,
+            input: { senderNumber, senderName }
+          });
+          
+          // Track results for metadata
+          for (const toolCall of toolCalls) {
+            allToolResults.push({
+              id: toolCall.id,
+              toolName: toolCall.function.name,
+              arguments: JSON.parse(toolCall.function.arguments),
+              result: {} // Results are already in the tool response format
+            });
           }
           
-          const toolArgs = JSON.parse(toolCall.function.arguments);
-          const toolResult = await toolFunction.implementation(toolArgs);
-          
-          allToolResults.push({
-            id: toolCall.id,
-            toolName: toolCall.function.name,
-            arguments: toolArgs,
-            result: toolResult
-          });
-          
-          // Add tool result to history
-          optimizedHistory.push({
-            role: 'tool',
-            content: JSON.stringify(toolResult),
-            tool_call_id: toolCall.id
-          });
+          // Add tool results to history
+          optimizedHistory.push(...toolResults.map(result => ({
+            role: 'tool' as const,
+            content: result.content,
+            tool_call_id: result.tool_call_id
+          })));
           
         } catch (toolError) {
-          console.error(`[runZoyaAIAgentOptimized] Tool error:`, toolError);
-          optimizedHistory.push({
-            role: 'tool',
-            content: JSON.stringify({ error: toolError instanceof Error ? toolError.message : String(toolError) }),
-            tool_call_id: toolCall.id
-          });
+          console.error(`[runZoyaAIAgentOptimized] Tool execution error:`, toolError);
+          // Add error responses for each tool call
+          for (const toolCall of toolCalls) {
+            optimizedHistory.push({
+              role: 'tool',
+              content: JSON.stringify({ error: toolError instanceof Error ? toolError.message : String(toolError) }),
+              tool_call_id: toolCall.id
+            });
+          }
         }
       }
       
