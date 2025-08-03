@@ -1,3 +1,4 @@
 {
-  "/(app)/settings/page": "app/(app)/settings/page.js"
+  "/favicon.ico/route": "app/favicon.ico/route.js",
+  "/page": "app/page.js"
 }

@@ -7,6 +7,8 @@ import Script from 'next/script'
 import 'slick-carousel/slick/slick.css'
 import 'slick-carousel/slick/slick-theme.css'
 import { FB_PIXEL_ID } from '@/lib/fpixel' // <-- 1. IMPORT ID DARI FILE PUSAT
+import { GA_TRACKING_ID } from '@/lib/gtag' // <-- Import Google Analytics ID
+import GoogleAnalytics from '@/components/GoogleAnalytics'
 // import PixelEvents from '@/components/PixelEvents' // <-- 3. IMPORT KOMPONEN EVENT
 import { Suspense } from 'react'
 import { AuthProvider } from '@/contexts/AuthContext'
@@ -33,7 +35,32 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        {/* 2. PINDAHKAN SCRIPT KE BODY */}
+        {/* Google Analytics */}
+        {GA_TRACKING_ID && (
+          <>
+            <Script
+              strategy="afterInteractive"
+              src={`https://www.googletagmanager.com/gtag/js?id=${GA_TRACKING_ID}`}
+            />
+            <Script
+              id="google-analytics"
+              strategy="afterInteractive"
+              dangerouslySetInnerHTML={{
+                __html: `
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('js', new Date());
+                  gtag('config', '${GA_TRACKING_ID}', {
+                    page_location: window.location.href,
+                    page_title: document.title,
+                  });
+                `,
+              }}
+            />
+          </>
+        )}
+        
+        {/* Facebook Pixel */}
         <Script
           id="facebook-pixel"
           strategy="afterInteractive"
@@ -53,7 +80,8 @@ export default function RootLayout({
             `,
           }}
         />
-        {/* 2. PINDAHKAN NOSCRIPT KE BODY */}
+        
+        {/* Facebook Pixel Noscript */}
         <noscript>
           <img
             height="1"
@@ -62,7 +90,9 @@ export default function RootLayout({
             src={`https://www.facebook.com/tr?id=${FB_PIXEL_ID}&ev=PageView&noscript=1`}
           />
         </noscript>
+                
         <AuthProvider>
+          <GoogleAnalytics />
           {children}
         </AuthProvider>
         <Toaster />

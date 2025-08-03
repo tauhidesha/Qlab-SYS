@@ -1,21 +1,49 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Slider from 'react-slick';
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 import promoBundling from '../data/promoBundling';
 import { event as trackEvent } from '@/lib/fpixel';
+import * as gtag from '@/lib/gtag';
 import Link from 'next/link';
 
 export default function Home() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
+  // Track page view on component mount
+  useEffect(() => {
+    // Google Analytics page view
+    gtag.event('page_view', {
+      event_category: 'engagement',
+      event_label: 'home_page',
+    });
+  }, []);
+
+  const handleFaqClick = (index: number, question: string) => {
+    setOpenFaq(openFaq === index ? null : index);
+    
+    // Track FAQ interactions
+    gtag.event('faq_click', {
+      event_category: 'engagement',
+      event_label: `faq_${index}_${question.substring(0, 30)}`,
+    });
+  };
+
   const handleWhatsAppClick = () => {
+    // Facebook Pixel tracking
     trackEvent('Contact', {
       content_name: 'Promo Repaint Bundling',
       content_category: 'WhatsApp',
     });
+    
+    // Google Analytics tracking
+    gtag.event('contact_whatsapp', {
+      event_category: 'engagement',
+      event_label: 'promo_repaint_bundling',
+    });
+    
     const message = "Halo Bosmat, saya tertarik dengan promo repaint bundling. Bisa minta info lebih lanjut?";
     const whatsappUrl = `https://api.whatsapp.com/send?phone=62895401527556&text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
@@ -259,7 +287,7 @@ export default function Home() {
             ].map((faq, i) => (
               <div key={i} className="border rounded-md overflow-hidden">
                 <button
-                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                  onClick={() => handleFaqClick(i, faq.q)}
                   className="w-full text-left p-3 font-semibold flex justify-between items-center"
                 >
                   {faq.q}
