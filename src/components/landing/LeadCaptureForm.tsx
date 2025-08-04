@@ -489,7 +489,7 @@ ${hasPromo ? '🔥 **PRIORITAS TINGGI: CUSTOMER TERTARIK PROMO BUNDLING!**' : ''
                 <div className="space-y-6">
                   {/* PROMO BUNDLING - Special Highlight */}
                   {Object.entries(serviceCategories)
-                    .sort(([,a], [,b]) => (a.priority || 999) - (b.priority || 999))
+                    .sort(([,a], [,b]) => ((a as any).priority || 999) - ((b as any).priority || 999))
                     .map(([categoryId, category]) => {
                       if (categoryId === 'promo') {
                         return (
