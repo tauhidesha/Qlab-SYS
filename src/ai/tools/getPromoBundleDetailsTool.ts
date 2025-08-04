@@ -41,7 +41,18 @@ async function implementation(input: Input): Promise<Output> {
 
     const lowerCaseQuery = motor_query.toLowerCase();
     const allMotors = (daftarUkuranMotor as any[]).filter(m => m.model && m.repaint_size);
-    const matches = allMotors.filter(motor => motor.model.toLowerCase().includes(lowerCaseQuery));
+    
+    // Use same matching logic as getMotorSizeDetails - check both model and aliases
+    const matches = allMotors.filter(motor => {
+      const model = motor.model?.toLowerCase() || '';
+      const aliases = (motor.aliases || []).map((a: string) => a.toLowerCase());
+      const candidates = [model, ...aliases];
+      
+      // Check if query matches any candidate (exact match or contains)
+      return candidates.some(candidate => 
+        candidate.includes(lowerCaseQuery) || lowerCaseQuery.includes(candidate)
+      );
+    });
 
     if (matches.length === 0) {
       return {
