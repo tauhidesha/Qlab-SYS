@@ -1,693 +1,482 @@
-# Bosmat-SYS: Advanced AI-Powered Customer Service System
+# Bosmat-SYS: Sistem POS & AI Customer Service Bengkel Motor
 
-A comprehensive, production-ready AI customer service system built with Next.js, featuring advanced OpenAI integration, robust error handling, comprehensive monitoring, and enterprise-grade security.
+Sistem manajemen bengkel motor yang lengkap dengan AI Customer Service, Point of Sale (POS), dan monitoring yang canggih. Dibangun dengan Next.js 14, Firebase/Firestore, dan OpenAI GPT-4o.
 
-## 🚀 Features
+## 🚀 Fitur Utama
 
-### Core AI Capabilities
-- **Advanced OpenAI Integration**: Flexible agent architecture with multiple AI models
-- **Intelligent Conversation Flow**: Context-aware responses with adaptive conversation patterns
-- **Tool Integration**: Comprehensive tool system for booking, pricing, and service inquiries
-- **Multi-Agent Architecture**: Specialized agents for different conversation types
+### 🤖 AI Customer Service (Zoya)
+- **WhatsApp Integration**: Asisten AI yang merespon chat WhatsApp otomatis
+- **Multi-Tool System**: 10+ tools khusus untuk layanan bengkel
+- **Smart Booking**: Otomatis buat booking dengan deteksi layanan dan harga
+- **Context-Aware**: Memahami konteks percakapan dan customer history
+- **Image Processing**: Analisis foto motor untuk estimasi layanan
 
-### Enterprise Features
-- **Robust Error Handling**: Circuit breakers, retry mechanisms, and graceful degradation
-- **Comprehensive Security**: Authentication, authorization, rate limiting, and input validation
-- **Advanced Monitoring**: Metrics collection, health checks, and alerting
-- **Performance Optimization**: Caching strategies, database connection pooling
-- **Scalable Architecture**: Microservices-ready with Docker containerization
+### 💰 Point of Sale (POS)
+- **Transaksi Lengkap**: Penjualan produk dan layanan dalam satu sistem
+- **Real-time Inventory**: Update stok otomatis saat transaksi
+- **Multiple Payment**: Tunai, transfer, dan credit support
+- **Receipt Generation**: Struk otomatis dengan QR code
+- **Customer Database**: Integrasi dengan data customer dan motor
 
-### Development & Testing
-- **Comprehensive Test Framework**: Unit, integration, and performance testing
-- **Type Safety**: Full TypeScript implementation with strict typing
-- **Code Quality**: ESLint, Prettier, and comprehensive error handling
-- **Documentation**: Extensive API documentation and usage examples
+### 📊 Monitoring & Analytics
+- **AI Performance Tracking**: Monitor performa AI real-time
+- **Quality Scoring**: Penilaian kualitas percakapan otomatis
+- **Predictive Analytics**: Insight dan prediksi tren
+- **Self-Healing System**: Deteksi dan perbaikan masalah otomatis
+- **Cost Optimization**: Tracking dan optimasi biaya AI
 
-## 📋 Table of Contents
+### 🏢 Manajemen Bengkel
+- **Queue Management**: Antrian customer dan booking system
+- **Staff Management**: Absensi, penggajian, dan bagi hasil
+- **Financial Reports**: Laporan laba rugi, cash flow, dan revenue
+- **Inventory Control**: Manajemen stok produk dan spare part
+- **Client Database**: Data lengkap customer dan history motor
 
-- [Quick Start](#quick-start)
-- [Architecture Overview](#architecture-overview)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Usage Examples](#usage-examples)
-- [API Documentation](#api-documentation)
-- [Testing](#testing)
-- [Deployment](#deployment)
-- [Monitoring](#monitoring)
-- [Security](#security)
-- [Troubleshooting](#troubleshooting)
-- [Contributing](#contributing)
+## 📋 Daftar Isi
 
-## 🚀 Quick Start
+- [Instalasi](#-instalasi)
+- [Konfigurasi](#-konfigurasi)
+- [Penggunaan](#-penggunaan)
+- [Arsitektur](#-arsitektur)
+- [AI Tools](#-ai-tools)
+- [Monitoring](#-monitoring)
+- [Testing](#-testing)
+- [Deployment](#-deployment)
+- [Kontribusi](#-kontribusi)
 
-### Prerequisites
-- Node.js 18+ 
-- Docker and Docker Compose
-- PostgreSQL 15+
-- Redis 7+
+## 🛠️ Instalasi
+
+### Prasyarat
+- Node.js 18+
+- Firebase Project dengan Firestore
 - OpenAI API Key
+- WhatsApp Business API (opsional)
 
-### 1. Clone and Install
+### 1. Clone Repository
 ```bash
-git clone <repository-url>
-cd Bosmat-SYS
+git clone https://github.com/tauhidesha/Qlab-SYS.git
+cd Qlab-SYS
+```
+
+### 2. Install Dependencies
+```bash
 npm install
 ```
 
-### 2. Environment Setup
+### 3. Setup Firebase
 ```bash
-cp .env.example .env
-# Edit .env with your configuration
+# Install Firebase CLI
+npm install -g firebase-tools
+
+# Login to Firebase
+firebase login
+
+# Initialize Firebase (jika belum)
+firebase init
 ```
 
-### 3. Start with Docker
+### 4. Environment Variables
+Buat file `.env.local` di root project:
 ```bash
-docker-compose up -d
+# Firebase Configuration
+NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+
+# OpenAI Configuration
+OPENAI_API_KEY=your_openai_api_key
+
+# WhatsApp Configuration (opsional)
+WHATSAPP_TOKEN=your_whatsapp_token
+WHATSAPP_PHONE_NUMBER_ID=your_phone_id
+WHATSAPP_WEBHOOK_VERIFY_TOKEN=your_verify_token
+
+# Environment
+NODE_ENV=development
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-### 4. Run Migrations
-```bash
-npm run migrate
-```
-
-### 5. Start Development
+### 5. Start Development Server
 ```bash
 npm run dev
 ```
 
-Visit `http://localhost:3000` to see the application.
+Aplikasi akan berjalan di `http://localhost:3000`
 
-## 🏗️ Architecture Overview
+### 6. Setup Firebase Emulators (Development)
+```bash
+# Start Firebase emulators
+firebase emulators:start
+```
 
-### System Architecture
+## ⚙️ Konfigurasi
+
+### Firebase Rules
+Pastikan Firestore rules sudah dikonfigurasi dengan benar di `firestore.rules`:
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Izinkan akses untuk authenticated users
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+```
+
+### AI Configuration
+Konfigurasi AI ada di `src/ai/config/aiPrompts.ts`:
+- **Master Prompt**: Prompt utama untuk Zoya AI
+- **Lightweight Prompt**: Versi ringkas untuk response cepat
+- **Tool Prompts**: Prompt khusus untuk setiap AI tool
+
+### WhatsApp Webhook
+Setup webhook di WhatsApp Business API:
+- **Webhook URL**: `https://yourdomain.com/api/whatsapp/webhook`
+- **Verify Token**: Sesuaikan dengan `WHATSAPP_WEBHOOK_VERIFY_TOKEN`
+
+## 🎯 Penggunaan
+
+### 1. Dashboard Utama
+Akses `/dashboard` untuk melihat:
+- Summary aktivitas bengkel
+- Antrian hari ini
+- Revenue dan metrics
+- Quick actions
+
+### 2. AI Customer Service
+Akses `/ai-cs-assistant` untuk:
+- Monitor chat WhatsApp real-time
+- Lihat conversation history
+- Manual intervention jika diperlukan
+- Analytics percakapan
+
+### 3. POS System
+Akses `/pos` untuk:
+- Buat transaksi baru
+- Scan/pilih produk dan layanan
+- Proses pembayaran
+- Print receipt
+
+### 4. Monitoring AI
+Akses `/monitoring` untuk:
+- **Overview**: Metrics real-time AI
+- **Alerts**: Notifikasi dan warning system
+- **Performance**: Response time dan success rate
+- **Costs**: Tracking biaya OpenAI
+- **Insights**: Predictive analytics & quality analysis
+- **Optimization**: Saran perbaikan AI-generated
+- **Healing**: Status self-healing system & auto-fix history
+
+### 5. Manajemen Data
+- **Clients** (`/clients`): Data customer dan motor
+- **Services** (`/services`): Katalog layanan bengkel
+- **Queue** (`/queue`): Manajemen antrian
+- **Staff** (`/staff/*`): Manajemen karyawan
+- **Reports** (`/reports/*`): Laporan keuangan
+
+## 🏗️ Arsitektur
+
+### Arsitektur Sistem
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Client Apps   │    │   Load Balancer │    │   Monitoring    │
-│  (WhatsApp,Web) │────│     (Nginx)     │────│  (Grafana)      │
+│   WhatsApp      │    │   Web Browser   │    │   Mobile App    │
+│   Business API  │────│   Dashboard     │────│   (Future)      │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
                                 │
                        ┌─────────────────┐
-                       │   Next.js App   │
-                       │   (Main Server) │
+                       │   Next.js 14    │
+                       │   (Frontend +   │
+                       │    Backend)     │
                        └─────────────────┘
                                 │
         ┌───────────────────────┼───────────────────────┐
         │                       │                       │
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   PostgreSQL    │    │      Redis      │    │   OpenAI API    │
-│   (Database)    │    │    (Cache)      │    │   (AI Models)   │
+│   Firestore     │    │   Firebase      │    │   OpenAI        │
+│   (Database)    │    │   Functions     │    │   GPT-4o        │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
-### Agent Architecture
+### Struktur AI System
 ```
 ┌─────────────────┐
-│   BaseAgent     │
-│  (Abstract)     │
+│   Zoya Agent    │ ← Main AI Customer Service
+│   (GPT-4o)      │
 └─────────────────┘
          │
     ┌────┴────┐
     │         │
-┌─────────┐ ┌─────────┐
-│  Zoya   │ │ Router  │
-│ Agent   │ │ Agent   │
-└─────────┘ └─────────┘
+┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
+│Booking  │ │Service  │ │Payment  │ │Queue    │
+│ Tools   │ │ Tools   │ │ Tools   │ │ Tools   │
+└─────────┘ └─────────┘ └─────────┘ └─────────┘
 ```
 
-### Key Components
+### Komponen Utama
 
-#### 1. Agent System (`src/ai/agents/`)
-- **BaseAgent**: Abstract base class with common functionality
-- **ZoyaAgent**: Main conversational AI agent
-- **RouterAgent**: Intent classification and routing
-- **Error Handling**: Comprehensive error management with retry logic
+#### 1. AI System (`src/ai/`)
+- **Agents**: Zoya AI customer service agent
+- **Tools**: 10+ specialized tools untuk bengkel
+- **Flows**: Conversation flows dan logic
+- **Config**: Prompts dan konfigurasi AI
 
-#### 2. Middleware (`src/ai/middleware/`)
-- **Authentication**: JWT, API key, and session-based auth
-- **Rate Limiting**: Configurable rate limiting per client
-- **Input Validation**: Comprehensive input sanitization
-- **Security**: XSS protection, SQL injection prevention
+#### 2. Frontend (`src/app/`)
+- **Dashboard**: Main admin interface
+- **POS**: Point of sale system
+- **Monitoring**: AI performance dashboard
+- **Client Management**: Customer data interface
 
-#### 3. Utilities (`src/ai/utils/`)
-- **Caching**: In-memory and Redis-based caching
-- **Database**: Connection pooling and query optimization
-- **Logging**: Structured logging with multiple levels
-- **Monitoring**: Metrics collection and health checks
-- **Validation**: Input validation and sanitization
+#### 3. Backend (`src/lib/` & `src/services/`)
+- **Firebase**: Database dan authentication
+- **API Routes**: RESTful endpoints
+- **Monitoring**: Metrics dan health checks
+- **Utils**: Helper functions
 
-#### 4. Testing (`src/ai/tests/`)
-- **Test Framework**: Custom testing framework
-- **Unit Tests**: Component-level testing
-- **Integration Tests**: End-to-end testing
-- **Performance Tests**: Load and stress testing
+#### 4. Types (`src/types/`)
+- **Firestore Collections**: Typed interfaces
+- **AI Types**: Tool dan response types
+- **Business Logic**: POS dan booking types
 
-## 🛠️ Installation
+## 🤖 AI Tools
 
-### Development Setup
+Zoya AI dilengkapi dengan 10+ specialized tools:
 
-1. **Install Dependencies**
-```bash
-npm install
-```
+### Core Tools
+1. **createBooking**: Buat booking otomatis
+2. **getAvailableServices**: Cek layanan tersedia
+3. **calculatePrice**: Hitung harga layanan
+4. **checkQueue**: Cek status antrian
+5. **getBusinessInfo**: Info bengkel (jam, lokasi, dll)
 
-2. **Database Setup**
-```bash
-# Start PostgreSQL (if not using Docker)
-createdb bosmat_sys
+### Advanced Tools
+6. **analyzeImage**: Analisis foto motor untuk estimasi
+7. **updateBooking**: Update booking existing
+8. **cancelBooking**: Cancel booking dengan reason
+9. **getCustomerHistory**: Riwayat customer
+10. **processPayment**: Proses pembayaran
 
-# Run migrations
-npm run migrate
-```
+### Workflow Tools
+- **escalateToHuman**: Handover ke human operator
+- **generateReceipt**: Generate receipt/invoice
+- **sendNotification**: Kirim notifikasi customer
 
-3. **Redis Setup**
-```bash
-# Start Redis (if not using Docker)
-redis-server
-```
+## 📊 Monitoring
 
-4. **Environment Configuration**
-```bash
-cp .env.example .env
-```
+Sistem monitoring AI yang komprehensif dengan 7 dashboard tabs:
 
-Edit `.env` with your configuration:
-```env
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/bosmat_sys
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=bosmat_sys
-DB_USER=postgres
-DB_PASSWORD=your_password
+### 1. Overview Tab
+- **Real-time Metrics**: Total conversations, response time, error rate
+- **System Health**: Status indicators dengan color coding
+- **Top AI Tools**: Tools yang paling sering digunakan
+- **Quick Stats**: Summary performance utama
 
-# Redis
-REDIS_URL=redis://localhost:6379
+### 2. Alerts Tab  
+- **System Alerts**: Notifikasi error dan warning
+- **Performance Alerts**: Alert untuk response time tinggi
+- **Cost Alerts**: Warning untuk biaya OpenAI berlebih
+- **Quality Alerts**: Alert untuk quality score rendah
 
-# OpenAI
-OPENAI_API_KEY=your_openai_api_key
+### 3. Performance Tab
+- **Response Time Analysis**: Distribusi waktu respon
+- **Success Rate Tracking**: Tingkat keberhasilan percakapan
+- **Tool Performance**: Performance individual setiap tool
+- **Throughput Metrics**: Volume conversations per time period
 
-# Firebase (for session storage)
-FIREBASE_PROJECT_ID=your_project_id
-FIREBASE_PRIVATE_KEY=your_private_key
-FIREBASE_CLIENT_EMAIL=your_client_email
+### 4. Costs Tab
+- **Token Usage**: Penggunaan token input/output OpenAI
+- **Cost Breakdown**: Breakdown biaya per conversation/tool
+- **Monthly Projections**: Estimasi biaya bulanan
+- **Cost Optimization**: Saran penghematan biaya
 
-# Security
-JWT_SECRET=your_jwt_secret
-API_KEYS=key1:permissions,key2:permissions
+### 5. Insights Tab (🔮 Predictive Analytics)
+- **Quality Analysis**: Multi-dimensional quality scoring
+- **Predictive Insights**: AI-powered predictions & early warnings
+- **Trend Analysis**: Analisis tren percakapan dan performa
+- **Behavioral Insights**: Analisis pola customer behavior
 
-# Monitoring
-GRAFANA_PASSWORD=admin
-SLACK_WEBHOOK_URL=your_slack_webhook
-```
+### 6. Optimization Tab (🚀 AI-Generated Suggestions)
+- **Performance Optimization**: Saran perbaikan response time
+- **Cost Optimization**: Rekomendasi penghematan token/biaya
+- **Quality Improvement**: Saran peningkatan kualitas conversation
+- **Tool Optimization**: Optimasi usage pattern tools
 
-### Production Setup
+### 7. Healing Tab (🛡️ Self-Healing System)
+- **Auto-Detection**: Deteksi masalah otomatis real-time
+- **Auto-Recovery**: Automated issue resolution
+- **Healing History**: Log semua auto-fix yang dilakukan
+- **Manual Intervention**: Alert untuk masalah yang perlu manual handling
 
-1. **Docker Deployment**
-```bash
-# Build and start all services
-docker-compose up -d
-
-# Check service health
-docker-compose ps
-```
-
-2. **Environment Variables**
-```bash
-# Set production environment variables
-export NODE_ENV=production
-export DATABASE_URL=your_production_db_url
-# ... other production variables
-```
-
-3. **SSL Configuration**
-```bash
-# Place SSL certificates in nginx/ssl/
-cp your_cert.pem nginx/ssl/
-cp your_key.pem nginx/ssl/
-```
-
-## ⚙️ Configuration
-
-### Agent Configuration
-```typescript
-// src/ai/config/agentConfig.ts
-export const agentConfig = {
-  zoya: {
-    model: 'gpt-4o',
-    temperature: 0.7,
-    maxTokens: 2000,
-    timeout: 30000,
-    retryAttempts: 3
-  },
-  router: {
-    model: 'gpt-4o-mini',
-    temperature: 0,
-    maxTokens: 500,
-    timeout: 10000
-  }
-};
-```
-
-### Security Configuration
-```typescript
-// src/ai/middleware/auth.ts
-export const authConfig = {
-  requireAuth: true,
-  allowedOrigins: ['https://yourdomain.com'],
-  rateLimitConfig: {
-    windowMs: 60 * 1000, // 1 minute
-    maxRequests: 100
-  },
-  apiKeys: {
-    'your-api-key': {
-      permissions: ['user', 'admin'],
-      name: 'Production Key'
-    }
-  }
-};
-```
-
-### Database Configuration
-```typescript
-// src/ai/utils/database.ts
-export const dbConfig = {
-  host: process.env.DB_HOST,
-  port: parseInt(process.env.DB_PORT || '5432'),
-  database: process.env.DB_NAME,
-  username: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  poolConfig: {
-    min: 2,
-    max: 10,
-    acquireTimeoutMillis: 30000,
-    idleTimeoutMillis: 30000
-  }
-};
-```
-
-## 📚 Usage Examples
-
-### Basic Agent Usage
-```typescript
-import { ZoyaAgent } from '@/ai/agents/implementations/ZoyaAgent';
-
-const agent = new ZoyaAgent({
-  model: 'gpt-4o',
-  temperature: 0.7,
-  maxTokens: 2000,
-  timeout: 30000,
-  retryAttempts: 3
-});
-
-const response = await agent.generateResponse({
-  message: 'Halo, saya mau tanya tentang layanan detailing',
-  context: { isFirstMessage: true },
-  sessionId: 'user-session-123',
-  userId: 'user-456'
-});
-
-console.log(response.response); // AI response
-console.log(response.confidence); // Confidence score
-console.log(response.route); // Routing decision
-```
-
-### Authentication Middleware
-```typescript
-import { AuthMiddleware } from '@/ai/middleware/auth';
-
-const authMiddleware = new AuthMiddleware(authConfig);
-
-// In your API route
-export async function POST(request: NextRequest) {
-  try {
-    const authContext = await authMiddleware.authenticate(request);
-    
-    if (!authContext.isAuthenticated) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    // Process authenticated request
-    // ...
-    
-  } catch (error) {
-    if (error instanceof AuthenticationError) {
-      return authMiddleware.createAuthResponse(error);
-    }
-    throw error;
-  }
-}
-```
-
-### Caching Usage
-```typescript
-import { CacheManager } from '@/ai/utils/cache';
-
-const cache = new CacheManager({
-  defaultTTL: 5 * 60 * 1000, // 5 minutes
-  maxSize: 1000
-});
-
-// Cache a response
-await cache.set('user-123-response', response, 10 * 60 * 1000); // 10 minutes
-
-// Retrieve from cache
-const cachedResponse = await cache.get('user-123-response');
-
-if (cachedResponse) {
-  return cachedResponse;
-}
-```
-
-### Database Usage
-```typescript
-import { DatabasePool } from '@/ai/utils/database';
-
-const db = new DatabasePool(dbConfig);
-await db.initialize();
-
-// Simple query
-const users = await db.query<User>('SELECT * FROM users WHERE active = $1', [true]);
-
-// Transaction
-await db.transaction(async (tx) => {
-  await tx.query('INSERT INTO sessions (id, user_id) VALUES ($1, $2)', [sessionId, userId]);
-  await tx.query('UPDATE users SET last_active = NOW() WHERE id = $1', [userId]);
-});
-```
-
-### Monitoring Usage
-```typescript
-import { metricsCollector, healthChecker } from '@/ai/utils/monitoring';
-
-// Record metrics
-metricsCollector.counter('api.requests', 1, { endpoint: '/api/chat' });
-metricsCollector.timer('api.response_time', startTime, { endpoint: '/api/chat' });
-
-// Health checks
-healthChecker.registerCheck('database', async () => {
-  const isHealthy = await db.healthCheck();
-  return {
-    service: 'database',
-    status: isHealthy ? 'healthy' : 'unhealthy',
-    timestamp: Date.now()
-  };
-});
-
-// Get health status
-const health = healthChecker.getOverallHealth();
-```
+### Monitoring Features
+- **Real-time Updates**: Auto-refresh setiap 30 detik
+- **Time Range Selection**: 1 hour, 24 hours, 7 days
+- **Mock Data Support**: Test data untuk development
+- **Export Capabilities**: Export data untuk reporting
+- **Alert Notifications**: Push notifications untuk critical issues
 
 ## 🧪 Testing
 
-### Running Tests
+### Development Testing
 ```bash
 # Run all tests
 npm test
 
-# Run specific test suite
-npm test -- --grep "ZoyaAgent"
+# Run specific AI tests
+npm run test:ai
 
-# Run with coverage
-npm run test:coverage
+# Run Zoya AI tests
+npm run test:zoya
 
-# Run performance tests
-npm run test:performance
+# Test monitoring system
+npm run test:monitoring
 ```
 
-### Writing Tests
-```typescript
-import { TestFramework, TestUtils } from '@/ai/tests/framework/TestFramework';
+### Test Coverage
+- **Unit Tests**: Individual component testing
+- **Integration Tests**: End-to-end flow testing
+- **AI Tests**: Conversation dan tool testing
+- **Performance Tests**: Load dan stress testing
 
-const testSuite = {
-  name: 'My Test Suite',
-  tests: [
-    {
-      name: 'should handle basic input',
-      input: TestUtils.createMockInput({
-        message: 'Hello'
-      }),
-      assertions: [
-        (output) => TestUtils.assertContains(output, 'Hello'),
-        (output) => TestUtils.assertConfidenceAbove(output, 0.7)
-      ]
-    }
-  ]
-};
-
-const framework = new TestFramework();
-framework.addSuite(testSuite);
-const results = await framework.runAll();
-```
-
-### Performance Testing
-```typescript
-import { PerformanceTestUtils } from '@/ai/tests/framework/TestFramework';
-
-// Measure response time
-const perfResults = await PerformanceTestUtils.measureResponseTime(
-  async () => agent.generateResponse(input),
-  100 // iterations
-);
-
-// Load testing
-const loadResults = await PerformanceTestUtils.loadTest(
-  async () => agent.generateResponse(input),
-  10, // concurrency
-  30000 // duration in ms
-);
-```
+### Manual Testing
+- **WhatsApp Simulator**: Test AI responses
+- **POS Simulator**: Test transaction flows
+- **Monitoring Dashboard**: Test metrics collection
 
 ## 🚀 Deployment
 
-### Docker Deployment
+### Firebase Hosting
 ```bash
-# Production deployment
-docker-compose -f docker-compose.yml up -d
+# Build project
+npm run build
 
-# Development deployment
-docker-compose -f docker-compose.dev.yml up -d
-
-# Scaling services
-docker-compose up -d --scale app=3
+# Deploy to Firebase
+firebase deploy
 ```
 
-### Environment-Specific Configurations
-
-#### Development
-```yaml
-# docker-compose.dev.yml
-version: '3.8'
-services:
-  app:
-    build:
-      target: development
-    volumes:
-      - .:/app
-      - /app/node_modules
-    environment:
-      - NODE_ENV=development
-```
-
-#### Production
-```yaml
-# docker-compose.prod.yml
-version: '3.8'
-services:
-  app:
-    build:
-      target: production
-    restart: unless-stopped
-    environment:
-      - NODE_ENV=production
-```
-
-### Health Checks
+### Environment Variables (Production)
 ```bash
-# Check application health
-curl http://localhost:3000/api/health
-
-# Check individual services
-docker-compose exec app npm run health-check
+# Set production environment variables
+firebase functions:config:set openai.api_key="your_openai_key"
+firebase functions:config:set whatsapp.token="your_whatsapp_token"
 ```
 
 ### Monitoring Setup
+1. Setup Firebase Performance Monitoring
+2. Configure OpenAI usage alerts
+3. Enable error tracking
+4. Setup backup strategies
+
+## 📝 Scripts
+
+### Development
 ```bash
-# Access monitoring dashboards
-open http://localhost:3001  # Grafana
-open http://localhost:9090  # Prometheus
+npm run dev          # Start development server
+npm run dev:emulator # Start with Firebase emulators
+npm run build        # Build for production
+npm run start        # Start production server
 ```
 
-## 📊 Monitoring
-
-### Metrics Collection
-The system automatically collects:
-- **Response Times**: API endpoint performance
-- **Error Rates**: Success/failure ratios
-- **Token Usage**: OpenAI API consumption
-- **Cache Hit Rates**: Caching effectiveness
-- **Database Performance**: Query times and connection pool stats
-
-### Health Checks
-- **Application Health**: `/api/health`
-- **Database Connectivity**: Automatic connection testing
-- **OpenAI API Status**: API availability checks
-- **Memory Usage**: System resource monitoring
-
-### Alerting
-Configure alerts in `src/ai/utils/monitoring.ts`:
-```typescript
-alertManager.addRule({
-  name: 'High Error Rate',
-  condition: (metrics) => {
-    const errorRate = calculateErrorRate(metrics);
-    return errorRate > 0.1; // 10%
-  },
-  severity: 'high',
-  message: 'Error rate exceeded 10%',
-  cooldownMs: 5 * 60 * 1000
-});
-```
-
-### Grafana Dashboards
-Pre-configured dashboards for:
-- Application Performance
-- Database Metrics
-- AI Agent Performance
-- System Resources
-- Error Tracking
-
-## 🔒 Security
-
-### Authentication Methods
-1. **JWT Tokens**: For user sessions
-2. **API Keys**: For service-to-service communication
-3. **Session-based**: For web applications
-
-### Security Features
-- **Input Validation**: Comprehensive input sanitization
-- **Rate Limiting**: Configurable per-client limits
-- **CORS Protection**: Origin-based access control
-- **XSS Prevention**: Output sanitization
-- **SQL Injection Prevention**: Parameterized queries
-
-### Security Configuration
-```typescript
-// Enable security features
-const securityConfig = {
-  enableRateLimit: true,
-  enableCORS: true,
-  enableInputValidation: true,
-  enableOutputSanitization: true,
-  maxRequestSize: '10mb',
-  allowedOrigins: ['https://yourdomain.com']
-};
-```
-
-## 🔧 Troubleshooting
-
-### Common Issues
-
-#### 1. OpenAI API Errors
+### Testing
 ```bash
-# Check API key
-echo $OPENAI_API_KEY
-
-# Test API connectivity
-curl -H "Authorization: Bearer $OPENAI_API_KEY" \
-  https://api.openai.com/v1/models
+npm test             # Run all tests
+npm run test:ai      # Test AI system
+npm run test:pos     # Test POS system
+npm run test:watch   # Watch mode testing
 ```
 
-#### 2. Database Connection Issues
+### Deployment
 ```bash
-# Check database connectivity
-npm run db:test
-
-# Check connection pool
-docker-compose exec app npm run db:pool-status
+npm run deploy       # Deploy to Firebase
+npm run deploy:functions # Deploy only functions
+npm run deploy:hosting   # Deploy only hosting
 ```
 
-#### 3. Redis Connection Issues
+### Utilities
 ```bash
-# Test Redis connectivity
-redis-cli ping
-
-# Check Redis logs
-docker-compose logs redis
+npm run lint         # Check code style
+npm run type-check   # TypeScript checking
+npm run analyze      # Bundle analysis
 ```
 
-#### 4. High Memory Usage
-```bash
-# Check memory usage
-docker stats
+## 🗂️ Struktur Project
 
-# Analyze memory leaks
-npm run memory:analyze
+```
+src/
+├── ai/                     # AI System
+│   ├── agents/            # AI agents (Zoya)
+│   ├── tools/             # Specialized tools
+│   ├── flows/             # Conversation flows
+│   ├── config/            # AI configuration & prompts
+│   └── utils/             # AI utilities
+├── app/                   # Next.js App Router
+│   ├── (app)/            # Main app pages
+│   │   ├── dashboard/    # Main dashboard
+│   │   ├── pos/          # Point of Sale
+│   │   ├── monitoring/   # AI monitoring
+│   │   ├── clients/      # Customer management
+│   │   ├── services/     # Service catalog
+│   │   ├── queue/        # Queue management
+│   │   └── staff/        # Staff management
+│   ├── api/              # API routes
+│   └── login/            # Authentication
+├── components/           # Reusable UI components
+│   ├── ui/              # Shadcn/ui components
+│   └── layout/          # Layout components
+├── lib/                 # Core libraries
+│   ├── firebase/        # Firebase configuration
+│   ├── monitoring/      # Monitoring system
+│   └── utils/           # Utility functions
+├── services/            # External service integrations
+├── types/               # TypeScript type definitions
+└── data/                # Static data & knowledge base
 ```
 
-### Debug Mode
-```bash
-# Enable debug logging
-export DEBUG=bosmat:*
-npm run dev
-
-# Or with Docker
-docker-compose -f docker-compose.debug.yml up
-```
-
-### Log Analysis
-```bash
-# View application logs
-docker-compose logs -f app
-
-# Search for errors
-docker-compose logs app | grep ERROR
-
-# Monitor real-time logs
-tail -f logs/application.log
-```
-
-## 🤝 Contributing
+## 🤝 Kontribusi
 
 ### Development Workflow
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Run the test suite
-6. Submit a pull request
+1. Fork repository
+2. Create feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to branch (`git push origin feature/AmazingFeature`)
+5. Open Pull Request
 
-### Code Standards
-- **TypeScript**: Strict typing required
-- **ESLint**: Follow configured rules
-- **Prettier**: Auto-formatting enabled
-- **Testing**: Minimum 80% coverage
-- **Documentation**: Update README for new features
+### Code Style
+- Follow TypeScript strict mode
+- Use kebab-case untuk files
+- Use PascalCase untuk components
+- Use camelCase untuk variables/functions
+- Follow existing patterns
 
-### Commit Guidelines
-```bash
-# Use conventional commits
-git commit -m "feat: add new agent capability"
-git commit -m "fix: resolve caching issue"
-git commit -m "docs: update API documentation"
-```
+### AI Development
+- Test AI tools extensively
+- Document prompt changes
+- Monitor token usage
+- Ensure graceful error handling
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Distributed under the MIT License. See `LICENSE` for more information.
 
-## 🙏 Acknowledgments
+## 🆘 Support
 
-- OpenAI for providing the AI capabilities
-- Next.js team for the excellent framework
-- The open-source community for various tools and libraries
+### Documentation
+- **API Docs**: `/docs/api`
+- **AI Tools**: `/docs/ai-tools`
+- **Deployment**: `/docs/deployment`
 
-## 📞 Support
+### Community
+- **Issues**: [GitHub Issues](https://github.com/tauhidesha/Qlab-SYS/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/tauhidesha/Qlab-SYS/discussions)
 
-For support and questions:
-- Create an issue on GitHub
-- Check the [troubleshooting guide](#troubleshooting)
-- Review the [API documentation](#api-documentation)
+### Contact
+- **Email**: support@bosmat-sys.com
+- **WhatsApp**: +62-XXX-XXXX-XXXX
 
 ---
 
-**Built with ❤️ for enterprise-grade AI customer service**
+**Bosmat-SYS** - Sistem POS & AI Customer Service Bengkel Motor yang Canggih 🚀
