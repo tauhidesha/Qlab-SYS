@@ -41,7 +41,26 @@ export const zoyaTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: analyzeMotorImageTool.name,
       description: analyzeMotorImageTool.description,
-      parameters: analyzeMotorImageTool.schema
+      parameters: {
+        type: 'object',
+        properties: {
+          imageUrl: {
+            type: 'string',
+            format: 'uri',
+            description: 'URL gambar motor yang akan dianalisis'
+          },
+          analysisType: {
+            type: 'string',
+            enum: ['condition', 'damage', 'color', 'license_plate', 'detailing', 'coating', 'general'],
+            description: 'Jenis analisis yang diinginkan'
+          },
+          specificRequest: {
+            type: 'string',
+            description: 'Permintaan khusus dari customer'
+          }
+        },
+        required: ['imageUrl', 'analysisType']
+      }
     }
   }, // 🔥 NEW: AI Vision Tool
 ];
