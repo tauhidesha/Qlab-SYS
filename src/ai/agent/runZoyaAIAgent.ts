@@ -17,6 +17,11 @@ interface ZoyaAgentInput {
   session: Session;
   senderNumber: string;
   senderName?: string;
+  imageContext?: {
+    imageUrl?: string;
+    analysisType?: 'condition' | 'damage' | 'color' | 'license_plate' | 'detailing' | 'coating' | 'general';
+    analysisResult?: any;
+  };
 }
 
 interface ZoyaAgentResult {
@@ -48,7 +53,8 @@ export const runZoyaAIAgentOptimized = createTraceable(async ({
   chatHistory, 
   session, 
   senderNumber, 
-  senderName 
+  senderName,
+  imageContext
 }: ZoyaAgentInput): Promise<ZoyaAgentResult> => {
   
   console.log('[runZoyaAIAgentOptimized] Starting optimized agent');
@@ -74,6 +80,11 @@ export const runZoyaAIAgentOptimized = createTraceable(async ({
       ? `\n\n**CUSTOMER INFO**: Sedang melayani mas ${senderName} (${senderNumber})`
       : `\n\n**CUSTOMER INFO**: Sedang melayani customer ${senderNumber}`;
     
+    // Add image context if available
+    const imageContextText = imageContext 
+      ? `\n\n**IMAGE CONTEXT**: Customer mengirim foto untuk analisis ${imageContext.analysisType}. ${imageContext.analysisResult ? `Hasil analisis: ${JSON.stringify(imageContext.analysisResult)}` : 'Sedang diproses...'}`
+      : '';
+    
     // Ensure system prompt is current with customer context
     const hasSystemPrompt = optimizedHistory.some(p => p.role === 'system' && p.content?.toString().includes('Zoya'));
     
@@ -81,7 +92,7 @@ export const runZoyaAIAgentOptimized = createTraceable(async ({
       const userAndAssistantHistory = optimizedHistory.filter(p => p.role !== 'system');
       optimizedHistory.splice(0, 0, { 
         role: 'system', 
-        content: selectedPrompt + customerContext 
+        content: selectedPrompt + customerContext + imageContextText
       });
       console.log(`[runZoyaAIAgentOptimized] System prompt injected with customer: ${senderName || senderNumber}`);
     } else {
@@ -90,7 +101,7 @@ export const runZoyaAIAgentOptimized = createTraceable(async ({
       if (systemPromptIndex !== -1) {
         const existingPrompt = optimizedHistory[systemPromptIndex].content?.toString() || '';
         if (!existingPrompt.includes('CUSTOMER INFO')) {
-          optimizedHistory[systemPromptIndex].content = existingPrompt + customerContext;
+          optimizedHistory[systemPromptIndex].content = existingPrompt + customerContext + imageContextText;
           console.log(`[runZoyaAIAgentOptimized] Updated system prompt with customer: ${senderName || senderNumber}`);
         }
       }

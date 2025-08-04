@@ -94,6 +94,7 @@ export const generateWhatsAppReplyOptimized = createTraceable(async (input: Zoya
       session,
       senderNumber,
       senderName,
+      imageContext: input.imageContext, // 🔥 NEW: Pass image context
     });
 
     console.log('[generateWhatsAppReplyOptimized] Agent completed');

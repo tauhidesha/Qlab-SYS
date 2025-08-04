@@ -12,10 +12,70 @@ export async function POST(request: Request) {
     const body = await request.json();
     console.log('[API /receive] Menerima request:', body);
 
-    const { customerMessage, senderNumber, chatHistory, senderName } = body;
+    const { 
+      customerMessage, 
+      senderNumber, 
+      chatHistory, 
+      senderName,
+      mediaBase64,
+      mediaMimeType,
+      mediaType,
+      imageAnalysisRequest
+    } = body;
 
     if (!senderNumber) {
       return NextResponse.json({ success: false, error: 'senderNumber wajib diisi.' }, { status: 400 });
+    }
+
+    // 🔥 NEW: Handle Image Analysis
+    let imageContext: {
+      imageUrl: string;
+      analysisType: 'condition' | 'damage' | 'color' | 'license_plate' | 'detailing' | 'coating' | 'general';
+      analysisResult: any;
+    } | undefined = undefined;
+    if (imageAnalysisRequest?.hasImage && mediaBase64 && mediaType === 'image') {
+      try {
+        console.log('[IMAGE ANALYSIS] Processing image from WhatsApp...');
+        
+        // Convert base64 to data URL for GPT-4.1 mini
+        const imageUrl = `data:${mediaMimeType};base64,${mediaBase64}`;
+        
+        // Import image utilities
+        const { detectAnalysisType, logImageAnalysis } = await import('@/ai/utils/imageProcessing');
+        const { analyzeMotorImageTool } = await import('@/ai/tools/vision/analyzeMotorImage');
+        
+        // Auto-detect analysis type
+        const analysisType = detectAnalysisType(imageAnalysisRequest.customerMessage);
+        console.log(`[IMAGE ANALYSIS] Detected type: ${analysisType}`);
+        
+        // Run image analysis
+        const analysisResult = await analyzeMotorImageTool.implementation({
+          imageUrl,
+          analysisType,
+          specificRequest: imageAnalysisRequest.customerMessage
+        });
+        
+        // Log for monitoring
+        logImageAnalysis(senderNumber, analysisType, analysisResult, imageUrl);
+        
+        // Create image context for AI agent
+        if (analysisResult.success) {
+          imageContext = {
+            imageUrl,
+            analysisType,
+            analysisResult: {
+              analysis: analysisResult.response,
+              confidence: 0.8, // Default confidence
+              tokenUsage: analysisResult.data?.tokenUsage
+            }
+          };
+          console.log('[IMAGE ANALYSIS] Analysis successful, added to context');
+        }
+        
+      } catch (imageError) {
+        console.error('[IMAGE ANALYSIS] Error:', imageError);
+        // Continue with normal flow even if image analysis fails
+      }
     }
 
     // --- ALUR BARU: Modular Handlers dengan Ghostwriting ---
@@ -58,9 +118,10 @@ export async function POST(request: Request) {
     // 4. Jika semua handler di atas tidak cocok, lanjutkan ke AI Zoya seperti biasa
     const input: ZoyaChatInput = {
       senderNumber,
-      customerMessage,
+      customerMessage: customerMessage || (imageContext ? '[Image sent for analysis]' : ''),
       chatHistory: chatHistory || [],
       senderName,
+      imageContext, // 🔥 NEW: Pass image analysis context
     };
 
     const aiResponse = await generateWhatsAppReply(input);

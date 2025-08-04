@@ -17,6 +17,7 @@ import { triggerBosMatTool } from '../tools/impl/triggerBosMamatTool';
 import { extractBookingDetailsTool } from '../tools/extractBookingDetailsTool'; // ✅ tambahkan ini kalau belum
 import { searchKnowledgeBaseTool } from '../tools/searchKnowledgeBaseTool';
 import { updateCartToolDefinition, updateCartToolImplementation } from '../tools/updateCartTool';
+import { analyzeMotorImageTool } from '../tools/vision/analyzeMotorImage'; // 🔥 NEW: AI Vision
 
 import { masterPrompt } from './aiPrompts';
 
@@ -35,6 +36,14 @@ export const zoyaTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   extractBookingDetailsTool.toolDefinition, // ✅ daftar ke GPT
   searchKnowledgeBaseTool.toolDefinition,
   updateRepaintDetailsTool.toolDefinition,
+  {
+    type: 'function',
+    function: {
+      name: analyzeMotorImageTool.name,
+      description: analyzeMotorImageTool.description,
+      parameters: analyzeMotorImageTool.schema
+    }
+  }, // 🔥 NEW: AI Vision Tool
 ];
 
 export const toolFunctionMap = {
@@ -52,6 +61,7 @@ export const toolFunctionMap = {
   triggerBosMatTool: triggerBosMatTool,
   searchKnowledgeBase: searchKnowledgeBaseTool,
   updateRepaintDetailsTool: updateRepaintDetailsTool,
+  analyzeMotorImage: analyzeMotorImageTool, // 🔥 NEW: AI Vision
   updateCart: {
     definition: updateCartToolDefinition,
     implementation: updateCartToolImplementation,

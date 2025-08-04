@@ -16,6 +16,11 @@ export const ZoyaChatInputSchema = z.object({
   senderNumber: z.string().optional().describe('Nomor WhatsApp pengirim (sudah diformat dengan @c.us).'),
   senderName: z.string().optional().describe('Nama dari pengirim WhatsApp.'),
   chatHistory: z.array(ChatMessageSchema).optional().describe('Riwayat percakapan sebelumnya.'),
+  imageContext: z.object({
+    imageUrl: z.string(),
+    analysisType: z.enum(['condition', 'damage', 'color', 'license_plate', 'detailing', 'coating', 'general']),
+    analysisResult: z.any()
+  }).optional().describe('Konteks analisis gambar dari AI vision.'),
 });
 export type ZoyaChatInput = z.infer<typeof ZoyaChatInputSchema>;
 

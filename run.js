@@ -82,6 +82,20 @@ async function processBufferedMessages(senderNumber, client) {
                 apiPayload.mediaBase64 = buffer.toString('base64');
                 apiPayload.mediaMimeType = lastMediaMessage.originalMsg.mimetype;
                 apiPayload.mediaType = lastMediaMessage.originalMsg.type;
+                
+                // 🔥 NEW: AI Vision Integration
+                if (lastMediaMessage.originalMsg.type === 'image') {
+                    // Detect analysis type from combined message or image caption
+                    const imageCaption = lastMediaMessage.originalMsg.caption || '';
+                    const fullContext = combinedMessage + ' ' + imageCaption;
+                    apiPayload.imageAnalysisRequest = {
+                        hasImage: true,
+                        customerMessage: fullContext,
+                        analysisType: 'auto-detect' // Will be detected by imageProcessing utils
+                    };
+                    console.log(`[AI VISION] Image detected with context: "${fullContext}"`);
+                }
+                
                 console.log(`[DEBOUNCED] Last media processed as base64. Mimetype: ${lastMediaMessage.originalMsg.mimetype}`);
             } catch (uploadError) {
                 console.error('[ERROR] Failed to process buffered media:', uploadError);
@@ -133,10 +147,18 @@ function start(client) {
         const senderName = msg.sender.pushname || msg.notifyName || senderNumber;
         const messageContent = msg.body;
         const isMedia = msg.isMedia || msg.type === 'image' || msg.type === 'document';
+        const isImage = msg.type === 'image';
         
         if (!messageContent && !isMedia) return;
 
-        console.log(`[BUFFER] Received message from ${senderName}. Buffering...`);
+        // 🔥 Log different types of messages
+        if (isImage) {
+            console.log(`[BUFFER] 📸 Image received from ${senderName}. Caption: "${msg.caption || 'No caption'}"`);
+        } else if (isMedia) {
+            console.log(`[BUFFER] 📎 Media received from ${senderName}. Type: ${msg.type}`);
+        } else {
+            console.log(`[BUFFER] 💬 Text received from ${senderName}: "${messageContent}"`);
+        }
         
         await saveMessageToFirestore(senderNumber, messageContent || `[Media: ${msg.type}]`, 'user');
         await saveSenderMeta(senderNumber, senderName);
@@ -149,8 +171,9 @@ function start(client) {
 
         const messages = messageBuffers.get(senderNumber)?.messages || [];
         messages.push({
-            content: messageContent,
+            content: messageContent || (isImage ? msg.caption || '[Image sent]' : `[${msg.type}]`),
             isMedia: isMedia,
+            isImage: isImage,
             originalMsg: msg, // Simpan objek pesan asli untuk decrypt media nanti
         });
 
