@@ -45,18 +45,6 @@ const hargaLayanan = [
     "price": 150000
   },
   {
-    "name": "Cuci Premium",
-    "category": "cuci",
-    "price": 0,
-    "estimatedDuration": "60",
-    "variants": [
-      { "name": "S", "price": 35000 },
-      { "name": "M", "price": 45000 },
-      { "name": "L", "price": 55000 },
-      { "name": "XL", "price": 100000 }
-    ]
-  },
-  {
     "name": "Detailing Mesin",
     "category": "detailing",
     "price": 0,

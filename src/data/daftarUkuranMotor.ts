@@ -12,7 +12,7 @@ const daftarUkuranMotor = [
     "model": "scoopy",
     "service_size": "S",
     "repaint_size": "M",
-    "aliases": ["honda scoopy"]
+    "aliases": ["honda scoopy", "scoopy prestige", "scoopy sporty", "scoopy stylish", "scoopy fi", "scoopy injection"]
   },
   {
     "model": "supra",

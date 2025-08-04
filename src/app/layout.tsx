@@ -24,7 +24,12 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="id" className="dark">
+    <html 
+      lang="id" 
+      className="dark" 
+      suppressHydrationWarning={process.env.NODE_ENV === 'development'}
+    >
+      {/* suppressHydrationWarning used in development to ignore browser extension attributes like data-kantu */}
       <head>
         {/* Google Fonts */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />

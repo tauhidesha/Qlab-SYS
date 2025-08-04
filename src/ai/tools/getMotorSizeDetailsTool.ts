@@ -56,12 +56,20 @@ async function implementation(input: Input): Promise<Output> {
       message: 'motor_query tidak valid atau kosong.',
     };
   }
-  // Hilangkan angka (tahun/model) di belakang, misal: "nmax 2023" => "nmax"
-  motor_query = motor_query.replace(/\s*\d{4,5}\b.*$/, '').replace(/\s+abs\b.*$/, '').trim();
+  
+  // Hilangkan tahun, model khusus, dan kata-kata tambahan
+  motor_query = motor_query
+    .replace(/\s*\d{4,5}\b.*$/, '') // hilangkan tahun (2023, 2024, dll)
+    .replace(/\s+abs\b.*$/, '') // hilangkan kata "abs"
+    .replace(/\s+(prestige|sporty|stylish|deluxe|premium|grande|fi|esp|cw|pgm-fi|injection)\b.*$/i, '') // hilangkan varian
+    .replace(/\s+(125|150|160|250|300)\b.*$/i, '') // hilangkan cc yang spesifik
+    .trim();
+    
   // Jika masih ada lebih dari 2 kata, ambil 2 kata pertama saja
   if (motor_query.split(' ').length > 2) {
     motor_query = motor_query.split(' ').slice(0, 2).join(' ');
   }
+  
   console.log('[getMotorSizeDetailsTool][DEBUG] Query (normalized):', motor_query);
 
   let bestMatch: typeof daftarUkuranMotor[number] | null = null;
@@ -74,7 +82,18 @@ async function implementation(input: Input): Promise<Output> {
     const candidates = [model, ...aliases];
 
     for (const candidate of candidates) {
-      const score = getSimilarity(motor_query, candidate);
+      let score = getSimilarity(motor_query, candidate);
+      
+      // Boost score jika ada partial match yang kuat
+      if (motor_query.includes(candidate) || candidate.includes(motor_query)) {
+        score = Math.max(score, 0.85);
+      }
+      
+      // Boost score untuk common variations
+      if (motor_query === 'scoopy' && candidate.includes('scoopy')) {
+        score = Math.max(score, 0.95);
+      }
+      
       // OPSI: Matikan log ini jika sudah tidak diperlukan untuk mengurangi noise
       // console.log(`[getMotorSizeDetailsTool][DEBUG] Cek kandidat: "${candidate}" vs "${motor_query}" => similarity: ${score}`);
       if (score > bestScore) {
