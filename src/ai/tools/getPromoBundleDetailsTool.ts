@@ -35,7 +35,7 @@ async function implementation(input: Input): Promise<Output> {
         promoDetails: promoBundling,
         terms: promoTerms, // <<< baru
         note: `🔥 Ada promo spesial buat semua tipe motor nih bro, biar makin kinclong tanpa bikin kantong bolong!`,
-        summary: `✅ *Repaint Bodi Halus* + *Full Detailing Glossy*\n💰 Hemat sampai *300rb-an*! Buruan sebelum slot-nya habis ya, bro 😎`,
+        summary: `✅ *Repaint Bodi Halus* + *Full Detailing Glossy*\n💰 Harga promo mulai dari *1.2jt* - Hemat sampai *800rb* untuk motor besar + cat spesial GRATIS! Buruan sebelum slot-nya habis ya, bro 😎`,
       };
     }
 
