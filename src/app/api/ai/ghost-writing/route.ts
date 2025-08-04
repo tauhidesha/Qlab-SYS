@@ -23,9 +23,8 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { 
           success: false, 
-          error: 'Message is required',
-          zoyaMessage: 'Halo mas! Sepertinya pesannya kosong nih 😅 Coba kirim lagi ya!',
-          isFallback: true
+          shouldCancel: true,
+          error: 'Message is required - empty message'
         },
         { status: 400 }
       );
