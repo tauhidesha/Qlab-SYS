@@ -8,6 +8,7 @@ import { optimizeConversationHistory, monitorTokenUsage, calculateConversationTo
 import { lightweightPrompt } from '@/ai/config/aiPrompts';
 import { isInterventionLockActive } from '@/ai/utils/interventionLock';
 import { triggerBosMatTool } from '@/ai/tools/impl/triggerBosMamatTool';
+import { sendBookingConversion } from '@/services/metaConversionApi'; // 🔥 NEW: Meta Conversion API
 import type { ZoyaChatInput, WhatsAppReplyOutput } from '@/types/ai/cs-whatsapp-reply';
 import type { Session } from '@/types/ai/session';
 import { createTraceable, TRACE_TAGS, createTraceMetadata } from '@/lib/langsmith';
@@ -186,6 +187,35 @@ export const generateWhatsAppReplyOptimized = createTraceable(async (input: Zoya
 
     // 🔥 NEW: Record AI metrics for monitoring
     const endTime = Date.now();
+    
+    // 🔥 META CONVERSION API: Track booking conversions for IG ads
+    const hasBookingConversion = agentResult.metadata.toolsUsed.includes('createBooking');
+    if (hasBookingConversion) {
+      console.log('[META CONVERSION] Booking detected, triggering Meta Conversion API...');
+      
+      try {
+        // Extract booking data from AI response or session
+        const bookingData = {
+          customerPhone: senderNumber,
+          customerName: senderName || 'Customer',
+          services: session.cartServices || [{ serviceName: 'Service Booking', price: 100000 }], // Default or from session
+          totalValue: session.cartServices?.reduce((total, service) => total + (service.price || 100000), 0) || 100000,
+          bookingId: conversationId
+        };
+        
+        const conversionResult = await sendBookingConversion(bookingData);
+        
+        if (conversionResult.success) {
+          console.log('[META CONVERSION] Successfully sent to Meta:', conversionResult.eventId);
+        } else {
+          console.warn('[META CONVERSION] Failed to send:', conversionResult.error);
+        }
+      } catch (conversionError) {
+        console.error('[META CONVERSION] Error:', conversionError);
+        // Don't fail the main flow if conversion tracking fails
+      }
+    }
+    
     const aiMetrics: Omit<AIMetrics, 'timestamp' | 'version'> = {
       conversationId,
       customerPhone: senderNumber,
@@ -201,7 +231,7 @@ export const generateWhatsAppReplyOptimized = createTraceable(async (input: Zoya
         actual: agentResult.metadata.tokenUsage.actual,
         cost: ((agentResult.metadata.tokenUsage.estimated || 0) * 0.00015 / 1000) // Rough GPT-4 cost estimate
       },
-      conversionType: agentResult.metadata.toolsUsed.includes('createBooking') ? 'booking' : 
+      conversionType: hasBookingConversion ? 'booking' : 
                      agentResult.metadata.toolsUsed.includes('triggerBosMatTool') ? 'handover' : 'info',
       humanHandover: agentResult.metadata.toolsUsed.includes('triggerBosMatTool'),
       errors: [],
