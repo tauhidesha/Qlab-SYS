@@ -154,6 +154,8 @@ Akses `/ai-cs-assistant` untuk:
 - Monitor chat WhatsApp real-time
 - Lihat conversation history
 - Manual intervention jika diperlukan
+- **Ghost Writing Mode**: Konversi pesan manual ke style Zoya otomatis
+- Template pesan cepat
 - Analytics percakapan
 
 ### 3. POS System
@@ -260,11 +262,72 @@ Zoya AI dilengkapi dengan 10+ specialized tools:
 8. **cancelBooking**: Cancel booking dengan reason
 9. **getCustomerHistory**: Riwayat customer
 10. **processPayment**: Proses pembayaran
+11. **ghostWriting**: Konversi pesan manual ke style Zoya
 
 ### Workflow Tools
 - **escalateToHuman**: Handover ke human operator
 - **generateReceipt**: Generate receipt/invoice
 - **sendNotification**: Kirim notifikasi customer
+- **ghostWritingMode**: Format otomatis pesan dengan style Zoya
+
+## 🎭 Ghost Writing System
+
+Fitur canggih untuk mengkonversi pesan manual admin menjadi format natural Zoya secara otomatis.
+
+### Cara Kerja Ghost Writing
+
+1. **Aktivasi Mode**: Toggle "Mode Zoya" di halaman AI CS Assistant
+2. **Input Pesan**: Ketik pesan normal dalam bahasa sehari-hari
+3. **AI Conversion**: Sistem otomatis mengkonversi ke style Zoya
+4. **Send WhatsApp**: Pesan terkirim dengan format natural Zoya
+
+### Format Conversion
+
+**Input Manual:**
+```
+Booking sudah dikonfirmasi. Ditunggu kedatangannya ya!
+```
+
+**Output Zoya Style:**
+```
+Siap mas! *Booking sudah dikonfirmasi* nih untuk besok jam 10 pagi. 
+Ditunggu kedatangannya ya! 🙏
+
+Jangan lupa bawa kendaraan yang mau di-service. 
+See you tomorrow! ✨
+```
+
+### Quick Templates
+
+Tersedia template pesan cepat untuk situasi umum:
+- **Booking Confirmed**: Konfirmasi booking customer
+- **Motor Ready**: Notifikasi motor sudah selesai
+- **Payment Received**: Konfirmasi pembayaran diterima
+- **Schedule Change**: Pemberitahuan perubahan jadwal
+- **Promo Info**: Informasi promo terbaru
+- **Service Complete**: Notifikasi layanan selesai
+
+### API Endpoint
+
+```typescript
+POST /api/ai/ghost-writing
+{
+  "message": "Booking sudah dikonfirmasi",
+  "customerName": "John Doe", 
+  "customerPhone": "628123456789"
+}
+
+Response:
+{
+  "success": true,
+  "originalMessage": "Booking sudah dikonfirmasi",
+  "zoyaMessage": "Siap mas! *Booking sudah dikonfirmasi* nih...",
+  "metadata": {
+    "toolsUsed": ["ghostWriting"],
+    "route": "ghost_writing_conversion"
+  }
+}
+```
 
 ## 📊 Monitoring
 

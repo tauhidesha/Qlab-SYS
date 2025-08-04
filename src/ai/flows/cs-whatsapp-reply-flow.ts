@@ -87,6 +87,22 @@ export const generateWhatsAppReplyOptimized = createTraceable(async (input: Zoya
     history.push({ role: 'user', content: customerMessage });
     console.log(`[generateWhatsAppReplyOptimized] Added user message: ${customerMessage.substring(0, 50)}...`);
 
+        // 🔥 IG ADS TRAFFIC DETECTION: Smart detection for general inquiries
+    const isGeneralInquiry = /^(halo|hai|hi|info|bisakah|bisa|mau tanya|pengen tahu|berapa|harga|promo|detail|selengkapnya|paket|layanan|service)(\s|$|!|\?)/i.test(customerMessage.trim());
+    const isBookingInquiry = /(booking|book|reservasi|pesan|jadwal|slot|antri|giliran)/i.test(customerMessage.trim());
+    const isSpecificInquiry = /^(motor\s|sudah\s|status\s|kapan\s|jam\s|alamat\s|lokasi\s|hari\s|tanggal\s)/i.test(customerMessage.trim());
+    const isFirstMessage = history.filter(p => p.role === 'user').length === 1; // Only current message
+    
+    // Only trigger promo for truly general inquiries, NOT booking inquiries
+    if (isGeneralInquiry && isFirstMessage && !isSpecificInquiry && !isBookingInquiry) {
+      console.log('[IG ADS TRAFFIC] Detected general inquiry from potential IG ads traffic, prioritizing promo bundling');
+      // Add promo context to help AI prioritize bundling promo
+      history.push({ 
+        role: 'system', 
+        content: `PRIORITAS: Customer baru dengan pertanyaan umum - langsung kasih info promo bundling terbaik dengan getPromoBundleDetails untuk tarik minat!`
+      });
+    }
+
     // Add current date context (minimal)
     const currentDate = new Date();
     const dateContext = `Tanggal: ${currentDate.toLocaleDateString('id-ID')}`;

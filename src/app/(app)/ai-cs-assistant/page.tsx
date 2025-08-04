@@ -8,7 +8,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Loader2, MessageSquareText, Sparkles, Copy, Send, User, Search, Bot, MessageCircle, ThumbsUp, ThumbsDown, Edit2, ShieldAlert, Settings, ArrowLeft } from 'lucide-react'; // Removed BrainCircuit, PhoneForwarded, Info, PlusCircle, Trash2
+import { Loader2, MessageSquareText, Sparkles, Copy, Send, User, Search, Bot, MessageCircle, ThumbsUp, ThumbsDown, Edit2, ShieldAlert, Settings, ArrowLeft, Wand2 } from 'lucide-react'; // Added Wand2 for ghost writing
 import { useToast } from '@/hooks/use-toast';
 import { generateWhatsAppReply } from '@/ai/flows/cs-whatsapp-reply-flow';
 import type { ChatMessage, ZoyaChatInput, WhatsAppReplyOutput } from '@/types/ai/cs-whatsapp-reply';
@@ -117,10 +117,22 @@ export default function AiCsAssistantPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isPlaygroundMode, setIsPlaygroundMode] = useState(false);
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
+  const [isGhostWritingMode, setIsGhostWritingMode] = useState(false); // 🎭 NEW: Ghost writing toggle
+  const [showQuickTemplates, setShowQuickTemplates] = useState(false); // Quick templates toggle
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const playgroundMessagesEndRef = useRef<HTMLDivElement>(null);
   const unsubscribeChatRef = useRef<(() => void) | null>(null);
+
+  // 🎭 Quick Message Templates
+  const quickTemplates = [
+    { label: "Booking Confirmed", text: "Booking sudah dikonfirmasi. Ditunggu kedatangannya ya!" },
+    { label: "Motor Ready", text: "Motor sudah selesai, bisa diambil kapan saja." },
+    { label: "Payment Received", text: "Pembayaran sudah diterima. Terima kasih!" },
+    { label: "Schedule Change", text: "Ada perubahan jadwal, mohon konfirmasi ulang." },
+    { label: "Promo Info", text: "Ada promo spesial nih, mau info lebih detail?" },
+    { label: "Service Complete", text: "Semua layanan sudah selesai dengan hasil maksimal." }
+  ];
 
   // AI Agent Settings & Knowledge Base related state and functions are MOVED to the new settings page.
 
@@ -393,6 +405,8 @@ const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
     setCustomerMessageInput('');
     setCurrentPlaygroundInput('');
     setPlaygroundChatHistory([]);
+    setIsGhostWritingMode(false); // Reset ghost writing when switching modes
+    setShowQuickTemplates(false); // Reset templates
     if (isMobileView) {
       setShowChatView(true);
     }
@@ -406,6 +420,8 @@ const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
     setIsPlaygroundMode(false);
     setSelectedCustomer(customer);
     setCustomerMessageInput('');
+    setIsGhostWritingMode(false); // Reset ghost writing when switching customers
+    setShowQuickTemplates(false); // Reset templates
     if (isMobileView) {
       setShowChatView(true);
     }
@@ -415,6 +431,8 @@ const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
     setShowChatView(false);
     setSelectedCustomer(null);
     setIsPlaygroundMode(false);
+    setIsGhostWritingMode(false); // Reset ghost writing when going back
+    setShowQuickTemplates(false); // Reset templates
   };
 
   const handleSendPlaygroundMessage = async () => {
@@ -519,12 +537,56 @@ const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
         return;
     }
 
-    const textToSend = customerMessageInput.trim();
+    let textToSend = customerMessageInput.trim();
     const originalInput = customerMessageInput;
     setCustomerMessageInput('');
     setIsSendingWhatsApp(true);
 
     try {
+      // 🎭 GHOST WRITING: Convert message to Zoya style if enabled
+      if (isGhostWritingMode) {
+        console.log('[Ghost Writing] Converting message to Zoya style...');
+        
+        try {
+          const ghostResponse = await fetch('/api/ai/ghost-writing', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: textToSend,
+              customerName: selectedCustomer.name,
+              customerPhone: formattedPhoneForSending
+            }),
+          });
+
+          const ghostResult = await ghostResponse.json();
+          
+          if (ghostResponse.ok && ghostResult.success && ghostResult.zoyaMessage) {
+            textToSend = ghostResult.zoyaMessage;
+            console.log('[Ghost Writing] Message converted successfully:', textToSend);
+            
+            toast({
+              title: "✨ Ghost Writing Success",
+              description: "Pesan telah dikonversi ke style Zoya",
+              variant: "default",
+            });
+          } else {
+            console.warn('[Ghost Writing] Conversion failed:', ghostResult.error);
+            toast({
+              title: "Ghost Writing Fallback",
+              description: "Menggunakan pesan asli (AI tidak tersedia)",
+              variant: "default",
+            });
+          }
+        } catch (ghostError) {
+          console.error('[Ghost Writing] Error during conversion:', ghostError);
+          toast({
+            title: "Ghost Writing Error",
+            description: "Menggunakan pesan asli",
+            variant: "default",
+          });
+        }
+      }
+
       const response = await fetch('/api/whatsapp/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -534,8 +596,8 @@ const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
 
       if (response.ok && result.success) {
         toast({
-          title: "Pesan Terkirim ke WhatsApp",
-          description: `Pesan Anda sedang dikirim ke ${selectedCustomer.name}.`,
+          title: isGhostWritingMode ? "Pesan Zoya Terkirim" : "Pesan Terkirim ke WhatsApp",
+          description: `Pesan ${isGhostWritingMode ? 'dengan style Zoya ' : ''}sedang dikirim ke ${selectedCustomer.name}.`,
         });
 
         // Save CS message to subcollection (same structure as WhatsApp server and AI)
@@ -545,7 +607,7 @@ const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
           sender: 'user', // CS staff manual message
           timestamp: serverTimestamp(),
           // Additional metadata for CS tracking
-          sentBy: 'cs-dashboard',
+          sentBy: isGhostWritingMode ? 'cs-dashboard-ghost' : 'cs-dashboard',
           customerName: selectedCustomer.name,
           customerId: selectedCustomer.id,
           // Add unique identifier to prevent duplicates
@@ -662,6 +724,17 @@ const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
     toast({ title: "Koreksi Disimpan", description: "Feedback Anda telah dicatat.", variant: "default" });
   };
 
+  // 🎭 Handle template selection
+  const handleTemplateSelect = (template: { label: string; text: string }) => {
+    setCustomerMessageInput(template.text);
+    setShowQuickTemplates(false);
+    toast({
+      title: "Template Dipilih",
+      description: `Template "${template.label}" telah ditambahkan ke pesan.`,
+      variant: "default",
+    });
+  };
+
 
   const filteredCustomers = customers.filter(customer =>
     customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -702,15 +775,29 @@ const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
               </div>
             </div>
             {!isPlaygroundMode && selectedCustomer?.phone && (
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={handleSetManualLock}
-                disabled={isSendingWhatsApp}
-                title="Aktifkan lock AI selama 1 jam"
-              >
-                <ShieldAlert className="h-4 w-4" />
-              </Button>
+              <div className="flex space-x-2">
+                <Button
+                  variant={isGhostWritingMode ? "default" : "outline"}
+                  size="icon"
+                  onClick={() => setIsGhostWritingMode(!isGhostWritingMode)}
+                  className={cn(
+                    "h-8 w-8",
+                    isGhostWritingMode && "bg-purple-600 hover:bg-purple-700 text-white"
+                  )}
+                  title={isGhostWritingMode ? "Matikan Mode Zoya" : "Aktifkan Mode Zoya"}
+                >
+                  <Wand2 className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handleSetManualLock}
+                  disabled={isSendingWhatsApp}
+                  title="Aktifkan lock AI selama 1 jam"
+                >
+                  <ShieldAlert className="h-4 w-4" />
+                </Button>
+              </div>
             )}
           </div>
         ) : (
@@ -924,20 +1011,35 @@ const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
                     <CardHeader className="p-4 border-b">
                       <div className="flex justify-between items-center">
                           <div>
-                              <CardTitle className="text-lg">
+                              <CardTitle className="text-lg flex items-center">
                               {selectedCustomer.name}
+                              {isGhostWritingMode && (
+                                <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full flex items-center">
+                                  <Wand2 className="h-3 w-3 mr-1" />
+                                  Zoya Mode
+                                </span>
+                              )}
                               </CardTitle>
-                              <CardDescription>{selectedCustomer.phone || "Nomor HP tidak tersedia"}</CardDescription>
+                              <CardDescription>
+                                {selectedCustomer.phone || "Nomor HP tidak tersedia"}
+                                {isGhostWritingMode && (
+                                  <span className="block text-purple-600 text-xs mt-1">
+                                    ✨ Pesan akan diformat dengan style natural Zoya
+                                  </span>
+                                )}
+                              </CardDescription>
                           </div>
-                          <Button
+                          <div className="flex space-x-2">
+                            <Button
                               variant="outline"
                               size="icon"
                               onClick={handleSetManualLock}
                               disabled={isSendingWhatsApp || !selectedCustomer.phone}
                               title="Aktifkan lock AI selama 1 jam"
-                          >
+                            >
                               <ShieldAlert className="h-4 w-4" />
-                          </Button>
+                            </Button>
+                          </div>
                       </div>
                     </CardHeader>
                   )}
@@ -953,23 +1055,85 @@ const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
                   <Separator />
                   <Card className="rounded-none border-0 border-t shadow-none">
                     <CardContent className="p-4">
+                      {/* 🎭 Ghost Writing Toggle & Quick Templates */}
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            variant={isGhostWritingMode ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setIsGhostWritingMode(!isGhostWritingMode)}
+                            className={cn(
+                              "text-xs h-7",
+                              isGhostWritingMode && "bg-purple-600 hover:bg-purple-700 text-white"
+                            )}
+                          >
+                            <Wand2 className="h-3 w-3 mr-1" />
+                            {isGhostWritingMode ? "Mode Zoya ON" : "Mode Zoya OFF"}
+                          </Button>
+                          
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowQuickTemplates(!showQuickTemplates)}
+                            className="text-xs h-7"
+                          >
+                            <MessageSquareText className="h-3 w-3 mr-1" />
+                            Templates
+                          </Button>
+                          
+                          {isGhostWritingMode && (
+                            <span className="text-xs text-purple-600 font-medium">
+                              ✨ Pesan akan diformat dengan style Zoya
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Quick Templates */}
+                      {showQuickTemplates && (
+                        <div className="mb-3 p-3 bg-muted rounded-lg">
+                          <p className="text-xs text-muted-foreground mb-2">Template Pesan Cepat:</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {quickTemplates.map((template, index) => (
+                              <Button
+                                key={index}
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleTemplateSelect(template)}
+                                className="justify-start text-xs h-8 p-2"
+                              >
+                                {template.label}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
                       <div className="flex items-center space-x-2">
                         <Textarea
                           id="customer-message-input"
-                          placeholder="Ketik balasan Anda di sini..."
+                          placeholder={isGhostWritingMode 
+                            ? "Ketik pesan Anda, akan diformat dengan style Zoya..." 
+                            : "Ketik balasan Anda di sini..."}
                           value={customerMessageInput}
                           onChange={(e) => setCustomerMessageInput(e.target.value)}
                           onKeyDown={handleKeyDown}
                           rows={1}
                           disabled={isSendingWhatsApp || !selectedCustomer?.phone}
-                          className="bg-background flex-1 resize-none min-h-[40px] max-h-[120px]"
+                          className={cn(
+                            "bg-background flex-1 resize-none min-h-[40px] max-h-[120px]",
+                            isGhostWritingMode && "border-purple-200 focus-visible:ring-purple-500"
+                          )}
                         />
                         <Button
                           size="icon"
                           onClick={handleSendMessage}
                           disabled={isSendingWhatsApp || !customerMessageInput.trim() || !selectedCustomer?.phone}
-                          className="h-10 w-10 shrink-0"
-                          aria-label="Kirim Pesan Manual"
+                          className={cn(
+                            "h-10 w-10 shrink-0",
+                            isGhostWritingMode && "bg-purple-600 hover:bg-purple-700"
+                          )}
+                          aria-label={isGhostWritingMode ? "Kirim Pesan dengan Style Zoya" : "Kirim Pesan Manual"}
                         >
                           {isSendingWhatsApp ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
                         </Button>
