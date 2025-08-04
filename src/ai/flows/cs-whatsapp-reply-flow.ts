@@ -70,13 +70,14 @@ export const generateWhatsAppReplyOptimized = createTraceable(async (input: Zoya
       console.log('[generateWhatsAppReplyOptimized] Applied aggressive conversation optimization');
     }
     
-    // Ensure lightweight system prompt for long conversations
+    // Use enhanced lightweight prompt for optimal format (bullet points, concise)
+    // while maintaining comprehensive service information
     const hasSystemPrompt = history.some(p => p.role === 'system' && p.content?.toString().includes('Zoya'));
     
     if (!hasSystemPrompt) {
       const userAndAssistantHistory = history.filter(p => p.role !== 'system');
       history = [{ role: 'system', content: lightweightPrompt }, ...userAndAssistantHistory];
-      console.log('[generateWhatsAppReplyOptimized] Lightweight system prompt injected');
+      console.log('[generateWhatsAppReplyOptimized] Enhanced lightweight prompt injected');
     }
 
     // Add current user message
