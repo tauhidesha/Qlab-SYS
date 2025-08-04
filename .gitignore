@@ -30,11 +30,23 @@ dist/
 # File Testing
 coverage/
 .nyc_output/
+test-*.js
+test-*.ts
+debug-*.js
+analyze-*.js
 
 # File Temporary
 tmp/
 temp/
 *.swp
+*.log
+log/
+scripts/
+embedKnowledgeBase.ts
+regenerate-embeddings.ts
+index-data.ts
+populate-knowledge-base.js
+exportKnowledgeBase.js
 
 # File Firebase
 firebase-debug.log
