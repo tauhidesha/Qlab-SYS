@@ -18,6 +18,8 @@ import { extractBookingDetailsTool } from '../tools/extractBookingDetailsTool'; 
 import { searchKnowledgeBaseTool } from '../tools/searchKnowledgeBaseTool';
 import { updateCartToolDefinition, updateCartToolImplementation } from '../tools/updateCartTool';
 import { analyzeMotorImageTool } from '../tools/vision/analyzeMotorImage'; // 🔥 NEW: AI Vision
+import { detectConversationRelevanceTool } from '../tools/conversation/detectConversationRelevance'; // 🔥 NEW: Conversation Management
+import { getStudioInfoTool } from '../tools/getStudioInfoTool'; // 🔥 NEW: Studio Info Tool
 
 import { masterPrompt } from './aiPrompts';
 
@@ -36,6 +38,7 @@ export const zoyaTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   extractBookingDetailsTool.toolDefinition, // ✅ daftar ke GPT
   searchKnowledgeBaseTool.toolDefinition,
   updateRepaintDetailsTool.toolDefinition,
+  getStudioInfoTool.toolDefinition, // 🔥 NEW: Studio Info Tool
   {
     type: 'function',
     function: {
@@ -63,6 +66,27 @@ export const zoyaTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
       }
     }
   }, // 🔥 NEW: AI Vision Tool
+  {
+    type: 'function',
+    function: {
+      name: detectConversationRelevanceTool.name,
+      description: detectConversationRelevanceTool.description,
+      parameters: {
+        type: 'object',
+        properties: {
+          customerMessage: {
+            type: 'string',
+            description: 'Pesan terakhir dari customer'
+          },
+          conversationContext: {
+            type: 'string',
+            description: 'Konteks percakapan sebelumnya'
+          }
+        },
+        required: ['customerMessage']
+      }
+    }
+  }, // 🔥 NEW: Conversation Relevance Tool
 ];
 
 export const toolFunctionMap = {
@@ -81,6 +105,8 @@ export const toolFunctionMap = {
   searchKnowledgeBase: searchKnowledgeBaseTool,
   updateRepaintDetailsTool: updateRepaintDetailsTool,
   analyzeMotorImage: analyzeMotorImageTool, // 🔥 NEW: AI Vision
+  detectConversationRelevance: detectConversationRelevanceTool, // 🔥 NEW: Conversation Management
+  getStudioInfo: getStudioInfoTool, // 🔥 NEW: Studio Info Tool
   updateCart: {
     definition: updateCartToolDefinition,
     implementation: updateCartToolImplementation,

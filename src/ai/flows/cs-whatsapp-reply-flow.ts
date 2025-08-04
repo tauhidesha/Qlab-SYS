@@ -64,6 +64,53 @@ export const generateWhatsAppReplyOptimized = createTraceable(async (input: Zoya
     let history = await getConversationHistory(senderNumber);
     console.log(`[generateWhatsAppReplyOptimized] Retrieved ${history.length} messages from history`);
     
+    // 🚨 NEW: Check conversation relevance to prevent unnecessary responses
+    const conversationContext = history.slice(-4).map(h => h.content).join(' ');
+    
+    // Quick relevance check for obvious stop conditions
+    const lowerMessage = customerMessage.toLowerCase();
+    const shouldStopKeywords = [
+      'bandung', 'di bandung', 'jakarta', 'surabaya', 'yogya', 'medan', 'makassar',
+      'jauh banget', 'terlalu jauh', 'di luar kota', 'beda kota',
+      'cara berhenti', 'stop balas', 'jangan balas', 'matiin notif',
+      'ga jadi', 'tidak jadi', 'batal', 'sudah tidak perlu'
+    ];
+    
+    const shouldStopConversation = shouldStopKeywords.some(keyword => lowerMessage.includes(keyword));
+    
+    if (shouldStopConversation) {
+      console.log('[CONVERSATION STOP] Detected stop condition, ending conversation gracefully');
+      
+      let stopMessage = '';
+      if (lowerMessage.includes('bandung') || lowerMessage.includes('di bandung')) {
+        stopMessage = 'Wah mas di Bandung ya? Sayang sekali Bosmat hanya melayani area Depok-Jakarta. Terima kasih sudah menanyakan layanan kami! 😊';
+      } else if (lowerMessage.includes('cara berhenti') || lowerMessage.includes('stop balas')) {
+        stopMessage = 'Baik mas, chat otomatis sudah distop. Kalau butuh info layanan Bosmat lagi nanti bisa chat ulang ya! 😊';
+      } else if (lowerMessage.includes('jauh') || lowerMessage.includes('luar kota')) {
+        stopMessage = 'Oke mas, memang agak jauh ya. Kalau nanti ada rencana ke area Depok-Jakarta, bisa hubungi kami lagi! 😊';
+      } else {
+        stopMessage = 'Oke mas, terima kasih sudah bertanya tentang Bosmat. Kalau nanti butuh info lagi, silakan chat ya! 😊';
+      }
+      
+      // Save the stop response and end conversation
+      await saveAIResponse(senderNumber, stopMessage, { 
+        toolsUsed: ['conversation_stopped'], 
+        iterations: 0
+      });
+      
+      return {
+        suggestedReply: stopMessage,
+        toolCalls: [],
+        route: 'conversation_stopped',
+        metadata: { 
+          toolsUsed: ['conversation_stopped'],
+          iterations: 0,
+          tokenUsage: { estimated: 50 },
+          stopReason: 'irrelevant_conversation'
+        },
+      };
+    }
+    
     // Monitor initial token usage
     const initialStats = calculateConversationTokens(history);
     console.log(`[generateWhatsAppReplyOptimized] Initial conversation tokens: ${initialStats.totalTokens}`);
