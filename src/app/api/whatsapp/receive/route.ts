@@ -27,15 +27,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'senderNumber wajib diisi.' }, { status: 400 });
     }
 
-    // 🔥 NEW: Handle Image Analysis
+    // 🔥 NEW: Handle Image Analysis - Only for actual images
     let imageContext: {
       imageUrl: string;
       analysisType: 'condition' | 'damage' | 'color' | 'license_plate' | 'detailing' | 'coating' | 'general';
       analysisResult: any;
     } | undefined = undefined;
-    if (imageAnalysisRequest?.hasImage && mediaBase64 && mediaType === 'image') {
+    
+    if (imageAnalysisRequest?.hasImage && mediaBase64 && mediaType === 'image' && mediaMimeType?.startsWith('image/')) {
       try {
         console.log('[IMAGE ANALYSIS] Processing image from WhatsApp...');
+        console.log('[IMAGE ANALYSIS] Media type:', mediaType, 'MIME type:', mediaMimeType);
         
         // Convert base64 to data URL for GPT-4.1 mini
         const imageUrl = `data:${mediaMimeType};base64,${mediaBase64}`;
@@ -76,6 +78,9 @@ export async function POST(request: Request) {
         console.error('[IMAGE ANALYSIS] Error:', imageError);
         // Continue with normal flow even if image analysis fails
       }
+    } else if (mediaType && !mediaMimeType?.startsWith('image/')) {
+      console.log('[MESSAGE TYPE] Non-image media received:', { mediaType, mediaMimeType });
+      // Handle other media types like location, document, etc.
     }
 
     // --- ALUR BARU: Modular Handlers dengan Ghostwriting ---
