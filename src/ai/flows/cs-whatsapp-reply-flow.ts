@@ -11,11 +11,14 @@ import { triggerBosMatTool } from '@/ai/tools/impl/triggerBosMamatTool';
 import type { ZoyaChatInput, WhatsAppReplyOutput } from '@/types/ai/cs-whatsapp-reply';
 import type { Session } from '@/types/ai/session';
 import { createTraceable, TRACE_TAGS, createTraceMetadata } from '@/lib/langsmith';
+import { recordAIMetrics, recordAIError, type AIMetrics } from '@/lib/monitoring/aiMetrics'; // 🔥 NEW
 
 export const generateWhatsAppReplyOptimized = createTraceable(async (input: ZoyaChatInput): Promise<WhatsAppReplyOutput> => {
-  console.log('[generateWhatsAppReplyOptimized] Starting optimized flow');
-  
   const { customerMessage, senderNumber, senderName } = input;
+  const startTime = Date.now();
+  const conversationId = `conv_${senderNumber}_${startTime}`;
+  
+  console.log('[generateWhatsAppReplyOptimized] Starting optimized flow');
   
   if (!senderNumber) {
     throw new Error('senderNumber is required');
@@ -165,6 +168,37 @@ export const generateWhatsAppReplyOptimized = createTraceable(async (input: Zoya
       }
     );
 
+    // 🔥 NEW: Record AI metrics for monitoring
+    const endTime = Date.now();
+    const aiMetrics: Omit<AIMetrics, 'timestamp' | 'version'> = {
+      conversationId,
+      customerPhone: senderNumber,
+      startTime,
+      endTime,
+      responseTime: endTime - startTime,
+      toolsUsed: agentResult.metadata.toolsUsed,
+      iterations: agentResult.metadata.iterations,
+      tokenUsage: {
+        input: agentResult.metadata.tokenUsage.estimated || 0,
+        output: agentResult.metadata.tokenUsage.actual || 0,
+        estimated: agentResult.metadata.tokenUsage.estimated || 0,
+        actual: agentResult.metadata.tokenUsage.actual,
+        cost: ((agentResult.metadata.tokenUsage.estimated || 0) * 0.00015 / 1000) // Rough GPT-4 cost estimate
+      },
+      conversionType: agentResult.metadata.toolsUsed.includes('createBooking') ? 'booking' : 
+                     agentResult.metadata.toolsUsed.includes('triggerBosMatTool') ? 'handover' : 'info',
+      humanHandover: agentResult.metadata.toolsUsed.includes('triggerBosMatTool'),
+      errors: [],
+      messageType: input.imageContext ? 'image' : 'text',
+      promptVersion: 'lightweight',
+      environment: process.env.NODE_ENV || 'development'
+    };
+
+    // Record metrics (non-blocking)
+    recordAIMetrics(aiMetrics).catch(error => 
+      console.error('[Monitoring] Failed to record metrics:', error)
+    );
+
     const finalOutput: WhatsAppReplyOutput = {
       suggestedReply: agentResult.suggestedReply,
       toolCalls: agentResult.toolCalls || [],
@@ -172,7 +206,8 @@ export const generateWhatsAppReplyOptimized = createTraceable(async (input: Zoya
       metadata: { 
         ...agentResult.metadata,
         optimized: true,
-        promptVersion: 'lightweight'
+        promptVersion: 'lightweight',
+        conversationId // Add conversation ID to output
       },
     };
 
@@ -197,6 +232,11 @@ export const generateWhatsAppReplyOptimized = createTraceable(async (input: Zoya
       console.error('[generateWhatsAppReplyOptimized] Failed to trigger BosMAT:', bosmatError);
     }
     
+    // 🔥 NEW: Record error metrics
+    recordAIError(conversationId, error, undefined, senderNumber).catch(metricError => 
+      console.error('[Monitoring] Failed to record error metrics:', metricError)
+    );
+    
     // Fallback response
     return {
       suggestedReply: "Maaf mas, Zoya lagi ada masalah teknis. Bisa coba lagi nanti?",
@@ -207,7 +247,8 @@ export const generateWhatsAppReplyOptimized = createTraceable(async (input: Zoya
         iterations: 0,
         tokenUsage: { estimated: 0 },
         error: error instanceof Error ? error.message : String(error),
-        bosmatTriggered: true
+        bosmatTriggered: true,
+        conversationId // Add conversation ID to error output
       },
     };
   }
