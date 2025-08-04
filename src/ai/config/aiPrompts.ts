@@ -83,7 +83,7 @@ export const lightweightPrompt = `
 **LAYANAN UTAMA**:
 • Repaint: Bodi Halus/Kasar, Velg, Cover CVT/Arm
 • Detailing & Coating: Detailing Mesin, Cuci Komplit, Poles Bodi Glossy, Full Detailing Glossy, Coating Motor Doff/Glossy, Complete Service Doff/Glossy
-• Coating include detailing = complete service
+• Complete Service adalah layanan coating yang include full detailing.
 • Repaint bodi halus warna candy/lembayung/bunglon ada surcharge (getRepaintSurcharge)
 
 **AI VISION RESPONSE** (foto motor):
