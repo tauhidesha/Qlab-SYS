@@ -1,4 +1,4 @@
-# Qlab-SYS: Advanced AI-Powered Customer Service System
+# Bosmat-SYS: Advanced AI-Powered Customer Service System
 
 A comprehensive, production-ready AI customer service system built with Next.js, featuring advanced OpenAI integration, robust error handling, comprehensive monitoring, and enterprise-grade security.
 
@@ -50,7 +50,7 @@ A comprehensive, production-ready AI customer service system built with Next.js,
 ### 1. Clone and Install
 ```bash
 git clone <repository-url>
-cd Qlab-SYS
+cd Bosmat-SYS
 npm install
 ```
 
@@ -153,7 +153,7 @@ npm install
 2. **Database Setup**
 ```bash
 # Start PostgreSQL (if not using Docker)
-createdb qlab_sys
+createdb bosmat_sys
 
 # Run migrations
 npm run migrate
@@ -173,10 +173,10 @@ cp .env.example .env
 Edit `.env` with your configuration:
 ```env
 # Database
-DATABASE_URL=postgresql://user:password@localhost:5432/qlab_sys
+DATABASE_URL=postgresql://user:password@localhost:5432/bosmat_sys
 DB_HOST=localhost
 DB_PORT=5432
-DB_NAME=qlab_sys
+DB_NAME=bosmat_sys
 DB_USER=postgres
 DB_PASSWORD=your_password
 
@@ -627,7 +627,7 @@ npm run memory:analyze
 ### Debug Mode
 ```bash
 # Enable debug logging
-export DEBUG=qlab:*
+export DEBUG=bosmat:*
 npm run dev
 
 # Or with Docker

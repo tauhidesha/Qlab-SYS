@@ -1,6 +1,6 @@
 # LangSmith Integration Setup
 
-This document explains how to configure and use LangSmith tracing in the Qlab-SYS project.
+This document explains how to configure and use LangSmith tracing in the Bosmat-SYS project.
 
 ## Overview
 
@@ -17,7 +17,7 @@ Add these environment variables to your `.env.local` file:
 ```bash
 # LangSmith Configuration
 LANGSMITH_TRACING=true
-LANGSMITH_PROJECT=qlab-sys-development
+LANGSMITH_PROJECT=bosmat-sys-development
 LANGSMITH_API_KEY=your_langsmith_api_key_here
 LANGSMITH_ENDPOINT=https://api.smith.langchain.com
 ```
@@ -75,7 +75,7 @@ Set `LANGSMITH_TRACING=true` in your environment variables. The system will auto
 ### Viewing Traces
 
 1. Go to your LangSmith dashboard
-2. Select your project (e.g., `qlab-sys-development`)
+2. Select your project (e.g., `bosmat-sys-development`)
 3. View traces in real-time as conversations happen
 
 ### Trace Data Structure
@@ -134,7 +134,7 @@ const myFunction = createTraceable(
 
 The system logs LangSmith configuration on startup:
 ```
-[LangSmith Config] { enabled: true, project: 'qlab-sys-development', ... }
+[LangSmith Config] { enabled: true, project: 'bosmat-sys-development', ... }
 ```
 
 ## Benefits

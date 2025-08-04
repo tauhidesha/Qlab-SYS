@@ -1,4 +1,4 @@
-# QLAB-SYS Agent Guide
+# Bosmat-SYS Agent Guide
 
 ## Commands
 - **Dev**: `npm run dev` (port 3000)

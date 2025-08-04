@@ -1,7 +1,7 @@
-# Copilot Instructions for QLAB-SYS
+# Copilot Instructions for Bosmat-SYS
 
 ## Overview
-QLAB-SYS is a Next.js 14 application integrated with Firebase/Firestore, Tailwind CSS, and AI tools. It serves as a POS system with additional services like WhatsApp integration, loyalty programs, and profit sharing. The project uses TypeScript and follows specific conventions for architecture, workflows, and code style.
+Bosmat-SYS is a Next.js 14 application integrated with Firebase/Firestore, Tailwind CSS, and AI tools. It serves as a POS system with additional services like WhatsApp integration, loyalty programs, and profit sharing. The project uses TypeScript and follows specific conventions for architecture, workflows, and code style.
 
 ## Architecture
 - **Framework**: Next.js 14 with TypeScript.

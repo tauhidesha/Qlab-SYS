@@ -1,4 +1,4 @@
-# **App Name**: QLAB POS
+# **App Name**: Bosmat-SYS
 
 ## Core Features:
 
