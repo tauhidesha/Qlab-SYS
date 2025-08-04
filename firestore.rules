@@ -34,5 +34,11 @@ service cloud.firestore {
       // Allow write access for feedback submission without authentication
       allow write: if true;
     }
+    
+    // Special rules for AI metrics - allow server-side monitoring
+    match /ai_metrics/{metricId} {
+      // Allow server-side access (Admin SDK) for AI monitoring without authentication
+      allow read, write: if true;
+    }
   }
 }
