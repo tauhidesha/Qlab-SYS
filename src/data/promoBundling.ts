@@ -89,7 +89,8 @@ export const promoTerms = [
   "• Cat bunglon masih kena tambahan biaya (200k-450k sesuai ukuran)",
   "• Harga sudah termasuk semua bahan dan tenaga kerja",
   "• Waktu pengerjaan 2-3 hari kerja",  
-  "• Booking minimal H-1, pembayaran bisa cash/transfer",
+  "• Booking minimal H-1, pembayaran bisa cash/transfer/Tokopedia/Shopee untuk cicilan",
+  "• Commitment fee Rp100.000 untuk kunci slot (dipotong dari total pembayaran)",
   "",
   "💰 **Hemat hingga 450k** dengan cat spesial gratis (kecuali bunglon)!"
 ];
