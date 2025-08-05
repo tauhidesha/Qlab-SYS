@@ -81,10 +81,10 @@ async function implementation(input: Input): Promise<Output> {
       note: `Untuk motor ${motor.model} (size ${repaintSize}), ada promo bundling!`,
       summary:
         `🔥 Promo bundling buat ${motor.model} (size ${repaintSize}):\n\n` +
-        `• Harga normal: Rp${specificPromo.normalPrice.toLocaleString('id-ID')}\n` +
+        `• Harga normal: Rp${specificPromo.normalPriceWithMaxSurcharge.toLocaleString('id-ID')}\n` +
         `• Harga promo: *Rp${specificPromo.promoPrice.toLocaleString('id-ID')}*\n` +
-        `• Hemat: *Rp${specificPromo.savings.toLocaleString('id-ID')}*\n\n` +
-        `Termasuk:\n✅ Repaint Bodi Halus\n✅ Full Detailing Glossy\n\nGas sebelum kehabisan slot, bro!`,
+        `• Hemat: *Rp${specificPromo.savingsWithMaxSurcharge.toLocaleString('id-ID')}*\n\n` +
+        `Termasuk:\n✅ Repaint Bodi Halus\n✅ Full Detailing Glossy\n✅ Cat spesial (kecuali bunglon) GRATIS!\n\nGas sebelum kehabisan slot, bro!`,
     };
   } catch (err: any) {
     console.error('[getPromoBundleDetailsTool] Error:', err);
