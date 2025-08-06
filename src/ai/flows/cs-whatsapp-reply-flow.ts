@@ -152,10 +152,30 @@ export const generateWhatsAppReplyOptimized = createTraceable(async (input: Zoya
       });
     }
 
-    // Add current date context (minimal)
+    // Add current date context (SUPER EXPLICIT untuk AI)
     const currentDate = new Date();
-    const dateContext = `Tanggal: ${currentDate.toLocaleDateString('id-ID')}`;
-    history.push({ role: 'system', content: dateContext });
+    const dateOptions: Intl.DateTimeFormatOptions = { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    };
+    const timeOptions: Intl.DateTimeFormatOptions = { 
+      hour: '2-digit', 
+      minute: '2-digit', 
+      hour12: false 
+    };
+    
+    const explicitDateContext = `KONTEKS WAKTU SEKARANG - WAJIB DIGUNAKAN:
+- Hari ini: ${currentDate.toLocaleDateString('id-ID', dateOptions)}
+- Jam sekarang: ${currentDate.toLocaleTimeString('id-ID', timeOptions)} WIB
+- Tahun sekarang: 2025 (BUKAN 2024!)
+- Bulan sekarang: Agustus 2025
+- Tanggal sekarang: ${currentDate.getDate()} Agustus 2025
+
+PENTING: Jika customer minta booking atau bicara tentang tanggal, gunakan referensi waktu di atas. Jangan salah tahun!`;
+    
+    history.push({ role: 'system', content: explicitDateContext });
 
     // Run optimized agent
     const agentResult = await runZoyaAIAgentOptimized({

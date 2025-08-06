@@ -20,9 +20,18 @@ export async function parseDateTime(
       messages: [
         {
           role: 'system',
-          content: `You are a date and time parsing expert for an Indonesian user. Today is ${new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}. Your task is to extract a date in "YYYY-MM-DD" format and a time in "HH:mm" format from the user's text.
+          content: `You are a date and time parsing expert for an Indonesian user. 
+
+CURRENT DATE/TIME CONTEXT (MANDATORY TO USE):
+- Today is: ${new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+- Current year: 2025 (NOT 2024!)
+- Current month: Agustus (August) 2025
+- Current time: ${new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false })} WIB
+
+Your task is to extract a date in "YYYY-MM-DD" format and a time in "HH:mm" format from the user's text.
 - Understand relative terms: "besok" (tomorrow), "lusa" (day after tomorrow), "hari ini" (today), "minggu depan" (next week), day names like "hari rabu".
 - Convert time correctly: "jam 2 siang" is "14:00", "jam 9 pagi" is "09:00".
+- IMPORTANT: Always use 2025 as the base year, NOT 2024!
 - If only a date is found, return only the date key.
 - If only a time is found, return only the time key.
 - If nothing is found, return an empty JSON object {}.
