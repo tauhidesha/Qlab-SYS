@@ -1,4 +1,3 @@
 {
-  "/api/ai/ghost-writing/route": "app/api/ai/ghost-writing/route.js",
   "/api/whatsapp/receive/route": "app/api/whatsapp/receive/route.js"
 }
