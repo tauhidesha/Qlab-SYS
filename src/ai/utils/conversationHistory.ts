@@ -96,7 +96,18 @@ export async function saveAIResponse(
   console.log(`[saveAIResponse] Saving AI response for: ${senderNumber}`);
   
   // 🔒 DEVELOPMENT: Skip saving test phone numbers to prevent Firestore pollution
-  const isTestPhoneNumber = senderNumber.startsWith('628999999') || senderNumber.startsWith('628888888');
+  const isTestPhoneNumber = senderNumber.startsWith('628999999') || 
+                           senderNumber.startsWith('628888888') ||
+                           senderNumber.startsWith('628123456') ||
+                           senderNumber.startsWith('628222333') ||
+                           senderNumber.startsWith('628333444') ||
+                           senderNumber.startsWith('628444555') ||
+                           senderNumber.startsWith('628555') ||
+                           senderNumber.startsWith('628666') ||
+                           senderNumber.startsWith('628777') ||
+                           senderNumber === 'playground_user' ||
+                           /^628\d{9,12}$/.test(senderNumber) && senderNumber.includes('999');
+                           
   if (isTestPhoneNumber && process.env.NODE_ENV === 'development') {
     console.log(`[saveAIResponse] 🧪 DEVELOPMENT: Skipping save for test phone number ${senderNumber}`);
     return;
