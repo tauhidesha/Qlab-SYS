@@ -1,1 +1,3 @@
-{}
+{
+  "/api/ai/ghost-writing/route": "app/api/ai/ghost-writing/route.js"
+}

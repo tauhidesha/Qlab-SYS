@@ -204,7 +204,7 @@ const daftarUkuranMotor = [
     "model": "fazzio",
     "service_size": "M",
     "repaint_size": "M",
-    "aliases": ["yamaha fazzio"]
+    "aliases": ["yamaha fazzio", "fazio", "yamaha fazio"]
   },
   {
     "model": "satria f150",
