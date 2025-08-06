@@ -94,6 +94,14 @@ export async function saveAIResponse(
   metadata?: { toolsUsed?: string[], iterations?: number }
 ): Promise<void> {
   console.log(`[saveAIResponse] Saving AI response for: ${senderNumber}`);
+  
+  // 🔒 DEVELOPMENT: Skip saving test phone numbers to prevent Firestore pollution
+  const isTestPhoneNumber = senderNumber.startsWith('628999999') || senderNumber.startsWith('628888888');
+  if (isTestPhoneNumber && process.env.NODE_ENV === 'development') {
+    console.log(`[saveAIResponse] 🧪 DEVELOPMENT: Skipping save for test phone number ${senderNumber}`);
+    return;
+  }
+  
   const db = getFirebaseAdmin().firestore();
   
   try {

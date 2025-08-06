@@ -27,6 +27,13 @@ export async function getSession(senderNumber: string): Promise<Session | null> 
 
 // --- SIMPAN / UPDATE SESI ---
 export async function updateSession(senderNumber: string, updates: Partial<Session>): Promise<void> {
+  // 🔒 DEVELOPMENT: Skip saving test phone numbers to prevent Firestore pollution
+  const isTestPhoneNumber = senderNumber.startsWith('628999999') || senderNumber.startsWith('628888888');
+  if (isTestPhoneNumber && process.env.NODE_ENV === 'development') {
+    console.log(`[updateSession] 🧪 DEVELOPMENT: Skipping save for test phone number ${senderNumber}`);
+    return;
+  }
+  
   const db = getFirebaseAdmin().firestore();
   try {
     await db.collection(SESSIONS_COLLECTION).doc(senderNumber).set(updates, { merge: true });
