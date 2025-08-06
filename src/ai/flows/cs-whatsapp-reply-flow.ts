@@ -60,9 +60,15 @@ export const generateWhatsAppReplyOptimized = createTraceable(async (input: Zoya
       console.log('[generateWhatsAppReplyOptimized] New session created');
     }
 
-    // Get conversation history with optimization
-    let history = await getConversationHistory(senderNumber);
-    console.log(`[generateWhatsAppReplyOptimized] Retrieved ${history.length} messages from history`);
+    // Get conversation history with optimization - prioritize input chatHistory if provided
+    let history;
+    if (input.chatHistory && input.chatHistory.length > 0) {
+      history = input.chatHistory;
+      console.log(`[generateWhatsAppReplyOptimized] Using provided chatHistory: ${history.length} messages`);
+    } else {
+      history = await getConversationHistory(senderNumber);
+      console.log(`[generateWhatsAppReplyOptimized] Retrieved from database: ${history.length} messages from history`);
+    }
     
     // 🚨 NEW: Check conversation relevance to prevent unnecessary responses
     const conversationContext = history.slice(-4).map(h => h.content).join(' ');
