@@ -1,3 +1,6 @@
 {
-  "/api/ai/ghost-writing/route": "app/api/ai/ghost-writing/route.js"
+  "/api/ai/ghost-writing/route": "app/api/ai/ghost-writing/route.js",
+  "/login/page": "app/login/page.js",
+  "/(app)/dashboard/page": "app/(app)/dashboard/page.js",
+  "/(app)/ai-cs-assistant/page": "app/(app)/ai-cs-assistant/page.js"
 }
