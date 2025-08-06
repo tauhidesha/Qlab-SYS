@@ -43,13 +43,13 @@ export async function handleHumanReplyForwarding(senderNumber: string, messageBo
   // Hapus state agar tidak membalas ke orang yang sama lagi
   const db = getFirebaseAdmin().firestore();
   const sessionRef = db.collection('zoya_sessions').doc(targetCustomerNumber);
-  await sessionRef.update({
+  await sessionRef.set({
     pending_human_reply: admin.firestore.FieldValue.delete(),
     snoozeUntil: 0,
-  });
-  await db.collection('zoya_sessions').doc('human_forwarding_state').update({
+  }, { merge: true });
+  await db.collection('zoya_sessions').doc('human_forwarding_state').set({
     lastCustomerNumber: admin.firestore.FieldValue.delete(),
-  });
+  }, { merge: true });
 
   // BUAT PERINTAH UNTUK ZOYA, BUKAN MENGIRIM PESAN
   const ghostwriterMessage = `[INSTRUKSI DARI BOSMAT]: Tolong sampaikan pesan berikut ke pelanggan dengan gaya bahasamu yang santai dan ramah: "${replyText}"`;
