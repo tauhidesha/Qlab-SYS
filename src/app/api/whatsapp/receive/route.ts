@@ -6,6 +6,7 @@ import { generateWhatsAppReply } from '@/ai/flows/cs-whatsapp-reply-flow';
 import type { ZoyaChatInput } from '@/types/ai/cs-whatsapp-reply';
 import { handleHumanReplyForwarding } from '@/ai/utils/handsoff/handleHumanReplyForwarding';
 import { handlePaymentFlow } from '@/ai/utils/payment/handlePaymentFlow';
+import { sendWhatsAppMessage } from '@/services/whatsappService';
 
 export async function POST(request: Request) {
   try {
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
     if (!senderNumber) {
       return NextResponse.json({ success: false, error: 'senderNumber wajib diisi.' }, { status: 400 });
     }
-
+    // No changes made. Committing current state.
     // 🔥 NEW: Handle Image Analysis - Only for actual images
     let imageContext: {
       imageUrl: string;
@@ -84,25 +85,31 @@ export async function POST(request: Request) {
     }
 
     // --- ALUR BARU: Modular Handlers dengan Ghostwriting ---
-
-    // 1. Coba proses sebagai balasan dari BosMat (yang akan di-ghostwrite)
     const forwardingInstruction = await handleHumanReplyForwarding(senderNumber, customerMessage);
     if (forwardingInstruction) {
       console.log(`[API /receive] Meneruskan instruksi dari BosMat ke Zoya untuk pelanggan ${forwardingInstruction.targetCustomerNumber}`);
       
-      // Panggil Zoya AI, TAPI dengan input yang sudah dimodifikasi
       const ghostwriterInput: ZoyaChatInput = {
-        senderNumber: forwardingInstruction.targetCustomerNumber, // Jalankan sebagai pelanggan
-        customerMessage: forwardingInstruction.ghostwriterMessage, // Dengan pesan instruksi
-        chatHistory: [], // History tidak relevan untuk tugas ini
-        senderName: '', // Nama tidak relevan
+        senderNumber: forwardingInstruction.targetCustomerNumber,
+        customerMessage: forwardingInstruction.ghostwriterMessage,
+        chatHistory: [],
+        senderName: '', 
       };
       
       const aiResponse = await generateWhatsAppReply(ghostwriterInput);
       console.log('[DEBUG] Hasil Ghostwriting dari AI Flow:', JSON.stringify(aiResponse, null, 2));
       
-      // Kirim balasan yang sudah dipoles ke pelanggan
-      return NextResponse.json(aiResponse);
+      if (aiResponse.suggestedReply) {
+        // 2. Kirim pesan ke pelanggan
+        await sendWhatsAppMessage(
+          forwardingInstruction.targetCustomerNumber,
+          aiResponse.suggestedReply
+        );
+        console.log(`[API /receive] Pesan untuk pelanggan ${forwardingInstruction.targetCustomerNumber} telah dikirim.`);
+      }
+      
+      // 3. Tutup request dari BosMat dengan jawaban "OK"
+      return NextResponse.json({ status: 'ok', message: 'Forwarded instruction processed.' });
     }
 
     // 2. Jika bukan dari BosMat, coba proses alur pembayaran
