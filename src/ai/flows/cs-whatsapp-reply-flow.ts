@@ -5,7 +5,7 @@ import { updateSession, getSession } from '@/ai/utils/session';
 import { runZoyaAIAgentOptimized } from '@/ai/agent/runZoyaAIAgent';
 import { getConversationHistory, saveAIResponse } from '@/ai/utils/conversationHistory';
 import { optimizeConversationHistory, monitorTokenUsage, calculateConversationTokens } from '@/ai/utils/contextManagement';
-import { lightweightPrompt } from '@/ai/config/aiPrompts';
+import { masterPrompt } from '@/ai/config/aiPrompts';
 import { isInterventionLockActive } from '@/ai/utils/interventionLock';
 import { triggerBosMatTool } from '@/ai/tools/impl/triggerBosMamatTool';
 import { sendBookingConversion } from '@/services/metaConversionApi'; // 🔥 NEW: Meta Conversion API
@@ -133,7 +133,7 @@ export const generateWhatsAppReplyOptimized = createTraceable(async (input: Zoya
     
     if (!hasSystemPrompt) {
       const userAndAssistantHistory = history.filter(p => p.role !== 'system');
-      history = [{ role: 'system', content: lightweightPrompt }, ...userAndAssistantHistory];
+      history = [{ role: 'system', content: masterPrompt }, ...userAndAssistantHistory];
       console.log('[generateWhatsAppReplyOptimized] Enhanced lightweight prompt injected');
     }
 
