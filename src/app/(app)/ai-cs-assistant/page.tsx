@@ -564,9 +564,31 @@ const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
             textToSend = ghostResult.zoyaMessage;
             console.log('[Ghost Writing] Message converted successfully:', textToSend);
             
+            // 🔓 AUTO-RELEASE INTERVENTION LOCK when using ghost writing
+            console.log('[Ghost Writing] Auto-releasing intervention lock...');
+            try {
+              const lockReleaseResponse = await fetch('/api/whatsapp/set-intervention-lock', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                  senderNumber: formattedPhoneForSending,
+                  action: 'release'  // Release the lock
+                }),
+              });
+              
+              if (lockReleaseResponse.ok) {
+                console.log('[Ghost Writing] Intervention lock released successfully');
+              } else {
+                console.warn('[Ghost Writing] Failed to release intervention lock, but continuing...');
+              }
+            } catch (lockError) {
+              console.warn('[Ghost Writing] Error releasing intervention lock:', lockError);
+              // Don't fail the main flow if lock release fails
+            }
+            
             toast({
               title: "✨ Ghost Writing Success",
-              description: "Pesan telah dikonversi ke style Zoya",
+              description: "Pesan telah dikonversi ke style Zoya + intervention lock dilepas",
               variant: "default",
             });
           } else {
@@ -624,21 +646,8 @@ const fetchCustomers = useCallback(async (): Promise<Customer[]> => {
           updatedAt: serverTimestamp(),
         }, { merge: true });
 
-        try {
-            const lockResponse = await fetch('/api/whatsapp/set-intervention-lock', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ senderNumber: formattedPhoneForSending }),
-            });
-            const lockResult = await lockResponse.json();
-            if (lockResponse.ok && lockResult.success) {
-                console.log(`AI lock set for ${formattedPhoneForSending} via API call from UI.`);
-            } else {
-                console.warn(`Failed to set AI lock for ${formattedPhoneForSending} via API: ${lockResult.error}`);
-            }
-        } catch (lockError) {
-            console.error(`Error calling set-intervention-lock API from UI:`, lockError);
-        }
+        // 🔓 Note: Intervention lock is auto-released when using ghost writing mode
+        // Manual intervention lock can still be set using the dedicated button
 
       } else {
         throw new Error(result.error || 'Gagal mengirim pesan via server lokal.');
