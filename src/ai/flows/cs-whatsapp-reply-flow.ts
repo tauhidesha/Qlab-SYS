@@ -14,7 +14,7 @@ import type { Session } from '@/types/ai/session';
 import { createTraceable, TRACE_TAGS, createTraceMetadata } from '@/lib/langsmith';
 import { recordAIMetrics, recordAIError, type AIMetrics } from '@/lib/monitoring/aiMetrics'; // 🔥 NEW
 
-export const generateWhatsAppReplyOptimized = createTraceable(async (input: ZoyaChatInput): Promise<WhatsAppReplyOutput> => {
+export const generateWhatsAppReplyOptimized = createTraceable(async (input: ZoyaChatInput, options?: { bypassInterventionLock?: boolean }): Promise<WhatsAppReplyOutput> => {
   const { customerMessage, senderNumber, senderName } = input;
   const startTime = Date.now();
   const conversationId = `conv_${senderNumber}_${startTime}`;
@@ -25,10 +25,10 @@ export const generateWhatsAppReplyOptimized = createTraceable(async (input: Zoya
     throw new Error('senderNumber is required');
   }
   
-  // Check intervention lock first
+  // Check intervention lock first (unless bypassed for ghost writing)
   const locked = await isInterventionLockActive(senderNumber);
-  console.log('[INTERVENTION LOCK CHECK]', { senderNumber, locked });
-  if (locked) {
+  console.log('[INTERVENTION LOCK CHECK]', { senderNumber, locked, bypassEnabled: options?.bypassInterventionLock });
+  if (locked && !options?.bypassInterventionLock) {
     console.log(`[InterventionLock] Sesi ${senderNumber} sedang di-lock untuk intervensi manusia. Tidak memproses balasan otomatis.`);
     return {
       suggestedReply: "", // Empty reply means no AI response

@@ -40,7 +40,7 @@ export async function POST(request: Request) {
       chatHistory: []
     };
 
-    const result = await generateWhatsAppReply(ghostInput);
+    const result = await generateWhatsAppReply(ghostInput, { bypassInterventionLock: true });
 
     console.log('[Ghost Writing API] AI Response:', {
       hasResult: !!result,

@@ -248,6 +248,347 @@
     <div className="credential-item">
       <span className="credential-icon">🏆</span>
       <h3>10+ Tahun Pengalaman</h3>
+      <p>Specialist repaint motor dengan track record 500+ motor transformed</p>
+    </div>
+    <div className="credential-item">
+      <span className="credential-icon">🔬</span>
+      <h3>Teknologi Premium</h3>
+      <p>Cat berkualitas tinggi + coating technology untuk hasil yang tahan lama</p>
+    </div>
+    <div className="credential-item">
+      <span className="credential-icon">🛡️</span>
+      <h3>Garansi Resmi</h3>
+      <p>30 hari money-back guarantee kalau hasil gak sesuai ekspektasi</p>
+    </div>
+    <div className="credential-item">
+      <span className="credential-icon">📜</span>
+      <h3>Licensed & Insured</h3>
+      <p>Workshop berlisensi dengan asuransi motor customer selama proses</p>
+    </div>
+  </div>
+</section>
+```
+
+#### 3.2 **Risk Reversal Elements**
+```tsx
+<section className="risk-reversal">
+  <div className="guarantee-box">
+    <h2>100% RISK-FREE GUARANTEE</h2>
+    <div className="guarantees">
+      <div className="guarantee-item">
+        <span className="guarantee-icon">💎</span>
+        <h3>Kualitas Premium</h3>
+        <p>Gak puas dengan hasil? Kami perbaiki sampai perfect atau uang kembali 100%</p>
+      </div>
+      <div className="guarantee-item">
+        <span className="guarantee-icon">🕒</span>
+        <h3>Tepat Waktu</h3>
+        <p>Telat dari deadline? Dapet diskon 20% + free detailing maintenance</p>
+      </div>
+      <div className="guarantee-item">
+        <span className="guarantee-icon">🛡️</span>
+        <h3>Asuransi Motor</h3>
+        <p>Motor lo aman 100% selama di workshop, covered by comprehensive insurance</p>
+      </div>
+    </div>
+  </div>
+</section>
+```
+
+### **PHASE 4: ADVANCED CONVERSION TACTICS (Week 7-8)**
+
+#### 4.1 **Scarcity & Urgency Enhancement**
+```tsx
+<section className="scarcity-section">
+  <div className="limited-slots">
+    <h2>⚡ SLOT TERBATAS BULAN INI</h2>
+    <div className="slot-counter">
+      <div className="counter-item">
+        <span className="number">7</span>
+        <span className="label">Slot Tersisa</span>
+      </div>
+      <div className="counter-item">
+        <span className="number">23</span>
+        <span className="label">Hari Tersisa</span>
+      </div>
+    </div>
+    <p className="urgency-text">
+      Kapasitas workshop cuma 15 motor per bulan buat jaga kualitas. 
+      <strong>Book sekarang sebelum kehabisan!</strong>
+    </p>
+  </div>
+</section>
+```
+
+#### 4.2 **Social Proof Real-time**
+```tsx
+<section className="live-activity">
+  <h3>🔥 Live Activity</h3>
+  <div className="activity-feed">
+    <div className="activity-item">
+      <span className="customer">Budi from Tangerang</span>
+      <span className="action">just booked Full Repaint + Detailing</span>
+      <span className="time">2 minutes ago</span>
+    </div>
+    <div className="activity-item">
+      <span className="customer">Sari from Jakarta</span>
+      <span className="action">completed payment for Nmax repaint</span>
+      <span className="time">15 minutes ago</span>
+    </div>
+    <div className="activity-item">
+      <span className="customer">Agus from Bekasi</span>
+      <span className="action">left 5-star review</span>
+      <span className="time">1 hour ago</span>
+    </div>
+  </div>
+</section>
+```
+
+### **PHASE 5: MOBILE OPTIMIZATION (Week 9-10)**
+
+#### 5.1 **Mobile-First CTA Strategy**
+```tsx
+// Sticky bottom CTA untuk mobile
+<div className="mobile-cta-bar">
+  <div className="cta-content">
+    <div className="price-preview">
+      <span className="from">Mulai dari</span>
+      <span className="price">Rp 1.2jt</span>
+    </div>
+    <button className="whatsapp-cta">
+      <span className="wa-icon">💬</span>
+      Chat Sekarang
+    </button>
+  </div>
+</div>
+```
+
+#### 5.2 **Touch-Optimized Interface**
+```tsx
+// Gesture-friendly components
+<div className="mobile-optimized">
+  {/* Swipeable gallery */}
+  <div className="swipe-gallery">
+    <div className="gallery-hint">👈 Swipe untuk lihat hasil lainnya</div>
+  </div>
+  
+  {/* Tap-to-expand FAQ */}
+  <div className="expandable-faq">
+    <div className="faq-item" onClick={toggleExpand}>
+      <h4>Berapa lama proses repaint? <span className="expand-icon">+</span></h4>
+      <div className="faq-answer">7-14 hari kerja tergantung kompleksitas...</div>
+    </div>
+  </div>
+</div>
+```
+
+---
+
+## 📊 IMPLEMENTATION ROADMAP
+
+### **Week 1-2: Foundation** 
+- ✅ Enhanced hero section dengan stronger value prop
+- ✅ Problem-solution framework implementation  
+- ✅ Trust indicators integration
+- ⏳ Lead capture form development
+
+### **Week 3-4: Conversion Focus**
+- ⏳ Progressive pricing disclosure
+- ⏳ Process transparency section
+- ⏳ Enhanced testimonials with photos
+- ⏳ Risk reversal elements
+
+### **Week 5-6: Authority Building**
+- ⏳ Credentials showcase
+- ⏳ Before/after gallery enhancement
+- ⏳ Video testimonials integration
+- ⏳ Live reviews feed
+
+### **Week 7-8: Advanced Tactics**
+- ⏳ Real-time scarcity elements
+- ⏳ Social proof automation
+- ⏳ Dynamic pricing display
+- ⏳ Urgency messaging optimization
+
+### **Week 9-10: Mobile Excellence**
+- ⏳ Mobile-first redesign
+- ⏳ Touch optimization
+- ⏳ App-like experience
+- ⏳ Performance optimization
+
+---
+
+## 🎯 PRIORITY IMPLEMENTATION ORDER
+
+### **HIGH PRIORITY (Start Immediately)**
+
+#### 1. **Hero Section Redesign** 
+```tsx
+// File: src/components/landing/HeroSection.tsx
+export function EnhancedHero() {
+  return (
+    <section className="bg-gradient-to-br from-yellow-400 via-orange-500 to-red-600 min-h-screen flex items-center">
+      <div className="container mx-auto px-6">
+        <div className="text-center text-white">
+          <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
+            Transform Motor Kusam Jadi 
+            <span className="block bg-white text-orange-600 px-4 py-2 rounded-xl mt-4">
+              GANTENG MAKSIMAL
+            </span>
+          </h1>
+          
+          <p className="text-xl md:text-2xl mb-8 opacity-90">
+            Full Repaint + Detailing Premium | Garansi 30 Hari | Bebas Pilih Warna
+          </p>
+          
+          <div className="flex flex-wrap justify-center gap-6 mb-8">
+            <div className="flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full">
+              <span>⭐</span>
+              <span>4.9/5 Rating</span>
+            </div>
+            <div className="flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full">
+              <span>🏆</span>
+              <span>500+ Motor Transformed</span>
+            </div>
+            <div className="flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full">
+              <span>📞</span>
+              <span>Response &lt; 2 Menit</span>
+            </div>
+          </div>
+          
+          <button className="bg-white text-orange-600 px-8 py-4 rounded-2xl text-xl font-bold hover:bg-orange-50 transition-all transform hover:scale-105 shadow-2xl">
+            Dapatkan Quote Gratis Sekarang
+            <div className="text-sm opacity-70 mt-1">
+              Konsultasi & estimasi harga dalam 5 menit
+            </div>
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+```
+
+#### 2. **Problem-Solution Section**
+```tsx
+// File: src/components/landing/ProblemSection.tsx
+export function ProblemSection() {
+  const problems = [
+    {
+      icon: "😔",
+      title: "Cat Kusam & Baret",
+      description: "Motor kesayangan jadi keliatan tua dan gak terawat"
+    },
+    {
+      icon: "💸", 
+      title: "Harga Mahal di Tempat Lain",
+      description: "Service premium tapi kantong tipis? Susah!"
+    },
+    {
+      icon: "⏰",
+      title: "Ribet & Lama", 
+      description: "Gak ada waktu antar-jemput motor kesana kemari"
+    }
+  ];
+
+  return (
+    <section className="py-20 bg-gray-50">
+      <div className="container mx-auto px-6">
+        <h2 className="text-4xl font-bold text-center mb-16 text-gray-800">
+          Masalah yang Bikin Motor Lo Jadi Gak Percaya Diri?
+        </h2>
+        
+        <div className="grid md:grid-cols-3 gap-8">
+          {problems.map((problem, index) => (
+            <div key={index} className="text-center p-8 bg-white rounded-2xl shadow-lg">
+              <div className="text-6xl mb-4">{problem.icon}</div>
+              <h3 className="text-2xl font-bold mb-4 text-gray-800">{problem.title}</h3>
+              <p className="text-gray-600 text-lg">{problem.description}</p>
+            </div>
+          ))}
+        </div>
+        
+        <div className="text-center mt-16">
+          <h3 className="text-3xl font-bold text-orange-600 mb-4">
+            Solusinya? Bosmat Studio! 🔥
+          </h3>
+          <p className="text-xl text-gray-700">
+            One-stop solution untuk motor impian lo dengan harga yang masuk akal
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+```
+
+#### 3. **Lead Capture Form Enhancement**
+```tsx
+// File: src/components/landing/LeadCaptureForm.tsx
+export function LeadCaptureForm() {
+  return (
+    <section className="py-20 bg-gradient-to-r from-orange-500 to-red-600">
+      <div className="container mx-auto px-6">
+        <div className="max-w-2xl mx-auto bg-white rounded-3xl p-8 shadow-2xl">
+          <div className="text-center mb-8">
+            <h3 className="text-3xl font-bold text-gray-800 mb-4">
+              Dapatkan Estimasi Harga Personal
+            </h3>
+            <p className="text-lg text-gray-600">
+              Isi data motor lo buat dapetin quote yang akurat dalam 2 menit
+            </p>
+          </div>
+          
+          <form className="space-y-6">
+            <div className="grid md:grid-cols-2 gap-6">
+              <input 
+                type="text" 
+                placeholder="Nama lengkap" 
+                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-orange-500 outline-none"
+                required 
+              />
+              <input 
+                type="tel" 
+                placeholder="Nomor WhatsApp" 
+                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-orange-500 outline-none"
+                required 
+              />
+            </div>
+            
+            <select className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-orange-500 outline-none" required>
+              <option>Pilih jenis motor</option>
+              <option>Matic (Beat, Vario, Nmax, etc)</option>
+              <option>Manual (CB, R15, Ninja, etc)</option>
+              <option>Sport (CBR, R25, Ninja 250, etc)</option>
+            </select>
+            
+            <select className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-orange-500 outline-none" required>
+              <option>Kondisi motor saat ini</option>
+              <option>Masih oke, cuma mau ganti warna</option>
+              <option>Ada baret-baret kecil</option>
+              <option>Cat kusam dan banyak lecet</option>
+              <option>Parah banget, perlu total makeover</option>
+            </select>
+            
+            <button 
+              type="submit" 
+              className="w-full bg-gradient-to-r from-orange-500 to-red-600 text-white px-8 py-4 rounded-xl text-xl font-bold hover:from-orange-600 hover:to-red-700 transition-all transform hover:scale-105 shadow-lg"
+            >
+              Dapatkan Quote Personal Gratis 🚀
+            </button>
+          </form>
+          
+          <div className="text-center mt-6">
+            <p className="text-gray-600">
+              💬 Tim kami akan hubungi dalam 2 menit via WhatsApp
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+```
       <p>Teknisi senior dengan track record 500+ motor</p>
     </div>
     
