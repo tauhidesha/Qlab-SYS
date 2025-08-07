@@ -16,8 +16,8 @@ import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 
 export const metadata: Metadata = {
-  title: 'QLAB POS',
-  description: 'Sistem Titik Penjualan dan Manajemen Bengkel',
+  title: 'Bosmat Detailing & Repainting Studio - POS & AI WhatsApp',
+  description: 'Sistem POS modern, WhatsApp AI, loyalty, booking, dan manajemen bengkel motor. Powered by Zoya AI, promo repaint, detailing, dan integrasi WhatsApp.',
 }
 
 export default function RootLayout({
