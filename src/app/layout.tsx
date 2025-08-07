@@ -12,6 +12,7 @@ import GoogleAnalytics from '@/components/GoogleAnalytics'
 // import PixelEvents from '@/components/PixelEvents' // <-- 3. IMPORT KOMPONEN EVENT
 import { Suspense } from 'react'
 import { AuthProvider } from '@/contexts/AuthContext'
+import { Analytics } from '@vercel/analytics/next'
 
 export const metadata: Metadata = {
   title: 'QLAB POS',
@@ -101,6 +102,7 @@ export default function RootLayout({
           {children}
         </AuthProvider>
         <Toaster />
+        <Analytics />
       </body>
     </html>
   )
