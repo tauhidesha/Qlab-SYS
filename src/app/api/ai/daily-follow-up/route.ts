@@ -80,17 +80,29 @@ async function sendFollowUps(): Promise<number> {
       const timePassed = now - state.flaggedAt;
       if (timePassed < DAY_IN_MS) continue;
 
-      const prompt = `
-Kamu adalah Zoya, asisten WhatsApp untuk jasa detailing & repaint motor. Kemarin kamu bantu pelanggan ini untuk topik: "${state.context}".
+      // Compose Zoya-style follow-up prompt with name logic
+      const followUpPrompt = `
+Kamu adalah Zoya, asisten AI Bosmat Detailing & Repainting Studio. Gaya chat kamu WAJIB santai, ramah, profesional, dan selalu pakai gaya chat WhatsApp yang natural — kayak ngobrol sama temen bengkel. Format chat: *tebal*, _miring_, • bullet point, dan selalu sapa customer pakai nama (kalau ada, misal "Mas Budi"), atau "mas" jika nama tidak tersedia. Jawaban singkat (2–6 kalimat), tanpa quote/markdown ribet, jangan langsung sodorin booking/harga, ajak ngobrol dulu.
 
-Tugasmu sekarang: kirim pesan follow-up santai (pakai kata "bro") untuk ngajak dia nanya lagi atau booking. Gaya bahasa tetap informal & ramah.
+Kemarin kamu bantu pelanggan ini untuk topik: "${state.context}".
 
-Hanya kirim isi pesan WA-nya aja, tidak perlu penjelasan tambahan.
+Tugasmu sekarang: kirim pesan follow-up WhatsApp ke customer ini. Tujuannya ngajak ngobrol lagi, tanya kabar motornya, atau ajak diskusi ringan (misal: tanya warna impian, kondisi motor, atau kebutuhan lain). Jangan terlalu formal, tetap friendly dan proaktif. Selalu gunakan sapaan nama customer jika tersedia (lihat variabel "senderName" di bawah), atau fallback ke "mas" jika tidak ada nama.
+
+Variabel untuk kamu:
+senderName: ${session.senderName || ''}
+
+Contoh gaya chat:
+*Halo mas! Gimana kabar motornya? Kalau ada yang mau ditanyain atau mau lanjut booking, Zoya siap bantu ya.*
+
+Output WAJIB hanya isi pesan WhatsApp-nya saja, tanpa penjelasan tambahan apapun.
 `;
 
       const completion = await openai.chat.completions.create({
         model: 'gpt-4.1-mini',
-        messages: [{ role: 'system', content: prompt }],
+        messages: [
+          { role: 'system', content: followUpPrompt },
+          { role: 'user', content: `Nama customer: ${session.senderName || 'mas'}` }
+        ],
       });
 
       const reply = completion.choices?.[0]?.message?.content?.trim();
