@@ -1,3 +1,8 @@
+// --- (4) GET HANDLER FOR VERCEL CRON ---
+export async function GET(request: Request) {
+  // Allow GET for Vercel Cron compatibility
+  return POST(request);
+}
 import { NextResponse } from 'next/server';
 import { getFirebaseAdmin } from '@/lib/firebase-admin';
 import { type Session, updateSession } from '@/ai/utils/session';
