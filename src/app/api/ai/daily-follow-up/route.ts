@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { getFirebaseAdmin } from '@/lib/firebase-admin';
 import { type Session, updateSession } from '@/ai/utils/session';
 import { sendWhatsAppMessage } from '@/services/whatsappService';
 import { OpenAI } from 'openai';
@@ -21,12 +20,14 @@ async function sendH1Confirmations(): Promise<number> {
   const tomorrowDate = `${yyyy}-${mm}-${dd}`;
 
   try {
-    const bookingsRef = collection(db, 'bookings');
-    const q = query(bookingsRef, 
-      where('bookingDate', '==', tomorrowDate),
-      where('status', '==', 'Confirmed')
-    );
-    const snapshot = await getDocs(q);
+    const adminApp = getFirebaseAdmin();
+    const db = adminApp.firestore();
+    
+    const bookingsRef = db.collection('bookings');
+    const q = bookingsRef
+      .where('bookingDate', '==', tomorrowDate)
+      .where('status', '==', 'Confirmed');
+    const snapshot = await q.get();
 
     for (const doc of snapshot.docs) {
       const booking = doc.data();
@@ -51,9 +52,12 @@ async function sendFollowUps(): Promise<number> {
   let followUpCount = 0;
 
   try {
-    const sessionsRef = collection(db, 'zoya_sessions');
-    const q = query(sessionsRef, where('followUpState', '!=', null));
-    const snapshot = await getDocs(q);
+    const adminApp = getFirebaseAdmin();
+    const db = adminApp.firestore();
+    
+    const sessionsRef = db.collection('zoya_sessions');
+    const q = sessionsRef.where('followUpState', '!=', null);
+    const snapshot = await q.get();
     const now = Date.now();
 
     for (const doc of snapshot.docs) {
