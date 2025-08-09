@@ -1,8 +1,3 @@
-// --- (4) GET HANDLER FOR VERCEL CRON ---
-export async function GET(request: Request) {
-  // Allow GET for Vercel Cron compatibility
-  return POST(request);
-}
 import { NextResponse } from 'next/server';
 import { getFirebaseAdmin } from '@/lib/firebase-admin';
 import { type Session, updateSession } from '@/ai/utils/session';
@@ -12,7 +7,18 @@ import { OpenAI } from 'openai';
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 
-// --- (1) KONFIRMASI BOOKING H-1 ---
+// --- Utils: auth Vercel Cron ---
+function isAuthorized(req: Request) {
+  const url = new URL(req.url);
+  const qpSecret = url.searchParams.get('secret');
+  const auth = req.headers.get('authorization') || '';
+  const bearer = auth.toLowerCase().startsWith('bearer ') ? auth.slice(7) : null;
+
+  const expected = process.env.CRON_SECRET;
+  return !!expected && (qpSecret === expected || bearer === expected);
+}
+
+// --- (1) H-1 confirmations ---
 async function sendH1Confirmations(): Promise<number> {
   console.log('--- Memulai Tugas Konfirmasi H-1 ---');
   let confirmationCount = 0;
@@ -111,14 +117,13 @@ Hanya kirim isi pesan WA-nya aja, tidak perlu penjelasan tambahan.
   return followUpCount;
 }
 
-// --- (3) POST HANDLER CRON JOB ---
-export async function POST(request: Request) {
-  const { searchParams } = new URL(request.url);
-  if (searchParams.get('secret') !== process.env.CRON_SECRET) {
+// --- (3) Core executor ---
+async function runJob(req: Request) {
+  if (!isAuthorized(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  console.log(`[CRON JOB] Tugas Harian Dimulai: ${new Date().toISOString()}`);
+  console.log(`[CRON JOB] Start: ${new Date().toISOString()}`);
 
   try {
     const followUpCount = await sendFollowUps();
@@ -140,3 +145,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
+
+// --- (4) Handlers for Vercel Cron ---
+export async function GET(req: Request) {
+  // Vercel Cron default pakai GET
+  return runJob(req);
+}
+
+export async function POST(req: Request) {
+  // Optional kalau mau ditembak manual via POST
+  return runJob(req);
+}
+
+export async function HEAD() {
+  // Beberapa platform nge-HEAD dulu; balas 200 biar gak 405
+  return new Response(null, { status: 200 });
+}
+
+// Catatan penting:
+// - Set env CRON_SECRET di Vercel → Project → Settings → Environment Variables.
+// - Di Vercel Cron job, nggak perlu kirim query ?secret=...; Vercel otomatis kirim header Authorization.
+// - Kalau mau tetap bisa tembak manual: GET /api/ai/daily-follow-up?secret=YOUR_SECRET.
