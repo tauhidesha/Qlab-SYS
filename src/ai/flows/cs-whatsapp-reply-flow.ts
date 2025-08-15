@@ -5,7 +5,7 @@ import { updateSession, getSession } from '@/ai/utils/session';
 import { runZoyaAIAgentOptimized } from '@/ai/agent/runZoyaAIAgent';
 import { getConversationHistory, saveAIResponse } from '@/ai/utils/conversationHistory';
 import { optimizeConversationHistory, monitorTokenUsage, calculateConversationTokens } from '@/ai/utils/contextManagement';
-import { masterPrompt } from '@/ai/config/aiPrompts';
+import { masterPrompt, minimalPrompt } from '@/ai/config/aiPrompts';
 import { isInterventionLockActive } from '@/ai/utils/interventionLock';
 import { triggerBosMatTool } from '@/ai/tools/impl/triggerBosMamatTool';
 import { sendBookingConversion } from '@/services/metaConversionApi'; // 🔥 NEW: Meta Conversion API
@@ -127,14 +127,27 @@ export const generateWhatsAppReplyOptimized = createTraceable(async (input: Zoya
       console.log('[generateWhatsAppReplyOptimized] Applied aggressive conversation optimization');
     }
     
-    // Use enhanced lightweight prompt for optimal format (bullet points, concise)
-    // while maintaining comprehensive service information
+    // 🔥 FORCE USE MASTER PROMPT (Value-Oriented Strategy)
     const hasSystemPrompt = history.some(p => p.role === 'system' && p.content?.toString().includes('Zoya'));
     
     if (!hasSystemPrompt) {
       const userAndAssistantHistory = history.filter(p => p.role !== 'system');
-      history = [{ role: 'system', content: masterPrompt }, ...userAndAssistantHistory];
-      console.log('[generateWhatsAppReplyOptimized] Enhanced lightweight prompt injected');
+      
+      // Smart prompt selection with preference for masterPrompt
+      let selectedPrompt = masterPrompt; // Default ke improved value-oriented prompt
+      let promptType = 'master';
+      
+      // Only use minimal prompt for extreme token usage to prevent errors
+      if (initialStats.totalTokens > 5000) {
+        selectedPrompt = minimalPrompt;
+        promptType = 'minimal';
+        console.log('[Prompt Selection] Using minimalPrompt due to extreme token usage:', initialStats.totalTokens);
+      } else {
+        console.log('[Prompt Selection] Using masterPrompt (value-oriented strategy), tokens:', initialStats.totalTokens);
+      }
+      
+      history = [{ role: 'system', content: selectedPrompt }, ...userAndAssistantHistory];
+      console.log(`[generateWhatsAppReplyOptimized] ${promptType} prompt injected successfully`);
     }
 
     // Add current user message
@@ -310,7 +323,7 @@ PENTING: Jika customer minta booking atau bicara tentang tanggal, gunakan refere
       humanHandover: agentResult.metadata.toolsUsed.includes('triggerBosMatTool'),
       errors: [],
       messageType: input.imageContext ? 'image' : 'text',
-      promptVersion: 'lightweight',
+      promptVersion: initialStats.totalTokens > 5000 ? 'minimal' : 'master',
       environment: process.env.NODE_ENV || 'development'
     };
 
@@ -326,7 +339,7 @@ PENTING: Jika customer minta booking atau bicara tentang tanggal, gunakan refere
       metadata: { 
         ...agentResult.metadata,
         optimized: true,
-        promptVersion: 'lightweight',
+        promptVersion: initialStats.totalTokens > 5000 ? 'minimal' : 'master',
         conversationId // Add conversation ID to output
       },
     };
