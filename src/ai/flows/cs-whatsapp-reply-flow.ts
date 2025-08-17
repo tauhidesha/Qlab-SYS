@@ -186,13 +186,16 @@ export const generateWhatsAppReplyOptimized = createTraceable(async (input: Zoya
     };
     
     const explicitDateContext = `KONTEKS WAKTU SEKARANG - WAJIB DIGUNAKAN:
-- Hari ini: ${currentDate.toLocaleDateString('id-ID', dateOptions)}
-- Jam sekarang: ${currentDate.toLocaleTimeString('id-ID', timeOptions)} WIB
-- Tahun sekarang: 2025 (BUKAN 2024!)
-- Bulan sekarang: Agustus 2025
-- Tanggal sekarang: ${currentDate.getDate()} Agustus 2025
+- Hari ini: ${currentDate.toLocaleDateString('id-ID', {
+    ...dateOptions,
+    timeZone: 'Asia/Jakarta'
+})}
+- Jam sekarang: ${currentDate.toLocaleTimeString('id-ID', {
+    ...timeOptions,
+    timeZone: 'Asia/Jakarta'
+})} WIB
 
-PENTING: Jika customer minta booking atau bicara tentang tanggal, gunakan referensi waktu di atas. Jangan salah tahun!`;
+PENTING: Jika customer minta booking atau bicara tentang tanggal, gunakan referensi waktu di atas.`;
     
     history.push({ role: 'system', content: explicitDateContext });
 
