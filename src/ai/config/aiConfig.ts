@@ -1,4 +1,5 @@
 import { updateRepaintDetailsTool } from '../tools/updateRepaintDetailsTool';
+import { searchInternetTool } from '../tools/searchInternetTool'; // 🔥 NEW: Internet search tool
 // @file: src/ai/config/aiConfig.ts
 
 import type { OpenAI } from 'openai';
@@ -39,6 +40,14 @@ export const zoyaTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   searchKnowledgeBaseTool.toolDefinition,
   updateRepaintDetailsTool.toolDefinition,
   getStudioInfoTool.toolDefinition, // 🔥 NEW: Studio Info Tool
+  {
+    type: 'function',
+    function: {
+      name: searchInternetTool.name,
+      description: searchInternetTool.description,
+      parameters: searchInternetTool.parameters
+    }
+  }, // 🔥 NEW: Internet Search Tool
   {
     type: 'function',
     function: {
@@ -111,4 +120,5 @@ export const toolFunctionMap = {
     definition: updateCartToolDefinition,
     implementation: updateCartToolImplementation,
   },
+  searchInternet: searchInternetTool, // 🔥 NEW: Internet Search Tool
 };

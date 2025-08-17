@@ -11,6 +11,7 @@
     "test:tool": "tsx scripts/test-tool.ts",
     "seed:firestore": "tsx src/lib/seedFirestore.ts",
     "test": "jest",
+    "test:ai": "jest tests/zoya/aiFlow.e2e.test.ts",
     "test:zoya": "jest tests/zoya/aiFlow.e2e.test.ts",
     "test:env": "PATH=./node_modules/.bin:$PATH dotenv-cli -e .env -- jest",
     "test:token-optimization": "tsx scripts/test-token-optimization.ts",
@@ -45,6 +46,7 @@
     "@vercel/analytics": "^1.5.0",
     "@vercel/speed-insights": "^1.2.0",
     "@wppconnect-team/wppconnect": "^1.37.3",
+    "axios": "^1.11.0",
     "chrono-node": "^2.8.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -90,6 +92,7 @@
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "tsx": "^4.20.3",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.4"
   }
 }
