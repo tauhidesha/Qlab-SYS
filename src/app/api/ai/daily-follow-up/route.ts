@@ -57,9 +57,57 @@ async function sendH1Confirmations(): Promise<number> {
   return confirmationCount;
 }
 
-// --- (2) FOLLOW-UP DENGAN GPT ---
+// --- Helper function untuk menentukan interval follow-up ---
+function shouldSendFollowUp(level: number, daysPassed: number): boolean {
+  const intervals = {
+    1: 3,     // Level 1: 3 hari setelah chat terakhir
+    2: 14,    // Level 2: 2 minggu
+    3: 30,    // Level 3: 1 bulan  
+    4: 60,    // Level 4: 2 bulan
+    5: 90,    // Level 5: 3 bulan (seasonal/promo)
+    6: 180,   // Level 6: 6 bulan (final attempt)
+  };
+  
+  const requiredDays = intervals[level as keyof typeof intervals] || 999;
+  return daysPassed >= requiredDays;
+}
+
+// --- Enhanced educational content generator ---
+function getEducationalContent(level: number): string {
+  const educationalContent = {
+    1: {
+      topic: "Bahaya cuci motor sembarangan",
+      content: "Tau ga sih kenapa motor yang jarang di-detailing catnya jadi kusam? Karena debu dan polusi numpuk jadi lapisan tipis yang bikin cat kehilangan kilau alaminya."
+    },
+    2: {
+      topic: "Tips perawatan motor",
+      content: "Tips nih: jangan cuci motor pake sabun cuci piring! Kandungan alkaline-nya terlalu keras buat cat motor. Mending pake shampoo khusus motor atau minimal sabun mandi bayi 😊"
+    },
+    3: {
+      topic: "Investasi jangka panjang",
+      content: "Fun fact: motor yang rutin di-detailing (2-3 bulan sekali) nilai jualnya bisa lebih tinggi 15-20% lho dibanding yang ga pernah dirawat. Investasi jangka panjang banget kan?"
+    },
+    4: {
+      topic: "Perbedaan coating vs wax",
+      content: "Sharing info nih: kenapa coating nano ceramic lebih awet dari wax biasa? Karena ikatan molekulnya lebih kuat ke cat, jadi tahan 6-12 bulan vs wax yang cuma 1-2 bulan."
+    },
+    5: {
+      topic: "Seasonal care tips",
+      content: "Motor yang parkir outdoor sebaiknya di-detailing 2 bulan sekali karena lebih cepat kena polusi. Indoor bisa 3-4 bulan sekali. Motornya biasa parkir dimana nih?"
+    },
+    6: {
+      topic: "Final check-in",
+      content: "Cara cek motor butuh detailing: coba teteskan air di body motor. Kalau airnya menyebar (ga bulat), artinya lapisan proteksi udah hilang dan perlu treatment."
+    }
+  };
+
+  return educationalContent[level as keyof typeof educationalContent]?.content || 
+         "Gimana kabar motornya? Masih butuh treatment ga?";
+}
+
+// --- (2) ENHANCED FOLLOW-UP DENGAN GPT + EDUKASI ---
 async function sendFollowUps(): Promise<number> {
-  console.log('--- Memulai Tugas Follow-up GPT-integrated ---');
+  console.log('--- Memulai Tugas Follow-up GPT-integrated dengan Edukasi ---');
   let followUpCount = 0;
 
   try {
@@ -78,46 +126,77 @@ async function sendFollowUps(): Promise<number> {
       if (!state) continue;
 
       const timePassed = now - state.flaggedAt;
-      if (timePassed < DAY_IN_MS) continue;
+      const daysPassed = Math.floor(timePassed / DAY_IN_MS);
+      
+      // Check if it's time for this level follow-up
+      if (!shouldSendFollowUp(state.level, daysPassed)) continue;
+      
+      // Stop follow-ups after level 6 (6 months)
+      if (state.level > 6) {
+        console.log(`Max follow-up level reached for ${senderNumber}, removing from queue`);
+        await updateSession(senderNumber, {
+          ...session,
+          followUpState: null, // Stop following up
+        });
+        continue;
+      }
 
-      // Compose Zoya-style follow-up prompt with name logic
+      // Get educational content based on level
+      const educationalTip = getEducationalContent(state.level);
+      
+      // Enhanced follow-up prompt with educational content
       const followUpPrompt = `
-Kamu adalah Zoya, asisten AI Bosmat Detailing & Repainting Studio. Gaya chat kamu WAJIB santai, ramah, profesional, dan selalu pakai gaya chat WhatsApp yang natural — kayak ngobrol sama temen bengkel. Format chat: *tebal*, _miring_, • bullet point, dan selalu sapa customer pakai nama (kalau ada, misal "Mas Budi"), atau "mas" jika nama tidak tersedia. Jawaban singkat (2–6 kalimat), tanpa quote/markdown ribet, jangan langsung sodorin booking/harga, ajak ngobrol dulu.
+Kamu adalah Zoya, asisten AI Bosmat Detailing & Repainting Studio. Gaya chat kamu WAJIB santai, ramah, profesional, dan selalu pakai gaya chat WhatsApp yang natural — kayak ngobrol sama temen bengkel.
 
-Kemarin kamu bantu pelanggan ini untuk topik: "${state.context}".
+KONTEKS CUSTOMER:
+- Nama: ${session.senderName || 'mas'}
+- Topik pembahasan terakhir: "${state.context}"
+- Follow-up level: ${state.level} (dari 6 level max)
+- Hari berlalu sejak flag: ${daysPassed} hari
 
-Tugasmu sekarang: kirim pesan follow-up WhatsApp ke customer ini. Tujuannya ngajak ngobrol lagi, tanya kabar motornya, atau ajak diskusi ringan (misal: tanya warna impian, kondisi motor, atau kebutuhan lain). Jangan terlalu formal, tetap friendly dan proaktif. Selalu gunakan sapaan nama customer jika tersedia (lihat variabel "senderName" di bawah), atau fallback ke "mas" jika tidak ada nama.
+TUGAS:
+1. Mulai dengan educational tip ini (wajib include): "${educationalTip}"
+2. Natural transition ke sapaan personal
+3. Tanya kabar motor atau lanjut diskusi ringan terkait topik sebelumnya
+4. Jangan langsung hard selling, fokus relationship building
+5. Style tetap friendly dan conversational
 
-Variabel untuk kamu:
-senderName: ${session.senderName || ''}
+RULES:
+- Sapaan: gunakan nama customer jika ada, atau "mas" jika tidak ada
+- Format WhatsApp: *tebal*, _miring_, emoji seperlunya
+- Panjang: 2-4 kalimat max
+- Tone: seperti teman bengkel yang care, bukan sales formal
 
-Contoh gaya chat:
-*Halo mas! Gimana kabar motornya? Kalau ada yang mau ditanyain atau mau lanjut booking, Zoya siap bantu ya.*
+CONTOH FLOW:
+[Educational tip] + "Nah, gimana kabar motor [nama]nya? [personal follow-up question]"
 
-Output WAJIB hanya isi pesan WhatsApp-nya saja, tanpa penjelasan tambahan apapun.
+Output WAJIB hanya isi pesan WhatsApp, tanpa penjelasan tambahan.
 `;
 
       const completion = await openai.chat.completions.create({
-        model: 'gpt-4.1-mini',
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: followUpPrompt },
-          { role: 'user', content: `Nama customer: ${session.senderName || 'mas'}` }
+          { role: 'user', content: `Generate follow-up message level ${state.level}` }
         ],
+        max_tokens: 150,
+        temperature: 0.7,
       });
 
       const reply = completion.choices?.[0]?.message?.content?.trim();
       if (!reply) continue;
 
       await sendWhatsAppMessage(senderNumber, reply);
-      console.log(`✅ Follow-up terkirim ke ${senderNumber}: ${reply}`);
+      console.log(`✅ Follow-up level ${state.level} terkirim ke ${senderNumber}: ${reply}`);
       followUpCount++;
 
+      // Update session with next level and current timestamp
       await updateSession(senderNumber, {
         ...session,
         followUpState: {
           ...state,
           level: state.level + 1,
-          flaggedAt: now,
+          flaggedAt: now, // Reset timer for next interval
         },
       });
     }
@@ -129,7 +208,45 @@ Output WAJIB hanya isi pesan WhatsApp-nya saja, tanpa penjelasan tambahan apapun
   return followUpCount;
 }
 
-// --- (3) Core executor ---
+// --- (3) SEASONAL/PROMO FOLLOW-UP (Optional - run monthly) ---
+async function sendPromoFollowUps(): Promise<number> {
+  console.log('--- Memulai Promo Follow-ups ---');
+  let promoCount = 0;
+  
+  try {
+    const adminApp = getFirebaseAdmin();
+    const db = adminApp.firestore();
+    
+    // Get customers who haven't been contacted in 30+ days
+    const sessionsRef = db.collection('zoya_sessions');
+    const snapshot = await sessionsRef.get();
+    const now = Date.now();
+    const monthAgo = now - (30 * DAY_IN_MS);
+    
+    for (const doc of snapshot.docs) {
+      const session = doc.data() as Session;
+      const senderNumber = doc.id;
+      
+      // Skip if recently contacted or in active follow-up
+      if (session.followUpState?.flaggedAt > monthAgo) continue;
+      
+      const promoMessage = `Halo ${session.senderName || 'mas'}! 🎉\n\n*PROMO SPESIAL BULAN INI*\nDetailing + Nano Coating cuma *150rb* (normal 200rb)\nTerbatas 20 orang pertama aja!\n\nGimana, mau refresh motornya? Chat balik kalau tertarik ya 🏍️✨`;
+      
+      await sendWhatsAppMessage(senderNumber, promoMessage);
+      console.log(`✅ Promo sent to ${senderNumber}`);
+      promoCount++;
+      
+      // Small delay to avoid spam detection
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  } catch (err) {
+    console.error('[Promo Follow-up] Error:', err);
+  }
+  
+  return promoCount;
+}
+
+// --- (4) Core executor ---
 async function runJob(req: Request) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -140,8 +257,15 @@ async function runJob(req: Request) {
   try {
     const followUpCount = await sendFollowUps();
     const confirmationCount = await sendH1Confirmations();
+    
+    // Optional: Run promo follow-ups on first day of month
+    const today = new Date();
+    let promoCount = 0;
+    if (today.getDate() === 1) {
+      promoCount = await sendPromoFollowUps();
+    }
 
-    const summary = `Selesai ✅ Follow-up: ${followUpCount}, Konfirmasi H-1: ${confirmationCount}`;
+    const summary = `Selesai ✅ Follow-up: ${followUpCount}, Konfirmasi H-1: ${confirmationCount}, Promo: ${promoCount}`;
     console.log(`[CRON JOB] ${summary}`);
 
     return NextResponse.json({
@@ -150,6 +274,7 @@ async function runJob(req: Request) {
       processed: {
         followUps: followUpCount,
         confirmations: confirmationCount,
+        promos: promoCount,
       },
     });
   } catch (err) {
@@ -158,23 +283,15 @@ async function runJob(req: Request) {
   }
 }
 
-// --- (4) Handlers for Vercel Cron ---
+// --- (5) Handlers for Vercel Cron ---
 export async function GET(req: Request) {
-  // Vercel Cron default pakai GET
   return runJob(req);
 }
 
 export async function POST(req: Request) {
-  // Optional kalau mau ditembak manual via POST
   return runJob(req);
 }
 
 export async function HEAD() {
-  // Beberapa platform nge-HEAD dulu; balas 200 biar gak 405
   return new Response(null, { status: 200 });
 }
-
-// Catatan penting:
-// - Set env CRON_SECRET di Vercel → Project → Settings → Environment Variables.
-// - Di Vercel Cron job, nggak perlu kirim query ?secret=...; Vercel otomatis kirim header Authorization.
-// - Kalau mau tetap bisa tembak manual: GET /api/ai/daily-follow-up?secret=YOUR_SECRET.
