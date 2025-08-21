@@ -136,7 +136,7 @@ async function sendFollowUps(): Promise<number> {
         console.log(`Max follow-up level reached for ${senderNumber}, removing from queue`);
         await updateSession(senderNumber, {
           ...session,
-          followUpState: null, // Stop following up
+          followUpState: undefined, // Changed from null to undefined
         });
         continue;
       }
