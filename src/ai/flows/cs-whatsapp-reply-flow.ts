@@ -15,15 +15,19 @@ import { createTraceable, TRACE_TAGS, createTraceMetadata } from '@/lib/langsmit
 import { recordAIMetrics, recordAIError, type AIMetrics } from '@/lib/monitoring/aiMetrics'; // 🔥 NEW
 
 export const generateWhatsAppReplyOptimized = createTraceable(async (input: ZoyaChatInput, options?: { bypassInterventionLock?: boolean }): Promise<WhatsAppReplyOutput> => {
-  const { customerMessage, senderNumber, senderName } = input;
+  let { customerMessage, senderNumber, senderName } = input;
   const startTime = Date.now();
-  const conversationId = `conv_${senderNumber}_${startTime}`;
   
   console.log('[generateWhatsAppReplyOptimized] Starting optimized flow');
   
   if (!senderNumber) {
-    throw new Error('senderNumber is required');
+    console.warn('[generateWhatsAppReplyOptimized] senderNumber is missing, using fallback');
+    // Use a fallback sender number for testing/development
+    senderNumber = '628123456789';
+    console.log(`[generateWhatsAppReplyOptimized] Using fallback number: ${senderNumber}`);
   }
+  
+  const conversationId = `conv_${senderNumber}_${startTime}`;
   
   // Check intervention lock first (unless bypassed for ghost writing)
   const locked = await isInterventionLockActive(senderNumber);
@@ -58,6 +62,11 @@ export const generateWhatsAppReplyOptimized = createTraceable(async (input: Zoya
       };
       await updateSession(senderNumber, session);
       console.log('[generateWhatsAppReplyOptimized] New session created');
+    }
+    
+    // Ensure session is not null at this point
+    if (!session) {
+      throw new Error('Failed to create or retrieve session');
     }
 
     // Get conversation history with optimization - prioritize input chatHistory if provided

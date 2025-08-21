@@ -16,10 +16,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",
-    "types": [
-      "jest",
-      "node"
-    ],
+
     "baseUrl": ".",
     "incremental": true,
     "plugins": [
@@ -36,6 +33,7 @@
   },
   "include": [
     "next-env.d.ts",
+    "types/**/*.d.ts",
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts"
