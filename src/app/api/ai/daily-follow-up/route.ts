@@ -228,7 +228,7 @@ async function sendPromoFollowUps(): Promise<number> {
       const senderNumber = doc.id;
       
       // Skip if recently contacted or in active follow-up
-      if (session.followUpState?.flaggedAt > monthAgo) continue;
+      if (session.followUpState?.flaggedAt && session.followUpState.flaggedAt > monthAgo) continue;
       
       const promoMessage = `Halo ${session.senderName || 'mas'}! 🎉\n\n*PROMO SPESIAL BULAN INI*\nDetailing + Nano Coating cuma *150rb* (normal 200rb)\nTerbatas 20 orang pertama aja!\n\nGimana, mau refresh motornya? Chat balik kalau tertarik ya 🏍️✨`;
       
