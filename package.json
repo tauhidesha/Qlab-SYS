@@ -23,6 +23,7 @@
     "test:gemini:direct-messages": "tsx scripts/test/test-gemini-direct-messages.ts",
     "test:gemini:quick": "tsx scripts/test/test-gemini-quick.ts",
     "test:find-next-slot": "tsx scripts/test/test-find-next-available-slot.ts",
+    "test:studio-info": "tsx scripts/test/test-studio-info.ts",
     "cleanup": "tsx scripts/cleanup-project.ts",
     "migrate:gemini": "tsx scripts/tools/migrate-to-gemini.ts",
     "switch:ai-provider": "tsx scripts/tools/switch-ai-provider.ts",

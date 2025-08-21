@@ -1,20 +1,164 @@
 // @file: src/ai/tools/getStudioInfoTool.ts
+
 import { z } from 'zod';
-import { createTraceable } from '@/lib/langsmith';
 
-const getStudioInfoSchema = z.object({
-  infoType: z.enum(['location', 'hours', 'contact', 'booking_policy', 'all']).describe('Jenis informasi yang diminta: lokasi, jam buka, kontak, kebijakan booking, atau semua'),
+// --- Input Schema ---
+const InputSchema = z.object({
+  infoType: z.enum(['location', 'hours', 'contact', 'booking_policy', 'all']).describe('Jenis informasi yang diminta'),
 });
+export type Input = z.infer<typeof InputSchema>;
 
+// --- Output Type ---
+type Output = {
+  success: boolean;
+  info?: {
+    name: string;
+    address: string;
+    googleMapsUrl: string;
+    coordinates: {
+      lat: number;
+      lng: number;
+    };
+    businessHours: {
+      days: string;
+      hours: string;
+    };
+    contact: {
+      phone: string;
+      whatsapp: string;
+    };
+    bookingPolicy: {
+      deposit: string;
+      cancellation: string;
+      walkIn: string;
+    };
+    directions: {
+      fromTol: string;
+      fromBogor: string;
+      landmarks: string[];
+    };
+  };
+  message?: string;
+};
+
+// --- Implementation ---
+async function implementation(input: Input): Promise<Output> {
+  console.log('[getStudioInfoTool] Requested info type:', input.infoType);
+
+  try {
+    const studioInfo = {
+      name: 'Bosmat Detailing & Repainting Studio',
+      address: 'Jl. Bukit Cengkeh 1 No. B3/2, Cimanggis - Depok, Jawa Barat',
+      googleMapsUrl: 'https://maps.app.goo.gl/do4DBYiMntyV7oqc7',
+      coordinates: {
+        lat: -6.3774,
+        lng: 106.8663
+      },
+      businessHours: {
+        days: 'Senin - Sabtu',
+        hours: '09:00 - 19:00 WIB'
+      },
+      contact: {
+        phone: '0895401527556',
+        whatsapp: '62895401527556'
+      },
+      bookingPolicy: {
+        deposit: 'Rp100.000 (dipotong dari total pembayaran)',
+        cancellation: 'DP hangus jika tidak konfirmasi pembatalan H-1',
+        walkIn: 'Tidak menerima walk-in, wajib booking minimal H-1'
+      },
+      directions: {
+        fromTol: 'Dari tol Cijago, keluar di pintu keluar Cimanggis, lurus ke Bukit Cengkeh 1',
+        fromBogor: 'Dari jalan raya Bogor ke arah Cimanggis, Depok',
+        landmarks: [
+          'Dekat jalan raya Bogor',
+          'Sebelah tol Cijago',
+          'Area Bukit Cengkeh 1'
+        ]
+      }
+    };
+
+    let response: Output = {
+      success: true,
+      info: studioInfo
+    };
+
+    // Customize response based on infoType
+    switch (input.infoType) {
+      case 'location':
+        response.message = `📍 **${studioInfo.name}**
+${studioInfo.address}
+
+🗺️ **Google Maps**: ${studioInfo.googleMapsUrl}
+
+🚗 **Arah dari tol**: ${studioInfo.directions.fromTol}
+🚗 **Arah dari Bogor**: ${studioInfo.directions.fromBogor}
+
+🏢 **Landmark**: ${studioInfo.directions.landmarks.join(', ')}`;
+        break;
+
+      case 'hours':
+        response.message = `🕐 **Jam Operasional**
+${studioInfo.businessHours.days}: ${studioInfo.businessHours.hours}
+
+⚠️ **Penting**: Tidak menerima walk-in, wajib booking minimal H-1`;
+        break;
+
+      case 'contact':
+        response.message = `📞 **Kontak Bosmat**
+📱 WhatsApp: ${studioInfo.contact.whatsapp}
+📞 Telepon: ${studioInfo.contact.phone}
+
+💬 **Booking**: Via WhatsApp dengan DP Rp100.000`;
+        break;
+
+      case 'booking_policy':
+        response.message = `📋 **Kebijakan Booking**
+💵 **DP**: ${studioInfo.bookingPolicy.deposit}
+❌ **Pembatalan**: ${studioInfo.bookingPolicy.cancellation}
+🚫 **Walk-in**: ${studioInfo.bookingPolicy.walkIn}
+
+📅 **Booking**: Minimal H-1 untuk slot yang aman`;
+        break;
+
+      case 'all':
+      default:
+        response.message = `🏢 **${studioInfo.name}**
+
+📍 **Alamat**: ${studioInfo.address}
+🗺️ **Google Maps**: ${studioInfo.googleMapsUrl}
+
+🕐 **Jam Operasional**: ${studioInfo.businessHours.days} ${studioInfo.businessHours.hours}
+
+📞 **Kontak**: 
+- WhatsApp: ${studioInfo.contact.whatsapp}
+- Telepon: ${studioInfo.contact.phone}
+
+💵 **Booking**: DP ${studioInfo.bookingPolicy.deposit}
+
+🚗 **Arah**: ${studioInfo.directions.fromTol}`;
+        break;
+    }
+
+    console.log('[getStudioInfoTool] Successfully provided studio info');
+    return response;
+
+  } catch (error) {
+    console.error('[getStudioInfoTool] Error:', error);
+    return {
+      success: false,
+      message: 'Terjadi kesalahan saat mengambil informasi studio'
+    };
+  }
+}
+
+// --- Export untuk AI Agent ---
 export const getStudioInfoTool = {
-  name: 'getStudioInfo',
-  description: 'Dapatkan informasi lengkap tentang studio Bosmat: alamat, jam buka, kontak, dan kebijakan booking',
-  schema: getStudioInfoSchema,
   toolDefinition: {
     type: 'function' as const,
     function: {
       name: 'getStudioInfo',
-      description: 'Dapatkan informasi lengkap tentang studio Bosmat: alamat, jam buka, kontak, dan kebijakan booking',
+      description: 'Dapatkan informasi lengkap tentang studio Bosmat (lokasi, jam buka, kontak, kebijakan booking)',
       parameters: {
         type: 'object',
         properties: {
@@ -28,128 +172,5 @@ export const getStudioInfoTool = {
       }
     }
   },
-  implementation: createTraceable(async (input: z.infer<typeof getStudioInfoSchema>) => {
-    console.log('[getStudioInfo] Getting studio information:', input.infoType);
-    
-    const studioInfo = {
-      location: {
-        address: "Bukit Cengkeh 1, Jl. Medan No. B3/2, Cimanggis – Depok, Jawa Barat",
-        landmark: "Dekat dari jalan raya Bogor atau tol Cijago",
-        googleMaps: "https://maps.app.goo.gl/do4DBYiMntyV7oqc7",
-        description: "Lokasi Bosmat – Detailing & Repainting Studio"
-      },
-      contact: {
-        phone: "0895-4015-27556",
-        whatsapp: "0895-4015-27556"
-      },
-      hours: {
-        senin: "09.00–17.00",
-        selasa: "09.00–17.00", 
-        rabu: "09.00–17.00",
-        kamis: "09.00–17.00",
-        jumat: "Tutup",
-        sabtu: "09.00–17.00",
-        minggu: "09.00–17.00"
-      },
-      bookingPolicy: {
-        walkIn: false,
-        appointmentRequired: true,
-        description: "Wajib janjian atau booking, no walk-in"
-      }
-    };
-    
-    let response = '';
-    
-    switch (input.infoType) {
-      case 'location':
-        response = `📍 *Lokasi Bosmat Detailing & Repainting Studio:*
-
-${studioInfo.location.address}
-${studioInfo.location.landmark}
-
-Google Maps: ${studioInfo.location.googleMaps}
-
-⚠️ *Penting:* ${studioInfo.bookingPolicy.description}`;
-        break;
-        
-      case 'hours':
-        response = `🕒 *Jam Operasional Bosmat Studio:*
-
-• Senin: ${studioInfo.hours.senin}
-• Selasa: ${studioInfo.hours.selasa}
-• Rabu: ${studioInfo.hours.rabu}
-• Kamis: ${studioInfo.hours.kamis}
-• Jumat: ${studioInfo.hours.jumat}
-• Sabtu: ${studioInfo.hours.sabtu}
-• Minggu: ${studioInfo.hours.minggu}
-
-⚠️ *Penting:* ${studioInfo.bookingPolicy.description}`;
-        break;
-        
-      case 'contact':
-        response = `📞 *Kontak Bosmat Studio:*
-
-Telepon/WhatsApp: ${studioInfo.contact.phone}
-
-📍 Alamat: ${studioInfo.location.address}
-
-⚠️ *Penting:* ${studioInfo.bookingPolicy.description}`;
-        break;
-        
-      case 'booking_policy':
-        response = `📋 *Kebijakan Kunjungan Bosmat Studio:*
-
-⚠️ *${studioInfo.bookingPolicy.description.toUpperCase()}*
-
-Untuk datang ke studio, mas harus:
-• Booking slot dulu via WhatsApp
-• Tentukan tanggal & jam kunjungan
-• Konfirmasi 1 hari sebelumnya
-
-Kontak booking: ${studioInfo.contact.phone}`;
-        break;
-        
-      case 'all':
-      default:
-        response = `🏢 *Info Lengkap Bosmat Detailing & Repainting Studio*
-
-📍 *Alamat:*
-${studioInfo.location.address}
-${studioInfo.location.landmark}
-Google Maps: ${studioInfo.location.googleMaps}
-
-📞 *Kontak:*
-Telepon/WhatsApp: ${studioInfo.contact.phone}
-
-🕒 *Jam Operasional:*
-• Senin-Kamis: ${studioInfo.hours.senin}
-• Jumat: ${studioInfo.hours.jumat}
-• Sabtu-Minggu: ${studioInfo.hours.sabtu}
-
-⚠️ *PENTING - Kebijakan Kunjungan:*
-${studioInfo.bookingPolicy.description.toUpperCase()}
-Wajib booking slot dulu sebelum datang ke studio!`;
-        break;
-    }
-    
-    const result = {
-      success: true,
-      infoType: input.infoType,
-      studioInfo,
-      response,
-      timestamp: new Date().toISOString()
-    };
-    
-    console.log('[getStudioInfo] Studio info retrieved successfully');
-    
-    return {
-      success: true,
-      message: `Info studio ${input.infoType} berhasil diambil`,
-      data: result,
-      response
-    };
-    
-  }, 'getStudioInfo', ['studio-info', 'location', 'contact'])
+  implementation
 };
-
-export default getStudioInfoTool;
