@@ -20,6 +20,8 @@
     "test:gemini": "tsx scripts/test-gemini-integration.ts",
     "test:gemini:simple": "tsx scripts/test-gemini-simple.ts",
     "test:gemini:basic": "tsx scripts/test-gemini-basic.ts",
+    "test:gemini:direct-messages": "tsx scripts/test-gemini-direct-messages.ts",
+    "test:gemini:quick": "tsx scripts/test-gemini-quick.ts",
     "migrate:gemini": "tsx scripts/migrate-to-gemini.ts",
     "switch:ai-provider": "tsx scripts/switch-ai-provider.ts",
     "switch:gemini-model": "tsx scripts/switch-gemini-model.ts",
