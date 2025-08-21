@@ -15,7 +15,13 @@ const InputSchema = z.object({
 export type Input = z.infer<typeof InputSchema>;
 
 // --- Output Type ---
-type Slot = { date: string; time: string; day: string; };
+type Slot = { 
+  date: string; 
+  time: string; 
+  day: string; 
+  note?: string; 
+  overnightWarning?: string;
+};
 type Output = {
   success: boolean;
   requestedDate?: string | null;
@@ -88,11 +94,35 @@ async function implementation(input: Input): Promise<Output> {
           reason,
         };
       } else {
-        const reason = `Untuk repaint, antrian masih tersedia. Bisa langsung booking untuk masuk antrian pengerjaan.`;
+        // Ketika antrian repaint masih tersedia, berikan tanggal spesifik untuk booking
+        const today = new Date();
+        const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+        
+        // Cari hari kerja berikutnya untuk booking
+        let nextWorkingDay = new Date(today);
+        nextWorkingDay.setDate(today.getDate() + 1);
+        
+        // Skip weekend (0 = Minggu, 6 = Sabtu)
+        while (nextWorkingDay.getDay() === 0 || nextWorkingDay.getDay() === 6) {
+          nextWorkingDay.setDate(nextWorkingDay.getDate() + 1);
+        }
+        
+        const d = nextWorkingDay.getDate().toString().padStart(2, '0');
+        const m = (nextWorkingDay.getMonth() + 1).toString().padStart(2, '0');
+        const y = nextWorkingDay.getFullYear();
+        const formattedDate = `${d}-${m}-${y}`;
+
+        const reason = `Untuk repaint, antrian masih tersedia. Bisa langsung booking untuk masuk antrian pengerjaan mulai ${dayNames[nextWorkingDay.getDay()]}, ${formattedDate}.`;
+        
         return {
           success: true,
           requestedDate,
-          availableSlots: [{ date: 'Tersedia', time: 'Antrian', day: 'Repaint' }],
+          availableSlots: [{ 
+            date: formattedDate, 
+            time: '09:00', 
+            day: dayNames[nextWorkingDay.getDay()],
+            note: 'Booking untuk masuk antrian repaint'
+          }],
           reason,
         };
       }
