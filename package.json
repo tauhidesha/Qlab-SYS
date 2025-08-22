@@ -24,6 +24,9 @@
     "test:gemini:quick": "tsx scripts/test/test-gemini-quick.ts",
     "test:find-next-slot": "tsx scripts/test/test-find-next-available-slot.ts",
     "test:studio-info": "tsx scripts/test/test-studio-info.ts",
+    "test:sentiment": "tsx scripts/test/test-sentiment-analysis.ts",
+    "test:booking-management": "tsx scripts/test/test-booking-management.ts",
+    "test:search-internet": "tsx scripts/test/test-search-internet.ts",
     "cleanup": "tsx scripts/cleanup-project.ts",
     "migrate:gemini": "tsx scripts/tools/migrate-to-gemini.ts",
     "switch:ai-provider": "tsx scripts/tools/switch-ai-provider.ts",
@@ -37,6 +40,7 @@
   },
   "dependencies": {
     "@google-ai/generativelanguage": "^3.3.0",
+    "@google-cloud/language": "^7.2.0",
     "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^4.1.3",
     "@langchain/core": "^0.3.66",

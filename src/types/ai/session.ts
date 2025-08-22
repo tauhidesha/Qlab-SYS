@@ -1,3 +1,5 @@
+import { SentimentAnalysisResult, SentimentHistory } from './sentiment';
+
 export interface Session {
   senderNumber: string;
   senderName?: string;
@@ -13,4 +15,11 @@ export interface Session {
     flaggedAt: number;
     context: string;
   };
+  // Sentiment Analysis fields
+  sentimentHistory?: SentimentHistory[];
+  currentSentiment?: SentimentAnalysisResult;
+  totalInteractions?: number;
+  negativeInteractions?: number;
+  escalationCount?: number;
+  lastEscalationAt?: number;
 }

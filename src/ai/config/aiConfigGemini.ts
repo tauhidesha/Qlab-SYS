@@ -20,6 +20,9 @@ import { updateRepaintDetailsTool } from '../tools/updateRepaintDetailsTool';
 import { getStudioInfoTool } from '../tools/getStudioInfoTool';
 import { searchInternetTool } from '../tools/searchInternetTool';
 import { analyzeMotorImageGeminiTool } from '../tools/vision/analyzeMotorImageGemini';
+import { sentimentAnalysisTool } from '../tools/sentimentAnalysisTool';
+import { editBookingTool } from '../tools/editBookingTool';
+import { getCustomerBookingsTool } from '../tools/getCustomerBookingsTool';
 
 import { masterPrompt } from './aiPrompts';
 
@@ -40,6 +43,9 @@ export const zoyaGeminiTools = [
   searchKnowledgeBaseTool.toolDefinition,
   updateRepaintDetailsTool.toolDefinition,
   getStudioInfoTool.toolDefinition,
+  sentimentAnalysisTool.toolDefinition,
+  editBookingTool.toolDefinition,
+  getCustomerBookingsTool.toolDefinition,
   {
     type: 'function',
     function: {
@@ -75,6 +81,9 @@ export const geminiToolFunctionMap: Record<string, Function> = {
   searchKnowledgeBase: searchKnowledgeBaseTool.implementation,
   updateRepaintDetails: updateRepaintDetailsTool.implementation,
   getStudioInfo: getStudioInfoTool.implementation,
+  analyzeSentiment: sentimentAnalysisTool.implementation,
+  editBooking: editBookingTool.implementation,
+  getCustomerBookings: getCustomerBookingsTool.implementation,
   searchInternet: searchInternetTool.implementation,
   analyzeMotorImageGemini: analyzeMotorImageGeminiTool.execute,
 };
