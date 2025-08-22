@@ -76,13 +76,13 @@ export async function POST(request: Request) {
           setTimeout(() => reject(new Error('Image analysis timeout')), 30000)
         );
         
-        const analysisResult = await Promise.race([analysisPromise, timeoutPromise]);
+        const analysisResult = await Promise.race([analysisPromise, timeoutPromise]) as any;
         
         // Log for monitoring
         logImageAnalysis(senderNumber, analysisType, analysisResult, imageUrl);
         
         // Create image context for AI agent
-        if (analysisResult.success) {
+        if (analysisResult?.success) {
           imageContext = {
             imageUrl,
             analysisType,
