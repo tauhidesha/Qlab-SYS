@@ -27,6 +27,7 @@
     "test:sentiment": "tsx scripts/test/test-sentiment-analysis.ts",
     "test:booking-management": "tsx scripts/test/test-booking-management.ts",
     "test:search-internet": "tsx scripts/test/test-search-internet.ts",
+    "test:image-analysis": "tsx scripts/test/test-image-analysis.ts",
     "cleanup": "tsx scripts/cleanup-project.ts",
     "migrate:gemini": "tsx scripts/tools/migrate-to-gemini.ts",
     "switch:ai-provider": "tsx scripts/tools/switch-ai-provider.ts",

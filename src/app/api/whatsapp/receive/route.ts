@@ -39,24 +39,44 @@ export async function POST(request: Request) {
       try {
         console.log('[IMAGE ANALYSIS] Processing image from WhatsApp...');
         console.log('[IMAGE ANALYSIS] Media type:', mediaType, 'MIME type:', mediaMimeType);
+        console.log('[IMAGE ANALYSIS] Base64 length:', mediaBase64.length);
         
-        // Convert base64 to data URL for GPT-4.1 mini
+        // Validate base64 data
+        if (!mediaBase64 || mediaBase64.length < 100) {
+          console.error('[IMAGE ANALYSIS] Invalid base64 data');
+          throw new Error('Invalid image data received');
+        }
+        
+        // Convert base64 to data URL for GPT-4o
         const imageUrl = `data:${mediaMimeType};base64,${mediaBase64}`;
+        console.log('[IMAGE ANALYSIS] Image URL created, length:', imageUrl.length);
         
         // Import image utilities
-        const { detectAnalysisType, logImageAnalysis } = await import('@/ai/utils/imageProcessing');
+        const { detectAnalysisType, logImageAnalysis, validateImageUrl } = await import('@/ai/utils/imageProcessing');
         const { analyzeMotorImageTool } = await import('@/ai/tools/vision/analyzeMotorImage');
         
+        // Validate image URL
+        if (!validateImageUrl(imageUrl)) {
+          throw new Error('Invalid image URL format');
+        }
+        
         // Auto-detect analysis type
-        const analysisType = detectAnalysisType(imageAnalysisRequest.customerMessage);
+        const analysisType = detectAnalysisType(imageAnalysisRequest.customerMessage || '');
         console.log(`[IMAGE ANALYSIS] Detected type: ${analysisType}`);
         
-        // Run image analysis
-        const analysisResult = await analyzeMotorImageTool.implementation({
+        // Run image analysis with timeout
+        const analysisPromise = analyzeMotorImageTool.implementation({
           imageUrl,
           analysisType,
           specificRequest: imageAnalysisRequest.customerMessage
         });
+        
+        // Add 30 second timeout
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Image analysis timeout')), 30000)
+        );
+        
+        const analysisResult = await Promise.race([analysisPromise, timeoutPromise]);
         
         // Log for monitoring
         logImageAnalysis(senderNumber, analysisType, analysisResult, imageUrl);
@@ -73,6 +93,8 @@ export async function POST(request: Request) {
             }
           };
           console.log('[IMAGE ANALYSIS] Analysis successful, added to context');
+        } else {
+          console.error('[IMAGE ANALYSIS] Analysis failed:', analysisResult.message);
         }
         
       } catch (imageError) {

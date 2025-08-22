@@ -116,9 +116,9 @@ ${input.specificRequest ? `Permintaan khusus: ${input.specificRequest}` : ''}
           `;
       }
       
-      // Call GPT-4.1 mini with vision
+      // Call GPT-4o with vision (gpt-4.1-mini doesn't support vision)
       const completion = await openai.chat.completions.create({
-        model: 'gpt-4.1-mini', // Uses vision capabilities
+        model: 'gpt-4o', // Uses vision capabilities
         messages: [
           {
             role: 'system',
@@ -174,9 +174,26 @@ ${input.specificRequest ? `Permintaan khusus: ${input.specificRequest}` : ''}
     } catch (error) {
       console.error('[analyzeMotorImageTool] Error:', error);
       
+      // Provide more specific error messages
+      let errorMessage = 'Maaf, gagal menganalisis gambar. Coba kirim ulang foto yang lebih jelas ya mas.';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Invalid image') || error.message.includes('invalid_image_url')) {
+          errorMessage = 'Format gambar tidak didukung. Coba kirim foto dalam format JPG atau PNG ya mas.';
+        } else if (error.message.includes('rate limit')) {
+          errorMessage = 'Sistem sedang sibuk. Coba lagi dalam beberapa menit ya mas.';
+        } else if (error.message.includes('authentication')) {
+          errorMessage = 'Ada masalah teknis. Silakan hubungi Bos Mamat langsung ya mas.';
+        } else if (error.message.includes('timeout')) {
+          errorMessage = 'Analisis gambar terlalu lama. Coba kirim foto yang lebih kecil atau jelas ya mas.';
+        } else if (error.message.includes('download')) {
+          errorMessage = 'Gagal memproses gambar. Pastikan foto jelas dan tidak blur ya mas.';
+        }
+      }
+      
       return {
         success: false,
-        message: 'Maaf, gagal menganalisis gambar. Coba kirim ulang foto yang lebih jelas ya mas.',
+        message: errorMessage,
         error: error instanceof Error ? error.message : String(error)
       };
     }

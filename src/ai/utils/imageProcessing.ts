@@ -36,60 +36,51 @@ export interface ImageAnalysisResult {
 /**
  * Detects the type of analysis needed based on customer message or image context
  */
-export function detectAnalysisType(customerMessage?: string): 'condition' | 'damage' | 'color' | 'license_plate' | 'detailing' | 'coating' | 'general' {
-  if (!customerMessage) return 'general';
+export function detectAnalysisType(customerMessage: string): 'condition' | 'damage' | 'color' | 'license_plate' | 'detailing' | 'coating' | 'general' {
+  const message = customerMessage.toLowerCase();
   
-  const msg = customerMessage.toLowerCase();
-  
-  // Check for detailing keywords
-  if (msg.includes('detailing') || msg.includes('cuci') || msg.includes('bersih') || 
-      msg.includes('kotor') || msg.includes('debu') || msg.includes('lumpur') ||
-      msg.includes('mesin kotor') || msg.includes('poles')) {
-    return 'detailing';
-  }
-  
-  // Check for coating keywords  
-  if (msg.includes('coating') || msg.includes('glossy') || msg.includes('doff') ||
-      msg.includes('kilap') || msg.includes('proteksi') || msg.includes('anti air') ||
-      msg.includes('ceramic') || msg.includes('wax')) {
-    return 'coating';
-  }
-  
-  // Check for color/repaint keywords
-  if (msg.includes('warna') || msg.includes('cat') || msg.includes('repaint') ||
-      msg.includes('ganti warna') || msg.includes('cat ulang')) {
-    return 'color';
-  }
-  
-  // Check for license plate keywords
-  if (msg.includes('plat') || msg.includes('nomor') || msg.includes('nopol')) {
-    return 'license_plate';
-  }
-  
-  // Check for damage keywords
-  if (msg.includes('rusak') || msg.includes('lecet') || msg.includes('penyok') || 
-      msg.includes('damage') || msg.includes('kerusakan') || msg.includes('biaya') ||
-      msg.includes('gores') || msg.includes('baret')) {
+  // Check for specific keywords
+  if (message.includes('rusak') || message.includes('lecet') || message.includes('penyok') || message.includes('kerusakan')) {
     return 'damage';
   }
   
-  // Check for general condition keywords
-  if (msg.includes('kondisi') || msg.includes('cek') || msg.includes('lihat') || 
-      msg.includes('gimana') || msg.includes('service apa') || msg.includes('butuh apa')) {
+  if (message.includes('warna') || message.includes('cat') || message.includes('repaint') || message.includes('cat ulang')) {
+    return 'color';
+  }
+  
+  if (message.includes('plat') || message.includes('nomor') || message.includes('polisi')) {
+    return 'license_plate';
+  }
+  
+  if (message.includes('detailing') || message.includes('cuci') || message.includes('bersih') || message.includes('kotor')) {
+    return 'detailing';
+  }
+  
+  if (message.includes('coating') || message.includes('proteksi') || message.includes('pelindung')) {
+    return 'coating';
+  }
+  
+  if (message.includes('kondisi') || message.includes('bagaimana') || message.includes('cek')) {
     return 'condition';
   }
   
+  // Default to general analysis
   return 'general';
 }
 
 /**
  * Validates WhatsApp image URL
  */
-export function validateImageUrl(url: string): boolean {
+export function validateImageUrl(imageUrl: string): boolean {
   try {
-    const urlObj = new URL(url);
-    // WhatsApp media URLs typically start with https
-    return urlObj.protocol === 'https:' && url.length > 10;
+    // Check if it's a data URL
+    if (imageUrl.startsWith('data:image/')) {
+      return true;
+    }
+    
+    // Check if it's a valid URL
+    new URL(imageUrl);
+    return true;
   } catch {
     return false;
   }
@@ -154,17 +145,22 @@ export function createImageContext(
  * Log image analysis for monitoring
  */
 export function logImageAnalysis(
-  senderNumber: string,
-  analysisType: string,
-  result: ImageAnalysisResult,
+  senderNumber: string, 
+  analysisType: string, 
+  result: any, 
   imageUrl: string
 ) {
-  console.log('[ImageAnalysis]', {
-    customer: senderNumber,
-    type: analysisType,
+  console.log('[IMAGE ANALYSIS LOG]', {
+    senderNumber,
+    analysisType,
     success: result.success,
-    tokensUsed: result.tokenUsage?.total_tokens || 0,
-    imageUrl: imageUrl.substring(0, 50) + '...',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    imageUrl: imageUrl.substring(0, 50) + '...', // Truncate for logging
+    error: result.error || null
   });
+}
+
+export function sanitizeImageUrl(imageUrl: string): string {
+  // Remove any potential malicious content
+  return imageUrl.replace(/[<>]/g, '');
 }
