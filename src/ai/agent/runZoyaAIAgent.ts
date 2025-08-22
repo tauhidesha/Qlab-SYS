@@ -81,8 +81,8 @@ export const runZoyaAIAgentOptimized = createTraceable(async ({
       : `\n\n**CUSTOMER INFO**: Sedang melayani customer ${senderNumber}`;
     
     // Add image context if available
-    const imageContextText = imageContext 
-      ? `\n\n**IMAGE CONTEXT**: Customer mengirim foto untuk analisis ${imageContext.analysisType}. ${imageContext.analysisResult ? `Hasil analisis: ${JSON.stringify(imageContext.analysisResult)}` : 'Sedang diproses...'}`
+        const imageContextText = imageContext
+      ? `\n\n**IMAGE CONTEXT**: Customer mengirim foto untuk analisis ${imageContext.analysisType}. ${imageContext.analysisResult ? `Hasil analisis: ${imageContext.analysisResult.analysis || imageContext.analysisResult}` : 'Sedang diproses...'}`
       : '';
     
     // Ensure system prompt is current with customer context

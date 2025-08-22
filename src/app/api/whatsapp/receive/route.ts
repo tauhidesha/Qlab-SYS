@@ -152,7 +152,7 @@ export async function POST(request: Request) {
     // 4. Jika semua handler di atas tidak cocok, lanjutkan ke AI Zoya seperti biasa
     const input: ZoyaChatInput = {
       senderNumber,
-      customerMessage: customerMessage || (imageContext ? '[Image sent for analysis]' : ''),
+      customerMessage: customerMessage || (imageContext ? 'Tolong analisa foto motornya' : ''),
       chatHistory: chatHistory || [],
       senderName,
       imageContext, // 🔥 NEW: Pass image analysis context
