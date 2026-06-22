@@ -3,8 +3,10 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Button } from '@/components/ui/button';
-import { Calculator, Sparkles, TrendingDown, Zap } from 'lucide-react';
+import { Calculator, Sparkles, TrendingDown, Zap, Check, ChevronsUpDown } from 'lucide-react';
 
 interface InteractivePricingCalculatorProps {
   onCtaClick: () => void;
@@ -48,6 +50,7 @@ export default function InteractivePricingCalculator({ onCtaClick }: Interactive
   const [selectedMotorId, setSelectedMotorId] = useState<string>('');
   const [selectedColorId, setSelectedColorId] = useState<string>('normal');
   const [selectedServices, setSelectedServices] = useState<string[]>(['Repaint Bodi Halus', 'Full Detailing Glossy']);
+  const [motorComboboxOpen, setMotorComboboxOpen] = useState(false);
 
   useEffect(() => {
     async function fetchPricing() {
@@ -179,30 +182,58 @@ export default function InteractivePricingCalculator({ onCtaClick }: Interactive
                     <label className="block text-sm font-semibold text-gray-900 mb-3">
                       1. Pilih Motor Lo
                     </label>
-                    <Select value={selectedMotorId} onValueChange={setSelectedMotorId}>
-                      <SelectTrigger className="w-full h-12 text-left bg-white border-gray-300">
-                        <SelectValue placeholder="Cari motor lo di sini..." />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white">
-                        {Object.entries(motorsByCategory).map(([category, motors]: [string, any]) => (
-                          <div key={category}>
-                            <div className="px-2 py-1 text-xs font-semibold text-gray-500 bg-gray-100 uppercase">
-                              {category}
-                            </div>
-                            {motors.map((motor: any) => (
-                              <SelectItem key={motor.id} value={motor.id} className="bg-white hover:bg-gray-50">
-                                <div className="flex items-center justify-between w-full">
-                                  <span className="text-gray-900">{motor.modelName}</span>
-                                  <Badge className="ml-2 bg-blue-100 text-blue-700 text-xs">
-                                    Paket {motor.repaintSize}
-                                  </Badge>
-                                </div>
-                              </SelectItem>
+                    <Popover open={motorComboboxOpen} onOpenChange={setMotorComboboxOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={motorComboboxOpen}
+                          className="w-full h-12 justify-between bg-white border-gray-300 font-normal hover:bg-white"
+                        >
+                          {selectedMotorId
+                            ? vehicleModels.find((motor) => motor.id === selectedMotorId)?.modelName
+                            : "Cari motor lo di sini..."}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-white" align="start">
+                        <Command className="bg-white">
+                          <CommandInput placeholder="Ketik nama motor atau merek..." className="border-none focus:ring-0" />
+                          <CommandList className="max-h-[300px]">
+                            <CommandEmpty>Motor tidak ditemukan.</CommandEmpty>
+                            {Object.entries(motorsByCategory).map(([category, motors]: [string, any]) => (
+                              <CommandGroup key={category} heading={category}>
+                                {motors.map((motor: any) => (
+                                  <CommandItem
+                                    key={motor.id}
+                                    value={`${category} ${motor.modelName}`}
+                                    onSelect={() => {
+                                      setSelectedMotorId(motor.id === selectedMotorId ? "" : motor.id)
+                                      setMotorComboboxOpen(false)
+                                    }}
+                                    className="cursor-pointer hover:bg-gray-50 aria-selected:bg-gray-100"
+                                  >
+                                    <div className="flex items-center justify-between w-full">
+                                      <div className="flex items-center gap-2">
+                                        <Check
+                                          className={`h-4 w-4 ${
+                                            selectedMotorId === motor.id ? "opacity-100 text-green-600" : "opacity-0"
+                                          }`}
+                                        />
+                                        <span className="text-gray-900">{motor.modelName}</span>
+                                      </div>
+                                      <Badge className="ml-2 bg-blue-100 text-blue-700 text-xs">
+                                        Paket {motor.repaintSize}
+                                      </Badge>
+                                    </div>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
                             ))}
-                          </div>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                     {selectedMotorId && (
                       <div className="mt-2 p-3 bg-blue-50 rounded-lg">
                         <p className="text-sm text-blue-800">
