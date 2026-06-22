@@ -101,14 +101,16 @@ async function implementation(input: any): Promise<GetPriceResult> {
     });
 
     const hargaLayanan: Service[] = dbServices.map(s => {
-      const variants = s.prices.map(sp => ({
+      const variants = s.prices.filter(sp => sp.size).map(sp => ({
         name: sp.size as 'S'|'M'|'L'|'XL',
         price: sp.price
       }));
+      const basePriceObj = s.prices.find(sp => !sp.size);
+
       return {
         name: s.name,
         category: s.category || '',
-        price: s.basePrice || undefined,
+        price: basePriceObj ? basePriceObj.price : undefined,
         estimatedDuration: s.estimatedDuration?.toString(),
         variants: variants.length > 0 ? variants : undefined
       };
