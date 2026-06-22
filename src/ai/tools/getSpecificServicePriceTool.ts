@@ -96,12 +96,12 @@ async function implementation(input: any): Promise<GetPriceResult> {
 
     const dbServices = await prisma.service.findMany({
       include: {
-        servicePrices: true
+        prices: true
       }
     });
 
     const hargaLayanan: Service[] = dbServices.map(s => {
-      const variants = s.servicePrices.map(sp => ({
+      const variants = s.prices.map(sp => ({
         name: sp.size as 'S'|'M'|'L'|'XL',
         price: sp.price
       }));
