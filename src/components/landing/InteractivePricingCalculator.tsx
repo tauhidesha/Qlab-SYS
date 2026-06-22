@@ -2,157 +2,139 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Calculator, Sparkles, TrendingDown, Zap } from 'lucide-react';
-import promoBundling from '@/data/promoBundling';
-import daftarUkuranMotor from '@/data/daftarUkuranMotor';
-import hargaLayanan from '@/data/hargaLayanan';
 
 interface InteractivePricingCalculatorProps {
   onCtaClick: () => void;
 }
 
-interface PricingOption {
-  size: string;
-  basePrice: number;
-  promoPrice: number;
-  features: string[];
+interface VehicleModel {
+  id: string;
+  brand: string;
+  modelName: string;
+  serviceSize: string;
+  repaintSize: string;
+}
+
+interface ServicePrice {
+  id: string;
+  size: string | null;
+  vehicleModelId: string | null;
+  price: number;
+}
+
+interface Service {
+  id: string;
+  name: string;
+  category: string;
+  usesModelPricing: boolean;
+  prices: ServicePrice[];
+}
+
+interface Surcharge {
+  id: string;
+  name: string;
+  amount: number;
 }
 
 export default function InteractivePricingCalculator({ onCtaClick }: InteractivePricingCalculatorProps) {
-  const [selectedMotor, setSelectedMotor] = useState<string>('');
-  const [selectedColor, setSelectedColor] = useState<string>('normal');
-  const [selectedServices, setSelectedServices] = useState<string[]>(['repaint', 'detailing']);
-  const [animationStep, setAnimationStep] = useState(0);
+  const [vehicleModels, setVehicleModels] = useState<VehicleModel[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [surcharges, setSurcharges] = useState<Surcharge[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Get motor data and group by category
-  const motorData = daftarUkuranMotor as any[];
-  const motorsByCategory = motorData.reduce((acc: any, motor: any) => {
-    if (!motor.model || !motor.repaint_size) return acc;
-    
-    const category = motor.type || 'Lainnya';
+  const [selectedMotorId, setSelectedMotorId] = useState<string>('');
+  const [selectedColorId, setSelectedColorId] = useState<string>('normal');
+  const [selectedServices, setSelectedServices] = useState<string[]>(['Repaint Bodi Halus', 'Full Detailing Glossy']);
+
+  useEffect(() => {
+    async function fetchPricing() {
+      try {
+        const res = await fetch('/api/pricing');
+        const json = await res.json();
+        if (json.success) {
+          setVehicleModels(json.data.vehicleModels);
+          setServices(json.data.services);
+          setSurcharges(json.data.surcharges);
+        }
+      } catch (error) {
+        console.error("Failed to load pricing data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchPricing();
+  }, []);
+
+  const motorsByCategory = vehicleModels.reduce((acc: any, motor) => {
+    const category = motor.brand || 'Lainnya';
     if (!acc[category]) acc[category] = [];
     acc[category].push(motor);
     return acc;
   }, {});
 
-  // Get selected motor info
   const getSelectedMotorInfo = () => {
-    if (!selectedMotor) return null;
-    return motorData.find(motor => motor.model === selectedMotor);
+    return vehicleModels.find(m => m.id === selectedMotorId) || null;
   };
 
-  // Get pricing based on motor size
-  const getPricingForSize = (size: string) => {
-    return promoBundling.find(item => item.repaintSize === size) || promoBundling[1];
+  const getServicePrice = (serviceName: string, motor: VehicleModel | null): number => {
+    if (!motor) return 0;
+    const service = services.find(s => s.name === serviceName);
+    if (!service) return 0;
+
+    if (service.usesModelPricing) {
+      const sp = service.prices.find(p => p.vehicleModelId === motor.id);
+      return sp ? sp.price : 0;
+    } else {
+      // Find by size. Assuming repaint services use repaintSize and others use serviceSize
+      const sizeToUse = service.category === 'repaint' ? motor.repaintSize : motor.serviceSize;
+      const sp = service.prices.find(p => p.size === sizeToUse);
+      return sp ? sp.price : 0;
+    }
   };
 
-  const colorOptions = [
-    { value: 'normal', label: 'Warna Normal', surcharge: 0 },
-    { value: 'candy', label: 'Candy Color', surcharge: 0, badge: 'GRATIS!' },
-    { value: 'moonlight', label: 'Moonlight Pearl', surcharge: 0, badge: 'GRATIS!' },
-    { value: 'xyrallic', label: 'Xyrallic Metallic', surcharge: 0, badge: 'GRATIS!' },
-    { value: 'bunglon', label: 'Cat Bunglon', surcharge: 450000 },
-  ];
-
-  const serviceOptions = [
-    { value: 'repaint', label: 'Repaint Bodi Halus', included: true },
-    { value: 'detailing', label: 'Full Detailing', included: true },
-    { 
-      value: 'repaint_velg', 
-      label: 'Repaint Velg', 
-      getSizePrice: (size: string) => {
-        const repaintVelgData = hargaLayanan.find(h => h.name === "Repaint Velg");
-        const variant = repaintVelgData?.variants?.find(v => v.name === size);
-        return variant ? variant.price : 350000;
-      }
-    },
-    { 
-      value: 'repaint_kasar', 
-      label: 'Repaint Bodi Kasar', 
-      getSizePrice: (size: string) => {
-        const repaintKasarData = hargaLayanan.find(h => h.name === "Repaint Bodi Kasar");
-        const variant = repaintKasarData?.variants?.find(v => v.name === size);
-        return variant ? variant.price : 300000;
-      }
-    },
-    { 
-      value: 'repaint_arm', 
-      label: 'Repaint Cover CVT / Arm', 
-      price: 150000
-    },
-    { 
-      value: 'ceramic_coating', 
-      label: 'Ceramic Coating Glossy', 
-      getSizePrice: (size: string) => {
-        // Harga ceramic coating = complete service - full detailing
-        const completeServiceData = hargaLayanan.find(h => h.name === "Complete Service Glossy");
-        const fullDetailingData = hargaLayanan.find(h => h.name === "Full Detailing Glossy");
-        
-        const completeServiceVariant = completeServiceData?.variants?.find(v => v.name === size);
-        const fullDetailingVariant = fullDetailingData?.variants?.find(v => v.name === size);
-        
-        const completeServicePrice = completeServiceVariant ? completeServiceVariant.price : 750000;
-        const fullDetailingPrice = fullDetailingVariant ? fullDetailingVariant.price : 450000;
-        
-        return completeServicePrice - fullDetailingPrice;
-      }
-    },
-  ];
-
-  // Animation sequence
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setAnimationStep(prev => (prev + 1) % 4);
-    }, 3000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const getCurrentOption = () => {
-    const motorInfo = getSelectedMotorInfo();
-    if (!motorInfo) return promoBundling[1]; // Default to M
-    return getPricingForSize(motorInfo.repaint_size);
+  const getSurchargeAmount = (colorId: string) => {
+    if (colorId === 'normal') return 0;
+    const surcharge = surcharges.find(s => s.id === colorId);
+    return surcharge ? surcharge.amount : 0;
   };
 
   const calculateTotal = () => {
-    const baseOption = getCurrentOption();
-    const motorInfo = getSelectedMotorInfo();
-    const motorSize = motorInfo?.repaint_size || 'M';
-    
-    const colorSurcharge = colorOptions.find(c => c.value === selectedColor)?.surcharge || 0;
-    const additionalServices = selectedServices
-      .filter(service => service !== 'repaint' && service !== 'detailing')
-      .reduce((total, service) => {
-        const serviceOption = serviceOptions.find(s => s.value === service);
-        if (serviceOption?.getSizePrice) {
-          return total + serviceOption.getSizePrice(motorSize);
-        }
-        const servicePrice = serviceOption?.price || 0;
-        return total + servicePrice;
-      }, 0);
+    const motor = getSelectedMotorInfo();
+    if (!motor) return 0;
 
-    return {
-      basePrice: baseOption.promoPrice + colorSurcharge + additionalServices,
-      originalPrice: baseOption.normalPriceWithMaxSurcharge + colorSurcharge + additionalServices,
-      savings: (baseOption.normalPriceWithMaxSurcharge + colorSurcharge + additionalServices) - (baseOption.promoPrice + colorSurcharge + additionalServices)
-    };
+    const colorSurcharge = getSurchargeAmount(selectedColorId);
+    const servicesTotal = selectedServices.reduce((total, serviceName) => {
+      return total + getServicePrice(serviceName, motor);
+    }, 0);
+
+    return servicesTotal + colorSurcharge;
   };
 
-  const toggleService = (service: string) => {
-    // Can't remove services that are included
-    const serviceOption = serviceOptions.find(s => s.value === service);
-    if (serviceOption?.included) return;
+  const toggleService = (serviceName: string) => {
+    // Prevent unchecking the default base service (Repaint Bodi Halus) if it's the core package
+    if (serviceName === 'Repaint Bodi Halus') return;
     
     setSelectedServices(prev => 
-      prev.includes(service) 
-        ? prev.filter(s => s !== service)
-        : [...prev, service]
+      prev.includes(serviceName) 
+        ? prev.filter(s => s !== serviceName)
+        : [...prev, serviceName]
     );
   };
 
-  const totals = calculateTotal();
+  const availableServicesList = [
+    { name: 'Repaint Bodi Halus', label: 'Repaint Bodi Halus', included: true },
+    { name: 'Full Detailing Glossy', label: 'Full Detailing', included: false },
+    { name: 'Repaint Velg', label: 'Repaint Velg', included: false },
+    { name: 'Repaint Bodi Kasar', label: 'Repaint Bodi Kasar', included: false },
+    { name: 'Repaint Cover CVT', label: 'Repaint Cover CVT', included: false },
+    { name: 'Repaint Arm', label: 'Repaint Arm', included: false },
+    { name: 'Coating Motor Glossy', label: 'Ceramic Coating Glossy', included: false },
+  ];
+
+  const totalEstimasi = calculateTotal();
 
   return (
     <section className="py-16 bg-gradient-to-br from-gray-50 via-white to-blue-50">
@@ -169,255 +151,226 @@ export default function InteractivePricingCalculator({ onCtaClick }: Interactive
           </h2>
           <p className="text-lg text-gray-600 max-w-3xl mx-auto">
             Pilih motor, warna impian, dan service tambahan. 
-            Lihat estimasi harga langsung dengan promo yang berlaku!
+            Lihat estimasi harga langsung!
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-8">
-          
-          {/* Calculator Panel */}
-          <div className="lg:col-span-2">
-            <Card className="shadow-xl border border-blue-200 bg-white">
-              <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-lg">
-                <CardTitle className="flex items-center gap-2">
-                  <Sparkles className="w-5 h-5" />
-                  Kustomisasi Paket Lo
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6 space-y-6 bg-white">
-                
-                {/* Motor Selection */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-3">
-                    1. Pilih Motor Lo
-                  </label>
-                  <Select value={selectedMotor} onValueChange={setSelectedMotor}>
-                    <SelectTrigger className="w-full h-12 text-left bg-white border-gray-300">
-                      <SelectValue placeholder="Cari motor lo di sini..." />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white">
-                      {Object.entries(motorsByCategory).map(([category, motors]: [string, any]) => (
-                        <div key={category}>
-                          <div className="px-2 py-1 text-xs font-semibold text-gray-500 bg-gray-100">
-                            {category}
-                          </div>
-                          {motors.map((motor: any) => (
-                            <SelectItem key={motor.model} value={motor.model} className="bg-white hover:bg-gray-50">
-                              <div className="flex items-center justify-between w-full">
-                                <span className="text-gray-900">{motor.model}</span>
-                                <Badge className="ml-2 bg-blue-100 text-blue-700 text-xs">
-                                  Paket {motor.repaint_size}
-                                </Badge>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </div>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {selectedMotor && (
-                    <div className="mt-2 p-3 bg-blue-50 rounded-lg">
-                      <p className="text-sm text-blue-800">
-                        ✅ Motor: <strong>{selectedMotor}</strong> - Paket {getSelectedMotorInfo()?.repaint_size}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Color Selection */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-3">
-                    2. Pilih Warna Impian
-                  </label>
-                  <Select value={selectedColor} onValueChange={setSelectedColor}>
-                    <SelectTrigger className="w-full h-12 text-left bg-white border-gray-300">
-                      <SelectValue placeholder="Pilih warna cat" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white">
-                      {colorOptions.map((color) => (
-                        <SelectItem key={color.value} value={color.value} className="bg-white hover:bg-gray-50">
-                          <div className="flex items-center justify-between w-full">
-                            <span className="text-gray-900">{color.label}</span>
-                            {color.badge && (
-                              <Badge className="ml-2 bg-green-500 text-white text-xs">
-                                {color.badge}
-                              </Badge>
-                            )}
-                            {color.surcharge > 0 && (
-                              <span className="ml-2 text-sm text-orange-600">
-                                +Rp {color.surcharge.toLocaleString('id-ID')}
-                              </span>
-                            )}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Additional Services */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-3">
-                    3. Pilihan Service Repaint & Tambahan (Opsional)
-                  </label>
-                  <div className="space-y-3">
-                    {serviceOptions.map((service) => (
-                      <div
-                        key={service.value}
-                        className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all duration-300 bg-white ${
-                          selectedServices.includes(service.value)
-                            ? 'border-green-500 bg-green-50'
-                            : 'border-gray-200 hover:border-green-300'
-                        } ${service.included ? 'opacity-100' : 'cursor-pointer'}`}
-                        onClick={() => !service.included && toggleService(service.value)}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                            selectedServices.includes(service.value)
-                              ? 'border-green-500 bg-green-500 text-white'
-                              : 'border-gray-300'
-                          }`}>
-                            {selectedServices.includes(service.value) && '✓'}
-                          </div>
-                          <span className="font-medium text-gray-900">
-                            {service.label}
-                          </span>
-                          {service.included && (
-                            <Badge className="bg-blue-500 text-white text-xs">INCLUDED</Badge>
-                          )}
-                        </div>
-                        {service.getSizePrice && (
-                          <span className="font-semibold text-gray-700">
-                            +Rp {service.getSizePrice(getSelectedMotorInfo()?.repaint_size || 'M').toLocaleString('id-ID')}
-                          </span>
-                        )}
-                        {service.price && (
-                          <span className="font-semibold text-gray-700">
-                            +Rp {service.price.toLocaleString('id-ID')}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+        {isLoading ? (
+          <div className="text-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-500 font-medium">Memuat data harga real-time...</p>
           </div>
-
-          {/* Price Summary */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-8">
-              <Card className={`shadow-xl transition-all duration-500 bg-white border border-gray-200 ${
-                animationStep === 0 ? 'transform scale-105 shadow-2xl' : ''
-              }`}>
-                <CardHeader className="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-t-lg">
+        ) : (
+          <div className="grid lg:grid-cols-3 gap-8">
+            
+            {/* Calculator Panel */}
+            <div className="lg:col-span-2">
+              <Card className="shadow-xl border border-blue-200 bg-white">
+                <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-lg">
                   <CardTitle className="flex items-center gap-2">
-                    <TrendingDown className="w-5 h-5" />
-                    Estimasi Biaya
+                    <Sparkles className="w-5 h-5" />
+                    Kustomisasi Paket Lo
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="p-6 bg-white">
+                <CardContent className="p-6 space-y-6 bg-white">
                   
-                  {/* Selected Package */}
-                  {selectedMotor && (
-                    <div className="mb-6">
-                      <h4 className="font-semibold text-gray-900 mb-2">Motor Dipilih:</h4>
-                      <div className="bg-blue-50 rounded-lg p-3">
-                        <p className="font-bold text-blue-900">{selectedMotor}</p>
-                        <p className="text-sm text-blue-700">
-                          Paket {getSelectedMotorInfo()?.repaint_size} • Full Repaint + Detailing
+                  {/* Motor Selection */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-3">
+                      1. Pilih Motor Lo
+                    </label>
+                    <Select value={selectedMotorId} onValueChange={setSelectedMotorId}>
+                      <SelectTrigger className="w-full h-12 text-left bg-white border-gray-300">
+                        <SelectValue placeholder="Cari motor lo di sini..." />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white">
+                        {Object.entries(motorsByCategory).map(([category, motors]: [string, any]) => (
+                          <div key={category}>
+                            <div className="px-2 py-1 text-xs font-semibold text-gray-500 bg-gray-100 uppercase">
+                              {category}
+                            </div>
+                            {motors.map((motor: any) => (
+                              <SelectItem key={motor.id} value={motor.id} className="bg-white hover:bg-gray-50">
+                                <div className="flex items-center justify-between w-full">
+                                  <span className="text-gray-900">{motor.modelName}</span>
+                                  <Badge className="ml-2 bg-blue-100 text-blue-700 text-xs">
+                                    Paket {motor.repaintSize}
+                                  </Badge>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </div>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {selectedMotorId && (
+                      <div className="mt-2 p-3 bg-blue-50 rounded-lg">
+                        <p className="text-sm text-blue-800">
+                          ✅ Motor: <strong>{getSelectedMotorInfo()?.modelName}</strong> - Paket {getSelectedMotorInfo()?.repaintSize}
                         </p>
                       </div>
-                    </div>
-                  )}
-
-                  {selectedMotor ? (
-                    <>
-                      {/* Price Breakdown */}
-                      <div className="space-y-3 mb-6">
-                        <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                          <span className="text-gray-600">Harga Normal:</span>
-                          <span className="text-gray-500 line-through">
-                            Rp {totals.originalPrice.toLocaleString('id-ID')}
-                          </span>
-                        </div>
-                        
-                        <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                          <span className="text-gray-600">Harga Promo:</span>
-                          <span className="font-bold text-green-600 text-lg">
-                            Rp {totals.basePrice.toLocaleString('id-ID')}
-                          </span>
-                        </div>
-                        
-                        <div className="flex justify-between items-center py-2">
-                          <span className="text-green-700 font-semibold">Hemat:</span>
-                          <span className="font-bold text-green-600">
-                            Rp {totals.savings.toLocaleString('id-ID')}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Savings Badge */}
-                      <div className="bg-gradient-to-r from-yellow-100 to-orange-100 border-2 border-yellow-300 rounded-xl p-4 mb-6">
-                        <div className="text-center">
-                          <div className="text-2xl mb-2">🎉</div>
-                          <p className="font-bold text-orange-800">
-                            Total Hemat
-                          </p>
-                          <p className="text-2xl font-bold text-orange-600">
-                            Rp {totals.savings.toLocaleString('id-ID')}
-                          </p>
-                          <p className="text-xs text-orange-700 mt-1">
-                            vs harga normal bengkel lain
-                          </p>
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-center py-8">
-                      <div className="text-4xl mb-4">🏍️</div>
-                      <p className="text-gray-500">Pilih motor lo dulu untuk lihat estimasi harga</p>
-                    </div>
-                  )}
-
-                  {/* CTA Buttons */}
-                  <div className="space-y-3">
-                    <Button 
-                      onClick={onCtaClick}
-                      disabled={!selectedMotor}
-                      className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Zap className="w-5 h-5 mr-2" />
-                      {selectedMotor ? 'Booking Sekarang!' : 'Pilih Motor Dulu'}
-                    </Button>
-                    
-                    <Button 
-                      variant="outline"
-                      onClick={onCtaClick}
-                      className="w-full border-2 border-blue-500 text-blue-600 hover:bg-blue-50 font-semibold py-3 rounded-xl bg-white"
-                    >
-                      Konsultasi Gratis Dulu
-                    </Button>
+                    )}
                   </div>
 
-                  {/* Trust Indicators */}
-                  <div className="mt-6 pt-4 border-t border-gray-100">
-                    <div className="grid grid-cols-2 gap-3 text-center">
-                      <div>
-                        <div className="text-lg font-bold text-green-600">30</div>
-                        <div className="text-xs text-gray-600">Hari Garansi</div>
-                      </div>
-                      <div>
-                        <div className="text-lg font-bold text-blue-600">7-14</div>
-                        <div className="text-xs text-gray-600">Hari Kerja</div>
-                      </div>
+                  {/* Color Selection */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-3">
+                      2. Pilih Warna Impian
+                    </label>
+                    <Select value={selectedColorId} onValueChange={setSelectedColorId}>
+                      <SelectTrigger className="w-full h-12 text-left bg-white border-gray-300">
+                        <SelectValue placeholder="Pilih warna cat" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white">
+                        <SelectItem value="normal" className="bg-white hover:bg-gray-50">
+                          <div className="flex items-center justify-between w-full">
+                            <span className="text-gray-900">Warna Normal / Solid / Metallic</span>
+                          </div>
+                        </SelectItem>
+                        {surcharges.map((surcharge) => (
+                          <SelectItem key={surcharge.id} value={surcharge.id} className="bg-white hover:bg-gray-50">
+                            <div className="flex items-center justify-between w-full">
+                              <span className="text-gray-900">{surcharge.name}</span>
+                              <span className="ml-2 text-sm text-orange-600">
+                                +Rp {surcharge.amount.toLocaleString('id-ID')}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Additional Services */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-3">
+                      3. Pilihan Service Repaint & Tambahan (Opsional)
+                    </label>
+                    <div className="space-y-3">
+                      {availableServicesList.map((service) => {
+                        const price = getServicePrice(service.name, getSelectedMotorInfo());
+                        // Only show services that exist in the database with a valid price
+                        if (price === 0 && selectedMotorId) return null;
+
+                        const isSelected = selectedServices.includes(service.name);
+
+                        return (
+                          <div
+                            key={service.name}
+                            className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all duration-300 bg-white ${
+                              isSelected
+                                ? 'border-green-500 bg-green-50'
+                                : 'border-gray-200 hover:border-green-300'
+                            } ${service.included ? 'opacity-100 cursor-not-allowed' : 'cursor-pointer'}`}
+                            onClick={() => toggleService(service.name)}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                                isSelected
+                                  ? 'border-green-500 bg-green-500 text-white'
+                                  : 'border-gray-300'
+                              }`}>
+                                {isSelected && '✓'}
+                              </div>
+                              <span className="font-medium text-gray-900">
+                                {service.label}
+                              </span>
+                              {service.included && (
+                                <Badge className="bg-blue-500 text-white text-xs">WAJIB</Badge>
+                              )}
+                            </div>
+                            <span className="font-semibold text-gray-700">
+                              {price > 0 ? `+Rp ${price.toLocaleString('id-ID')}` : '-'}
+                            </span>
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
+
+            {/* Price Summary */}
+            <div className="lg:col-span-1">
+              <div className="sticky top-8">
+                <Card className="shadow-xl transition-all duration-500 bg-white border border-gray-200">
+                  <CardHeader className="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-t-lg">
+                    <CardTitle className="flex items-center gap-2">
+                      <TrendingDown className="w-5 h-5" />
+                      Estimasi Biaya
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-6 bg-white">
+                    
+                    {/* Selected Package */}
+                    {selectedMotorId && (
+                      <div className="mb-6">
+                        <h4 className="font-semibold text-gray-900 mb-2">Motor Dipilih:</h4>
+                        <div className="bg-blue-50 rounded-lg p-3">
+                          <p className="font-bold text-blue-900">{getSelectedMotorInfo()?.modelName}</p>
+                          <p className="text-sm text-blue-700">
+                            Paket {getSelectedMotorInfo()?.repaintSize}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedMotorId ? (
+                      <>
+                        <div className="flex flex-col items-center py-6 mb-6 border-y border-gray-100">
+                          <span className="text-gray-600 mb-2">Total Estimasi Biaya</span>
+                          <span className="font-bold text-green-600 text-3xl text-center">
+                            Rp {totalEstimasi.toLocaleString('id-ID')}
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-center py-8">
+                        <div className="text-4xl mb-4">🏍️</div>
+                        <p className="text-gray-500">Pilih motor lo dulu untuk lihat estimasi harga</p>
+                      </div>
+                    )}
+
+                    {/* CTA Buttons */}
+                    <div className="space-y-3">
+                      <Button 
+                        onClick={onCtaClick}
+                        disabled={!selectedMotorId}
+                        className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Zap className="w-5 h-5 mr-2" />
+                        {selectedMotorId ? 'Booking Sekarang!' : 'Pilih Motor Dulu'}
+                      </Button>
+                      
+                      <Button 
+                        variant="outline"
+                        onClick={onCtaClick}
+                        className="w-full border-2 border-blue-500 text-blue-600 hover:bg-blue-50 font-semibold py-3 rounded-xl bg-white"
+                      >
+                        Konsultasi Gratis Dulu
+                      </Button>
+                    </div>
+
+                    {/* Trust Indicators */}
+                    <div className="mt-6 pt-4 border-t border-gray-100">
+                      <div className="grid grid-cols-2 gap-3 text-center">
+                        <div>
+                          <div className="text-lg font-bold text-green-600">30</div>
+                          <div className="text-xs text-gray-600">Hari Garansi</div>
+                        </div>
+                        <div>
+                          <div className="text-lg font-bold text-blue-600">7-14</div>
+                          <div className="text-xs text-gray-600">Hari Kerja</div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Bottom CTA */}
         <div className="text-center mt-12">

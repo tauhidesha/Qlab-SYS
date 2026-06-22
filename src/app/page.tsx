@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Slider from 'react-slick';
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
-import promoBundling from '../data/promoBundling';
+
 import { event as trackEvent } from '@/lib/fpixel';
 import * as gtag from '@/lib/gtag';
 import Link from 'next/link';
@@ -535,58 +535,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Visual Promo Bundling */}
-      <section className="py-12 bg-gradient-to-br from-yellow-50 to-orange-50">
-        <div className="max-w-6xl mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-2">🔥 Promo Bundling</h2>
-          <p className="text-center text-gray-600 mb-8">Hemat hingga Rp 300,000 dengan paket bundling!</p>
-          
-          <div className="grid md:grid-cols-2 gap-6">
-            {promoBundling.map((item, index) => (
-              <div key={index} className="bg-white rounded-2xl p-6 shadow-xl border-2 border-yellow-200 hover:shadow-2xl transition-all">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-1">
-                      Paket {item.repaintSize}
-                    </h3>
-                    <p className="text-sm text-gray-600">Repaint + Detailing</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-bold text-green-600">
-                      Rp {item.promoPrice.toLocaleString('id-ID')}
-                    </p>
-                    <p className="text-sm text-gray-500 line-through">
-                      Rp {item.normalPriceWithMaxSurcharge.toLocaleString('id-ID')}
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
-                  <p className="text-green-700 text-sm font-medium">
-                    🎨 Cat spesial GRATIS (kecuali bunglon)
-                  </p>
-                </div>
-                
-                <div className="bg-yellow-100 border border-yellow-200 rounded-lg p-3 text-center">
-                  <p className="text-yellow-800 font-bold">
-                    ✨ Hemat Rp {item.savingsWithMaxSurcharge.toLocaleString('id-ID')}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-          
-          <div className="text-center mt-8">
-            <p className="text-sm text-gray-600 mb-4">💳 Cicilan tersedia • 🚚 Pickup service gratis • 🛡️ Garansi 30 hari</p>
-            <button
-              onClick={handleWhatsAppClick}
-              className="bg-green-600 text-white px-8 py-4 rounded-full font-bold text-lg shadow-lg hover:bg-green-700 transition-all hover:scale-105"
-            >
-              Ambil Promo Sekarang
-            </button>
-          </div>
-        </div>
-      </section>
+
 
       {/* Quick FAQ */}
       <section className="py-12 bg-white">
