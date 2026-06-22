@@ -1,21 +1,31 @@
-// Fungsi resolveMotorSizes untuk cartAgent
-import daftarUkuranMotor from '../../src/data/daftarUkuranMotor';
+import { prisma } from '@/lib/prisma';
 
 export type MotorSizeLiteral = 'L' | 'S' | 'M' | 'XL';
 
-function toMotorSizeLiteral(val: string | undefined): MotorSizeLiteral {
+function toMotorSizeLiteral(val: string | undefined | null): MotorSizeLiteral {
   if (val === 'L' || val === 'S' || val === 'M' || val === 'XL') return val;
   return 'L';
 }
 
-export function resolveMotorSizes(motorName: string): { motor_db_size: MotorSizeLiteral, repaint_size: MotorSizeLiteral } {
-  const found = daftarUkuranMotor.find(m => m.model?.toLowerCase() === motorName?.toLowerCase() || (m.aliases && m.aliases.some((a: string) => a.toLowerCase() === motorName?.toLowerCase())));
+export async function resolveMotorSizes(motorName: string): Promise<{ motor_db_size: MotorSizeLiteral, repaint_size: MotorSizeLiteral }> {
+  if (!motorName) {
+    return {
+      motor_db_size: 'L',
+      repaint_size: 'L'
+    };
+  }
+
+  const models = await prisma.vehicleModel.findMany();
+  const found = models.find(m => 
+    m.modelName?.toLowerCase() === motorName.toLowerCase() || 
+    (m.aliases && (m.aliases as string[]).some((a: string) => a.toLowerCase() === motorName.toLowerCase()))
+  );
+  
   return {
-    motor_db_size: toMotorSizeLiteral(found?.service_size),
-    repaint_size: toMotorSizeLiteral(found?.repaint_size),
+    motor_db_size: toMotorSizeLiteral(found?.serviceSize),
+    repaint_size: toMotorSizeLiteral(found?.repaintSize),
   };
 }
-// @file: src/lib/math.ts
 
 export function cosineSimilarity(vecA: number[], vecB: number[]): number {
   if (vecA.length !== vecB.length) throw new Error('Vector length mismatch');
