@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Calculator, Sparkles, TrendingDown, Zap, Check, ChevronsUpDown } from 'lucide-react';
 
 interface InteractivePricingCalculatorProps {
-  onCtaClick: () => void;
+  onCtaClick: (promoCode?: string) => void;
 }
 
 interface VehicleModel {
@@ -49,7 +49,7 @@ export default function InteractivePricingCalculator({ onCtaClick }: Interactive
 
   const [selectedMotorId, setSelectedMotorId] = useState<string>('');
   const [selectedColorId, setSelectedColorId] = useState<string>('normal');
-  const [selectedServices, setSelectedServices] = useState<string[]>(['Repaint Bodi Halus', 'Full Detailing Glossy']);
+  const [selectedServices, setSelectedServices] = useState<string[]>(['Repaint Bodi Halus Ekonomis', 'Full Detailing Glossy']);
   const [motorComboboxOpen, setMotorComboboxOpen] = useState(false);
 
   useEffect(() => {
@@ -104,31 +104,46 @@ export default function InteractivePricingCalculator({ onCtaClick }: Interactive
     return surcharge ? surcharge.amount : 0;
   };
 
+  const isPromoFreeUpgrade = selectedServices.includes('Repaint Bodi Halus Ekonomis') && selectedServices.length >= 2;
+  const isPromoCashback = selectedServices.includes('Repaint Bodi Halus Basic') && selectedServices.length === 1;
+
   const calculateTotal = () => {
     const motor = getSelectedMotorInfo();
     if (!motor) return 0;
 
     const colorSurcharge = getSurchargeAmount(selectedColorId);
-    const servicesTotal = selectedServices.reduce((total, serviceName) => {
+    let servicesTotal = selectedServices.reduce((total, serviceName) => {
       return total + getServicePrice(serviceName, motor);
     }, 0);
+
+    if (isPromoCashback) {
+      servicesTotal -= 75000;
+    }
 
     return servicesTotal + colorSurcharge;
   };
 
   const toggleService = (serviceName: string) => {
-    // Prevent unchecking the default base service (Repaint Bodi Halus) if it's the core package
-    if (serviceName === 'Repaint Bodi Halus') return;
-    
-    setSelectedServices(prev => 
-      prev.includes(serviceName) 
-        ? prev.filter(s => s !== serviceName)
-        : [...prev, serviceName]
-    );
+    setSelectedServices(prev => {
+      let next = [...prev];
+      if (serviceName === 'Repaint Bodi Halus Ekonomis' && next.includes('Repaint Bodi Halus Basic')) {
+        next = next.filter(s => s !== 'Repaint Bodi Halus Basic');
+      }
+      if (serviceName === 'Repaint Bodi Halus Basic' && next.includes('Repaint Bodi Halus Ekonomis')) {
+        next = next.filter(s => s !== 'Repaint Bodi Halus Ekonomis');
+      }
+      
+      if (next.includes(serviceName)) {
+        return next.filter(s => s !== serviceName);
+      } else {
+        return [...next, serviceName];
+      }
+    });
   };
 
   const availableServicesList = [
-    { name: 'Repaint Bodi Halus', label: 'Repaint Bodi Halus', included: true },
+    { name: 'Repaint Bodi Halus Ekonomis', label: 'Repaint Bodi Halus (Paket Ekonomis)', included: false },
+    { name: 'Repaint Bodi Halus Basic', label: 'Repaint Bodi Halus (Paket Basic)', included: false },
     { name: 'Full Detailing Glossy', label: 'Full Detailing', included: false },
     { name: 'Repaint Velg', label: 'Repaint Velg', included: false },
     { name: 'Repaint Bodi Kasar', label: 'Repaint Bodi Kasar', included: false },
@@ -351,10 +366,40 @@ export default function InteractivePricingCalculator({ onCtaClick }: Interactive
                       <>
                         <div className="flex flex-col items-center py-6 mb-6 border-y border-gray-100">
                           <span className="text-gray-600 mb-2">Total Estimasi Biaya</span>
+                          {isPromoCashback && (
+                            <span className="text-gray-400 line-through text-lg">
+                              Rp {(totalEstimasi + 75000).toLocaleString('id-ID')}
+                            </span>
+                          )}
                           <span className="font-bold text-green-600 text-3xl text-center">
                             Rp {totalEstimasi.toLocaleString('id-ID')}
                           </span>
                         </div>
+                        
+                        {/* Promo Alerts */}
+                        {isPromoFreeUpgrade && (
+                          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg animate-in fade-in zoom-in">
+                            <div className="flex gap-3">
+                              <span className="text-2xl">✨</span>
+                              <div>
+                                <h5 className="font-bold text-green-800">Selamat! Free Upgrade</h5>
+                                <p className="text-sm text-green-700">Kamu otomatis di-upgrade ke <strong>Paket Basic</strong> (Cat & Clear Coat Lebih Baik) tanpa tambahan biaya!</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {isPromoCashback && (
+                          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg animate-in fade-in zoom-in">
+                            <div className="flex gap-3">
+                              <span className="text-2xl">💸</span>
+                              <div>
+                                <h5 className="font-bold text-blue-800">Cashback Rp 75.000</h5>
+                                <p className="text-sm text-blue-700">Kamu berhak mendapat Cashback Langsung Rp 75.000 untuk paket ini!</p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </>
                     ) : (
                       <div className="text-center py-8">
@@ -366,7 +411,7 @@ export default function InteractivePricingCalculator({ onCtaClick }: Interactive
                     {/* CTA Buttons */}
                     <div className="space-y-3">
                       <Button 
-                        onClick={onCtaClick}
+                        onClick={() => onCtaClick(isPromoFreeUpgrade ? 'FREE_UPGRADE' : isPromoCashback ? 'CASHBACK' : undefined)}
                         disabled={!selectedMotorId}
                         className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
@@ -376,7 +421,7 @@ export default function InteractivePricingCalculator({ onCtaClick }: Interactive
                       
                       <Button 
                         variant="outline"
-                        onClick={onCtaClick}
+                        onClick={() => onCtaClick(isPromoFreeUpgrade ? 'FREE_UPGRADE' : isPromoCashback ? 'CASHBACK' : undefined)}
                         className="w-full border-2 border-blue-500 text-blue-600 hover:bg-blue-50 font-semibold py-3 rounded-xl bg-white"
                       >
                         Konsultasi Gratis Dulu
@@ -414,7 +459,7 @@ export default function InteractivePricingCalculator({ onCtaClick }: Interactive
               Gak ada biaya hidden, semua transparan!
             </p>
             <Button 
-              onClick={onCtaClick}
+              onClick={() => onCtaClick(isPromoFreeUpgrade ? 'FREE_UPGRADE' : isPromoCashback ? 'CASHBACK' : undefined)}
               className="bg-white text-purple-600 px-8 py-4 rounded-full font-bold text-lg shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300"
             >
               Chat untuk Konfirmasi Harga 💬

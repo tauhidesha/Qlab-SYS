@@ -82,19 +82,22 @@ export default function Home() {
       setPromoSlots(dynamicSlots);
     }, 60000); // Update every minute
 
-    // Countdown timer for urgency
+    // Countdown timer to end of current month
     const countdownTimer = setInterval(() => {
       const now = new Date();
-      const tomorrow = new Date(now);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(0, 0, 0, 0);
+      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
       
-      const timeDiff = tomorrow.getTime() - now.getTime();
-      const hours = Math.floor(timeDiff / (1000 * 60 * 60));
+      const timeDiff = endOfMonth.getTime() - now.getTime();
+      if (timeDiff <= 0) {
+        setTimeLeft('00 Hari 00:00:00');
+        return;
+      }
+      const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
       const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
       const seconds = Math.floor((timeDiff % (1000 * 60)) / 1000);
       
-      setTimeLeft(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+      setTimeLeft(`${days.toString().padStart(2, '0')} Hari ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
     }, 1000);
 
     // Social proof notifications
@@ -125,7 +128,7 @@ export default function Home() {
     });
   };
 
-  const handleWhatsAppClick = () => {
+  const handleWhatsAppClick = (promoCode?: string | React.MouseEvent) => {
     // Facebook Pixel tracking
     trackEvent('Contact', {
       content_name: 'Enhanced Landing Page CTA',
@@ -138,7 +141,15 @@ export default function Home() {
       event_label: 'enhanced_landing_page',
     });
     
-    const message = "Halo Bosmat! Saya tertarik dengan layanan repaint motor. Bisa konsultasi gratis?";
+    let message = "Halo Bosmat! Saya tertarik dengan layanan repaint motor. Bisa konsultasi gratis?";
+    if (typeof promoCode === 'string') {
+      if (promoCode === 'FREE_UPGRADE') {
+        message = "Halo Bosmat! Saya mau klaim promo Free Upgrade ke Paket Basic (Repaint + layanan lain). Bisa konsultasi?";
+      } else if (promoCode === 'CASHBACK') {
+        message = "Halo Bosmat! Saya mau klaim promo Cashback 75rb untuk Paket Basic. Bisa konsultasi?";
+      }
+    }
+    
     const whatsappUrl = `https://api.whatsapp.com/send?phone=62895401527556&text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
   };
@@ -182,14 +193,14 @@ export default function Home() {
             {/* Left: Headlines & CTA */}
             <div className="text-center lg:text-left">
               <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4 leading-tight">
-                Motor Kusam Jadi{' '}
+                Motor Kusam Bikin Malu?{' '}
                 <span className="bg-gradient-to-r from-yellow-500 to-orange-500 bg-clip-text text-transparent">
-                  GANTENG MAKSIMAL
+                  UPGRADE PENAMPILAN SEKARANG
                 </span>
               </h1>
               
               <p className="text-xl text-gray-600 mb-6 leading-relaxed">
-                Repaint + Detailing Premium dalam 7 hari. 
+                Repaint premium kualitas pabrik, bikin motormu jadi pusat perhatian lagi tanpa harus menguras dompet. 
                 <span className="font-semibold text-gray-800"> Garansi 30 hari!</span>
               </p>
 
@@ -225,6 +236,50 @@ export default function Home() {
                 />
                 <div className="absolute -top-4 -right-4 bg-yellow-400 text-gray-900 px-4 py-2 rounded-full font-bold text-sm shadow-lg">
                   ⭐ 500+ Motor
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Promo Banner Section */}
+      <section className="py-12 bg-gradient-to-r from-yellow-400 to-orange-500">
+        <div className="max-w-4xl mx-auto px-4 text-center">
+          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 sm:p-10 border border-white/20 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 bg-red-600 text-white font-bold px-4 py-1 rounded-bl-lg text-sm animate-pulse">
+              PROMO SPESIAL JULI
+            </div>
+            
+            <h2 className="text-3xl font-extrabold text-white mb-2 drop-shadow-md">
+              Jangan Lewatkan Kesempatan Ini!
+            </h2>
+            <p className="text-yellow-100 mb-8 text-lg font-medium">
+              Waktu tersisa: <span className="font-mono bg-black/30 px-3 py-1 rounded-lg tracking-wider">{timeLeft}</span>
+            </p>
+            
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Promo 1 */}
+              <div className="bg-white rounded-xl p-6 text-left shadow-lg transform transition hover:scale-105 border-2 border-transparent hover:border-white">
+                <div className="text-3xl mb-3">🎁</div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">FREE UPGRADE Paket Basic</h3>
+                <p className="text-gray-600 text-sm mb-3">
+                  Pilih Repaint Bodi Halus (Ekonomis) + min 1 Layanan Tambahan (misal: Detailing). Kamu otomatis di-upgrade ke Paket Basic!
+                </p>
+                <div className="text-xs font-bold text-green-600 bg-green-50 inline-block px-2 py-1 rounded">
+                  Benefit: Cat & Clear Coat Jauh Lebih Awet!
+                </div>
+              </div>
+              
+              {/* Promo 2 */}
+              <div className="bg-white rounded-xl p-6 text-left shadow-lg transform transition hover:scale-105 border-2 border-transparent hover:border-white">
+                <div className="text-3xl mb-3">💸</div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">CASHBACK Rp 75.000</h3>
+                <p className="text-gray-600 text-sm mb-3">
+                  Pesan khusus Repaint Bodi Halus Paket Basic (tanpa tambahan layanan lain) dan dapatkan potongan langsung di tagihanmu.
+                </p>
+                <div className="text-xs font-bold text-blue-600 bg-blue-50 inline-block px-2 py-1 rounded">
+                  Benefit: Langsung Potong Harga!
                 </div>
               </div>
             </div>
