@@ -205,10 +205,17 @@ export default function InteractivePricingCalculator({ onCtaClick }: Interactive
                           aria-expanded={motorComboboxOpen}
                           className="w-full h-12 justify-between bg-white border-gray-300 font-normal hover:bg-white"
                         >
-                          {selectedMotorId
-                            ? vehicleModels.find((motor) => motor.id === selectedMotorId)?.modelName
-                            : "Cari motor lo di sini..."}
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          {selectedMotorId ? (
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-900 font-medium">{getSelectedMotorInfo()?.modelName}</span>
+                              <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">
+                                Paket {getSelectedMotorInfo()?.repaintSize}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-500">Cari motor lo di sini...</span>
+                          )}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-gray-500" />
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-[--radix-popover-trigger-width] p-0 bg-white" align="start">
@@ -249,13 +256,6 @@ export default function InteractivePricingCalculator({ onCtaClick }: Interactive
                         </Command>
                       </PopoverContent>
                     </Popover>
-                    {selectedMotorId && (
-                      <div className="mt-2 p-3 bg-blue-50 rounded-lg">
-                        <p className="text-sm text-blue-800">
-                          ✅ Motor: <strong>{getSelectedMotorInfo()?.modelName}</strong> - Paket {getSelectedMotorInfo()?.repaintSize}
-                        </p>
-                      </div>
-                    )}
                   </div>
 
                   {/* Color Selection */}
