@@ -28,8 +28,8 @@ export default function Home() {
         title: "Honda Vario"
       },
       {
-        before: "/images/hasil/nmax-before-1.webp", // NMAX before - kondisi kusam
-        after: "/images/hasil/nmax-after-1.webp",   // NMAX after - hasil repaint
+        before: "/images/hasil/nmax-before-2.webp", // NMAX before - kondisi kusam
+        after: "/images/hasil/nmax-after-2.webp",   // NMAX after - hasil repaint
         title: "Yamaha NMAX"
       },
       {
@@ -534,7 +534,7 @@ export default function Home() {
       {/* Testimonials with Photos */}
       <section className="py-12 bg-white">
         <div className="max-w-6xl mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-8">💬 Kata Mereka</h2>
+          <h2 className="text-3xl font-bold text-gray-900 text-center mb-8">💬 Kata Mereka</h2>
           
           <div className="grid md:grid-cols-3 gap-6">
             {[
@@ -595,7 +595,7 @@ export default function Home() {
       {/* Quick FAQ */}
       <section className="py-12 bg-white">
         <div className="max-w-4xl mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-8">🤔 Pertanyaan Sering Ditanya</h2>
+          <h2 className="text-3xl font-bold text-gray-900 text-center mb-8">🤔 Pertanyaan Sering Ditanya</h2>
           
           <div className="grid md:grid-cols-2 gap-6">
             {[
@@ -616,7 +616,7 @@ export default function Home() {
       {/* Simple Gallery Grid */}
       <section className="py-12 bg-gray-50">
         <div className="max-w-6xl mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-8">📸 Portfolio Hasil Kerja</h2>
+          <h2 className="text-3xl font-bold text-gray-900 text-center mb-8">📸 Portfolio Hasil Kerja</h2>
           
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {photos.portfolio.map((photo, i) => (
@@ -647,7 +647,7 @@ export default function Home() {
       {/* Location with Visual */}
       <section className="py-12 bg-white">
         <div className="max-w-6xl mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center mb-8">📍 Lokasi Workshop</h2>
+          <h2 className="text-3xl font-bold text-gray-900 text-center mb-8">📍 Lokasi Workshop</h2>
           
           <div className="grid lg:grid-cols-2 gap-8 items-center">
             <div className="aspect-video rounded-xl overflow-hidden shadow-lg">
@@ -672,15 +672,15 @@ export default function Home() {
               <div className="space-y-2">
                 <div className="flex items-center gap-3">
                   <span className="text-green-600">🕒</span>
-                  <span>Senin - Sabtu: 08:00 - 18:00</span>
+                  <span className="text-gray-700">Senin - Sabtu: 08:00 - 18:00</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-green-600">📱</span>
-                  <span>WhatsApp: 0895-4015-27556</span>
+                  <span className="text-gray-700">WhatsApp: 0895-4015-27556</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-green-600">🚚</span>
-                  <span>Pickup Service tersedia</span>
+                  <span className="text-gray-700">Pickup Service tersedia</span>
                 </div>
               </div>
               
