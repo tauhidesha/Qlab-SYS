@@ -49,7 +49,7 @@ export default function InteractivePricingCalculator({ onCtaClick }: Interactive
 
   const [selectedMotorId, setSelectedMotorId] = useState<string>('');
   const [selectedColorId, setSelectedColorId] = useState<string>('normal');
-  const [selectedServices, setSelectedServices] = useState<string[]>(['Repaint Bodi Halus Ekonomis', 'Full Detailing Glossy']);
+  const [selectedServices, setSelectedServices] = useState<string[]>(['Repaint Bodi Halus - Paket Ekonomis', 'Full Detailing Glossy']);
   const [motorComboboxOpen, setMotorComboboxOpen] = useState(false);
 
   useEffect(() => {
@@ -104,8 +104,8 @@ export default function InteractivePricingCalculator({ onCtaClick }: Interactive
     return surcharge ? surcharge.amount : 0;
   };
 
-  const isPromoFreeUpgrade = selectedServices.includes('Repaint Bodi Halus Ekonomis') && selectedServices.length >= 2;
-  const isPromoCashback = selectedServices.includes('Repaint Bodi Halus Basic') && selectedServices.length === 1;
+  const isPromoFreeUpgrade = selectedServices.includes('Repaint Bodi Halus - Paket Ekonomis') && selectedServices.length >= 2;
+  const isPromoCashback = selectedServices.includes('Repaint Bodi Halus - Paket Basic') && selectedServices.length === 1;
 
   const calculateTotal = () => {
     const motor = getSelectedMotorInfo();
@@ -126,11 +126,11 @@ export default function InteractivePricingCalculator({ onCtaClick }: Interactive
   const toggleService = (serviceName: string) => {
     setSelectedServices(prev => {
       let next = [...prev];
-      if (serviceName === 'Repaint Bodi Halus Ekonomis' && next.includes('Repaint Bodi Halus Basic')) {
-        next = next.filter(s => s !== 'Repaint Bodi Halus Basic');
+      if (serviceName === 'Repaint Bodi Halus - Paket Ekonomis' && next.includes('Repaint Bodi Halus - Paket Basic')) {
+        next = next.filter(s => s !== 'Repaint Bodi Halus - Paket Basic');
       }
-      if (serviceName === 'Repaint Bodi Halus Basic' && next.includes('Repaint Bodi Halus Ekonomis')) {
-        next = next.filter(s => s !== 'Repaint Bodi Halus Ekonomis');
+      if (serviceName === 'Repaint Bodi Halus - Paket Basic' && next.includes('Repaint Bodi Halus - Paket Ekonomis')) {
+        next = next.filter(s => s !== 'Repaint Bodi Halus - Paket Ekonomis');
       }
       
       if (next.includes(serviceName)) {
@@ -142,8 +142,8 @@ export default function InteractivePricingCalculator({ onCtaClick }: Interactive
   };
 
   const availableServicesList = [
-    { name: 'Repaint Bodi Halus Ekonomis', label: 'Repaint Bodi Halus (Paket Ekonomis)', included: false },
-    { name: 'Repaint Bodi Halus Basic', label: 'Repaint Bodi Halus (Paket Basic)', included: false },
+    { name: 'Repaint Bodi Halus - Paket Ekonomis', label: 'Repaint Bodi Halus (Paket Ekonomis)', included: false },
+    { name: 'Repaint Bodi Halus - Paket Basic', label: 'Repaint Bodi Halus (Paket Basic)', included: false },
     { name: 'Full Detailing Glossy', label: 'Full Detailing', included: false },
     { name: 'Repaint Velg', label: 'Repaint Velg', included: false },
     { name: 'Repaint Bodi Kasar', label: 'Repaint Bodi Kasar', included: false },
