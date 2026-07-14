@@ -133,6 +133,8 @@ export default function Home() {
     trackEvent('Contact', {
       content_name: 'Enhanced Landing Page CTA',
       content_category: 'WhatsApp',
+      currency: 'IDR',
+      value: 30000,
     });
     
     // Google Analytics tracking
