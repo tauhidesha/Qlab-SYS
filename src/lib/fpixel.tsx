@@ -17,7 +17,11 @@ export const pageview = () => {
 };
 
 export const event = (name: string, options = {}) => {
-  if (typeof window.fbq === 'function') {
+  console.log(`[Pixel] Attempting to track event: ${name}`, options);
+  if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
+    console.log(`[Pixel] Firing fbq track for ${name}`);
     window.fbq('track', name, options);
+  } else {
+    console.warn(`[Pixel] window.fbq is not a function!`);
   }
 };
