@@ -9,7 +9,7 @@ import 'slick-carousel/slick/slick-theme.css'
 import { FB_PIXEL_ID } from '@/lib/fpixel' // <-- 1. IMPORT ID DARI FILE PUSAT
 import { GA_TRACKING_ID } from '@/lib/gtag' // <-- Import Google Analytics ID
 import GoogleAnalytics from '@/components/GoogleAnalytics'
-// import PixelEvents from '@/components/PixelEvents' // <-- 3. IMPORT KOMPONEN EVENT
+import PixelEvents from '@/components/PixelEvents'
 import { Suspense } from 'react'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { Analytics } from '@vercel/analytics/next'
@@ -99,6 +99,9 @@ export default function RootLayout({
         </noscript>
                 
         <AuthProvider>
+          <Suspense fallback={null}>
+            <PixelEvents />
+          </Suspense>
           <GoogleAnalytics />
           {children}
         </AuthProvider>
