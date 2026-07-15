@@ -129,13 +129,23 @@ export default function Home() {
   };
 
   const handleWhatsAppClick = (promoCode?: string | React.MouseEvent) => {
-    // Facebook Pixel tracking
+    // Facebook Pixel tracking (Client Side - might be blocked by Adblock or Facebook Permission issue)
     trackEvent('Contact', {
       content_name: 'Enhanced Landing Page CTA',
       content_category: 'WhatsApp',
       currency: 'IDR',
       value: 30000,
     });
+    
+    // Facebook Conversions API (Server Side - bypassing browser blocks)
+    fetch('/api/track-wa', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        value: 30000,
+        testCode: 'TEST32632' // Test code explicitly added based on user request
+      })
+    }).catch(e => console.error('CAPI Track WA failed:', e));
     
     // Google Analytics tracking
     gtag.event('contact_whatsapp', {
