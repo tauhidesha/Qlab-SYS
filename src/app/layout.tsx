@@ -88,16 +88,8 @@ export default function RootLayout({
           }}
         />
         
-        {/* Facebook Pixel Noscript */}
-        <noscript>
-          <img
-            height="1"
-            width="1"
-            style={{ display: 'none' }}
-            src={`https://www.facebook.com/tr?id=${FB_PIXEL_ID}&ev=PageView&noscript=1`}
-          />
-        </noscript>
-                
+        {/* Facebook Pixel Noscript removed to prevent React Hydration Errors caused by Adblockers modifying the DOM */}
+        
         <AuthProvider>
           <Suspense fallback={null}>
             <PixelEvents />
