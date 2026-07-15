@@ -142,8 +142,7 @@ export default function Home() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
-        value: 30000,
-        testCode: 'TEST32632' // Test code explicitly added based on user request
+        value: 30000
       })
     }).catch(e => console.error('CAPI Track WA failed:', e));
     
